@@ -1,0 +1,45 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Node
+node_modules/
+dist/
+.npm
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+*.local
+
+# Docker
+docker/mysql/
+docker/redis/
+docker/minio/
+
+# Build
+*.class
+*.jar
+*.war
+
+# Temp
+*.tmp
+*.bak
+*.swp
