@@ -28,6 +28,8 @@ export interface UserPageVO {
   deptName: string
   postName: string
   statusDesc: string
+  userType: number
+  userTypeDesc: string
   createTime: string
   lastLoginTime: string
 }

@@ -4,16 +4,17 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.common.util.JwtUtil;
 import com.cloudhub.platform.user.domain.entity.OperLog;
 import com.cloudhub.platform.user.service.OperLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Tag(name = "操作日志", description = "操作日志查询/清理")
 @RequiredArgsConstructor
@@ -33,7 +34,9 @@ public class OperLogController {
             @RequestParam(required = false) Integer businessType,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String startTime,
-            @RequestParam(required = false) String endTime
+            @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) Long tenantId,
+            HttpServletRequest request
     ) {
         QueryWrapper<OperLog> query = new QueryWrapper<>();
         if (title != null && !title.isBlank()) {
@@ -50,6 +53,20 @@ public class OperLogController {
         }
         if (startTime != null && endTime != null) {
             query.between("oper_time", startTime, endTime);
+        }
+        // 租户过滤：如果传了tenantId则使用，否则从token自动获取
+        if (tenantId != null) {
+            query.eq("tenant_id", tenantId);
+        } else {
+            try {
+                String auth = request.getHeader("Authorization");
+                if (auth != null && auth.startsWith("Bearer ")) {
+                    Long tid = JwtUtil.getTenantId(auth.substring(7));
+                    if (tid != null && tid > 0) {
+                        query.eq("tenant_id", tid);
+                    }
+                }
+            } catch (Exception ignored) {}
         }
         query.orderByDesc("oper_time");
 

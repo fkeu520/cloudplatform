@@ -91,6 +91,8 @@ public class LogAspect {
                 }
                 String username = JwtUtil.getUsername(token);
                 operLog.setOperName(username);
+                Long tenantId = JwtUtil.getTenantId(token);
+                operLog.setTenantId(tenantId != null ? tenantId : 0L);
             } catch (Exception ex) {
                 log.warn("获取用户信息失败", ex);
             }

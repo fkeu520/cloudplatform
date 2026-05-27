@@ -15,19 +15,18 @@
         <template v-for="item in menuList" :key="item.path || item.id">
           <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.path">
             <template #title>
-              <el-icon v-if="item.iconName"><component :is="item.iconComponent || item.iconName" /></el-icon>
-              <i v-else-if="item.iconName" :class="item.iconName" />
+              <i v-if="item.iconClass" :class="item.iconClass" style="margin-right:6px;width:16px;text-align:center" />
               <span>{{ item.name }}</span>
             </template>
             <template v-for="child in item.children" :key="child.path || child.id">
               <el-menu-item :index="child.path">
-                <el-icon v-if="child.iconName"><component :is="child.iconComponent || child.iconName" /></el-icon>
+                <i v-if="child.iconClass" :class="child.iconClass" style="margin-right:6px;width:16px;text-align:center" />
                 <span>{{ child.name }}</span>
               </el-menu-item>
             </template>
           </el-sub-menu>
           <el-menu-item v-else :index="item.path">
-            <el-icon v-if="item.iconName"><component :is="item.iconComponent || item.iconName" /></el-icon>
+            <i v-if="item.iconClass" :class="item.iconClass" style="margin-right:6px;width:16px;text-align:center" />
             <span>{{ item.name }}</span>
           </el-menu-item>
         </template>
@@ -115,7 +114,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { DataAnalysis, Setting, Grid, OfficeBuilding, Notebook, Files, User, UserFilled, List, Folder, Collection, Edit, Monitor, Document, Bell, ArrowRight } from '@element-plus/icons-vue'
+import '@fortawesome/fontawesome-free/css/all.min.css'
+import { Bell, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElNotification } from 'element-plus'
 import { getUserMenus, getUserPermissions } from '@/api/menu'
 import { getUnreadNotifies, markNotifyRead, markAllNotifyRead } from '@/api/workflow'
@@ -137,11 +137,28 @@ const notifyPopoverRef = ref()
 let prevCount = 0
 let pollTimer: any = null
 
-const iconMap: Record<string, any> = {
-  DataAnalysis, Setting, Grid, OfficeBuilding, Notebook, Files,
-  FileText: Document, Collection, Edit, Monitor,
-  Building: Folder, Folder, User, UserFilled, List,
-  Role: UserFilled, Menu: List
+const faIconMap: Record<string, string> = {
+  DataAnalysis: 'fas fa-chart-bar',
+  Setting: 'fas fa-cog',
+  Grid: 'fas fa-th-large',
+  OfficeBuilding: 'fas fa-building',
+  Notebook: 'fas fa-book',
+  Files: 'fas fa-file',
+  FileText: 'fas fa-file-alt',
+  Collection: 'fas fa-folder-open',
+  Edit: 'fas fa-tasks',
+  Monitor: 'fas fa-eye',
+  Building: 'fas fa-city',
+  Folder: 'fas fa-folder',
+  User: 'fas fa-users',
+  UserFilled: 'fas fa-user',
+  List: 'fas fa-list',
+  Role: 'fas fa-user-tag',
+  Menu: 'fas fa-bars',
+  Bell: 'fas fa-bell',
+  Avatar: 'fas fa-avatar',
+  Connection: 'fas fa-plug',
+  Document: 'fas fa-file-alt'
 }
 
 async function pollNotifies() {
@@ -240,9 +257,11 @@ const loadMenus = async () => {
 
 const processMenus = (menus: any[]): any[] => {
   return menus.map(item => {
-    item.iconName = item.icon || ''
-    if (item.icon && iconMap[item.icon]) item.iconComponent = iconMap[item.icon]
-    else item.iconComponent = null
+    if (item.icon) {
+      item.iconClass = item.icon.startsWith('fa') ? item.icon : (faIconMap[item.icon] || '')
+    } else {
+      item.iconClass = ''
+    }
     delete item.icon
     if (item.children && item.children.length > 0) item.children = processMenus(item.children)
     return item

@@ -18,115 +18,115 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/Index.vue'),
-        meta: { title: '数据看板', icon: 'DataAnalysis' }
+        meta: { title: '数据看板', icon: 'fas fa-chart-bar' }
       },
       {
         path: 'system/user',
         name: 'UserMgmt',
         component: () => import('@/views/system/user/Index.vue'),
-        meta: { title: '用户管理', icon: 'User', parent: 'system' }
+        meta: { title: '用户管理', icon: 'fas fa-users', parent: 'system' }
       },
       {
         path: 'system/role',
         name: 'RoleMgmt',
         component: () => import('@/views/system/role/Index.vue'),
-        meta: { title: '角色管理', icon: 'Avatar', parent: 'system' }
+        meta: { title: '角色管理', icon: 'fas fa-user-tag', parent: 'system' }
       },
       {
         path: 'system/menu',
         name: 'MenuMgmt',
         component: () => import('@/views/system/menu/Index.vue'),
-        meta: { title: '菜单管理', icon: 'Menu', parent: 'system' }
+        meta: { title: '菜单管理', icon: 'fas fa-bars', parent: 'system' }
       },
       {
         path: 'system/org',
         name: 'OrgMgmt',
         component: () => import('@/views/system/org/Index.vue'),
-        meta: { title: '组织管理', icon: 'OfficeBuilding', parent: 'system' }
+        meta: { title: '组织管理', icon: 'fas fa-building', parent: 'system' }
       },
       {
         path: 'system/dept',
         name: 'DeptMgmt',
         component: () => import('@/views/system/dept/Index.vue'),
-        meta: { title: '部门管理', icon: 'Building', parent: 'system' }
+        meta: { title: '部门管理', icon: 'fas fa-city', parent: 'system' }
       },
       {
         path: 'system/post',
         name: 'PostMgmt',
         component: () => import('@/views/system/post/Index.vue'),
-        meta: { title: '岗位管理', icon: 'User', parent: 'system' }
+        meta: { title: '岗位管理', icon: 'fas fa-address-card', parent: 'system' }
       },
       {
         path: 'system/dict',
         name: 'DictMgmt',
         component: () => import('@/views/system/dict/Index.vue'),
-        meta: { title: '字典管理', icon: 'Notebook', parent: 'system' }
+        meta: { title: '字典管理', icon: 'fas fa-book', parent: 'system' }
       },
       {
         path: 'system/config',
         name: 'ConfigMgmt',
         component: () => import('@/views/system/config/Index.vue'),
-        meta: { title: '参数配置', icon: 'Setting', parent: 'system' }
+        meta: { title: '参数配置', icon: 'fas fa-cog', parent: 'system' }
       },
       {
         path: 'system/log',
         name: 'OperLog',
         component: () => import('@/views/system/log/Index.vue'),
-        meta: { title: '操作日志', icon: 'FileText', parent: 'system' }
+        meta: { title: '操作日志', icon: 'fas fa-file-alt', parent: 'system' }
       },
       {
         path: 'workflow/definition',
         name: 'WorkflowDefinition',
         component: () => import('@/views/workflow/Definition.vue'),
-        meta: { title: '流程定义', icon: 'Collection', parent: 'workflow' }
+        meta: { title: '流程定义', icon: 'fas fa-folder-open', parent: 'workflow' }
       },
       {
         path: 'workflow/task',
         name: 'WorkflowTask',
         component: () => import('@/views/workflow/TaskTodo.vue'),
-        meta: { title: '我的待办', icon: 'Edit', parent: 'workflow' }
+        meta: { title: '我的待办', icon: 'fas fa-tasks', parent: 'workflow' }
       },
       {
         path: 'workflow/monitor',
         name: 'WorkflowMonitor',
         component: () => import('@/views/workflow/Monitor.vue'),
-        meta: { title: '流程监控', icon: 'Monitor', parent: 'workflow' }
+        meta: { title: '流程监控', icon: 'fas fa-eye', parent: 'workflow' }
       },
       {
         path: 'workflow/leave',
         name: 'WorkflowLeave',
         component: () => import('@/views/workflow/Leave.vue'),
-        meta: { title: '请假申请', icon: 'Edit', parent: 'workflow' }
+        meta: { title: '请假申请', icon: 'fas fa-paper-plane', parent: 'workflow' }
       },
       {
         path: 'message/list',
         name: 'MessageList',
         component: () => import('@/views/message/List.vue'),
-        meta: { title: '消息列表', icon: 'Bell' }
+        meta: { title: '消息列表', icon: 'fas fa-bell' }
       },
       {
         path: 'message/detail/:id',
         name: 'MessageDetail',
         component: () => import('@/views/message/Detail.vue'),
-        meta: { title: '消息详情' }
+        meta: { title: '消息详情', icon: 'fas fa-info-circle' }
       },
       {
         path: 'message/channel',
         name: 'MessageChannel',
         component: () => import('@/views/message/Channel.vue'),
-        meta: { title: '渠道配置', icon: 'Setting' }
+        meta: { title: '渠道配置', icon: 'fas fa-wrench' }
       },
       {
         path: 'message/template',
         name: 'MessageTemplate',
         component: () => import('@/views/message/Template.vue'),
-        meta: { title: '短信模板', icon: 'Notebook' }
+        meta: { title: '短信模板', icon: 'fas fa-sms' }
       },
       {
         path: 'message/record',
         name: 'MessageRecord',
         component: () => import('@/views/message/Record.vue'),
-        meta: { title: '消息记录', icon: 'List' }
+        meta: { title: '消息记录', icon: 'fas fa-list' }
       }
     ]
   }

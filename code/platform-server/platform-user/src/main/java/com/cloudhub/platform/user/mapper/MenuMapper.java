@@ -26,4 +26,10 @@ public interface MenuMapper extends BaseMapper<Menu> {
             "WHERE rm.role_id = #{roleId} AND m.deleted = 0 AND m.status = 1 " +
             "ORDER BY m.sort ASC")
     List<Menu> selectByRoleId(@Param("roleId") Long roleId);
+
+    @Select("SELECT m.* FROM sys_menu m " +
+            "INNER JOIN sys_user_menu um ON m.id = um.menu_id " +
+            "WHERE um.user_id = #{userId} AND m.deleted = 0 AND m.status = 1 " +
+            "ORDER BY m.sort ASC")
+    List<Menu> selectEnabledByUserMenuIds(@Param("userId") Long userId);
 }

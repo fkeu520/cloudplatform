@@ -31,8 +31,33 @@ public class JwtUtil {
      * @return JWT Token
      */
     public static String generate(String subject, long expireSec) {
+        return generate(subject, null, expireSec);
+    }
+
+    /**
+     * 生成 Token（含扩展信息）
+     *
+     * @param subject   用户ID
+     * @param username  用户名（可选）
+     * @param expireSec 过期秒数
+     * @return JWT Token
+     */
+    public static String generate(String subject, String username, long expireSec) {
+        return generate(subject, username, null, expireSec);
+    }
+
+    /**
+     * 生成 Token（含用户名、租户ID）
+     */
+    public static String generate(String subject, String username, Long tenantId, long expireSec) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", subject);
+        if (username != null) {
+            claims.put("username", username);
+        }
+        if (tenantId != null) {
+            claims.put("tenantId", tenantId);
+        }
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
@@ -40,6 +65,18 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + expireSec * 1000))
                 .signWith(KEY)
                 .compact();
+    }
+
+    /**
+     * 从 Token 获取租户ID
+     */
+    public static Long getTenantId(String token) {
+        try {
+            if (token == null || token.isBlank()) return null;
+            return parse(token).get("tenantId", Long.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

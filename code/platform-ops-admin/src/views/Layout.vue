@@ -15,27 +15,31 @@
           router
         >
           <el-menu-item index="/tenant">
-            <el-icon><UserFilled /></el-icon>
+            <i class="fas fa-building" style="margin-right:6px;width:16px;text-align:center" />
             <span>租户管理</span>
           </el-menu-item>
           <el-menu-item index="/storage">
-            <el-icon><FolderOpened /></el-icon>
+            <i class="fas fa-database" style="margin-right:6px;width:16px;text-align:center" />
             <span>对象存储</span>
           </el-menu-item>
           <el-menu-item index="/gateway">
-            <el-icon><Connection /></el-icon>
+            <i class="fas fa-plug" style="margin-right:6px;width:16px;text-align:center" />
             <span>服务网关</span>
           </el-menu-item>
           <el-menu-item index="/audit">
-            <el-icon><List /></el-icon>
+            <i class="fas fa-clipboard-list" style="margin-right:6px;width:16px;text-align:center" />
             <span>日志审计</span>
           </el-menu-item>
+          <el-menu-item index="/ops-user">
+            <i class="fas fa-users-cog" style="margin-right:6px;width:16px;text-align:center" />
+            <span>用户管理</span>
+          </el-menu-item>
           <el-menu-item index="/message/record">
-            <el-icon><Bell /></el-icon>
+            <i class="fas fa-bell" style="margin-right:6px;width:16px;text-align:center" />
             <span>消息记录</span>
           </el-menu-item>
           <el-menu-item index="/kafka" @click="openKafkaUI">
-            <el-icon><Message /></el-icon>
+            <i class="fas fa-envelope" style="margin-right:6px;width:16px;text-align:center" />
             <span>消息队列</span>
           </el-menu-item>
         </el-menu>
@@ -48,8 +52,8 @@
 </template>
 
 <script setup lang="ts">
+import '@fortawesome/fontawesome-free/css/all.min.css'
 import { useRouter, useRoute } from 'vue-router'
-import { Bell } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
