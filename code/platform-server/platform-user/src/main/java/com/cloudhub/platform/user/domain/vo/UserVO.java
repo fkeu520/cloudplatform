@@ -25,6 +25,8 @@ public class UserVO {
     private String orgName;
     private Integer status;
     private String statusDesc;
+    private Integer userType;
+    private String userTypeDesc;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createTime;
     private List<String> roles;    // 角色名称列表

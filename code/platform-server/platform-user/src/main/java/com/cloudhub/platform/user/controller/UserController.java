@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @Tag(name = "用户管理", description = "用户CRUD/登录/角色分配/密码管理")
@@ -71,10 +72,11 @@ public class UserController {
             @RequestParam(name = "postId", required = false) Long postId,
             @RequestParam(name = "tenantId", required = false) Integer tenantId,
             @RequestParam(name = "status", required = false) Integer status,
+            @RequestParam(name = "userType", required = false) Integer userType,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize
     ) {
-        return Result.ok(userService.page(keyword, orgId, orgIds, deptId, postId, tenantId, status, pageNum, pageSize));
+        return Result.ok(userService.page(keyword, orgId, orgIds, deptId, postId, tenantId, status, userType, pageNum, pageSize));
     }
 
     @Operation(summary = "查询所有用户列表")
@@ -158,6 +160,19 @@ public class UserController {
     @PostMapping("/{id}/roles")
     public Result<Void> assignRoles(@PathVariable(name = "id") Long id, @RequestBody Map<String, Object> params) {
         userService.assignRoles(id, params.get("roleIds"));
+        return Result.ok();
+    }
+
+    @Operation(summary = "获取用户直接授权的菜单ID列表")
+    @GetMapping("/{id}/menuIds")
+    public Result<List<Long>> getUserMenuIds(@PathVariable(name = "id") Long id) {
+        return Result.ok(userService.getUserMenuIds(id));
+    }
+
+    @Operation(summary = "分配用户直接授权菜单（运营管理员专用）")
+    @PostMapping("/{id}/menus")
+    public Result<Void> assignUserMenus(@PathVariable(name = "id") Long id, @RequestBody Map<String, Object> params) {
+        userService.assignUserMenus(id, params.get("menuIds"));
         return Result.ok();
     }
 }

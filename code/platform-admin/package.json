@@ -11,6 +11,7 @@
   "dependencies": {
     "@bpmn-io/properties-panel": "^1.8.2",
     "@element-plus/icons-vue": "^2.3.1",
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "axios": "^1.6.8",
     "bpmn-js": "^11.5.0",
     "bpmn-js-properties-panel": "^1.12.0",

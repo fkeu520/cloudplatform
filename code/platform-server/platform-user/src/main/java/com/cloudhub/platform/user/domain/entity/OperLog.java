@@ -27,4 +27,5 @@ public class OperLog extends BaseEntity {
     private String errorMsg;
     private LocalDateTime operTime;
     private Long costTime;
+    private Long tenantId;
 }

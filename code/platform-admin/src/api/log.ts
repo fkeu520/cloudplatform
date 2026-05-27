@@ -1,6 +1,6 @@
 import request from './request'
 
-export function getOperLogPage(params: any) {
+export function getOperLogPage(params: Record<string, any>) {
   return request({
     url: '/oper-log/page',
     method: 'get',
@@ -8,21 +8,21 @@ export function getOperLogPage(params: any) {
   })
 }
 
-export function getOperLogById(id: number) {
+export function getOperLogById(id: string) {
   return request({
     url: `/oper-log/${id}`,
     method: 'get'
   })
 }
 
-export function deleteOperLog(id: number) {
+export function deleteOperLog(id: string) {
   return request({
     url: `/oper-log/${id}`,
     method: 'delete'
   })
 }
 
-export function batchDeleteOperLog(ids: number[]) {
+export function batchDeleteOperLog(ids: string[]) {
   return request({
     url: '/oper-log/batch',
     method: 'delete',
@@ -34,5 +34,13 @@ export function clearOperLog() {
   return request({
     url: '/oper-log/clear',
     method: 'delete'
+  })
+}
+
+export function getLoginLogPage(params: Record<string, any>) {
+  return request({
+    url: '/login-log/page',
+    method: 'get',
+    params
   })
 }

@@ -22,6 +22,8 @@ public class UserPageVO {
     private String deptName;
     private String postName;
     private String statusDesc;
+    private Integer userType;
+    private String userTypeDesc;
     private LocalDateTime createTime;
     private LocalDateTime lastLoginTime;
 }

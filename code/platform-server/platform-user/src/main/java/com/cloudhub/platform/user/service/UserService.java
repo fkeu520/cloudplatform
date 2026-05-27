@@ -15,9 +15,12 @@ import com.cloudhub.platform.user.domain.vo.LoginVO;
 import com.cloudhub.platform.user.domain.vo.UserPageVO;
 import com.cloudhub.platform.user.domain.vo.UserVO;
 import com.cloudhub.platform.user.domain.entity.Menu;
+import com.cloudhub.platform.user.domain.entity.UserMenu;
+import com.cloudhub.platform.user.domain.entity.LoginLog;
 import com.cloudhub.platform.user.mapper.MenuMapper;
 import com.cloudhub.platform.user.mapper.RoleMapper;
 import com.cloudhub.platform.user.mapper.UserMapper;
+import com.cloudhub.platform.user.mapper.UserMenuMapper;
 import com.cloudhub.platform.user.mapper.UserRoleMapper;
 import com.cloudhub.platform.user.mapper.OrganizationMapper;
 import com.cloudhub.platform.user.domain.mapper.DeptMapper;
@@ -44,11 +47,13 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
+    private final UserMenuMapper userMenuMapper;
     private final RoleMapper roleMapper;
     private final MenuMapper menuMapper;
     private final OrganizationMapper organizationMapper;
     private final DeptMapper deptMapper;
     private final PostMapper postMapper;
+    private final LoginLogService loginLogService;
     private final StringRedisTemplate redisTemplate;
 
     private static final long TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600L; // 7天
@@ -60,28 +65,50 @@ public class UserService {
     public LoginVO login(String username, String password) {
         User user = userMapper.selectByUsername(username);
         if (user == null) {
+            saveLoginLog(null, username, 0, 0, "用户名或密码错误");
             throw new BizException("用户名或密码错误");
         }
         String hashedPwd = md5(password);
         if (!hashedPwd.equals(user.getPassword())) {
+            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, 0, "密码错误");
             throw new BizException("用户名或密码错误");
         }
         if (user.getStatus() == 0) {
+            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, 0, "账号已禁用");
             throw new BizException("账号已被禁用，请联系管理员");
         }
 
-        String token = JwtUtil.generate(user.getId().toString(), TOKEN_EXPIRE_SECONDS);
+        Long tenantId = user.getTenantId() != null ? user.getTenantId().longValue() : 0L;
+        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, TOKEN_EXPIRE_SECONDS);
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
 
         // 更新最后登录信息
         user.setLastLoginTime(LocalDateTime.now());
         userMapper.updateById(user);
 
+        saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, 1, "登录成功");
+
         LoginVO vo = new LoginVO();
         vo.setToken(token);
         vo.setExpireTime(expireTime);
         vo.setUser(toUserVO(user));
         return vo;
+    }
+
+    private void saveLoginLog(Long userId, String username, Integer userType, Integer status, String message) {
+        try {
+            LoginLog log = new LoginLog();
+            log.setUserId(userId);
+            log.setUsername(username);
+            log.setUserType(userType);
+            log.setLoginType(0);
+            log.setStatus(status);
+            log.setMessage(message);
+            log.setLoginTime(LocalDateTime.now());
+            loginLogService.save(log);
+        } catch (Exception e) {
+            log.warn("保存登录日志失败", e);
+        }
     }
 
     /**
@@ -94,8 +121,8 @@ public class UserService {
     /**
      * 分页查询用户
      */
-    public PageResult<UserPageVO> page(String keyword, Long orgId, String orgIds, Long deptId, Long postId, Integer tenantId, Integer status, int pageNum, int pageSize) {
-        LambdaQueryWrapper<User> wrapper = buildQueryWrapper(keyword, orgId, orgIds, deptId, postId, tenantId, status);
+    public PageResult<UserPageVO> page(String keyword, Long orgId, String orgIds, Long deptId, Long postId, Integer tenantId, Integer status, Integer userType, int pageNum, int pageSize) {
+        LambdaQueryWrapper<User> wrapper = buildQueryWrapper(keyword, orgId, orgIds, deptId, postId, tenantId, status, userType);
 
         Page<User> p = new Page<>(pageNum, pageSize);
         Page<User> result = userMapper.selectPage(p, wrapper);
@@ -111,7 +138,7 @@ public class UserService {
      * 查询所有用户列表
      */
     public List<UserVO> list(String keyword, Long orgId, Integer status) {
-        LambdaQueryWrapper<User> wrapper = buildQueryWrapper(keyword, orgId, null, null, null, null, status);
+        LambdaQueryWrapper<User> wrapper = buildQueryWrapper(keyword, orgId, null, null, null, null, status, null);
         List<User> users = userMapper.selectList(wrapper);
         return users.stream().map(this::toUserVO).collect(Collectors.toList());
     }
@@ -119,7 +146,7 @@ public class UserService {
     /**
      * 构建查询条件
      */
-    private LambdaQueryWrapper<User> buildQueryWrapper(String keyword, Long orgId, String orgIds, Long deptId, Long postId, Integer tenantId, Integer status) {
+    private LambdaQueryWrapper<User> buildQueryWrapper(String keyword, Long orgId, String orgIds, Long deptId, Long postId, Integer tenantId, Integer status, Integer userType) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(User::getUsername, keyword)
@@ -145,6 +172,12 @@ public class UserService {
         }
         if (status != null) {
             wrapper.eq(User::getStatus, status);
+        }
+        if (userType != null) {
+            wrapper.eq(User::getUserType, userType);
+        } else {
+            // 默认排除运营管理员
+            wrapper.ne(User::getUserType, 2);
         }
         wrapper.eq(User::getDeleted, 0).orderByDesc(User::getCreateTime);
         return wrapper;
@@ -204,6 +237,7 @@ public class UserService {
         user.setOrgId(toLong(params.get("orgId")));
         user.setStatus(params.get("status") != null ? toInt(params.get("status")) : 1);
         user.setTenantId(params.get("tenantId") != null ? toInt(params.get("tenantId")) : 1);
+        user.setUserType(params.get("userType") != null ? toInt(params.get("userType")) : 0);
         userMapper.insert(user);
 
         // 分配角色
@@ -319,6 +353,33 @@ public class UserService {
         }
     }
 
+    /**
+     * 获取用户直接授权的菜单ID列表
+     */
+    public List<Long> getUserMenuIds(Long userId) {
+        return userMenuMapper.selectMenuIdsByUserId(userId);
+    }
+
+    /**
+     * 分配用户直接授权菜单（运营管理员专用）
+     */
+    @Transactional
+    public void assignUserMenus(Long userId, Object menuIdsObj) {
+        userMenuMapper.deleteByUserId(userId);
+        if (menuIdsObj instanceof List) {
+            for (Object obj : (List<?>) menuIdsObj) {
+                UserMenu um = new UserMenu();
+                um.setUserId(userId);
+                if (obj instanceof Number) {
+                    um.setMenuId(((Number) obj).longValue());
+                } else if (obj instanceof String) {
+                    um.setMenuId(Long.parseLong((String) obj));
+                }
+                userMenuMapper.insert(um);
+            }
+        }
+    }
+
     // ========== 内部工具方法 ==========
 
     private UserVO toUserVO(User user) {
@@ -330,14 +391,25 @@ public class UserService {
         if (user.getStatus() != null) {
             vo.setStatusDesc(user.getStatus() == 1 ? "启用" : "禁用");
         }
+        if (user.getUserType() != null) {
+            vo.setUserType(user.getUserType());
+            vo.setUserTypeDesc(user.getUserType() == 0 ? "普通用户" : user.getUserType() == 1 ? "租户管理员" : "运营管理员");
+        }
         // 查询用户关联的角色ID列表
         vo.setRoleIds(userRoleMapper.selectList(
             new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserRole>()
                 .eq(UserRole::getUserId, user.getId())
         ).stream().map(UserRole::getRoleId).collect(java.util.stream.Collectors.toList()));
-        // 查询用户拥有的权限列表
-        List<Menu> menus = menuMapper.selectByUserId(user.getId());
-        vo.setPerms(menus.stream()
+        // 查询用户拥有的权限列表（角色权限 + 直接授权的菜单权限）
+        List<Menu> roleMenus = menuMapper.selectByUserId(user.getId());
+        List<Menu> directMenus = menuMapper.selectEnabledByUserMenuIds(user.getId());
+        List<Menu> merged = new java.util.ArrayList<>(roleMenus);
+        for (Menu m : directMenus) {
+            if (merged.stream().noneMatch(ex -> ex.getId().equals(m.getId()))) {
+                merged.add(m);
+            }
+        }
+        vo.setPerms(merged.stream()
             .filter(m -> m.getPerms() != null && !m.getPerms().isEmpty())
             .map(Menu::getPerms)
             .collect(Collectors.toList()));
@@ -361,6 +433,10 @@ public class UserService {
         BeanUtils.copyProperties(user, vo);
         if (user.getStatus() != null) {
             vo.setStatusDesc(user.getStatus() == 1 ? "启用" : "禁用");
+        }
+        if (user.getUserType() != null) {
+            vo.setUserType(user.getUserType());
+            vo.setUserTypeDesc(user.getUserType() == 0 ? "普通用户" : user.getUserType() == 1 ? "租户管理员" : "运营管理员");
         }
         if (user.getOrgId() != null) {
             Organization org = organizationMapper.selectById(user.getOrgId());

@@ -24,6 +24,7 @@ public class User extends BaseEntity {
     private Long postId;           // 岗位ID
     private Integer status;        // 状态 0禁用 1启用
     private Integer tenantId;     // 租户ID
+    private Integer userType;    // 用户类型: 0=普通用户 1=租户管理员 2=运营管理员
     private String lastLoginIp;   // 最后登录IP
     private LocalDateTime lastLoginTime; // 最后登录时间
 }
