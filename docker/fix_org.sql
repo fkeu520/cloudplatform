@@ -1,0 +1,1 @@
+﻿INSERT IGNORE INTO sys_menu (id, parent_id, name, type, perms, sort) VALUES (46, 9, '添加员工', 2, 'system:org:addEmp', 0); INSERT IGNORE INTO sys_role_menu (role_id, menu_id) SELECT 2, id FROM sys_menu WHERE id=46;

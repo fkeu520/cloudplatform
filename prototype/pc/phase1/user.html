@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用户管理 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-box{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search-box input,.search-box select{padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:13px}
+.search-box input:focus,.search-box select:focus{border-color:#007AFF}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.btn-danger{background:#FF3B30;color:#fff}
+.btn-danger:hover{background:#D63028}
+.btn-success{background:#34C759;color:#fff}
+.btn-sm{padding:4px 10px;font-size:12px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid #E5E5E5}
+th{background:#FAFAFA;font-weight:500;color:#8E8E93;font-size:13px}
+tr:hover td{background:#F9F9FB}
+tr:last-child td{border-bottom:none}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#007AFF,#5856D6);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-active{background:#E8F5E9;color:#34C759}
+.badge-inactive{background:#FFEBEE;color:#FF3B30}
+.badge-enabled{background:#E3F2FD;color:#007AFF}
+.badge-disabled{background:#F5F5F5;color:#8E8E93}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+.pagination .info{font-size:13px;color:#8E8E93}
+.pagination .pages{display:flex;gap:4px;align-items:center}
+.pagination .pages button{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:6px;background:#fff;cursor:pointer;font-size:13px}
+.pagination .pages button:hover{background:#F5F5F7}
+.pagination .pages button.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.pagination .pages button.disabled{opacity:0.4;cursor:not-allowed}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:560px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.form-row{display:flex;gap:16px;margin-bottom:16px}
+.form-row .col{flex:1}
+.form-row label{display:block;font-size:13px;color:#515154;margin-bottom:6px;font-weight:500}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:14px}
+.form-row textarea{resize:vertical;min-height:80px}
+.form-row input:focus,.form-row select:focus{border-color:#007AFF}
+.form-row .tip{font-size:11px;color:#8E8E93;margin-top:4px}
+.tag-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tag{display:inline-block;padding:4px 10px;background:#E8F0FE;color:#007AFF;border-radius:6px;font-size:12px;cursor:pointer}
+.tag:hover{background:#D0E4FF}
+.tag.selected{background:#007AFF;color:#fff}
+.avatar-upload{width:60px;height:60px;border-radius:50%;border:2px dashed #E5E5E5;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;color:#8E8E93}
+.avatar-upload:hover{border-color:#007AFF;color:#007AFF}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:12px}
+.checkbox-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px}
+.checkbox-item input{width:16px;height:16px;accent-color:#007AFF}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>用户管理</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">用户管理</div>
+<div class="card" style="padding:16px 20px">
+<div class="toolbar">
+<div class="search-box">
+<input type="text" id="searchName" placeholder="用户名">
+<input type="text" id="searchPhone" placeholder="手机号">
+<select id="searchStatus">
+<option value="">全部状态</option>
+<option value="1">启用</option>
+<option value="0">禁用</option>
+</select>
+<button class="btn btn-primary" onclick="searchUser()">搜索</button>
+<button class="btn btn-default" onclick="resetSearch()">重置</button>
+</div>
+<button class="btn btn-primary" onclick="openAddModal()" style="margin-left:auto">+ 新增用户</button>
+</div>
+<div id="userTable"></div>
+<div class="pagination">
+<div class="info">共 <span id="totalCount">0</span> 条记录，每页 10 条</div>
+<div class="pages" id="pagination"></div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="userModal">
+<div class="modal">
+<div class="modal-header">
+<h3 id="modalTitle">新增用户</h3>
+<button class="close" onclick="closeModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="userForm" onsubmit="return saveUser()">
+<input type="hidden" id="userId">
+<div style="display:flex;flex-direction:column;align-items:center;margin-bottom:20px">
+<div class="avatar-upload" onclick="document.getElementById('avatarInput').click()">+</div>
+<input type="file" id="avatarInput" style="display:none" accept="image/*" onchange="previewAvatar(this)">
+<p style="font-size:12px;color:#8E8E93;margin-top:8px">点击上传头像</p>
+</div>
+<div class="form-row">
+<div class="col">
+<label>用户名 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="formUsername" required placeholder="请输入用户名">
+</div>
+<div class="col">
+<label>姓名 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="formRealname" required placeholder="请输入姓名">
+</div>
+</div>
+<div class="form-row">
+<div class="col">
+<label>手机号 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="formPhone" required placeholder="请输入手机号">
+</div>
+<div class="col">
+<label>邮箱</label>
+<input type="email" id="formEmail" placeholder="请输入邮箱">
+</div>
+</div>
+<div class="form-row">
+<div class="col">
+<label>部门</label>
+<select id="formDept">
+<option value="">请选择部门</option>
+<option value="1">技术部</option>
+<option value="2">运营部</option>
+<option value="3">市场部</option>
+<option value="4">财务部</option>
+</select>
+</div>
+<div class="col">
+<label>岗位</label>
+<select id="formPost">
+<option value="">请选择岗位</option>
+<option value="1">经理</option>
+<option value="2">主管</option>
+<option value="3">专员</option>
+</select>
+</div>
+</div>
+<div class="form-row">
+<div class="col">
+<label>角色 <span style="color:#FF3B30">*</span></label>
+<div class="checkbox-group" id="roleGroup">
+<label class="checkbox-item"><input type="checkbox" value="1"> 超级管理员</label>
+<label class="checkbox-item"><input type="checkbox" value="2"> 系统管理员</label>
+<label class="checkbox-item"><input type="checkbox" value="3"> 普通用户</label>
+<label class="checkbox-item"><input type="checkbox" value="4"> 审计员</label>
+</div>
+</div>
+</div>
+<div class="form-row" id="statusRow">
+<div class="col">
+<label>状态</label>
+<select id="formStatus">
+<option value="1">启用</option>
+<option value="0">禁用</option>
+</select>
+</div>
+<div class="col">
+<label>排序</label>
+<input type="number" id="formSort" value="0" placeholder="数值越小越靠前">
+</div>
+</div>
+<div class="form-row">
+<div class="col" style="flex:2">
+<label>备注</label>
+<textarea id="formRemark" placeholder="请输入备注信息"></textarea>
+</div>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('userForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+var mockUsers=[
+{id:1,username:"admin",realname:"系统管理员",phone:"13800138000",email:"admin@example.com",dept:"技术部",post:"经理",roles:"超级管理员",status:1,createTime:"2024-01-15 09:30:22",avatar:"A"},
+{id:2,username:"zhangsan",realname:"张三",phone:"13800138001",email:"zhangsan@example.com",dept:"技术部",post:"主管",roles:"系统管理员",status:1,createTime:"2024-02-20 14:22:10",avatar:"Z"},
+{id:3,username:"lisi",realname:"李四",phone:"13800138002",email:"lisi@example.com",dept:"运营部",post:"专员",roles:"普通用户",status:1,createTime:"2024-03-05 10:15:33",avatar:"L"},
+{id:4,username:"wangwu",realname:"王五",phone:"13800138003",email:"wangwu@example.com",dept:"市场部",post:"主管",roles:"普通用户",status:0,createTime:"2024-03-18 16:45:00",avatar:"W"},
+{id:5,username:"zhaoliu",realname:"赵六",phone:"13800138004",email:"zhaoliu@example.com",dept:"财务部",post:"经理",roles:"审计员",status:1,createTime:"2024-04-02 08:30:15",avatar:"Z"},
+{id:6,username:"sunqi",realname:"孙七",phone:"13800138005",email:"sunqi@example.com",dept:"技术部",post:"专员",roles:"普通用户",status:1,createTime:"2024-04-15 11:20:40",avatar:"S"},
+{id:7,username:"zhouba",realname:"周八",phone:"13800138006",email:"zhouba@example.com",dept:"运营部",post:"经理",roles:"系统管理员",status:1,createTime:"2024-04-28 13:50:22",avatar:"Z"},
+{id:8,username:"wujiu",realname:"吴九",phone:"13800138007",email:"wujiu@example.com",dept:"市场部",post:"专员",roles:"普通用户",status:1,createTime:"2024-05-10 09:15:08",avatar:"W"},
+{id:9,username:"zhengshi",realname:"郑十",phone:"13800138008",email:"zhengshi@example.com",dept:"财务部",post:"主管",roles:"审计员",status:0,createTime:"2024-05-22 15:30:45",avatar:"Z"},
+{id:10,username:"chenliu",realname:"陈六",phone:"13800138009",email:"chenliu@example.com",dept:"技术部",post:"经理",roles:"超级管理员",status:1,createTime:"2024-06-01 10:00:00",avatar:"C"},
+{id:11,username:"renyi",realname:"任一",phone:"13800138010",email:"renyi@example.com",dept:"运营部",post:"专员",roles:"普通用户",status:1,createTime:"2024-06-12 14:25:30",avatar:"R"},
+{id:12,username:"cuier",realname:"崔二",phone:"13800138011",email:"cuier@example.com",dept:"市场部",post:"经理",roles:"系统管理员",status:1,createTime:"2024-06-25 08:45:18",avatar:"C"}
+];
+var currentPage=1;
+var pageSize=10;
+function renderTable(page){
+var start=(page-1)*pageSize;
+var end=Math.min(start+pageSize,mockUsers.length);
+var html='<table><thead><tr><th width="50">序号</th><th width="60">头像</th><th>用户名</th><th>姓名</th><th>手机号</th><th>邮箱</th><th>部门</th><th>角色</th><th>状态</th><th>创建时间</th><th width="140">操作</th></tr></thead><tbody>';
+for(var i=start;i<end;i++){
+var u=mockUsers[i];
+html+='<tr>';
+html+='<td>'+(i+1)+'</td>';
+html+='<td><div class="avatar">'+u.avatar+'</div></td>';
+html+='<td>'+u.username+'</td>';
+html+='<td>'+u.realname+'</td>';
+html+='<td>'+u.phone+'</td>';
+html+='<td>'+u.email+'</td>';
+html+='<td>'+u.dept+'</td>';
+html+='<td>'+u.roles+'</td>';
+html+='<td><span class="badge '+(u.status==1?'badge-active':'badge-disabled')+'">'+(u.status==1?'启用':'禁用')+'</span></td>';
+html+='<td>'+u.createTime+'</td>';
+html+='<td>';
+html+='<button class="btn btn-default btn-sm" onclick="editUser('+u.id+')">编辑</button> ';
+html+='<button class="btn btn-danger btn-sm" onclick="deleteUser('+u.id+')">删除</button> ';
+html+='<button class="btn '+(u.status==1?'btn-default':'btn-success')+' btn-sm" onclick="toggleStatus('+u.id+')">'+(u.status==1?'禁用':'启用')+'</button>';
+html+='</td>';
+html+='</tr>';
+}
+html+='</tbody></table>';
+document.getElementById("userTable").innerHTML=html;
+document.getElementById("totalCount").textContent=mockUsers.length;
+renderPagination();
+}
+function renderPagination(){
+var total=Math.ceil(mockUsers.length/pageSize);
+var html='';
+html+='<button '+(currentPage==1?'class="disabled"':'')+' onclick="goPage('+(currentPage-1)+')">‹</button>';
+var start=Math.max(1,currentPage-2);
+var end=Math.min(total,currentPage+2);
+for(var i=start;i<=end;i++){
+html+='<button '+(i==currentPage?'class="active"':'')+' onclick="goPage('+i+')">'+i+'</button>';
+}
+html+='<button '+(currentPage==total?'class="disabled"':'')+' onclick="goPage('+(currentPage+1)+')">›</button>';
+document.getElementById("pagination").innerHTML=html;
+}
+function goPage(p){
+var total=Math.ceil(mockUsers.length/pageSize);
+if(p<1||p>total)return;
+currentPage=p;
+renderTable(currentPage);
+}
+function searchUser(){
+var name=document.getElementById("searchName").value;
+var phone=document.getElementById("searchPhone").value;
+var status=document.getElementById("searchStatus").value;
+console.log("搜索:",name,phone,status);
+alert("演示模式：搜索功能已触发");
+}
+function resetSearch(){
+document.getElementById("searchName").value="";
+document.getElementById("searchPhone").value="";
+document.getElementById("searchStatus").value="";
+renderTable(1);
+}
+function openAddModal(){
+document.getElementById("modalTitle").textContent="新增用户";
+document.getElementById("userForm").reset();
+document.getElementById("userId").value="";
+document.getElementById("statusRow").style.display="none";
+document.getElementById("userModal").classList.add("show");
+}
+function editUser(id){
+var u=mockUsers.find(function(x){return x.id==id;});
+if(!u)return;
+document.getElementById("modalTitle").textContent="编辑用户";
+document.getElementById("userId").value=id;
+document.getElementById("formUsername").value=u.username;
+document.getElementById("formRealname").value=u.realname;
+document.getElementById("formPhone").value=u.phone;
+document.getElementById("formEmail").value=u.email;
+document.getElementById("formStatus").value=u.status;
+document.getElementById("formRemark").value="";
+document.getElementById("statusRow").style.display="block";
+document.getElementById("userModal").classList.add("show");
+}
+function closeModal(){
+document.getElementById("userModal").classList.remove("show");
+}
+function saveUser(){
+var id=document.getElementById("userId").value;
+console.log("保存用户:",id?"编辑":"新增");
+closeModal();
+alert("演示模式：用户保存成功");
+return false;
+}
+function deleteUser(id){
+if(!confirm("确定要删除该用户吗？"))return;
+console.log("删除用户:",id);
+renderTable(currentPage);
+}
+function toggleStatus(id){
+console.log("切换状态:",id);
+renderTable(currentPage);
+}
+function previewAvatar(input){
+console.log("预览头像",input);
+}
+renderTable(1);
+</script>
+</body>
+</html>

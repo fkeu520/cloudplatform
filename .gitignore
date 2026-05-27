@@ -43,3 +43,12 @@ docker/minio/
 *.tmp
 *.bak
 *.swp
+tmp_*
+
+# Python
+*.pyc
+__pycache__/
+
+# Batch
+启动*.bat
+检查环境.bat

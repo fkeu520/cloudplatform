@@ -1,0 +1,15 @@
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {}
+      },
+      "delete": {
+        "min_age": "3d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    }
+  }
+}

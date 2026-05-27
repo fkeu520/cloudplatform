@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>流程统计 - 云枢中台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+/* 统计卡片 */
+.stats-row{display:flex;gap:16px;margin-bottom:16px}
+.stat-card{flex:1;background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center}
+.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-right:16px}
+.stat-icon.blue{background:#E8F0FE;color:#007AFF}
+.stat-icon.green{background:#E8F5E9;color:#34C759}
+.stat-icon.orange{background:#FFF3E0;color:#FF9500}
+.stat-icon.red{background:#FFEBEE;color:#FF3B30}
+.stat-info{display:flex;flex-direction:column}
+.stat-value{font-size:28px;font-weight:600;color:#1D1D1F;line-height:1}
+.stat-label{font-size:13px;color:#8E8E93;margin-top:4px}
+/* 日期筛选 */
+.filter-bar{background:#fff;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.filter-bar input{height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.filter-bar input:focus{border-color:#007AFF}
+.filter-bar select{height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none;background:#fff}
+.btn-primary{height:36px;background:#007AFF;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500}
+.btn-default{height:36px;background:#fff;color:#1D1D1F;border:1px solid #E5E5E5;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer}
+/* 卡片 */
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:600;color:#1D1D1F}
+/* 图表区 */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.chart-title{font-size:14px;font-weight:600;color:#1D1D1F;margin-bottom:20px}
+/* 柱状图模拟 */
+.bar-chart{display:flex;align-items:flex-end;justify-content:space-between;height:200px;padding-top:20px;border-bottom:1px solid #F0F0F0;margin-bottom:12px}
+.bar-item{display:flex;flex-direction:column;align-items:center;flex:1}
+.bar{width:32px;background:linear-gradient(180deg,#007AFF 0%,#5856D6 100%);border-radius:6px 6px 0 0;transition:all 0.3s}
+.bar:hover{opacity:0.8}
+.bar-label{font-size:11px;color:#8E8E93;margin-top:8px}
+.bar-value{font-size:12px;font-weight:600;color:#1D1D1F;margin-bottom:4px}
+/* 饼图模拟 */
+.pie-container{display:flex;align-items:center;justify-content:center;padding:20px}
+.pie-chart{width:160px;height:160px;border-radius:50%;background:conic-gradient(#007AFF 0% 35%,#34C759 35% 65%,#FF9500 65% 82%,#FF3B30 82% 100%);position:relative}
+.pie-chart::before{content:'';position:absolute;top:40px;left:40px;width:80px;height:80px;background:#fff;border-radius:50%}
+.pie-legend{margin-left:24px;font-size:13px;line-height:2}
+.legend-item{display:flex;align-items:center;gap:8px}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+/* 表格 */
+.table{width:100%;border-collapse:collapse}
+.table th{background:#FAFAFA;padding:12px 16px;text-align:left;font-size:13px;color:#8E8E93;font-weight:500;border-bottom:1px solid #E5E5E5}
+.table td{padding:14px 16px;font-size:14px;color:#1D1D1F;border-bottom:1px solid #F0F0F0}
+.table tr:hover{background:#F9F9FB}
+.rank-num{font-size:20px;font-weight:600;color:#007AFF;width:30px}
+.rank-top{color:#FF3B30}
+/* 进度条 */
+.progress-bar{height:8px;background:#F5F5F7;border-radius:4px;overflow:hidden;margin-top:4px}
+.progress-fill{height:100%;border-radius:4px;transition:width 0.5s}
+.progress-fill.blue{background:linear-gradient(90deg,#007AFF,#5856D6)}
+.progress-fill.green{background:#34C759}
+/* 趋势数字 */
+.trend{font-size:12px;padding:2px 6px;border-radius:4px;display:inline-block}
+.trend-up{background:#FFEBEE;color:#FF3B30}
+.trend-down{background:#E8F5E9;color:#34C759}
+/* 双列布局 */
+.double-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">流程中心 ▶ <span>流程统计</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">流程统计</div>
+
+<!-- 统计卡片 -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon blue">📋</div>
+    <div class="stat-info">
+      <div class="stat-value">2,384</div>
+      <div class="stat-label">本月发起总数</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon orange">⏳</div>
+    <div class="stat-info">
+      <div class="stat-value">186</div>
+      <div class="stat-label">审批中</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">✓</div>
+    <div class="stat-info">
+      <div class="stat-value">2,198</div>
+      <div class="stat-label">已完成</div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">⚠</div>
+    <div class="stat-info">
+      <div class="stat-value">8.2%</div>
+      <div class="stat-label">超时率</div>
+    </div>
+  </div>
+</div>
+
+<!-- 日期筛选 -->
+<div class="filter-bar">
+  <select id="dateRange">
+    <option>近7天</option>
+    <option selected>近30天</option>
+    <option>近90天</option>
+    <option>自定义</option>
+  </select>
+  <input type="date" value="2026-05-01">
+  <span style="color:#8E8E93">至</span>
+  <input type="date" value="2026-05-19">
+  <button class="btn-primary">查询</button>
+  <button class="btn-default">导出报表</button>
+</div>
+
+<!-- 图表区 -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <div class="chart-title">流程发起趋势（近30天）</div>
+    <div class="bar-chart">
+      <div class="bar-item">
+        <div class="bar-value">86</div>
+        <div class="bar" style="height:86px"></div>
+        <div class="bar-label">05-01</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-value">102</div>
+        <div class="bar" style="height:102px"></div>
+        <div class="bar-label">05-05</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-value">78</div>
+        <div class="bar" style="height:78px"></div>
+        <div class="bar-label">05-08</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-value">124</div>
+        <div class="bar" style="height:124px"></div>
+        <div class="bar-label">05-12</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-value">156</div>
+        <div class="bar" style="height:156px"></div>
+        <div class="bar-label">05-15</div>
+      </div>
+      <div class="bar-item">
+        <div class="bar-value">89</div>
+        <div class="bar" style="height:89px"></div>
+        <div class="bar-label">05-19</div>
+      </div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-title">流程类型分布</div>
+    <div class="pie-container">
+      <div class="pie-chart"></div>
+      <div class="pie-legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#007AFF"></span>入职审批 35%</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#34C759"></span>请假申请 30%</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#FF9500"></span>物品采购 17%</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#FF3B30"></span>合同审批 18%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 排行榜 -->
+<div class="double-grid">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">流程效率排行榜</div>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>排名</th>
+          <th>流程名称</th>
+          <th>平均耗时</th>
+          <th>趋势</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rank-num rank-top">1</td>
+          <td>会议室预约流程</td>
+          <td>2.3小时</td>
+          <td><span class="trend trend-down">↓12%</span></td>
+        </tr>
+        <tr>
+          <td class="rank-num">2</td>
+          <td>请假申请流程</td>
+          <td>4.8小时</td>
+          <td><span class="trend trend-down">↓8%</span></td>
+        </tr>
+        <tr>
+          <td class="rank-num">3</td>
+          <td>用车申请流程</td>
+          <td>6.2小时</td>
+          <td><span class="trend trend-up">↑3%</span></td>
+        </tr>
+        <tr>
+          <td class="rank-num">4</td>
+          <td>物品采购申请</td>
+          <td>18.5小时</td>
+          <td><span class="trend trend-down">↓15%</span></td>
+        </tr>
+        <tr>
+          <td class="rank-num">5</td>
+          <td>入职审批流程</td>
+          <td>3.2天</td>
+          <td><span class="trend trend-up">↑5%</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">部门审批效率</div>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>部门</th>
+          <th>处理量</th>
+          <th>完成率</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>技术研发部</td>
+          <td>456</td>
+          <td>
+            <div>92.3%</div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:92.3%"></div></div>
+          </td>
+        </tr>
+        <tr>
+          <td>市场营销部</td>
+          <td>389</td>
+          <td>
+            <div>88.7%</div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:88.7%"></div></div>
+          </td>
+        </tr>
+        <tr>
+          <td>人力资源部</td>
+          <td>278</td>
+          <td>
+            <div>95.2%</div>
+            <div class="progress-bar"><div class="progress-fill green" style="width:95.2%"></div></div>
+          </td>
+        </tr>
+        <tr>
+          <td>财务部</td>
+          <td>198</td>
+          <td>
+            <div>84.5%</div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:84.5%"></div></div>
+          </td>
+        </tr>
+        <tr>
+          <td>行政部</td>
+          <td>167</td>
+          <td>
+            <div>79.8%</div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:79.8%"></div></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

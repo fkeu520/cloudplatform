@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>流程定义 - 云枢中台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+/* 搜索栏 */
+.search-bar{background:#fff;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.search-bar input{flex:1;height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.search-bar input:focus{border-color:#007AFF}
+.search-bar select{height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none;background:#fff}
+.btn-primary{height:36px;background:#007AFF;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500}
+.btn-default{height:36px;background:#fff;color:#1d1d1f;border:1px solid #E5E5E5;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer}
+/* 卡片 */
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:600;color:#1d1d1f}
+/* 表格 */
+.table{width:100%;border-collapse:collapse}
+.table th{background:#FAFAFA;padding:12px 16px;text-align:left;font-size:13px;color:#8E8E93;font-weight:500;border-bottom:1px solid #E5E5E5}
+.table td{padding:14px 16px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #F0F0F0}
+.table tr:hover{background:#F9F9FB}
+.table .tag{padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500}
+.tag-draft{background:#F5F5F7;color:#8E8E93}
+.tag-published{background:#E8F5E9;color:#34C759}
+.tag-suspended{background:#FFF3E0;color:#FF9500}
+.tag-high{background:#FFEBEE;color:#FF3B30}
+.tag-medium{background:#FFF8E1;color:#FF9500}
+.tag-low{background:#E8F5E9;color:#34C759}
+.action-btn{color:#007AFF;cursor:pointer;font-size:13px;background:none;border:none;padding:0 4px}
+.action-btn:hover{text-decoration:underline}
+/* 分页 */
+.pagination{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+.pagination .info{font-size:13px;color:#8E8E93}
+.pagination .pages{display:flex;gap:4px}
+.pagination .page-btn{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.pagination .page-btn.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.pagination .page-btn:hover:not(.active){border-color:#007AFF;color:#007AFF}
+/* 弹窗 */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:90%;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E5E5E5}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border-radius:50%;background:#F5F5F7;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8E8E93;border:none}
+.modal-close:hover{background:#E5E5E5}
+.modal-body{flex:1;overflow-y:auto;padding:20px}
+.modal-footer{padding:16px 20px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:12px}
+/* 表单 */
+.form-row{display:flex;gap:16px;margin-bottom:16px}
+.form-group{flex:1}
+.form-group label{display:block;font-size:13px;color:#8E8E93;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;height:40px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.form-group textarea{height:80px;padding:10px 12px;resize:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#007AFF}
+/* 流程设计器 */
+.designer-area{display:flex;height:500px;border:1px solid #E5E5E5;border-radius:12px;overflow:hidden}
+.designer-toolbox{width:60px;background:#FAFAFA;border-right:1px solid #E5E5E5;padding:12px 8px}
+.tool-item{width:40px;height:40px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#1d1d1f;text-align:center}
+.tool-item:hover{border-color:#007AFF;color:#007AFF}
+.tool-item.start{background:#E8F5E9;border-color:#34C759;color:#34C759}
+.tool-item.end{background:#FFEBEE;border-color:#FF3B30;color:#FF3B30}
+.tool-item.approve{background:#E8F0FE;border-color:#007AFF;color:#007AFF}
+.designer-canvas{flex:1;background:#F9F9FB;position:relative;overflow:auto}
+.canvas-node{position:absolute;min-width:120px;height:44px;background:#fff;border:2px solid #007AFF;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#007AFF;cursor:move;box-shadow:0 2px 8px rgba(0,122,255,0.2)}
+.canvas-node.start-node{border-color:#34C759;color:#34C759;border-radius:22px}
+.canvas-node.end-node{border-color:#FF3B30;color:#FF3B30;border-radius:22px}
+.designer-props{width:200px;background:#fff;border-left:1px solid #E5E5E5;padding:16px}
+.props-title{font-size:13px;font-weight:600;color:#1d1d1f;margin-bottom:12px}
+.props-row{margin-bottom:10px}
+.props-row label{font-size:12px;color:#8E8E93;display:block;margin-bottom:4px}
+.props-row input{width:100%;height:32px;border:1px solid #E5E5E5;border-radius:6px;padding:0 8px;font-size:12px}
+/* 流程图模拟 */
+.flow-steps{display:flex;align-items:center;margin:20px 0;position:relative}
+.flow-step{flex:1;text-align:center;position:relative;z-index:1}
+.flow-step-circle{width:40px;height:40px;border-radius:50%;background:#E8F5E9;border:2px solid #34C759;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:14px;color:#34C759}
+.flow-step.current .flow-step-circle{background:#E8F0FE;border-color:#007AFF;color:#007AFF}
+.flow-step.pending .flow-step-circle{background:#F5F5F7;border-color:#E5E5E5;color:#8E8E93}
+.flow-step-label{font-size:12px;color:#1d1d1f}
+.flow-connector{flex:0 0 60px;height:2px;background:#34C759;position:relative;top:-20px}
+.flow-connector.pending{background:#E5E5E5}
+/* 分类树 */
+.tree-container{max-height:400px;overflow-y:auto}
+.tree-item{padding:8px 12px;cursor:pointer;border-radius:8px;display:flex;align-items:center;margin-bottom:2px;font-size:14px}
+.tree-item:hover{background:#F5F5F7}
+.tree-item.active{background:#E8F0FE;color:#007AFF}
+.tree-item .count{margin-left:auto;background:#F5F5F7;color:#8E8E93;font-size:12px;padding:1px 6px;border-radius:10px}
+</style>
+</head>
+<body>
+
+    <div class="topbar">
+  <span class="crumb">流程中心 ▶ <span>流程定义</span></span>
+</div>
+<div style="padding:0 24px 24px">
+  <div class="page-title">流程定义</div>
+      <div class="search-bar">
+        <input type="text" placeholder="搜索流程名称" id="searchInput">
+        <select><option>全部状态</option><option>草稿</option><option>已发布</option><option>已挂起</option></select>
+        <select><option>全部分类</option><option>入院审批</option><option>合同审批</option><option>物品采购</option><option>通用审批</option></select>
+        <button class="btn-primary" onclick="openNewModal()">+ 新建流程</button>
+      </div>
+      <!-- 表格 -->
+      <div class="card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>流程名称</th>
+              <th>分类</th>
+              <th>版本</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+          </tbody>
+        </table>
+        <div class="pagination">
+          <div class="info">共 <span id="totalCount">6</span> 条</div>
+          <div class="pages">
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建流程弹窗 -->
+<div class="modal-overlay" id="newModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">新建流程</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>流程名称</label>
+          <input type="text" placeholder="请输入流程名称">
+        </div>
+        <div class="form-group">
+          <label>流程分类</label>
+          <select><option>请选择分类</option><option>入院审批</option><option>合同审批</option><option>物品采购</option><option>通用审批</option></select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>流程描述</label>
+        <textarea placeholder="请输入流程描述"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>流程图标</label>
+          <input type="text" placeholder="可选">
+        </div>
+        <div class="form-group">
+          <label>优先级</label>
+          <select><option>普通</option><option>紧急</option><option>重要</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default" onclick="closeModal()">取消</button>
+      <button class="btn-primary" onclick="closeModal();openDesignModal()">下一步，设计流程</button>
+    </div>
+  </div>
+</div>
+
+<!-- 设计流程弹窗 -->
+<div class="modal-overlay" id="designModal">
+  <div class="modal" style="max-width:1200px">
+    <div class="modal-header">
+      <div class="modal-title">流程设计器 - 入职审批</div>
+      <button class="modal-close" onclick="closeDesignModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="designer-area">
+        <div class="designer-toolbox">
+          <div class="tool-item start">开始</div>
+          <div class="tool-item approve">审批节点</div>
+          <div class="tool-item approve">条件节点</div>
+          <div class="tool-item approve">知会节点</div>
+          <div class="tool-item end">结束</div>
+        </div>
+        <div class="designer-canvas">
+          <div class="canvas-node start-node" style="left:200px;top:200px">发起申请</div>
+          <div class="canvas-node" style="left:200px;top:320px">部门审批</div>
+          <div class="canvas-node" style="left:200px;top:440px">HR审批</div>
+          <div class="canvas-node end-node" style="left:200px;top:560px">流程结束</div>
+        </div>
+        <div class="designer-props">
+          <div class="props-title">属性配置</div>
+          <div class="props-row">
+            <label>节点名称</label>
+            <input type="text" value="部门审批">
+          </div>
+          <div class="props-row">
+            <label>审批人</label>
+            <input type="text" placeholder="选择审批人">
+          </div>
+          <div class="props-row">
+            <label>审批方式</label>
+            <select><option>单人审批</option><option>会签</option><option>或签</option></select>
+          </div>
+          <div class="props-row">
+            <label>超时时间</label>
+            <input type="text" placeholder="24h">
+          </div>
+          <div class="props-row">
+            <label>超时处理</label>
+            <select><option>自动通过</option><option>自动驳回</option><option>催办</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default">保存草稿</button>
+      <button class="btn-primary">发布流程</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const workflows = [
+  {name:'入职审批流程',category:'入院审批',version:'v2.1',status:'published',createTime:'2026-04-15 09:30'},
+  {name:'会议室预约',category:'通用审批',version:'v1.0',status:'published',createTime:'2026-04-10 14:22'},
+  {name:'合同审批流程',category:'合同审批',version:'v3.0',status:'draft',createTime:'2026-05-02 10:15'},
+  {name:'物品采购申请',category:'物品采购',version:'v1.2',status:'published',createTime:'2026-03-28 16:45'},
+  {name:'请假申请流程',category:'通用审批',version:'v2.0',status:'suspended',createTime:'2026-02-20 11:00'},
+  {name:'用车申请流程',category:'通用审批',version:'v1.0',status:'published',createTime:'2026-05-08 08:30'},
+];
+
+function renderTable(){
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = workflows.map(w => {
+    const statusMap = {published:'已发布',draft:'草稿',suspended:'已挂起'};
+    const statusClass = {published:'tag-published',draft:'tag-draft',suspended:'tag-suspended'};
+    return `<tr>
+      <td><strong>${w.name}</strong></td>
+      <td>${w.category}</td>
+      <td>${w.version}</td>
+      <td><span class="tag ${statusClass[w.status]}">${statusMap[w.status]}</span></td>
+      <td>${w.createTime}</td>
+      <td>
+        <button class="action-btn" onclick="openDesignModal()">设计</button>
+        <button class="action-btn">编辑</button>
+        <button class="action-btn">版本</button>
+        <button class="action-btn">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openNewModal(){document.getElementById('newModal').style.display='flex';}
+function closeModal(){document.getElementById('newModal').style.display='none';}
+function openDesignModal(){document.getElementById('designModal').style.display='flex';}
+function closeDesignModal(){document.getElementById('designModal').style.display='none';}
+
+document.addEventListener('DOMContentLoaded',renderTable);
+</script>
+</body>
+</html>

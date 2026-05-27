@@ -1,0 +1,152 @@
+server:
+  port: 8083
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+spring:
+  main:
+    web-application-type: reactive
+
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+  application:
+    name: platform-gateway
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springdoc.webmvc.autoconfigure.SpringDocWebMvcAutoConfiguration
+      - com.github.xiaoymin.knife4j.spring.configuration.Knife4jAutoConfiguration
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+      config:
+        server-addr: localhost:8848
+        enabled: false
+
+    gateway:
+      # 使用 Apache HTTP Client（避免 Netty Connection refused 问题）
+      httpclient:
+        type: apache
+
+      # 全局 CORS 配置
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins: '*'
+            allowed-methods: '*'
+            allowed-headers: '*'
+            allow-credentials: false
+            max-age: 3600
+
+      # 路由配置
+      routes:
+        # 用户中心 - 用户管理
+        - id: platform-user
+          uri: http://localhost:8081
+          predicates:
+            - Path=/user/**
+
+        # 用户中心 - 角色管理
+        - id: platform-user-role
+          uri: http://localhost:8081
+          predicates:
+            - Path=/role/**
+
+        # 用户中心 - 菜单管理
+        - id: platform-user-menu
+          uri: http://localhost:8081
+          predicates:
+            - Path=/menu/**
+
+        # 用户中心 - 字典管理
+        - id: platform-user-dict-type
+          uri: http://localhost:8081
+          predicates:
+            - Path=/dict/**
+
+        # 用户中心 - 参数配置
+        - id: platform-user-config
+          uri: http://localhost:8081
+          predicates:
+            - Path=/config/**
+
+        # 用户中心 - 组织管理
+        - id: platform-user-org
+          uri: http://localhost:8081
+          predicates:
+            - Path=/org/**
+
+        # 认证中心（必须放 user 路由之后，否则 /auth/** 会被 /user/** 误匹配）
+        - id: platform-auth
+          uri: http://127.0.0.1:8082
+          predicates:
+            - Path=/auth/**
+
+        # 运营管理服务
+        - id: platform-ops-tenant
+          uri: http://localhost:8087
+          predicates:
+            - Path=/tenant/**, /storage/**, /gateway-route/**, /audit/**, /app/**, /tenant-app/**
+
+        # 流程中心
+        - id: platform-workflow
+          uri: http://localhost:8084
+          predicates:
+            - Path=/workflow/**
+
+        # 消息中心
+        - id: platform-message
+          uri: http://localhost:8085
+          predicates:
+            - Path=/message/**
+
+        # 网关自身管理接口
+        - id: platform-gateway-self
+          uri: http://localhost:8083
+          predicates:
+            - Path=/gateway/**
+
+        # Swagger / API 文档
+        - id: platform-auth-api-docs
+          uri: http://127.0.0.1:8082
+          predicates:
+            - Path=/auth/v3/api-docs
+
+        - id: platform-user-api-docs
+          uri: http://localhost:8081
+          predicates:
+            - Path=/user/v3/api-docs
+
+        - id: platform-swagger-ui
+          uri: http://localhost:8081
+          predicates:
+            - Path=/doc.html, /webjars/**, /swagger-ui/**, /v3/api-docs, /v3/api-docs/swagger-config
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 10s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.cloudhub.platform: DEBUG

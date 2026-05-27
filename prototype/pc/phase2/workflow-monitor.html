@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>流程监控 - 云枢中台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+/* 统计卡片 */
+.stats-row{display:flex;gap:16px;margin-bottom:16px}
+.stat-card{flex:1;background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);display:flex;align-items:center}
+.stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-right:16px}
+.stat-icon.blue{background:#E8F0FE;color:#007AFF}
+.stat-icon.green{background:#E8F5E9;color:#34C759}
+.stat-icon.orange{background:#FFF3E0;color:#FF9500}
+.stat-icon.red{background:#FFEBEE;color:#FF3B30}
+.stat-info{display:flex;flex-direction:column}
+.stat-value{font-size:28px;font-weight:600;color:#1d1d1f;line-height:1}
+.stat-label{font-size:13px;color:#8E8E93;margin-top:4px}
+/* Tab切换 */
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab-btn{padding:8px 20px;font-size:14px;color:#8E8E93;cursor:pointer;border-radius:8px;border:none;background:#fff}
+.tab-btn:hover{color:#007AFF}
+.tab-btn.active{background:#007AFF;color:#fff}
+/* 搜索栏 */
+.search-bar{background:#fff;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.search-bar input{flex:1;height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.search-bar input:focus{border-color:#007AFF}
+.search-bar select{height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none;background:#fff}
+.btn-primary{height:36px;background:#007AFF;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500}
+.btn-default{height:36px;background:#fff;color:#1d1d1f;border:1px solid #E5E5E5;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer}
+/* 卡片 */
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:600;color:#1d1d1f}
+/* 表格 */
+.table{width:100%;border-collapse:collapse}
+.table th{background:#FAFAFA;padding:12px 16px;text-align:left;font-size:13px;color:#8E8E93;font-weight:500;border-bottom:1px solid #E5E5E5}
+.table td{padding:14px 16px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #F0F0F0}
+.table tr:hover{background:#F9F9FB}
+.table .tag{padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500}
+.tag-running{background:#E8F0FE;color:#007AFF}
+.tag-completed{background:#E8F5E9;color:#34C759}
+.tag-timeout{background:#FFEBEE;color:#FF3B30}
+.tag-suspended{background:#FFF3E0;color:#FF9500}
+.action-btn{color:#007AFF;cursor:pointer;font-size:13px;background:none;border:none;padding:0 4px}
+.action-btn:hover{text-decoration:underline}
+/* 分页 */
+.pagination{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+.pagination .info{font-size:13px;color:#8E8E93}
+.pagination .pages{display:flex;gap:4px}
+.pagination .page-btn{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.pagination .page-btn.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.pagination .page-btn:hover:not(.active){border-color:#007AFF;color:#007AFF}
+/* 弹窗 */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:90%;max-width:1000px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E5E5E5}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border-radius:50%;background:#F5F5F7;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8E8E93;border:none}
+.modal-close:hover{background:#E5E5E5}
+.modal-body{flex:1;overflow-y:auto;padding:20px}
+.modal-footer{padding:16px 20px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:12px}
+/* 详情布局 */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.detail-section{background:#FAFAFA;border-radius:12px;padding:16px}
+.detail-section h4{font-size:14px;font-weight:600;color:#1d1d1f;margin-bottom:12px}
+/* 流程图模拟 */
+.flow-diagram{display:flex;align-items:center;justify-content:center;padding:20px;background:#F9F9FB;border-radius:12px;margin-bottom:20px}
+.flow-node{position:relative;padding:12px 20px;background:#fff;border:2px solid #007AFF;border-radius:22px;font-size:13px;color:#007AFF;text-align:center;min-width:100px}
+.flow-node.active{background:#E8F0FE}
+.flow-node.completed{border-color:#34C759;color:#34C759}
+.flow-node.pending{border-color:#E5E5E5;color:#8E8E93}
+.flow-arrow{width:40px;height:2px;background:#007AFF;position:relative;margin:0 8px}
+.flow-arrow::after{content:'→';position:absolute;right:-8px;top:-10px;font-size:14px;color:#007AFF}
+/* 节点日志 */
+.log-list{max-height:300px;overflow-y:auto}
+.log-item{display:flex;align-items:flex-start;padding:12px;border-bottom:1px solid #F0F0F0}
+.log-item:last-child{border-bottom:none}
+.log-time{width:140px;font-size:12px;color:#8E8E93;flex-shrink:0}
+.log-content{flex:1}
+.log-title{font-size:14px;font-weight:500;color:#1d1d1f;margin-bottom:2px}
+.log-user{font-size:13px;color:#007AFF}
+.log-result{font-size:12px;padding:2px 8px;border-radius:4px;display:inline-block;margin-top:4px}
+.log-pass{background:#E8F5E9;color:#34C759}
+.log-reject{background:#FFEBEE;color:#FF3B30}
+/* 警告标记 */
+.timeout-badge{color:#FF3B30;font-weight:600}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="crumb">流程中心 ▶ <span>流程监控</span></span>
+</div>
+<div style="padding:0 24px 24px">
+  <div class="page-title">流程监控</div>
+      <!-- 统计卡片 -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon blue">📋</div>
+          <div class="stat-info">
+            <div class="stat-value">128</div>
+            <div class="stat-label">运行中实例</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✓</div>
+          <div class="stat-info">
+            <div class="stat-value">1,856</div>
+            <div class="stat-label">今日完成</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">⏱</div>
+          <div class="stat-info">
+            <div class="stat-value">23</div>
+            <div class="stat-label">超时预警</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">⚠</div>
+          <div class="stat-info">
+            <div class="stat-value">5</div>
+            <div class="stat-label">异常实例</div>
+          </div>
+        </div>
+      </div>
+      <!-- Tab切换 -->
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab(this,0)">运行中</button>
+        <button class="tab-btn" onclick="switchTab(this,1)">已结束</button>
+      </div>
+      <!-- 搜索栏 -->
+      <div class="search-bar">
+        <input type="text" placeholder="搜索实例ID或流程名称" id="searchInput">
+        <select><option>全部流程</option><option>入职审批</option><option>合同审批</option><option>请假申请</option><option>物品采购</option></select>
+        <button class="btn-default">导出数据</button>
+      </div>
+      <!-- 表格 -->
+      <div class="card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>实例ID</th>
+              <th>流程名称</th>
+              <th>当前节点</th>
+              <th>发起人</th>
+              <th>开始时间</th>
+              <th>剩余时间</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="pagination">
+          <div class="info">共 <span id="totalCount">8</span> 条</div>
+          <div class="pages">
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 详情弹窗 -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header">
+      <div class="modal-title">流程实例详情 - WF-20260519-001</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 流程图 -->
+      <div class="flow-diagram">
+        <div class="flow-node completed">发起申请</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node completed">部门审批</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node active">HR审批</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node pending">入职确认</div>
+        <div class="flow-arrow"></div>
+        <div class="flow-node pending">流程结束</div>
+      </div>
+      <!-- 明细信息 -->
+      <div class="detail-grid">
+        <div class="detail-section">
+          <h4>基本信息</h4>
+          <div style="font-size:14px;color:#1d1d1f;line-height:2">
+            <div><strong>实例ID：</strong>WF-20260519-001</div>
+            <div><strong>流程名称：</strong>入职审批流程</div>
+            <div><strong>版本：</strong>v2.1</div>
+            <div><strong>发起人：</strong>张明</div>
+            <div><strong>发起时间：</strong>2026-05-19 09:30</div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>当前状态</h4>
+          <div style="font-size:14px;color:#1d1d1f;line-height:2">
+            <div><strong>当前节点：</strong>HR审批</div>
+            <div><strong>审批人：</strong>李华 (HR)</div>
+            <div><strong>进入时间：</strong>2026-05-19 10:15</div>
+            <div><strong>剩余时间：</strong><span class="timeout-badge">4小时超时</span></div>
+            <div><strong>实例状态：</strong><span class="tag tag-running">运行中</span></div>
+          </div>
+        </div>
+      </div>
+      <!-- 节点日志 -->
+      <div style="margin-top:20px">
+        <h4 style="font-size:14px;font-weight:600;color:#1d1d1f;margin-bottom:12px">节点日志</h4>
+        <div class="log-list">
+          <div class="log-item">
+            <div class="log-time">2026-05-19 09:30</div>
+            <div class="log-content">
+              <div class="log-title">发起申请</div>
+              <div class="log-user">张明 发起流程</div>
+            </div>
+          </div>
+          <div class="log-item">
+            <div class="log-time">2026-05-19 10:15</div>
+            <div class="log-content">
+              <div class="log-title">部门负责人审批</div>
+              <div class="log-user">王总 审批通过</div>
+              <span class="log-result log-pass">通过</span>
+            </div>
+          </div>
+          <div class="log-item">
+            <div class="log-time">2026-05-19 10:20</div>
+            <div class="log-content">
+              <div class="log-title">HR审批</div>
+              <div class="log-user">李华 (当前审批人)</div>
+              <span class="log-result" style="background:#FFF3E0;color:#FF9500">待处理</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default">终止流程</button>
+      <button class="btn-default" onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const monitorData = {
+  running:[
+    {id:'WF-20260519-001',name:'入职审批流程',node:'HR审批',initiator:'张明',start:'2026-05-19 09:30',remain:'4小时超时',status:'timeout'},
+    {id:'WF-20260519-002',name:'会议室预约',node:'行政审批',initiator:'赵丽',start:'2026-05-19 11:00',remain:'2天',status:'running'},
+    {id:'WF-20260518-015',name:'物品采购申请',node:'财务审批',initiator:'孙强',start:'2026-05-18 16:40',remain:'1天',status:'running'},
+    {id:'WF-20260518-012',name:'请假申请-李华',node:'部门审批',initiator:'李华',start:'2026-05-18 14:20',remain:'6小时超时',status:'timeout'},
+    {id:'WF-20260517-008',name:'合同审批-客户A',node:'法务审核',initiator:'周杰',start:'2026-05-17 11:00',remain:'5小时超时',status:'timeout'},
+    {id:'WF-20260517-005',name:'用车申请',node:'行政审批',initiator:'吴磊',start:'2026-05-17 09:00',remain:'8小时',status:'running'},
+    {id:'WF-20260516-020',name:'采购MacBook Pro',node:'部门审批',initiator:'陈思',start:'2026-05-16 14:30',remain:'2小时超时',status:'timeout'},
+    {id:'WF-20260516-018',name:'年假申请',node:'已完成',initiator:'刘芳',start:'2026-05-16 10:00',remain:'已完成',status:'running'},
+  ],
+  completed:[
+    {id:'WF-20260515-001',name:'入职审批流程',node:'已完成',initiator:'王芳',start:'2026-05-10 15:00',remain:'已完成',status:'completed'},
+    {id:'WF-20260514-002',name:'物品采购',node:'已完成',initiator:'陈明',start:'2026-05-08 10:00',remain:'已完成',status:'completed'},
+    {id:'WF-20260512-003',name:'合同审批',node:'已完成',initiator:'孙磊',start:'2026-05-05 09:00',remain:'已完成',status:'completed'},
+    {id:'WF-20260510-004',name:'请假申请',node:'已完成',initiator:'周红',start:'2026-05-03 16:00',remain:'已完成',status:'completed'},
+  ]
+};
+
+function switchTab(btn,idx){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(idx);
+}
+
+function renderTable(tabIdx){
+  const keys = ['running','completed'];
+  const data = monitorData[keys[tabIdx]];
+  const statusMap = {running:'运行中',completed:'已完成',timeout:'超时'};
+  const statusClass = {running:'tag-running',completed:'tag-completed',timeout:'tag-timeout'};
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = data.map(d => `
+    <tr>
+      <td><strong>${d.id}</strong></td>
+      <td>${d.name}</td>
+      <td>${d.node}</td>
+      <td>${d.initiator}</td>
+      <td>${d.start}</td>
+      <td class="${d.status==='timeout'?'timeout-badge':''}">${d.remain}</td>
+      <td><span class="tag ${statusClass[d.status]}">${statusMap[d.status]}</span></td>
+      <td>
+        <button class="action-btn" onclick="openDetailModal()">详情</button>
+        <button class="action-btn">催办</button>
+        <button class="action-btn">终止</button>
+      </td>
+    </tr>`).join('');
+  document.getElementById('totalCount').textContent = data.length;
+}
+
+function openDetailModal(){document.getElementById('detailModal').style.display='flex';}
+function closeModal(){document.getElementById('detailModal').style.display='none';}
+
+document.addEventListener('DOMContentLoaded',()=>renderTable(0));
+</script>
+</div>
+</body>
+</html>

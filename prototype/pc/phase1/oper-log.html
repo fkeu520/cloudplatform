@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>操作日志 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-box{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search-box input,.search-box select{padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:13px}
+.search-box input:focus,.search-box select:focus{border-color:#007AFF}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid #E5E5E5}
+th{background:#FAFAFA;font-weight:500;color:#8E8E93;font-size:13px}
+tr:hover td{background:#F9F9FB}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-success{background:#E8F5E9;color:#34C759}
+.badge-fail{background:#FFEBEE;color:#FF3B30}
+.badge-warn{background:#FFF3E0;color:#FF9500}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+.pagination .info{font-size:13px;color:#8E8E93}
+.pagination .pages{display:flex;gap:4px;align-items:center}
+.pagination .pages button{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:6px;background:#fff;cursor:pointer;font-size:13px}
+.pagination .pages button:hover{background:#F5F5F7}
+.pagination .pages button.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.pagination .pages button.disabled{opacity:0.4;cursor:not-allowed}
+.method{font-size:12px;padding:2px 6px;border-radius:4px;font-weight:500}
+.method-get{background:#E8F5E9;color:#34C759}
+.method-post{background:#E3F2FD;color:#007AFF}
+.method-put{background:#FFF3E0;color:#FF9500}
+.method-delete{background:#FFEBEE;color:#FF3B30}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:700px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.detail-section{margin-bottom:20px}
+.detail-section .title{font-size:14px;font-weight:600;color:#1D1D1F;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #E5E5E5}
+.detail-grid{display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:start}
+.detail-label{color:#8E8E93;font-size:13px}
+.detail-value{font-size:13px;color:#1D1D1F;word-break:break-all}
+.code-block{background:#FAFAFA;border:1px solid #E5E5E5;border-radius:8px;padding:12px;font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>操作日志</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">操作日志</div>
+<div class="card" style="padding:16px 20px">
+<div class="toolbar">
+<div class="search-box">
+<input type="text" id="searchUser" placeholder="操作人">
+<select id="searchModule">
+<option value="">全部模块</option>
+<option value="用户管理">用户管理</option>
+<option value="角色管理">角色管理</option>
+<option value="菜单管理">菜单管理</option>
+<option value="组织管理">组织管理</option>
+<option value="字典管理">字典管理</option>
+<option value="参数配置">参数配置</option>
+<option value="数据看板">数据看板</option>
+</select>
+<input type="date" id="searchDateFrom" style="padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none">
+<span style="color:#8E8E93;padding:0 4px">至</span>
+<input type="date" id="searchDateTo" style="padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none">
+<button class="btn btn-primary" onclick="searchLog()">搜索</button>
+<button class="btn btn-default" onclick="resetSearch()">重置</button>
+</div>
+</div>
+<div id="logTable"></div>
+<div class="pagination">
+<div class="info">共 <span id="totalCount">0</span> 条记录，每页 15 条</div>
+<div class="pages" id="pagination"></div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="detailModal">
+<div class="modal">
+<div class="modal-header">
+<h3>操作详情</h3>
+<button class="close" onclick="closeDetail()">×</button>
+</div>
+<div class="modal-body" id="detailBody">
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeDetail()">关闭</button>
+</div>
+</div>
+</div>
+<script>
+var mockLogs=[
+{id:1,user:"admin",module:"用户管理",type:"编辑用户",method:"POST",ip:"192.168.1.100",location:"上海",status:"success",duration:"128ms",time:"2024-06-10 14:32:15",params:'{"id":5,"username":"zhangsan","realname":"张三","phone":"138****8001"}',result:'{"code":200,"message":"success"}'},
+{id:2,user:"张三",module:"角色管理",type:"配置权限",method:"PUT",ip:"192.168.1.102",location:"北京",status:"success",duration:"256ms",time:"2024-06-10 14:28:33",params:'{"roleId":2,"permissions":["user:view","user:add","user:edit"]}',result:'{"code":200,"message":"权限配置成功"}'},
+{id:3,user:"王五",module:"菜单管理",type:"新增菜单",method:"POST",ip:"192.168.1.105",location:"广州",status:"success",duration:"98ms",time:"2024-06-10 14:15:42",params:'{"name":"数据看板","type":"menu","path":"/dashboard","component":"dashboard/index"}',result:'{"code":200,"message":"菜单创建成功","id":15}'},
+{id:4,user:"admin",module:"参数配置",type:"修改参数",method:"PUT",ip:"192.168.1.100",location:"上海",status:"success",duration:"45ms",time:"2024-06-10 14:02:18",params:'{"key":"system.session.timeout","value":"3600"}',result:'{"code":200,"message":"参数更新成功"}'},
+{id:5,user:"赵六",module:"用户管理",type:"禁用用户",method:"POST",ip:"192.168.1.108",location:"深圳",status:"success",duration:"67ms",time:"2024-06-10 13:45:29",params:'{"id":8,"status":0}',result:'{"code":200,"message":"用户已禁用"}'},
+{id:6,user:"孙七",module:"字典管理",type:"新增字典类型",method:"POST",ip:"192.168.1.110",location:"成都",status:"success",duration:"112ms",time:"2024-06-10 13:30:55",params:'{"name":"通知类型","code":"notice_type","data":[{"label":"系统通知","value":"system"}]}',result:'{"code":200,"message":"字典类型创建成功","id":7}'},
+{id:7,user:"admin",module:"组织管理",type:"编辑组织",method:"PUT",ip:"192.168.1.100",location:"上海",status:"success",duration:"89ms",time:"2024-06-10 13:18:07",params:'{"id":11,"name":"华东区","leader":"周涛","phone":"021-65880030"}',result:'{"code":200,"message":"组织信息更新成功"}'},
+{id:8,user:"周八",module:"数据看板",type:"查看看板",method:"GET",ip:"192.168.1.115",location:"杭州",status:"success",duration:"234ms",time:"2024-06-10 12:55:33",params:null,result:'{"code":200,"data":{"users":1284,"roles":8,"online":156}}'},
+{id:9,user:"吴九",module:"用户管理",type:"删除用户",method:"DELETE",ip:"192.168.1.117",location:"南京",status:"fail",duration:"18ms",time:"2024-06-10 12:42:10",params:'{"id":99}',result:'{"code":403,"message":"无权删除超级管理员"}'},
+{id:10,user:"郑十",module:"角色管理",type:"删除角色",method:"DELETE",ip:"192.168.1.120",location:"武汉",status:"fail",duration:"22ms",time:"2024-06-10 12:30:45",params:'{"id":6}',result:'{"code":400,"message":"该角色下存在用户，无法删除"}'},
+{id:11,user:"陈六",module:"参数配置",type:"新增参数",method:"POST",ip:"192.168.1.125",location:"西安",status:"success",duration:"75ms",time:"2024-06-10 12:15:22",params:'{"name":"缓存策略","key":"cache.config","value":"{\"ttl\":3600}","type":"json"}',result:'{"code":200,"message":"参数创建成功","id":16}'},
+{id:12,user:"任一",module:"菜单管理",type:"编辑菜单",method:"PUT",ip:"192.168.1.128",location:"重庆",status:"success",duration:"95ms",time:"2024-06-10 11:58:39",params:'{"id":5,"name":"用户管理","sort":2}',result:'{"code":200,"message":"菜单更新成功"}'},
+{id:13,user:"崔二",module:"组织管理",type:"新增部门",method:"POST",ip:"192.168.1.130",location:"天津",status:"success",duration:"101ms",time:"2024-06-10 11:42:11",params:'{"name":"人力资源部","parentId":3,"type":"dept","sort":5}',result:'{"code":200,"message":"部门创建成功","id":16}'},
+{id:14,user:"admin",module:"用户管理",type:"重置密码",method:"POST",ip:"192.168.1.100",location:"上海",status:"success",duration:"58ms",time:"2024-06-10 11:25:55",params:'{"id":8}',result:'{"code":200,"message":"密码已重置为默认密码"}'},
+{id:15,user:"张三",module:"数据看板",type:"导出报表",method:"GET",ip:"192.168.1.102",location:"北京",status:"warn",duration:"1523ms",time:"2024-06-10 11:10:08",params:'{"type":"monthly","format":"excel"}',result:'{"code":200,"message":"导出任务已创建"}'}
+];
+var currentPage=1;
+var pageSize=15;
+var statusMap={success:"成功",fail:"失败",warn:"警告"};
+var statusBadge={success:"badge-success",fail:"badge-fail",warn:"badge-warn"};
+var methodClass={GET:"method-get",POST:"method-post",PUT:"method-put",DELETE:"method-delete"};
+function renderTable(page){
+var start=(page-1)*pageSize;
+var end=Math.min(start+pageSize,mockLogs.length);
+var html='<table><thead><tr><th width="40">序号</th><th>操作人</th><th>模块</th><th>操作类型</th><th>请求方式</th><th>操作IP</th><th>操作地点</th><th>状态</th><th>耗时</th><th>操作时间</th><th width="60">详情</th></tr></thead><tbody>';
+for(var i=start;i<end;i++){
+var log=mockLogs[i];
+html+='<tr>';
+html+='<td>'+(i+1)+'</td>';
+html+='<td>'+log.user+'</td>';
+html+='<td>'+log.module+'</td>';
+html+='<td>'+log.type+'</td>';
+html+='<td><span class="method '+methodClass[log.method]+'">'+log.method+'</span></td>';
+html+='<td style="font-size:12px;font-family:monospace">'+log.ip+'</td>';
+html+='<td>'+log.location+'</td>';
+html+='<td><span class="badge '+statusBadge[log.status]+'">'+statusMap[log.status]+'</span></td>';
+html+='<td>'+log.duration+'</td>';
+html+='<td>'+log.time+'</td>';
+html+='<td><button class="btn btn-default btn-sm" onclick="showDetail('+log.id+')">详情</button></td>';
+html+='</tr>';
+}
+html+='</tbody></table>';
+document.getElementById("logTable").innerHTML=html;
+document.getElementById("totalCount").textContent=mockLogs.length;
+renderPagination();
+}
+function renderPagination(){
+var total=Math.ceil(mockLogs.length/pageSize);
+var html='';
+html+='<button '+(currentPage==1?'class="disabled"':'')+' onclick="goPage('+(currentPage-1)+')">‹</button>';
+var start=Math.max(1,currentPage-2);
+var end=Math.min(total,currentPage+2);
+for(var i=start;i<=end;i++){
+html+='<button '+(i==currentPage?'class="active"':'')+' onclick="goPage('+i+')">'+i+'</button>';
+}
+html+='<button '+(currentPage==total?'class="disabled"':'')+' onclick="goPage('+(currentPage+1)+')">›</button>';
+document.getElementById("pagination").innerHTML=html;
+}
+function goPage(p){
+var total=Math.ceil(mockLogs.length/pageSize);
+if(p<1||p>total)return;
+currentPage=p;
+renderTable(currentPage);
+}
+function searchLog(){
+var user=document.getElementById("searchUser").value;
+var module=document.getElementById("searchModule").value;
+console.log("搜索:",user,module);
+alert("演示模式：搜索功能已触发");
+}
+function resetSearch(){
+document.getElementById("searchUser").value="";
+document.getElementById("searchModule").value="";
+document.getElementById("searchDateFrom").value="";
+document.getElementById("searchDateTo").value="";
+renderTable(1);
+}
+function showDetail(id){
+var log=mockLogs.find(function(x){return x.id==id;});
+if(!log)return;
+var html='<div class="detail-section">';
+html+='<div class="title">基本信息</div>';
+html+='<div class="detail-grid">';
+html+='<div class="detail-label">操作人</div><div class="detail-value">'+log.user+'</div>';
+html+='<div class="detail-label">模块</div><div class="detail-value">'+log.module+'</div>';
+html+='<div class="detail-label">操作类型</div><div class="detail-value">'+log.type+'</div>';
+html+='<div class="detail-label">请求方式</div><div class="detail-value"><span class="method '+methodClass[log.method]+'">'+log.method+'</span></div>';
+html+='<div class="detail-label">操作IP</div><div class="detail-value">'+log.ip+'</div>';
+html+='<div class="detail-label">操作地点</div><div class="detail-value">'+log.location+'</div>';
+html+='<div class="detail-label">状态</div><div class="detail-value"><span class="badge '+statusBadge[log.status]+'">'+statusMap[log.status]+'</span></div>';
+html+='<div class="detail-label">耗时</div><div class="detail-value">'+log.duration+'</div>';
+html+='<div class="detail-label">操作时间</div><div class="detail-value">'+log.time+'</div>';
+html+='</div></div>';
+html+='<div class="detail-section">';
+html+='<div class="title">请求参数</div>';
+if(log.params){
+html+='<div class="code-block">'+JSON.stringify(JSON.parse(log.params),null,2)+'</div>';
+}else{
+html+='<div style="color:#8E8E93;font-size:13px">无</div>';
+}
+html+='</div>';
+html+='<div class="detail-section">';
+html+='<div class="title">返回结果</div>';
+html+='<div class="code-block">'+JSON.stringify(JSON.parse(log.result),null,2)+'</div>';
+html+='</div>';
+document.getElementById("detailBody").innerHTML=html;
+document.getElementById("detailModal").classList.add("show");
+}
+function closeDetail(){
+document.getElementById("detailModal").classList.remove("show");
+}
+renderTable(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>审批详情</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:#F5F5F7;color:#1C1C1E;font-size:14px;-webkit-font-smoothing:antialiased}
+.page-wrap{max-width:430px;margin:0 auto;min-height:100vh;background:#F5F5F7;padding-bottom:80px}
+
+/* Header */
+.header{position:sticky;top:0;z-index:100;background:#fff;height:50px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid rgba(0,0,0,0.06)}
+.back{font-size:24px;color:#007AFF;cursor:pointer;margin-right:12px}
+.header h1{font-size:17px;font-weight:600}
+
+/* Info Card */
+.info-card{background:#fff;margin:12px 16px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:16px}
+.info-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#007AFF,#5AC8FA);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:600}
+.info-name{font-size:16px;font-weight:600;color:#1C1C1E}
+.info-dept{font-size:13px;color:#8E8E93}
+.info-row{display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid rgba(0,0,0,0.05)}
+.info-row span:first-child{color:#8E8E93;font-size:13px}
+.info-row span:last-child{color:#1C1C1E;font-size:13px}
+
+/* Content */
+.section{margin:0 16px 12px}
+.section-title{font-size:13px;color:#8E8E93;padding:12px 0 8px}
+.content-card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:16px}
+.form-row{display:flex;padding:10px 0;border-bottom:1px solid rgba(0,0,0,0.04)}
+.form-row:last-child{border-bottom:none}
+.form-label{color:#8E8E93;font-size:14px;width:80px;flex-shrink:0}
+.form-value{color:#1C1C1E;font-size:14px}
+
+/* Timeline */
+.timeline{padding:0 16px}
+.timeline-item{display:flex;gap:12px;position:relative;padding-bottom:20px}
+.timeline-item:last-child{padding-bottom:0}
+.timeline-dot{width:20px;flex-shrink:0;display:flex;flex-direction:column;align-items:center}
+.dot{width:12px;height:12px;border-radius:50%;background:#D1D1D6}
+.dot.done{background:#34C759}
+.dot.current{background:#007AFF;box-shadow:0 0 0 3px rgba(0,122,255,0.2)}
+.dot.pending{background:#D1D1D6}
+.timeline-line{width:1px;flex:1;background:#E5E5EA;margin-top:4px}
+.timeline-item:last-child .timeline-line{display:none}
+.timeline-content{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:12px;flex:1;font-size:13px}
+.timeline-name{font-weight:600;color:#1C1C1E;font-size:14px;margin-bottom:4px}
+.timeline-desc{color:#8E8E93;font-size:12px}
+.timeline-time{color:#8E8E93;font-size:11px;margin-top:4px}
+.timeline-item.current .timeline-content{border:1px solid #007AFF}
+
+/* Bottom Action */
+.bottom-action{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;background:#fff;border-top:1px solid rgba(0,0,0,0.06);padding:10px 16px;display:flex;gap:12px;z-index:200}
+.btn{flex:1;height:44px;border-radius:8px;font-size:16px;font-weight:500;border:none;cursor:pointer}
+.btn-reject{background:#fff;border:1px solid #FF3B30;color:#FF3B30}
+.btn-approve{background:#007AFF;color:#fff}
+.btn:active{opacity:0.8}
+
+/* Reply Panel */
+.reply-panel{display:none;background:#fff;border-top:1px solid rgba(0,0,0,0.06);padding:12px 16px 80px}
+.reply-panel.active{display:block}
+.reply-textarea{width:100%;height:80px;border:1px solid #E5E5EA;border-radius:8px;padding:10px;font-size:14px;font-family:inherit;resize:none;outline:none}
+.reply-actions{display:flex;gap:10px;margin-top:10px}
+.tag-btn{padding:6px 14px;border-radius:16px;font-size:13px;border:1px solid #E5E5EA;background:#fff;color:#1C1C1E;cursor:pointer}
+.tag-btn.selected{background:#007AFF;color:#fff;border-color:#007AFF}
+.reply-submit{width:100%;height:44px;background:#007AFF;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:500;margin-top:10px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="header">
+    <span class="back" onclick="history.back()">‹</span>
+    <h1>审批详情</h1>
+  </div>
+
+  <!-- Applicant Info -->
+  <div class="info-card">
+    <div class="info-header">
+      <div class="avatar">张</div>
+      <div>
+        <div class="info-name">张明</div>
+        <div class="info-dept">开发部 · 前端工程师</div>
+      </div>
+    </div>
+    <div class="info-row">
+      <span>申请时间</span>
+      <span>2026-05-19 10:30</span>
+    </div>
+    <div class="info-row">
+      <span>审批编号</span>
+      <span>FLOW-2026-0519-0038</span>
+    </div>
+  </div>
+
+  <!-- Application Content -->
+  <div class="section">
+    <div class="section-title">申请内容</div>
+    <div class="content-card">
+      <div class="form-row">
+        <span class="form-label">假期类型</span>
+        <span class="form-value">年假</span>
+      </div>
+      <div class="form-row">
+        <span class="form-label">开始时间</span>
+        <span class="form-value">2026-05-26 09:00</span>
+      </div>
+      <div class="form-row">
+        <span class="form-label">结束时间</span>
+        <span class="form-value">2026-05-30 18:00</span>
+      </div>
+      <div class="form-row">
+        <span class="form-label">请假时长</span>
+        <span class="form-value">5天</span>
+      </div>
+      <div class="form-row">
+        <span class="form-label">申请事由</span>
+        <span class="form-value">家人出行旅游</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section">
+    <div class="section-title">审批流程</div>
+  </div>
+  <div class="timeline">
+    <div class="timeline-item current">
+      <div class="timeline-dot"><div class="dot current"></div><div class="timeline-line"></div></div>
+      <div class="timeline-content">
+        <div class="timeline-name">李静</div>
+        <div class="timeline-desc">部门经理 · 审批中</div>
+        <div class="timeline-time">--</div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"><div class="dot pending"></div><div class="timeline-line"></div></div>
+      <div class="timeline-content">
+        <div class="timeline-name">王总</div>
+        <div class="timeline-desc">分管领导 · 待审批</div>
+        <div class="timeline-time">--</div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"><div class="dot done"></div><div class="timeline-line"></div></div>
+      <div class="timeline-content">
+        <div class="timeline-name">孙丽</div>
+        <div class="timeline-desc">人事专员 · 已通过</div>
+        <div class="timeline-time">05-19 10:35</div>
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-dot"><div class="dot done"></div><div class="timeline-line"></div></div>
+      <div class="timeline-content">
+        <div class="timeline-name">系统</div>
+        <div class="timeline-desc">自动提交</div>
+        <div class="timeline-time">05-19 10:30</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reply Panel -->
+  <div class="reply-panel" id="replyPanel">
+    <textarea class="reply-textarea" placeholder="请输入审批意见..."></textarea>
+    <div class="reply-actions">
+      <span class="tag-btn" onclick="selectTag(this)">同意</span>
+      <span class="tag-btn" onclick="selectTag(this)">驳回</span>
+      <span class="tag-btn" onclick="selectTag(this)">已阅</span>
+      <span class="tag-btn" onclick="selectTag(this)">需补充</span>
+    </div>
+    <button class="reply-submit" onclick="submitReply()">提交</button>
+  </div>
+</div>
+
+<!-- Bottom Action Bar -->
+<div class="bottom-action">
+  <button class="btn btn-reject" onclick="toggleReject()">驳回</button>
+  <button class="btn btn-approve" onclick="location.href='approval_form_mo.html'">同意</button>
+</div>
+
+<script>
+if (!localStorage.getItem('mo_user')) {
+  location.href = 'login_mo.html';
+}
+var rejectOpen = false;
+function toggleReject() {
+  rejectOpen = !rejectOpen;
+  document.getElementById('replyPanel').classList.toggle('active', rejectOpen);
+}
+function selectTag(el) {
+  document.querySelectorAll('.tag-btn').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  el.parentElement.previousElementSibling.value = el.textContent;
+}
+function submitReply() {
+  alert('提交成功');
+  location.href = 'workflow_mo.html';
+}
+</script>
+</body>
+</html>

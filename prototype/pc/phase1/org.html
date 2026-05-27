@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组织管理 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+.layout{display:flex;min-height:600px}
+.left-panel{width:360px;border-right:1px solid #E5E5E5;padding:20px}
+.right-panel{flex:1;padding:24px;overflow-y:auto}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.btn-danger{background:#FF3B30;color:#fff}
+.btn-danger:hover{background:#D63028}
+.btn-sm{padding:4px 10px;font-size:12px}
+.tree-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.tree-node{display:flex;align-items:center;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;transition:background 0.15s}
+.tree-node:hover{background:#F5F5F7}
+.tree-node.selected{background:#E8F0FE}
+.tree-node .toggle{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#8E8E93;font-size:10px}
+.tree-node .icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-right:10px;font-size:14px;color:#fff}
+.tree-node .info{flex:1}
+.tree-node .name{font-size:13px;font-weight:500}
+.tree-node .meta{font-size:11px;color:#8E8E93}
+.tree-node .actions{opacity:0;transition:opacity 0.15s}
+.tree-node:hover .actions{opacity:1}
+.tree-children{padding-left:24px;display:none}
+.tree-children.show{display:block}
+.detail-card{background:#FAFAFA;border-radius:12px;padding:24px}
+.detail-row{display:flex;padding:12px 0;border-bottom:1px solid #E5E5E5}
+.detail-row:last-child{border-bottom:none}
+.detail-label{width:120px;color:#8E8E93;font-size:13px}
+.detail-value{flex:1;color:#1D1D1F;font-size:14px}
+.detail-title{font-size:17px;font-weight:600;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-group{background:#E8F5E9;color:#34C759}
+.badge-company{background:#E3F2FD;color:#007AFF}
+.badge-dept{background:#FFF3E0;color:#FF9500}
+.badge-post{background:#F3E5F5;color:#9C27B0}
+.form-row{margin-bottom:16px}
+.form-row label{display:block;font-size:13px;color:#515154;margin-bottom:6px;font-weight:500}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:14px}
+.form-row input:focus,.form-row select:focus{border-color:#007AFF}
+.form-row textarea{resize:vertical;min-height:80px}
+.form-row .row{display:flex;gap:16px}
+.form-row .col{flex:1}
+.radio-group{display:flex;gap:20px}
+.radio-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px}
+.radio-item input{width:16px;height:16px;accent-color:#007AFF}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:520px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.placeholder-panel{text-align:center;color:#8E8E93;padding:80px 0}
+.placeholder-panel p{font-size:48px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>组织管理</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">组织管理</div>
+<div class="card">
+<div class="layout">
+<div class="left-panel">
+<div class="tree-header">
+<span style="font-size:15px;font-weight:600">组织架构</span>
+<button class="btn btn-primary btn-sm" onclick="openAddOrg()">+ 新增</button>
+</div>
+<div id="orgTree"></div>
+</div>
+<div class="right-panel" id="detailPanel">
+<div class="placeholder-panel">
+<p>🏢</p>
+<p>请选择左侧组织查看详情</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="orgModal">
+<div class="modal">
+<div class="modal-header">
+<h3 id="orgModalTitle">新增组织</h3>
+<button class="close" onclick="closeOrgModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="orgForm" onsubmit="return saveOrg()">
+<input type="hidden" id="orgId">
+<div class="form-row">
+<label>组织类型 <span style="color:#FF3B30">*</span></label>
+<div class="radio-group">
+<label class="radio-item"><input type="radio" name="orgType" value="group" checked onclick="toggleOrgType('group')"> 集团</label>
+<label class="radio-item"><input type="radio" name="orgType" value="company" onclick="toggleOrgType('company')"> 公司</label>
+<label class="radio-item"><input type="radio" name="orgType" value="dept" onclick="toggleOrgType('dept')"> 部门</label>
+<label class="radio-item"><input type="radio" name="orgType" value="post" onclick="toggleOrgType('post')"> 岗位</label>
+</div>
+</div>
+<div class="form-row">
+<label>上级组织</label>
+<select id="parentOrg">
+<option value="">作为一级组织</option>
+<option value="1">华远集团</option>
+<option value="2">  华远科技</option>
+<option value="3">    研发部</option>
+<option value="4">    市场部</option>
+</select>
+</div>
+<div class="form-row">
+<label>组织名称 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="orgName" required placeholder="请输入组织名称">
+</div>
+<div class="form-row">
+<div class="row">
+<div class="col">
+<label>组织编码</label>
+<input type="text" id="orgCode" placeholder="请输入组织编码">
+</div>
+<div class="col">
+<label>排序</label>
+<input type="number" id="orgSort" value="0" placeholder="数值越小越靠前">
+</div>
+</div>
+</div>
+<div class="form-row">
+<label>负责人</label>
+<input type="text" id="orgLeader" placeholder="请输入负责人姓名">
+</div>
+<div class="form-row">
+<label>联系电话</label>
+<input type="text" id="orgPhone" placeholder="请输入联系电话">
+</div>
+<div class="form-row">
+<label>状态</label>
+<div class="radio-group">
+<label class="radio-item"><input type="radio" name="orgStatus" value="1" checked> 启用</label>
+<label class="radio-item"><input type="radio" name="orgStatus" value="0"> 禁用</label>
+</div>
+</div>
+<div class="form-row">
+<label>备注</label>
+<textarea id="orgRemark" placeholder="请输入备注信息"></textarea>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeOrgModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('orgForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+<script>
+var mockTree=[
+{id:1,name:"华远集团",type:"group",code:"HYJT",leader:"陈明华",phone:"021-65880001",sort:1,status:1,children:[
+{id:2,name:"华远科技有限公司",type:"company",code:"HYKJ",leader:"李建国",phone:"021-65880002",sort:1,status:1,children:[
+{id:5,name:"研发部",type:"dept",code:"YFB",leader:"张伟",phone:"021-65880010",sort:1,status:1,children:[
+{id:9,name:"前端组",type:"post",code:"QZZ",leader:"王磊",phone:"021-65880020",sort:1,status:1},
+{id:10,name:"后端组",type:"post",code:"HZZ",leader:"刘洋",phone:"021-65880021",sort:2,status:1}
+]},
+{id:6,name:"市场部",type:"dept",code:"SCB",leader:"赵强",phone:"021-65880011",sort:2,status:1,children:[
+{id:11,name:"华东区",type:"post",code:"HDQ",leader:"周涛",phone:"021-65880030",sort:1,status:1},
+{id:12,name:"华南区",type:"post",code:"HNQ",leader:"吴刚",phone:"021-65880031",sort:2,status:1}
+]},
+{id:7,name:"财务部",type:"dept",code:"CWB",leader:"孙丽",phone:"021-65880012",sort:3,status:1,children:[]}
+]},
+{id:3,name:"华远地产有限公司",type:"company",code:"HYDC",leader:"郑海",phone:"021-65880003",sort:2,status:1,children:[
+{id:8,name:"项目管理部",type:"dept",code:"XMGLB",leader:"冯磊",phone:"021-65880013",sort:1,status:1,children:[]}
+]},
+{id:4,name:"华远物业有限公司",type:"company",code:"HYWY",leader:"周梅",phone:"021-65880004",sort:3,status:1,children:[]}
+]},
+{id:13,name:"华远教育集团",type:"group",code:"HYJY",leader:"吴秀英",phone:"010-88880001",sort:2,status:1,children:[
+{id:14,name:"教学管理部",type:"dept",code:"JXGLB",leader:"马超",phone:"010-88880010",sort:1,status:1,children:[]}
+]}
+];
+var typeMap={group:"集团",company:"公司",dept:"部门",post:"岗位"};
+var typeColor={group:"#34C759",company:"#007AFF",dept:"#FF9500",post:"#9C27B0"};
+var currentOrgId=null;
+function renderTree(nodes,depth,html){
+html=html||"";
+nodes.forEach(function(n){
+var hasChildren=n.children&&n.children.length>0;
+var typeLabel=typeMap[n.type]||"组织";
+html+='<div class="tree-node" data-id="'+n.id+'" onclick="selectOrg('+n.id+')">';
+html+='<span class="toggle" onclick="event.stopPropagation();toggleNode(this)">'+(hasChildren?'▼':' ')+'</span>';
+html+='<span class="icon" style="background:'+typeColor[n.type]+'">🏢</span>';
+html+='<span class="info">';
+html+='<div class="name">'+n.name+'</div>';
+html+='<div class="meta">'+typeLabel+' · '+n.code+'</div>';
+html+='</span>';
+html+='<span class="actions">';
+html+='<button class="btn btn-default btn-sm" onclick="event.stopPropagation();openAddChild('+n.id+')">+子级</button> ';
+html+='<button class="btn btn-default btn-sm" onclick="event.stopPropagation();editOrg('+n.id+')">编辑</button>';
+html+='</span>';
+html+='</div>';
+if(hasChildren){
+html+='<div class="tree-children">'+renderTree(n.children,depth+1,'')+'</div>';
+}
+});
+return html;
+}
+function toggleNode(el){
+var children=el.parentElement.nextElementSibling;
+if(children&&children.classList.contains("tree-children")){
+children.classList.toggle("show");
+el.textContent=children.classList.contains("show")?"▼":"▶";
+}
+}
+function selectOrg(id){
+currentOrgId=id;
+document.querySelectorAll(".tree-node").forEach(function(el){el.classList.remove("selected")});
+document.querySelector('.tree-node[data-id="'+id+'"]').classList.add("selected");
+renderDetail();
+}
+function renderDetail(){
+var node=findNode(mockTree,currentOrgId);
+if(!node){return;}
+var html='<div class="detail-card">';
+html+='<div class="detail-title">';
+html+='<span style="width:32px;height:32px;background:'+typeColor[node.type]+';border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;color:#fff">🏢</span>';
+html+=node.name;
+html+=' <span class="badge" style="background:'+typeColor[node.type]+'20;color:'+typeColor[node.type]+';font-size:12px">'+typeMap[node.type]+'</span>';
+html+='</div>';
+html+='<div class="detail-row"><div class="detail-label">组织编码</div><div class="detail-value">'+(node.code||'-')+'</div></div>';
+html+='<div class="detail-row"><div class="detail-label">负责人</div><div class="detail-value">'+(node.leader||'-')+'</div></div>';
+html+='<div class="detail-row"><div class="detail-label">联系电话</div><div class="detail-value">'+(node.phone||'-')+'</div></div>';
+html+='<div class="detail-row"><div class="detail-label">排序</div><div class="detail-value">'+(node.sort||0)+'</div></div>';
+html+='<div class="detail-row"><div class="detail-label">状态</div><div class="detail-value"><span class="badge badge-active">'+(node.status==1?'启用':'禁用')+'</span></div></div>';
+if(node.children&&node.children.length>0){
+html+='<div class="detail-row"><div class="detail-label">下级组织</div><div class="detail-value">'+node.children.length+' 个</div></div>';
+}
+html+='<div style="margin-top:20px;display:flex;gap:12px">';
+html+='<button class="btn btn-default" onclick="editOrg('+node.id+')">编辑</button>';
+html+='<button class="btn btn-default" onclick="openAddChild('+node.id+')">新增子级</button>';
+html+='</div>';
+html+='</div>';
+document.getElementById("detailPanel").innerHTML=html;
+}
+function findNode(nodes,id){
+for(var i=0;i<nodes.length;i++){
+if(nodes[i].id==id) return nodes[i];
+if(nodes[i].children){
+var found=findNode(nodes[i].children,id);
+if(found) return found;
+}
+}
+return null;
+}
+function openAddOrg(){
+document.getElementById("orgModalTitle").textContent="新增组织";
+document.getElementById("orgForm").reset();
+document.getElementById("orgId").value="";
+document.getElementById("orgModal").classList.add("show");
+}
+function openAddChild(parentId){
+document.getElementById("orgModalTitle").textContent="新增子组织";
+document.getElementById("orgForm").reset();
+document.getElementById("orgId").value="";
+document.getElementById("parentOrg").value=parentId;
+document.getElementById("orgModal").classList.add("show");
+}
+function editOrg(id){
+var n=findNode(mockTree,id);
+if(!n)return;
+document.getElementById("orgModalTitle").textContent="编辑组织";
+document.getElementById("orgId").value=id;
+document.getElementById("orgName").value=n.name;
+document.getElementById("orgCode").value=n.code||"";
+document.getElementById("orgLeader").value=n.leader||"";
+document.getElementById("orgPhone").value=n.phone||"";
+document.getElementById("orgSort").value=n.sort||0;
+document.getElementById("orgStatus").value=n.status||1;
+document.getElementById("orgModal").classList.add("show");
+}
+function toggleOrgType(type){
+console.log("切换组织类型:",type);
+}
+function closeOrgModal(){
+document.getElementById("orgModal").classList.remove("show");
+}
+function saveOrg(){
+closeOrgModal();
+alert("演示模式：组织保存成功");
+renderTreeHTML();
+}
+function renderTreeHTML(){
+document.getElementById("orgTree").innerHTML=renderTree(mockTree,0);
+}
+renderTreeHTML();
+</script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>我的工作台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:#F5F5F7;color:#1C1C1E;font-size:14px;-webkit-font-smoothing:antialiased}
+.page-wrap{max-width:430px;margin:0 auto;min-height:100vh;background:#F5F5F7;padding-bottom:70px}
+
+/* Header */
+.header{background:#fff;height:50px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid rgba(0,0,0,0.06);position:sticky;top:0;z-index:100}
+.header h1{font-size:17px;font-weight:600;flex:1}
+.theme-select{height:30px;border:1px solid #E5E5EA;border-radius:15px;padding:0 12px;font-size:13px;font-family:inherit;background:#fff;outline:none;color:#1C1C1E}
+
+/* User Card */
+.user-card{background:linear-gradient(135deg,#007AFF,#5AC8FA);padding:24px 20px 40px;color:#fff;position:relative}
+.user-info{display:flex;align-items:center;gap:14px}
+.user-avatar{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:600}
+.user-name{font-size:20px;font-weight:600}
+.user-dept{font-size:13px;opacity:0.85;margin-top:2px}
+.user-stats{display:flex;justify-content:space-around;margin-top:20px;text-align:center}
+.stat-item{position:relative}
+.stat-num{font-size:22px;font-weight:600}
+.stat-label{font-size:12px;opacity:0.85;margin-top:2px}
+
+/* Quick Grid */
+.quick-grid{display:flex;flex-wrap:wrap;padding:0 16px;gap:10px;margin:-30px 16px 0;position:relative;z-index:10}
+.quick-item{width:calc(50% - 5px);background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.quick-item:active{opacity:0.7}
+.quick-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.quick-icon.todo{background:#FFF3E8;color:#FF9500}
+.quick-icon.msg{background:#E8F4FF;color:#007AFF}
+.quick-icon.approve{background:#F0FFF0;color:#34C759}
+.quick-icon.fav{background:#F5F0FF;color:#AF52DE}
+.quick-text{flex:1}
+.quick-title{font-size:15px;font-weight:500;color:#1C1C1E}
+.quick-num{font-size:12px;color:#8E8E93;margin-top:2px}
+
+/* Section */
+.section{margin:20px 16px 0}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.section-title{font-size:15px;font-weight:600;color:#1C1C1E}
+.section-more{font-size:13px;color:#8E8E93;cursor:pointer}
+
+/* Apps */
+.apps-scroll{overflow-x:auto;padding-bottom:8px}
+.apps-row{display:flex;gap:12px;padding-bottom:4px}
+.app-card{min-width:72px;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:14px 8px;text-align:center;cursor:pointer}
+.app-card:active{opacity:0.7}
+.app-icon{width:40px;height:40px;border-radius:10px;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.app-name{font-size:12px;color:#1C1C1E}
+
+/* Notice List */
+.notice-list{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden}
+.notice-item{padding:14px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;border-bottom:1px solid rgba(0,0,0,0.04)}
+.notice-item:last-child{border-bottom:none}
+.notice-item:active{opacity:0.7}
+.notice-dot{width:6px;height:6px;border-radius:50%;background:#FF3B30;flex-shrink:0}
+.notice-title{flex:1;font-size:14px;color:#1C1C1E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notice-time{font-size:12px;color:#8E8E93;flex-shrink:0}
+
+/* Bottom Tab */
+.bottom-tab{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;background:#fff;border-top:1px solid rgba(0,0,0,0.06);height:50px;display:flex;z-index:200}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8E8E93;text-decoration:none}
+.tab-item.active{color:#007AFF}
+.tab-icon{font-size:20px}
+.tab-label{font-size:10px}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="header">
+    <h1>我的工作台</h1>
+    <select class="theme-select" onchange="changeTheme(this.value)">
+      <option value="blue">蓝色主题</option>
+      <option value="purple">紫色主题</option>
+      <option value="green">绿色主题</option>
+    </select>
+  </div>
+
+  <!-- User Card -->
+  <div class="user-card">
+    <div class="user-info">
+      <div class="user-avatar">张</div>
+      <div>
+        <div class="user-name">张明</div>
+        <div class="user-dept">开发部 · 前端工程师</div>
+      </div>
+    </div>
+    <div class="user-stats">
+      <div class="stat-item">
+        <div class="stat-num">3</div>
+        <div class="stat-label">待办事项</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">12</div>
+        <div class="stat-label">未读消息</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">5</div>
+        <div class="stat-label">我的收藏</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-grid">
+    <div class="quick-item" onclick="location.href='workflow_mo.html'">
+      <div class="quick-icon todo">📋</div>
+      <div class="quick-text">
+        <div class="quick-title">待办</div>
+        <div class="quick-num">3项待处理</div>
+      </div>
+    </div>
+    <div class="quick-item" onclick="location.href='notification_center_mo.html'">
+      <div class="quick-icon msg">💬</div>
+      <div class="quick-text">
+        <div class="quick-title">消息</div>
+        <div class="quick-num">12条未读</div>
+      </div>
+    </div>
+    <div class="quick-item" onclick="location.href='workflow_mo.html'">
+      <div class="quick-icon approve">✓</div>
+      <div class="quick-text">
+        <div class="quick-title">审批</div>
+        <div class="quick-num">2条待审批</div>
+      </div>
+    </div>
+    <div class="quick-item" onclick="location.href='#'">
+      <div class="quick-icon fav">⭐</div>
+      <div class="quick-text">
+        <div class="quick-title">收藏</div>
+        <div class="quick-num">5条收藏</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 常用应用 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">常用应用</span>
+      <span class="section-more" onclick="location.href='#'">更多 ›</span>
+    </div>
+    <div class="apps-scroll">
+      <div class="apps-row">
+        <div class="app-card" onclick="location.href='workflow_mo.html'">
+          <div class="app-icon" style="background:#E8F4FF">✓</div>
+          <div class="app-name">审批</div>
+        </div>
+        <div class="app-card" onclick="location.href='notification_center_mo.html'">
+          <div class="app-icon" style="background:#FFF3E8">📢</div>
+          <div class="app-name">公告</div>
+        </div>
+        <div class="app-card" onclick="location.href='#'">
+          <div class="app-icon" style="background:#F0FFF0">📅</div>
+          <div class="app-name">日程</div>
+        </div>
+        <div class="app-card" onclick="location.href='#'">
+          <div class="app-icon" style="background:#F5F0FF">👥</div>
+          <div class="app-name">通讯录</div>
+        </div>
+        <div class="app-card" onclick="location.href='#'">
+          <div class="app-icon" style="background:#FFF0F5">📊</div>
+          <div class="app-name">报表</div>
+        </div>
+        <div class="app-card" onclick="location.href='template_mo.html'">
+          <div class="app-icon" style="background:#F0F5FF">📨</div>
+          <div class="app-name">模板</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 最新公告 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">最新公告</span>
+      <span class="section-more" onclick="location.href='notification_center_mo.html'">更多 ›</span>
+    </div>
+    <div class="notice-list">
+      <div class="notice-item" onclick="location.href='notification_detail_mo.html'">
+        <div class="notice-dot"></div>
+        <div class="notice-title">关于2026年端午节放假安排的通知</div>
+        <div class="notice-time">05-19</div>
+      </div>
+      <div class="notice-item" onclick="location.href='notification_detail_mo.html'">
+        <div class="notice-dot"></div>
+        <div class="notice-title">关于开展2026年度员工体检的通知</div>
+        <div class="notice-time">05-18</div>
+      </div>
+      <div class="notice-item" onclick="location.href='notification_detail_mo.html'">
+        <div class="notice-title">关于规范办公设备使用管理的通知</div>
+        <div class="notice-time">05-15</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:20px"></div>
+</div>
+
+<!-- Bottom Tab -->
+<div class="bottom-tab">
+  <a href="portal_preview_mo.html" class="tab-item active">
+    <span class="tab-icon">🏠</span>
+    <span class="tab-label">工作台</span>
+  </a>
+  <a href="notification_center_mo.html" class="tab-item">
+    <span class="tab-icon">💬</span>
+    <span class="tab-label">消息</span>
+  </a>
+  <a href="workflow_mo.html" class="tab-item">
+    <span class="tab-icon">✓</span>
+    <span class="tab-label">审批</span>
+  </a>
+  <a href="#" class="tab-item">
+    <span class="tab-icon">👤</span>
+    <span class="tab-label">我的</span>
+  </a>
+</div>
+
+<script>
+if (!localStorage.getItem('mo_user')) {
+  location.href = 'login_mo.html';
+}
+function changeTheme(theme) {
+  // Theme switcher placeholder
+}
+</script>
+</body>
+</html>

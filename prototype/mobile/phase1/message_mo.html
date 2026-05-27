@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>消息中心 - 智慧园区管理平台</title>
+<style>
+:root{--bg:#F5F5F7;--primary:#007AFF;--secondary:#8E8E93;--success:#34C759;--warning:#FF9500;--danger:#FF3B30;--card:#FFFFFF;--border:#E5E5E5;--text:#1C1C1E;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.page{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding-bottom:70px;}
+.status-bar{height:47px;background:var(--card);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;font-size:14px;font-weight:600;}
+.header{height:50px;background:var(--card);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:17px;font-weight:600;border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:10;}
+.back-btn{color:var(--primary);font-size:15px;cursor:pointer;padding:8px 0;}
+.content{flex:1;overflow-y:auto;}
+.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;height:60px;background:var(--card);border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-around;z-index:100;}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 20px;color:var(--secondary);transition:color 0.2s;}
+.tab-item.active{color:var(--primary);}
+.tab-label{font-size:10px;margin-top:1px;}
+.tab-switcher{display:flex;padding:12px 16px;gap:8px;}
+.tab-switch{padding:7px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;background:#F2F2F7;color:var(--secondary);border:1px solid transparent;transition:all 0.2s;}
+.tab-switch.active{background:var(--primary);color:#fff;}
+.list-item{display:flex;align-items:center;padding:14px 16px;background:var(--card);border-bottom:0.5px solid var(--border);cursor:pointer;transition:background 0.15s;}
+.list-item:last-child{border-bottom:none;}
+.list-item:active{background:#F2F2F7;}
+.list-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:12px;flex-shrink:0;}
+.list-body{flex:1;min-width:0;}
+.list-title{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;}
+.list-sub{font-size:12px;color:var(--secondary);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.list-time{font-size:12px;color:var(--secondary);margin-left:8px;flex-shrink:0;}
+.badge-tip{background:#FF3B30;color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;font-size:11px;padding:0;display:inline-block;}
+.empty-state{text-align:center;padding:80px 20px;color:var(--secondary);}
+.empty-icon{font-size:56px;margin-bottom:12px;opacity:0.5;}
+.empty-text{font-size:14px;}
+.notice-badge{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:600;}
+.notice-badge.top{background:#FF3B30;color:#fff;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="status-bar"><span id="statusTime">9:41</span></div>
+  <div class="header">
+    <div class="back-btn" onclick="history.back()">‹ 返回</div>
+    <span>消息中心</span>
+    <div style="width:50px"></div>
+  </div>
+
+  <div class="tab-switcher">
+    <div class="tab-switch active" onclick="switchTab(this,'notice')">通知公告</div>
+    <div class="tab-switch" onclick="switchTab(this,'sys')">系统消息</div>
+    <div class="tab-switch" onclick="switchTab(this,'互动')">互动消息</div>
+  </div>
+
+  <div class="content" id="msgContent">
+    <!-- Notice Tab -->
+    <div class="list-item" onclick="location.href='notice_mo.html'">
+      <div class="list-icon" style="background:#F3E8FF">📢</div>
+      <div class="list-body">
+        <div class="list-title">
+          <span style="color:#FF3B30;font-size:10px;padding:1px 4px;background:#FDECEA;border-radius:3px;">置顶</span>
+          关于2026年端午节放假安排的通知
+        </div>
+        <div class="list-sub">各部门注意，端午节放假时间为2026年5月30日至6月1日，共3天...</div>
+      </div>
+      <span class="badge-tip" style="margin-left:8px">新</span>
+    </div>
+    <div class="list-item" onclick="location.href='notice_mo.html'">
+      <div class="list-icon" style="background:#E8F2FC">ℹ️</div>
+      <div class="list-body">
+        <div class="list-title">系统升级公告</div>
+        <div class="list-sub">平台将于本周六凌晨2:00-6:00进行系统升级，届时部分功能将暂停使用...</div>
+      </div>
+      <span class="badge-tip" style="margin-left:8px">新</span>
+    </div>
+    <div class="list-item" onclick="location.href='notice_mo.html'">
+      <div class="list-icon" style="background:#FEE2E2">⚠️</div>
+      <div class="list-body">
+        <div class="list-title">安全生产大检查通知</div>
+        <div class="list-sub">园区将于5月25日开展安全生产大检查，请各部门提前做好自查...</div>
+      </div>
+      <span style="font-size:12px;color:#8E8E93">昨天</span>
+    </div>
+    <div class="list-item" onclick="location.href='notice_mo.html'">
+      <div class="list-icon" style="background:#E8F8EF">✅</div>
+      <div class="list-body">
+        <div class="list-title">物业费缴纳提醒</div>
+        <div class="list-sub">您所在的单元2026年第二季度物业费将于5月25日到期，请及时缴纳...</div>
+      </div>
+      <span style="font-size:12px;color:#8E8E93">3天前</span>
+    </div>
+    <div class="list-item" onclick="location.href='notice_mo.html'">
+      <div class="list-icon" style="background:#FEF3E2">📋</div>
+      <div class="list-body">
+        <div class="list-title">智慧园区App正式上线通知</div>
+        <div class="list-sub">智慧园区管理平台移动端App正式上线，欢迎下载使用...</div>
+      </div>
+      <span style="font-size:12px;color:#8E8E93">1周前</span>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab-item" onclick="location.href='home_mo.html'">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span class="tab-label">首页</span>
+    </div>
+    <div class="tab-item active">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+      <span class="tab-label">消息</span>
+    </div>
+    <div class="tab-item" onclick="location.href='../index_mo.html?tab=profile'">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      <span class="tab-label">我的</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const token = localStorage.getItem('mo_token');
+  if (!token) location.href = '../login_mo.html';
+})();
+function updateClock(){
+  const now=new Date();
+  document.getElementById('statusTime').textContent=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+setInterval(updateClock,1000);updateClock();
+
+function switchTab(el, type) {
+  document.querySelectorAll('.tab-switch').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

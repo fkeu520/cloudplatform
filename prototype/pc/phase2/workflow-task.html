@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>任务中心 - 云枢中台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+/* 主内容区 */
+/* 搜索栏 */
+.search-bar{background:#fff;border-radius:12px;padding:16px;margin-bottom:16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.search-bar input{flex:1;height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.search-bar input:focus{border-color:#007AFF}
+.search-bar select{height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none;background:#fff}
+.btn-primary{height:36px;background:#007AFF;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500}
+.btn-default{height:36px;background:#fff;color:#1d1d1f;border:1px solid #E5E5E5;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer}
+/* 卡片 */
+.card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:600;color:#1d1d1f}
+/* Tab切换 */
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab-btn{padding:8px 20px;font-size:14px;color:#8E8E93;cursor:pointer;border-radius:8px;border:none;background:#fff}
+.tab-btn:hover{color:#007AFF}
+.tab-btn.active{background:#007AFF;color:#fff}
+/* 表格 */
+.table{width:100%;border-collapse:collapse}
+.table th{background:#FAFAFA;padding:12px 16px;text-align:left;font-size:13px;color:#8E8E93;font-weight:500;border-bottom:1px solid #E5E5E5}
+.table td{padding:14px 16px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #F0F0F0}
+.table tr:hover{background:#F9F9FB}
+.table .tag{padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500}
+.tag-draft{background:#F5F5F7;color:#8E8E93}
+.tag-published{background:#E8F5E9;color:#34C759}
+.tag-suspended{background:#FFF3E0;color:#FF9500}
+.tag-high{background:#FFEBEE;color:#FF3B30}
+.tag-medium{background:#FFF8E1;color:#FF9500}
+.tag-low{background:#E8F5E9;color:#34C759}
+.action-btn{color:#007AFF;cursor:pointer;font-size:13px;background:none;border:none;padding:0 4px}
+.action-btn:hover{text-decoration:underline}
+/* 分页 */
+.pagination{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+.pagination .info{font-size:13px;color:#8E8E93}
+.pagination .pages{display:flex;gap:4px}
+.pagination .page-btn{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.pagination .page-btn.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.pagination .page-btn:hover:not(.active){border-color:#007AFF;color:#007AFF}
+/* 弹窗 */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:90%;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E5E5E5}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border-radius:50%;background:#F5F5F7;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8E8E93;border:none}
+.modal-close:hover{background:#E5E5E5}
+.modal-body{flex:1;overflow-y:auto;padding:20px}
+.modal-footer{padding:16px 20px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:12px}
+/* 表单 */
+.form-row{display:flex;gap:16px;margin-bottom:16px}
+.form-group{flex:1}
+.form-group label{display:block;font-size:13px;color:#8E8E93;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;height:40px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.form-group textarea{height:80px;padding:10px 12px;resize:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#007AFF}
+/* 流程进度时间线 */
+.timeline{margin:20px 0;position:relative;padding-left:24px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#E5E5E5}
+.timeline-item{position:relative;margin-bottom:20px}
+.timeline-item::before{content:'';position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;background:#34C759;border:2px solid #fff}
+.timeline-item.current::before{background:#007AFF;box-shadow:0 0 0 4px rgba(0,122,255,0.2)}
+.timeline-item.pending::before{background:#E5E5E5}
+.timeline-content{padding:12px 16px;background:#F9F9FB;border-radius:8px}
+.timeline-title{font-size:14px;font-weight:500;color:#1d1d1f;margin-bottom:4px}
+.timeline-meta{font-size:12px;color:#8E8E93}
+.timeline-user{color:#007AFF}
+/* 审批意见区 */
+.approval-opinion{margin-top:16px}
+.approval-opinion h4{font-size:14px;font-weight:600;color:#1d1d1f;margin-bottom:12px}
+.opinion-item{padding:12px;background:#F9F9FB;border-radius:8px;margin-bottom:8px}
+.opinion-item .header{display:flex;justify-content:space-between;margin-bottom:6px}
+.opinion-item .name{font-size:14px;font-weight:500;color:#1d1d1f}
+.opinion-item .time{font-size:12px;color:#8E8E93}
+.opinion-item .content{font-size:14px;color:#1d1d1f;line-height:1.5}
+.opinion-item .result{font-size:12px;font-weight:500;padding:2px 8px;border-radius:4px;display:inline-block}
+.opinion-pass{background:#E8F5E9;color:#34C759}
+.opinion-reject{background:#FFEBEE;color:#FF3B30}
+/* 按钮组 */
+.btn-group{display:flex;gap:8px}
+.btn-approve{height:36px;background:#34C759;color:#fff;border:none;border-radius:8px;padding:0 20px;font-size:14px;cursor:pointer;font-weight:500}
+.btn-reject{height:36px;background:#FF3B30;color:#fff;border:none;border-radius:8px;padding:0 20px;font-size:14px;cursor:pointer;font-weight:500}
+.btn-transfer{height:36px;background:#fff;color:#007AFF;border:1px solid #007AFF;border-radius:8px;padding:0 20px;font-size:14px;cursor:pointer}
+/* 明细信息 */
+.info-section{margin-bottom:20px}
+.info-section h4{font-size:14px;font-weight:600;color:#1d1d1f;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #F0F0F0}
+.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.info-item{display:flex;flex-direction:column}
+.info-label{font-size:12px;color:#8E8E93;margin-bottom:4px}
+.info-value{font-size:14px;color:#1d1d1f}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="crumb">流程中心 ▶ <span>任务中心</span></span>
+</div>
+<div style="padding:0 24px 24px">
+  <div class="page-title">任务中心</div>
+  <!-- Tab切换 -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab(this,0)">待办<span style="background:#007AFF;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">5</span></button>
+    <button class="tab-btn" onclick="switchTab(this,1)">已办</button>
+    <button class="tab-btn" onclick="switchTab(this,2)">我发起</button>
+    <button class="tab-btn" onclick="switchTab(this,3)">抄送</button>
+  </div>
+  <!-- 搜索栏 -->
+  <div class="search-bar">
+    <input type="text" placeholder="搜索流程标题" id="searchInput">
+    <select><option>全部类型</option><option>入职审批</option><option>合同审批</option><option>请假申请</option><option>采购申请</option></select>
+    <select><option>全部优先级</option><option>紧急</option><option>重要</option><option>普通</option></select>
+  </div>
+  <!-- 表格 -->
+  <div class="card">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>流程标题</th>
+          <th>类型</th>
+          <th>当前节点</th>
+          <th>发起人</th>
+          <th>到达时间</th>
+          <th>优先级</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="pagination">
+      <div class="info">共 <span id="totalCount">5</span> 条</div>
+      <div class="pages">
+        <button class="page-btn active">1</button>
+        <button class="page-btn">2</button>
+        <button class="page-btn">›</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 办理弹窗 -->
+<div class="modal-overlay" id="handleModal">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <div class="modal-title">办理任务 - 入职审批流程</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- 流程进度 -->
+      <div class="timeline">
+        <div class="timeline-item current">
+          <div class="timeline-content">
+            <div class="timeline-title">发起申请</div>
+            <div class="timeline-meta"><span class="timeline-user">张明</span> · 2026-05-15 09:30</div>
+          </div>
+        </div>
+        <div class="timeline-item current">
+          <div class="timeline-content">
+            <div class="timeline-title">部门负责人审批</div>
+            <div class="timeline-meta"><span class="timeline-user">李华</span> · 待处理</div>
+          </div>
+        </div>
+        <div class="timeline-item pending">
+          <div class="timeline-content">
+            <div class="timeline-title">HR入职确认</div>
+            <div class="timeline-meta">待处理</div>
+          </div>
+        </div>
+        <div class="timeline-item pending">
+          <div class="timeline-content">
+            <div class="timeline-title">流程结束</div>
+            <div class="timeline-meta">待处理</div>
+          </div>
+        </div>
+      </div>
+      <!-- 明细信息 -->
+      <div class="info-section">
+        <h4>申请人信息</h4>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">姓名</span>
+            <span class="info-value">张明</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">部门</span>
+            <span class="info-value">技术研发部</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">岗位</span>
+            <span class="info-value">高级前端工程师</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">入职日期</span>
+            <span class="info-value">2026-06-01</span>
+          </div>
+        </div>
+      </div>
+      <div class="info-section">
+        <h4>入职信息</h4>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">试用期薪资</span>
+            <span class="info-value">25,000元/月</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">转正薪资</span>
+            <span class="info-value">30,000元/月</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">试用期</span>
+            <span class="info-value">3个月</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">入职方式</span>
+            <span class="info-value">社会招聘</span>
+          </div>
+        </div>
+      </div>
+      <!-- 审批意见 -->
+      <div class="approval-opinion">
+        <h4>审批意见</h4>
+        <div class="form-group">
+          <textarea placeholder="请输入审批意见..."></textarea>
+        </div>
+      </div>
+      <!-- 历史意见 -->
+      <div class="approval-opinion">
+        <h4>历史审批</h4>
+        <div class="opinion-item">
+          <div class="header">
+            <span class="name">王总</span>
+            <span class="time">2026-05-15 14:30</span>
+          </div>
+          <div class="content">同意录用，薪资符合岗位预算。</div>
+          <span class="result opinion-pass">通过</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-reject" onclick="closeModal()">驳回</button>
+      <button class="btn-transfer">转交</button>
+      <button class="btn-approve" onclick="closeModal()">通过</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const taskData = {
+  pending:[
+    {title:'张明-入职审批流程',type:'入职审批',node:'部门负责人审批',initiator:'张明',time:'2026-05-19 10:30',priority:'high'},
+    {title:'会议室预约-市场部周会',type:'通用审批',node:'行政审批',initiator:'赵丽',time:'2026-05-19 09:15',priority:'medium'},
+    {title:'采购MacBook Pro设备',type:'物品采购',node:'部门负责人审批',initiator:'孙强',time:'2026-05-18 16:40',priority:'high'},
+    {title:'年假申请-李华',type:'请假申请',node:'部门审批',initiator:'李华',time:'2026-05-18 14:20',priority:'low'},
+    {title:'合同审批-客户A',type:'合同审批',node:'法务审核',initiator:'周杰',time:'2026-05-17 11:00',priority:'medium'},
+  ],
+  done:[
+    {title:'王芳-转正申请',type:'入职审批',node:'已完成',initiator:'王芳',time:'2026-05-10 15:00',priority:'medium'},
+    {title:'采购办公桌椅',type:'物品采购',node:'已完成',initiator:'陈明',time:'2026-05-08 10:00',priority:'low'},
+  ],
+  mystart:[
+    {title:'我的入职审批',type:'入职审批',node:'HR入职确认',initiator:'我',time:'2026-05-15 09:30',priority:'high'},
+  ],
+  ccmy:[
+    {title:'系统升级通知',type:'通用审批',node:'已完成',initiator:'系统',time:'2026-05-12 08:00',priority:'low'},
+  ]
+};
+
+const priorityClass = {high:'tag-high',medium:'tag-medium',low:'tag-low'};
+const priorityText = {high:'紧急',medium:'重要',low:'普通'};
+
+function switchTab(btn,idx){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(idx);
+}
+
+function renderTable(tabIdx){
+  const keys = ['pending','done','mystart','ccmy'];
+  const data = taskData[keys[tabIdx]];
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = data.map(t => `
+    <tr>
+      <td><strong>${t.title}</strong></td>
+      <td>${t.type}</td>
+      <td>${t.node}</td>
+      <td>${t.initiator}</td>
+      <td>${t.time}</td>
+      <td><span class="tag ${priorityClass[t.priority]}">${priorityText[t.priority]}</span></td>
+      <td>
+        ${tabIdx===0?'<button class="action-btn" onclick="openHandleModal()">办理</button>':''}
+        <button class="action-btn">详情</button>
+      </td>
+    </tr>`).join('');
+  document.getElementById('totalCount').textContent = data.length;
+}
+
+function openHandleModal(){document.getElementById('handleModal').style.display='flex';}
+function closeModal(){document.getElementById('handleModal').style.display='none';}
+
+document.addEventListener('DOMContentLoaded',()=>renderTable(0));
+</script>
+</body>
+</html>

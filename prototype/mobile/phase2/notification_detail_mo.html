@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>通知详情</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:#F5F5F7;color:#1C1C1E;font-size:14px;-webkit-font-smoothing:antialiased}
+.page-wrap{max-width:430px;margin:0 auto;min-height:100vh;background:#fff}
+
+/* Header */
+.header{background:#fff;height:50px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid rgba(0,0,0,0.06);position:sticky;top:0;z-index:100}
+.back{font-size:24px;color:#007AFF;cursor:pointer;margin-right:12px}
+.header h1{font-size:17px;font-weight:600}
+
+/* Meta */
+.meta{padding:20px 16px 16px;border-bottom:1px solid rgba(0,0,0,0.05)}
+.meta-title{font-size:20px;font-weight:600;color:#1C1C1E;line-height:1.4;margin-bottom:12px}
+.meta-info{display:flex;gap:16px;font-size:13px;color:#8E8E93}
+.meta-info span{display:flex;align-items:center;gap:4px}
+
+/* Content */
+.content{padding:20px 16px;font-size:15px;line-height:1.8;color:#3C3C43}
+.content p{margin-bottom:16px}
+.content img{max-width:100%;border-radius:8px;margin:12px 0;background:#F5F5F7;display:block}
+.content .placeholder-img{width:100%;height:200px;background:linear-gradient(135deg,#F5F5F7,#E8E8ED);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#8E8E93;font-size:13px}
+
+/* Attachments */
+.attachments{padding:0 16px 20px}
+.attach-title{font-size:13px;color:#8E8E93;margin-bottom:10px;padding-top:16px"}
+.attach-item{display:flex;align-items:center;gap:10px;padding:12px;background:#F5F5F7;border-radius:8px;margin-bottom:8px}
+.attach-icon{width:36px;height:36px;border-radius:8px;background:#E8F4FF;display:flex;align-items:center;justify-content:center;font-size:16px}
+.attach-name{flex:1;font-size:14px;color:#1C1C1E}
+.attach-size{font-size:12px;color:#8E8E93}
+
+/* Bottom safe area */
+.bottom-pad{height:20px}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="header">
+    <span class="back" onclick="history.back()">‹</span>
+    <h1>通知详情</h1>
+  </div>
+
+  <div class="meta">
+    <div class="meta-title">关于2026年端午节放假安排的通知</div>
+    <div class="meta-info">
+      <span>📅 2026-05-19 09:00</span>
+      <span>👤 人事行政部</span>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>公司全体员工：</p>
+    <p>根据国家节假日规定，结合公司实际，现将2026年端午节放假安排通知如下：</p>
+    <p><strong>一、放假时间</strong><br>
+    2026年6月22日（周日）至6月24日（周二），共3天。6月21日（周六）正常上班。</p>
+    <p><strong>二、值班安排</strong><br>
+    各部门根据业务需要安排值班人员，值班表请于6月15日前报人力资源部备案。</p>
+    <p><strong>三、安全注意事项</strong><br>
+    放假前请各部门检查办公区域安全，关好门窗、切断电源。外出员工请注意人身和财产安全。</p>
+    <p><strong>四、紧急联系方式</strong><br>
+    值班电话：0755-XXXX-XXXX<br>
+    行政部联系人：李小姐</p>
+    <p style="text-align:right;margin-top:24px">人力资源部<br>2026年5月19日</p>
+  </div>
+
+  <div class="attachments">
+    <div class="attach-title">附件</div>
+    <div class="attach-item">
+      <div class="attach-icon">📄</div>
+      <div class="attach-name">2026年端午放假通知.pdf</div>
+      <div class="attach-size">245 KB</div>
+    </div>
+  </div>
+
+  <div class="bottom-pad"></div>
+</div>
+
+<script>
+if (!localStorage.getItem('mo_user')) {
+  location.href = 'login_mo.html';
+}
+</script>
+</body>
+</html>

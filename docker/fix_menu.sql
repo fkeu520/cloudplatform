@@ -1,0 +1,12 @@
+﻿UPDATE sys_menu SET name='流程中心' WHERE id=26;
+UPDATE sys_menu SET name='流程定义' WHERE id=27;
+UPDATE sys_menu SET name='查看定义' WHERE id=28;
+UPDATE sys_menu SET name='部署流程' WHERE id=29;
+UPDATE sys_menu SET name='删除定义' WHERE id=30;
+UPDATE sys_menu SET name='发起流程' WHERE id=31;
+UPDATE sys_menu SET name='我的待办' WHERE id=32;
+UPDATE sys_menu SET name='审批任务' WHERE id=33;
+UPDATE sys_menu SET name='转办任务' WHERE id=34;
+UPDATE sys_menu SET name='流程监控' WHERE id=35;
+UPDATE sys_menu SET name='查看详情' WHERE id=36;
+UPDATE sys_menu SET name='删除实例' WHERE id=37;

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>工作台 - 智慧园区管理平台</title>
+<style>
+:root{--bg:#F5F5F7;--primary:#007AFF;--secondary:#8E8E93;--success:#34C759;--warning:#FF9500;--danger:#FF3B30;--card:#FFFFFF;--border:#E5E5E5;--text:#1C1C1E;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.page{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding-bottom:70px;}
+.status-bar{height:47px;background:var(--card);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;font-size:14px;font-weight:600;}
+.header{height:50px;background:var(--card);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:17px;font-weight:600;border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:10;}
+.back-btn{color:var(--primary);font-size:15px;cursor:pointer;padding:8px 0;}
+.content{flex:1;overflow-y:auto;}
+.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;height:60px;background:var(--card);border-top:0.5px solid var(--border);display:flex;align-items:center;justify-content:space-around;z-index:100;}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:6px 20px;color:var(--secondary);transition:color 0.2s;}
+.tab-item.active{color:var(--primary);}
+.tab-label{font-size:10px;margin-top:1px;}
+.section-title{font-size:13px;color:var(--secondary);padding:0 16px;margin:16px 0 8px;font-weight:500;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px;}
+.stat-card{background:var(--card);border-radius:12px;padding:14px 10px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.stat-num{font-size:22px;font-weight:700;color:var(--primary);}
+.stat-label{font-size:11px;color:var(--secondary);margin-top:4px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 16px;}
+.grid-item{background:var(--card);border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.06);transition:transform 0.15s;}
+.grid-item:active{transform:scale(0.97);}
+.grid-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.grid-label{font-size:12px;font-weight:500;}
+.grid-sub{font-size:11px;color:var(--secondary);}
+.card{background:var(--card);border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin:0 16px;padding:16px;}
+.timeline-item{display:flex;gap:12px;padding:10px 0;border-bottom:0.5px solid var(--border);}
+.timeline-item:last-child{border-bottom:none;}
+.timeline-dot{width:8px;height:8px;border-radius:50%;background:var(--primary);margin-top:5px;flex-shrink:0;}
+.timeline-content{flex:1;}
+.timeline-title{font-size:14px;font-weight:500;}
+.timeline-time{font-size:12px;color:var(--secondary);margin-top:2px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500;}
+.badge-tip{background:#FF3B30;color:#fff;border-radius:50%;width:18px;height:18px;text-align:center;line-height:18px;font-size:11px;padding:0;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="status-bar"><span id="statusTime">9:41</span></div>
+  <div class="header">
+    <div class="back-btn" onclick="history.back()">‹ 返回</div>
+    <span>工作台</span>
+    <div style="width:50px"></div>
+  </div>
+  <div class="content">
+    <div style="padding:16px 16px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;color:var(--secondary)">早上好</div>
+          <div style="font-size:22px;font-weight:700;margin-top:2px">张三</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--secondary)">2026年5月19日</div>
+          <div style="font-size:12px;color:var(--secondary)">周二</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-row" style="margin-top:16px">
+      <div class="stat-card" onclick="location.href='todo_mo.html'">
+        <div class="stat-num">5</div>
+        <div class="stat-label">待办任务</div>
+      </div>
+      <div class="stat-card" onclick="location.href='workflow_list_mo.html'">
+        <div class="stat-num">2</div>
+        <div class="stat-label">待审批</div>
+      </div>
+      <div class="stat-card" onclick="location.href='message_mo.html'">
+        <div class="stat-num">3</div>
+        <div class="stat-label">未读消息</div>
+      </div>
+    </div>
+
+    <div class="section-title">快捷操作</div>
+    <div class="grid-3">
+      <div class="grid-item" onclick="location.href='todo_mo.html'">
+        <div class="grid-icon" style="background:#E8F2FC;color:#007AFF">📋</div>
+        <div class="grid-label">待办任务</div>
+        <div class="grid-sub">5项待处理</div>
+      </div>
+      <div class="grid-item" onclick="location.href='workflow_list_mo.html'">
+        <div class="grid-icon" style="background:#FEF3E2;color:#FF9500">📝</div>
+        <div class="grid-label">审批通知</div>
+        <div class="grid-sub">2项待审批</div>
+      </div>
+      <div class="grid-item" onclick="location.href='message_mo.html'">
+        <div class="grid-icon" style="background:#E8F8EF;color:#34C759">📬</div>
+        <div class="grid-label">我的消息</div>
+        <div class="grid-sub">3条未读</div>
+      </div>
+      <div class="grid-item" onclick="location.href='notice_mo.html'">
+        <div class="grid-icon" style="background:#F3E8FF;color:#8B5CF6">📢</div>
+        <div class="grid-label">公告通知</div>
+        <div class="grid-sub">查看详情</div>
+      </div>
+      <div class="grid-item" onclick="location.href='workflow_list_mo.html'">
+        <div class="grid-icon" style="background:#FEE2E2;color:#FF3B30">📊</div>
+        <div class="grid-label">数据上报</div>
+        <div class="grid-sub">进行中</div>
+      </div>
+      <div class="grid-item" onclick="alert('更多功能开发中')">
+        <div class="grid-icon" style="background:#F2F2F7;color:#8E8E93">•••</div>
+        <div class="grid-label">更多</div>
+        <div class="grid-sub">敬请期待</div>
+      </div>
+    </div>
+
+    <div class="section-title">最近动态</div>
+    <div class="card">
+      <div class="timeline-item">
+        <div class="timeline-dot" style="background:#34C759"></div>
+        <div class="timeline-content">
+          <div class="timeline-title">合同「租赁合同-星河科技」已审批通过</div>
+          <div class="timeline-time">今天 09:15</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+          <div class="timeline-title">收到「设备报修」审批请求</div>
+          <div class="timeline-time">今天 08:42</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-dot"></div>
+        <div class="timeline-content">
+          <div class="timeline-title">「物业费用缴纳」催缴通知</div>
+          <div class="timeline-time">昨天 17:30</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab-item active">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span class="tab-label">首页</span>
+    </div>
+    <div class="tab-item" onclick="location.href='../index_mo.html?tab=message'">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+      <span class="tab-label">消息</span>
+    </div>
+    <div class="tab-item" onclick="location.href='../index_mo.html?tab=profile'">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      <span class="tab-label">我的</span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const token = localStorage.getItem('mo_token');
+  if (!token) location.href = '../login_mo.html';
+})();
+function updateClock(){
+  const now=new Date();
+  document.getElementById('statusTime').textContent=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+setInterval(updateClock,1000);updateClock();
+</script>
+</body>
+</html>

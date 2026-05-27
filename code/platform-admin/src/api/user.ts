@@ -1,0 +1,111 @@
+import request from './request'
+
+export interface User {
+  id?: string
+  username: string
+  password?: string
+  nickname?: string
+  mobile?: string
+  email?: string
+  gender?: number
+  orgId?: number | null
+  deptId?: number | null
+  postId?: number | null
+  status?: number
+  roleIds?: string[]
+}
+
+export interface UserPageVO {
+  id: string
+  username: string
+  nickname: string
+  mobile: string
+  email: string
+  orgId: number | null
+  deptId: number | null
+  postId: number | null
+  orgName: string
+  deptName: string
+  postName: string
+  statusDesc: string
+  createTime: string
+  lastLoginTime: string
+}
+
+export function login(data: { username: string; password: string }) {
+  return request({
+    url: '/auth/login',
+    method: 'post',
+    data
+  })
+}
+
+export function getUserInfo() {
+  return request({
+    url: '/user/info',
+    method: 'get'
+  })
+}
+
+export function getUserPage(params: {
+  keyword?: string
+  orgId?: number
+  orgIds?: string
+  deptId?: number
+  postId?: number
+  tenantId?: number
+  status?: number
+  pageNum?: number
+  pageSize?: number
+}) {
+  return request({
+    url: '/user/page',
+    method: 'get',
+    params
+  })
+}
+
+export function getUserById(id: string) {
+  return request({
+    url: `/user/${id}`,
+    method: 'get'
+  })
+}
+
+export function createUser(data: User) {
+  return request({
+    url: '/user',
+    method: 'post',
+    data
+  })
+}
+
+export function updateUser(id: string, data: Partial<User>) {
+  return request({
+    url: `/user/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteUser(id: string) {
+  return request({
+    url: `/user/${id}`,
+    method: 'delete'
+  })
+}
+
+export function toggleUserStatus(id: string) {
+  return request({
+    url: `/user/${id}/toggle-status`,
+    method: 'post'
+  })
+}
+
+export function assignUserRoles(id: string, roleIds: string[]) {
+  return request({
+    url: `/user/${id}/roles`,
+    method: 'post',
+    data: { roleIds }
+  })
+}

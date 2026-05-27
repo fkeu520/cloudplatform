@@ -1,0 +1,48 @@
+server:
+  port: 8082
+  address: 0.0.0.0
+
+spring:
+  main:
+    web-application-type: servlet
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+  application:
+    name: platform-auth
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: platform
+    password: platform123
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 10s
+
+  # Nacos 配置
+  config:
+    import:
+      - optional:nacos:common.yml
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        enabled: true
+      config:
+        server-addr: localhost:8848
+        enabled: false
+
+springdoc:
+  api-docs:
+    path: /auth/v3/api-docs
+
+logging:
+  level:
+    com.cloudhub.platform: DEBUG
