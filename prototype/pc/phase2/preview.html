@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>预览发布 - 威豹安保云</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",Helvetica Neue,Helvetica,Arial,sans-serif;background:#F5F5F7;font-size:14px;color:#1D1D1F;line-height:1.5}
+.topbar{background:#fff;border-bottom:1px solid #E5E5EA;padding:0 24px;height:48px;display:flex;align-items:center;position:sticky;top:0;z-index:100}
+.topbar span,.topbar a{font-size:14px;color:#8E8E93}
+.topbar a{text-decoration:none}
+.topbar a:hover{color:#007AFF}
+.topbar .current{color:#1D1D1F;font-weight:500}
+.container{max-width:900px;margin:0 auto;padding:24px}
+.page-title{font-size:24px;font-weight:600;margin-bottom:20px;padding:0 4px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E5E5EA;padding:24px;margin-bottom:20px}
+.card-title{font-size:15px;font-weight:600;color:#1D1D1F;margin-bottom:16px}
+.form-row{display:flex;align-items:center;margin-bottom:14px;gap:12px}
+.form-label{min-width:80px;color:#8E8E93;font-size:13px;flex-shrink:0}
+.form-input{flex:1;height:36px;border:1px solid #E5E5EA;border-radius:8px;padding:0 12px;font-size:14px;outline:none;transition:border-color 0.2s}
+.form-input:focus{border-color:#007AFF}
+.form-select{flex:1;height:36px;border:1px solid #E5E5EA;border-radius:8px;padding:0 12px;font-size:14px;outline:none;background:#fff;cursor:pointer}
+select.form-select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238E8E93' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+textarea.form-input{height:auto;min-height:80px;padding:8px 12px;resize:vertical;line-height:1.5}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.info-item{background:#F5F5F7;border-radius:8px;padding:10px 14px}
+.info-item .label{font-size:12px;color:#8E8E93;margin-bottom:2px}
+.info-item .value{font-size:14px;color:#1D1D1F;font-weight:500}
+.info-item .value.active{color:#34C759}
+.info-item .value.warning{color:#FF9500}
+.info-item .value.draft{color:#8E8E93}
+.btns{display:flex;gap:12px;justify-content:flex-end;margin-top:20px}
+.btn-primary{height:36px;padding:0 20px;background:#007AFF;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.2s}
+.btn-primary:hover{background:#0056B3}
+.btn-primary:disabled{background:#C7C7CC;cursor:not-allowed}
+.btn-default{height:36px;padding:0 20px;background:#fff;color:#1D1D1F;border:1px solid #E5E5EA;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s}
+.btn-default:hover{border-color:#007AFF;color:#007AFF}
+.btn-danger{height:36px;padding:0 20px;background:#FF3B30;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-success{height:36px;padding:0 20px;background:#34C759;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.search-bar{display:flex;gap:10px;margin-bottom:16px;align-items:center}
+.search-bar input{flex:1;height:36px;border:1px solid #E5E5EA;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.search-bar input:focus{border-color:#007AFF}
+.search-bar button{height:36px;padding:0 16px;background:#007AFF;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500}
+.tag-active{background:#E8F5E9;color:#34C759}
+.tag-warning{background:#FFF3E0;color:#FF9500}
+.tag-draft{background:#F5F5F7;color:#8E8E93}
+.tag-blue{background:#E3F2FD;color:#007AFF}
+
+/* Stepper */
+.stepper{display:flex;align-items:center;gap:0;margin-bottom:24px;background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #E5E5EA}
+.step{display:flex;align-items:center;flex:1}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;margin-right:8px;flex-shrink:0}
+.step.done .step-num{background:#34C759;color:#fff}
+.step.active .step-num{background:#007AFF;color:#fff}
+.step.pending .step-num{background:#E5E5E5;color:#8E8E93}
+.step-label{font-size:13px;color:#8E8E93;white-space:nowrap}
+.step.active .step-label{color:#007AFF;font-weight:500}
+.step-line{flex:1;height:2px;background:#E5E5E5;margin:0 12px;min-width:20px}
+.step.done .step-label{color:#34C759}
+.step.clickable{cursor:pointer}
+.step.clickable:hover .step-num{opacity:0.8}
+
+/* Radio */
+.radio-group{display:flex;gap:16px;flex-wrap:wrap}
+.radio-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px}
+.radio-item input{display:none}
+.radio-dot{width:18px;height:18px;border-radius:50%;border:2px solid #E5E5E5;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}
+.radio-item input:checked + .radio-dot{border-color:#007AFF}
+.radio-item input:checked + .radio-dot::after{content:'';width:10px;height:10px;border-radius:50%;background:#007AFF}
+.radio-item input:checked ~ span{color:#007AFF;font-weight:500}
+
+/* Checkbox */
+.checkbox-item{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;margin-bottom:10px}
+.checkbox-item input{display:none}
+.checkbox-box{width:18px;height:18px;border-radius:4px;border:2px solid #E5E5E5;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}
+.checkbox-item input:checked + .checkbox-box{border-color:#007AFF;background:#007AFF}
+.checkbox-item input:checked + .checkbox-box::after{content:'✓';color:#fff;font-size:12px;font-weight:700}
+
+/* Toggle */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F5F5F7}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:14px;color:#1D1D1F}
+.toggle-sub{font-size:12px;color:#8E8E93;margin-top:2px}
+.toggle-switch{position:relative;width:44px;height:24px;background:#E5E5E5;border-radius:12px;cursor:pointer;transition:background 0.2s;flex-shrink:0}
+.toggle-switch.on{background:#007AFF}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.toggle-switch.on::after{left:22px}
+
+/* Slider */
+.slider-row{display:flex;align-items:center;gap:12px;margin-top:8px;margin-left:94px}
+.slider{flex:1;height:4px;background:#E5E5E5;border-radius:2px;appearance:none;-webkit-appearance:none;outline:none}
+.slider::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#007AFF;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.slider-value{min-width:36px;text-align:center;font-size:13px;font-weight:600;color:#007AFF}
+
+/* Device & Orientation toggles */
+.device-row{display:flex;gap:8px;margin-bottom:16px}
+.device-btn,.orient-btn{padding:6px 16px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:#8E8E93;transition:all 0.2s}
+.device-btn.active,.orient-btn.active{background:#007AFF;color:#fff;border-color:#007AFF}
+
+/* Preview area */
+.preview-area{border:1px solid #E5E5E5;border-radius:12px;overflow:hidden;margin-bottom:16px;background:#F5F5F7}
+.preview-toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#fff;border-bottom:1px solid #E5E5E5;font-size:12px;color:#8E8E93}
+.preview-frame-wrap{display:flex;justify-content:center;align-items:center;padding:20px;min-height:400px;background:#E5E5EA}
+.preview-frame{border:none;background:#fff;transition:width 0.3s,height 0.3s;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
+.device-pc .preview-frame{width:100%;height:560px}
+.device-tablet .preview-frame{width:768px;height:560px}
+.device-phone .preview-frame{width:375px;height:667px}
+
+/* Progress bar */
+.progress-bar{height:8px;background:#E5E5E5;border-radius:4px;overflow:hidden;margin:16px 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,#007AFF,#5856D6);border-radius:4px;transition:width 0.3s;width:0%}
+.progress-steps{display:flex;justify-content:space-between;margin-top:8px}
+.progress-step{font-size:12px;color:#8E8E93;text-align:center;flex:1;position:relative}
+.progress-step.done{color:#34C759;font-weight:500}
+.progress-step.active{color:#007AFF;font-weight:500}
+.progress-step::before{content:attr(data-step);display:block;width:20px;height:20px;border-radius:50%;background:#E5E5E5;color:#8E8E93;margin:0 auto 4px;line-height:20px;text-align:center;font-size:11px;margin-bottom:4px}
+.progress-step.done::before{background:#34C759;color:#fff}
+.progress-step.active::before{background:#007AFF;color:#fff}
+
+/* Publish complete */
+.publish-complete{text-align:center;padding:32px}
+.complete-icon{width:64px;height:64px;border-radius:50%;background:#E8F5E9;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:32px}
+.complete-title{font-size:18px;font-weight:600;color:#1D1D1F;margin-bottom:8px}
+.complete-sub{font-size:13px;color:#8E8E93;margin-bottom:20px}
+.copy-row{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:16px}
+.copy-url-input{flex:1;max-width:400px;height:36px;border:1px solid #E5E5EA;border-radius:8px;padding:0 12px;font-size:13px;color:#8E8E93;background:#F5F5F7}
+
+/* Summary list */
+.summary-list{background:#F5F5F7;border-radius:8px;padding:16px}
+.summary-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #E5E5E5;font-size:13px}
+.summary-row:last-child{border-bottom:none}
+.summary-key{color:#8E8E93}
+.summary-val{color:#1D1D1F;font-weight:500}
+.hidden{display:none}
+.note{font-size:12px;color:#8E8E93;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="#">门户管理</a>
+  <span> ▶ </span>
+  <a href="#">预览发布</a>
+  <span> ▶ </span>
+  <span class="current">预览发布</span>
+</div>
+<div class="container">
+  <div class="page-title">预览发布</div>
+
+  <!-- Stepper -->
+  <div class="stepper" id="stepper">
+    <div class="step done clickable" onclick="goToStep(1)">
+      <div class="step-num">1</div>
+      <div class="step-label">选择门户</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step pending clickable" id="step2btn" onclick="goToStep(2)">
+      <div class="step-num">2</div>
+      <div class="step-label">配置参数</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step pending clickable" id="step3btn" onclick="goToStep(3)">
+      <div class="step-num">3</div>
+      <div class="step-label">预览确认</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step pending clickable" id="step4btn" onclick="goToStep(4)">
+      <div class="step-num">4</div>
+      <div class="step-label">发布上线</div>
+    </div>
+  </div>
+
+  <!-- Step 1: 选择门户 -->
+  <div class="card" id="card1">
+    <div class="card-title">Step 1 · 选择门户</div>
+    <div class="form-row">
+      <div class="form-label">门户类型</div>
+      <select class="form-select" id="portalSelect" onchange="onPortalChange()">
+        <option value="">-- 请选择 --</option>
+        <option value="workbench">企业工作台</option>
+        <option value="property">物业管理系统</option>
+        <option value="visitor">访客预约平台</option>
+        <option value="park">智慧园区门户</option>
+      </select>
+    </div>
+    <div id="portalInfo" class="hidden">
+      <div class="form-row" style="margin-bottom:8px">
+        <div class="form-label">门户信息</div>
+      </div>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="label">门户名称</div>
+          <div class="value" id="infoName">—</div>
+        </div>
+        <div class="info-item">
+          <div class="label">访问域名</div>
+          <div class="value" style="font-size:13px" id="infoDomain">—</div>
+        </div>
+        <div class="info-item">
+          <div class="label">主题风格</div>
+          <div class="value" id="infoTheme">—</div>
+        </div>
+        <div class="info-item">
+          <div class="label">当前状态</div>
+          <div class="value" id="infoStatus">—</div>
+        </div>
+        <div class="info-item">
+          <div class="label">最近更新</div>
+          <div class="value" style="font-size:13px" id="infoUpdate">—</div>
+        </div>
+        <div class="info-item">
+          <div class="label">版本号</div>
+          <div class="value" id="infoVersion">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn-primary" onclick="nextStep()" id="s1Next" disabled>下一步</button>
+    </div>
+  </div>
+
+  <!-- Step 2: 配置参数 -->
+  <div class="card hidden" id="card2">
+    <div class="card-title">Step 2 · 配置参数</div>
+
+    <div class="form-row">
+      <div class="form-label">发布环境</div>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" name="env" value="prod" checked onchange="onEnvChange()">
+          <div class="radio-dot"></div>
+          <span>生产环境</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="env" value="staging" onchange="onEnvChange()">
+          <div class="radio-dot"></div>
+          <span>预发环境</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="env" value="test" onchange="onEnvChange()">
+          <div class="radio-dot"></div>
+          <span>测试环境</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">发布方式</div>
+      <div class="radio-group">
+        <label class="radio-item">
+          <input type="radio" name="publishMode" value="full" checked onchange="onModeChange()">
+          <div class="radio-dot"></div>
+          <span>全量发布</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="publishMode" value="gray" onchange="onModeChange()">
+          <div class="radio-dot"></div>
+          <span>灰度发布</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-row hidden" id="grayRatioRow">
+      <div class="form-label">灰度比例</div>
+      <div class="slider-row" style="margin-left:0">
+        <input type="range" class="slider" id="grayRatio" min="1" max="100" value="10" oninput="onSliderChange()">
+        <span class="slider-value" id="grayRatioVal">10%</span>
+      </div>
+    </div>
+
+    <div style="margin-top:8px">
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">启用自动回滚</div>
+          <div class="toggle-sub">发布异常时自动回滚至上一稳定版本</div>
+        </div>
+        <div class="toggle-switch" id="autoRollback" onclick="toggleSwitch(this)"></div>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">健康检查先行</div>
+          <div class="toggle-sub">发布前先检查服务可用性</div>
+        </div>
+        <div class="toggle-switch on" id="healthCheck" onclick="toggleSwitch(this)"></div>
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:16px">
+      <div class="form-label">通知设置</div>
+      <div style="display:flex;flex-wrap:wrap;gap:16px">
+        <label class="checkbox-item">
+          <input type="checkbox" id="notifyEmail">
+          <div class="checkbox-box"></div>
+          <span>邮件通知</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="notifySms">
+          <div class="checkbox-box"></div>
+          <span>短信通知</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="notifyInternal" checked>
+          <div class="checkbox-box"></div>
+          <span>站内消息</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn-default" onclick="prevStep()">上一步</button>
+      <button class="btn-primary" onclick="nextStep()">下一步</button>
+    </div>
+  </div>
+
+  <!-- Step 3: 预览确认 -->
+  <div class="card hidden" id="card3">
+    <div class="card-title">Step 3 · 预览确认</div>
+
+    <div class="device-row">
+      <button class="device-btn active" onclick="switchDevice('pc')">PC</button>
+      <button class="device-btn" onclick="switchDevice('tablet')">平板</button>
+      <button class="device-btn" onclick="switchDevice('phone')">手机</button>
+    </div>
+
+    <div class="device-row" id="orientRow">
+      <button class="orient-btn active" onclick="switchOrient('landscape')">横屏</button>
+      <button class="orient-btn" onclick="switchOrient('portrait')">竖屏</button>
+    </div>
+
+    <div class="preview-area" id="previewArea">
+      <div class="preview-toolbar">
+        <span id="previewSize">1280 × 560 px</span>
+        <span id="previewUrlHint">预览画面</span>
+      </div>
+      <div class="preview-frame-wrap" id="previewWrap">
+        <iframe class="preview-frame" id="previewFrame" src="about:blank"></iframe>
+      </div>
+    </div>
+
+    <div class="note" style="margin-bottom:12px;text-align:center">
+      已加载门户预览，实际效果以发布后为准
+    </div>
+
+    <label class="checkbox-item" style="justify-content:center">
+      <input type="checkbox" id="confirmCheck">
+      <div class="checkbox-box"></div>
+      <span style="color:#1D1D1F">我已确认预览效果无误</span>
+    </label>
+
+    <div class="btns">
+      <button class="btn-default" onclick="prevStep()">上一步</button>
+      <button class="btn-primary" onclick="nextStep()" id="s3Next" disabled>下一步</button>
+    </div>
+  </div>
+
+  <!-- Step 4: 发布上线 -->
+  <div class="card hidden" id="card4">
+    <div class="card-title">Step 4 · 发布上线</div>
+
+    <div id="publishForm">
+      <div class="summary-list" style="margin-bottom:16px">
+        <div class="summary-row">
+          <span class="summary-key">门户名称</span>
+          <span class="summary-val" id="sumPortal">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">发布环境</span>
+          <span class="summary-val" id="sumEnv">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">发布方式</span>
+          <span class="summary-val" id="sumMode">—</span>
+        </div>
+        <div class="summary-row" id="sumGrayRow">
+          <span class="summary-key">灰度比例</span>
+          <span class="summary-val" id="sumGray">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">自动回滚</span>
+          <span class="summary-val" id="sumRollback">—</span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-key">通知方式</span>
+          <span class="summary-val" id="sumNotify">—</span>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="btn-default" onclick="prevStep()">上一步</button>
+        <button class="btn-primary" onclick="startPublish()" id="startPublishBtn">开始发布</button>
+      </div>
+    </div>
+
+    <div id="publishProgress" class="hidden">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-steps">
+        <div class="progress-step" data-step="1" id="ps1">停止实例</div>
+        <div class="progress-step" data-step="2" id="ps2">部署版本</div>
+        <div class="progress-step" data-step="3" id="ps3">启动实例</div>
+        <div class="progress-step" data-step="4" id="ps4">健康检查</div>
+        <div class="progress-step" data-step="5" id="ps5">发布完成</div>
+      </div>
+    </div>
+
+    <div id="publishComplete" class="hidden">
+      <div class="publish-complete">
+        <div class="complete-icon">✓</div>
+        <div class="complete-title">发布成功</div>
+        <div class="complete-sub">门户已成功发布，请确认访问</div>
+        <div class="copy-row">
+          <input type="text" class="copy-url-input" id="publishedUrl" readonly value="https://portal.weibao.com">
+          <button class="btn-primary" onclick="copyUrl()">复制链接</button>
+        </div>
+        <div id="copyConfirm" style="color:#34C759;font-size:13px;margin-top:8px;height:20px"></div>
+        <div class="btns" style="justify-content:center;margin-top:24px">
+          <button class="btn-default" onclick="resetPublish()">重新发布</button>
+          <button class="btn-primary" onclick="window.open('https://portal.weibao.com','_blank')">访问门户</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var currentStep = 1;
+
+var portalData = {
+  workbench: {name:'企业工作台',domain:'workbench.weibao.com',theme:'科技蓝',status:'已上线',statusClass:'active',update:'2026-05-15',version:'v2.3.1'},
+  property: {name:'物业管理系统',domain:'property.weibao.com',theme:'商务橙',status:'已上线',statusClass:'active',update:'2026-05-10',version:'v1.8.0'},
+  visitor: {name:'访客预约平台',domain:'visitor.weibao.com',theme:'清新绿',status:'预发中',statusClass:'warning',update:'2026-05-18',version:'v2.0.0-beta'},
+  park: {name:'智慧园区门户',domain:'park.weibao.com',theme:'生态绿',status:'草稿',statusClass:'draft',update:'2026-05-12',version:'v1.0.0-alpha'}
+};
+
+function goToStep(n) {
+  if (n > currentStep) return;
+  if (n < currentStep) {
+    showStep(n);
+  }
+}
+
+function showStep(n) {
+  currentStep = n;
+  for (var i = 1; i <= 4; i++) {
+    var card = document.getElementById('card' + i);
+    card.classList.toggle('hidden', i !== n);
+    var step = document.querySelector('#stepper .step:nth-child(' + (i * 2 - 1) + ')');
+    var stepEl = document.getElementById('step' + i + 'btn');
+    stepEl.className = 'step ' + (i < n ? 'done' : i === n ? 'active' : 'pending') + ' clickable';
+    stepEl.querySelector('.step-num').textContent = i < n ? '✓' : i;
+  }
+}
+
+function nextStep() {
+  if (currentStep === 1 && !document.getElementById('portalSelect').value) return;
+  if (currentStep === 3 && !document.getElementById('confirmCheck').checked) return;
+  if (currentStep < 4) {
+    showStep(currentStep + 1);
+    if (currentStep === 3) fillSummary();
+  }
+}
+
+function prevStep() {
+  if (currentStep > 1) showStep(currentStep - 1);
+}
+
+function onPortalChange() {
+  var val = document.getElementById('portalSelect').value;
+  var info = document.getElementById('portalInfo');
+  var nextBtn = document.getElementById('s1Next');
+  if (val) {
+    var d = portalData[val];
+    document.getElementById('infoName').textContent = d.name;
+    document.getElementById('infoDomain').textContent = d.domain;
+    document.getElementById('infoTheme').textContent = d.theme;
+    var statusEl = document.getElementById('infoStatus');
+    statusEl.textContent = d.status;
+    statusEl.className = 'value ' + d.statusClass;
+    document.getElementById('infoUpdate').textContent = d.update;
+    document.getElementById('infoVersion').textContent = d.version;
+    info.classList.remove('hidden');
+    nextBtn.disabled = false;
+  } else {
+    info.classList.add('hidden');
+    nextBtn.disabled = true;
+  }
+}
+
+function onEnvChange() {
+  // env selected
+}
+
+function onModeChange() {
+  var mode = document.querySelector('input[name="publishMode"]:checked').value;
+  var grayRow = document.getElementById('grayRatioRow');
+  grayRow.classList.toggle('hidden', mode !== 'gray');
+}
+
+function onSliderChange() {
+  var val = document.getElementById('grayRatio').value;
+  document.getElementById('grayRatioVal').textContent = val + '%';
+}
+
+function toggleSwitch(el) {
+  el.classList.toggle('on');
+}
+
+function switchDevice(type) {
+  document.querySelectorAll('.device-btn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.classList.add('active');
+  var wrap = document.getElementById('previewWrap');
+  wrap.className = 'preview-frame-wrap device-' + type;
+  var orientRow = document.getElementById('orientRow');
+  orientRow.style.display = type === 'pc' ? 'none' : 'flex';
+  var sizeMap = {pc:'1280 × 560 px',tablet:'768 × 560 px',phone:'375 × 667 px'};
+  document.getElementById('previewSize').textContent = sizeMap[type] || '';
+  document.getElementById('previewFrame').className = 'preview-frame device-' + type;
+}
+
+function switchOrient(type) {
+  document.querySelectorAll('.orient-btn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.classList.add('active');
+}
+
+document.getElementById('confirmCheck').addEventListener('change', function() {
+  document.getElementById('s3Next').disabled = !this.checked;
+});
+
+function fillSummary() {
+  var pname = portalData[document.getElementById('portalSelect').value].name;
+  var envMap = {prod:'生产环境',staging:'预发环境',test:'测试环境'};
+  var modeMap = {full:'全量发布',gray:'灰度发布'};
+  document.getElementById('sumPortal').textContent = pname;
+  document.getElementById('sumEnv').textContent = envMap[document.querySelector('input[name="env"]:checked').value];
+  var mode = document.querySelector('input[name="publishMode"]:checked').value;
+  document.getElementById('sumMode').textContent = modeMap[mode];
+  document.getElementById('sumGrayRow').classList.toggle('hidden', mode !== 'gray');
+  document.getElementById('sumGray').textContent = document.getElementById('grayRatio').value + '%';
+  document.getElementById('sumRollback').textContent = document.getElementById('autoRollback').classList.contains('on') ? '已启用' : '未启用';
+  var notifs = [];
+  if (document.getElementById('notifyEmail').checked) notifs.push('邮件');
+  if (document.getElementById('notifySms').checked) notifs.push('短信');
+  if (document.getElementById('notifyInternal').checked) notifs.push('站内消息');
+  document.getElementById('sumNotify').textContent = notifs.length ? notifs.join('、') : '无';
+}
+
+function startPublish() {
+  document.getElementById('publishForm').classList.add('hidden');
+  document.getElementById('publishProgress').classList.remove('hidden');
+  document.getElementById('startPublishBtn').disabled = true;
+
+  var steps = ['ps1','ps2','ps3','ps4','ps5'];
+  var pct = 0;
+  var stepIdx = 0;
+  var interval = setInterval(function() {
+    pct += 2;
+    if (pct > 100) pct = 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+    var newIdx = Math.floor(pct / 20);
+    for (var j = 0; j <= newIdx && j < steps.length; j++) {
+      document.getElementById(steps[j]).className = 'progress-step done';
+      if (j === newIdx && j < steps.length - 1) {
+        document.getElementById(steps[j]).classList.remove('done');
+        document.getElementById(steps[j]).className = 'progress-step active';
+      }
+    }
+    if (pct >= 100) {
+      clearInterval(interval);
+      document.getElementById(steps[steps.length - 1]).className = 'progress-step done';
+      setTimeout(showPublishComplete, 400);
+    }
+  }, 60);
+}
+
+function showPublishComplete() {
+  document.getElementById('publishProgress').classList.add('hidden');
+  document.getElementById('publishComplete').classList.remove('hidden');
+}
+
+function copyUrl() {
+  var url = document.getElementById('publishedUrl').value;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function() {
+      document.getElementById('copyConfirm').textContent = '✓ 链接已复制';
+      setTimeout(function() { document.getElementById('copyConfirm').textContent = ''; }, 2000);
+    });
+  } else {
+    document.getElementById('publishedUrl').select();
+    document.execCommand('copy');
+    document.getElementById('copyConfirm').textContent = '✓ 链接已复制';
+  }
+}
+
+function resetPublish() {
+  document.getElementById('publishForm').classList.remove('hidden');
+  document.getElementById('publishProgress').classList.add('hidden');
+  document.getElementById('publishComplete').classList.add('hidden');
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('startPublishBtn').disabled = false;
+  var steps = ['ps1','ps2','ps3','ps4','ps5'];
+  for (var k = 0; k < steps.length; k++) {
+    document.getElementById(steps[k]).className = 'progress-step';
+  }
+  showStep(1);
+  currentStep = 1;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>门户管理 - 云枢中台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+.search-bar input{flex:1;height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+.search-bar input:focus{border-color:#007AFF}
+.search-bar select{height:36px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;background:#fff}
+.btn-primary{height:36px;background:#007AFF;color:#fff;border:none;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center}
+.btn-default{height:36px;background:#fff;color:#1d1d1f;border:1px solid #E5E5E5;border-radius:8px;padding:0 16px;font-size:14px;cursor:pointer}
+.card-title{font-size:16px;font-weight:600;color:#1d1d1f;margin-bottom:16px}
+.table{width:100%;border-collapse:collapse}
+.table th{background:#FAFAFA;padding:12px 16px;text-align:left;font-size:13px;color:#8E8E93;font-weight:500;border-bottom:1px solid #E5E5E5}
+.table td{padding:14px 16px;font-size:14px;border-bottom:1px solid #F0F0F0}
+.table tr:hover{background:#F9F9FB}
+.tag{padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500;display:inline-block}
+.tag-published{background:#E8F5E9;color:#34C759}
+.tag-draft{background:#F5F5F7;color:#8E8E93}
+.tag-offline{background:#FFF3E0;color:#FF9500}
+.action-btn{color:#007AFF;cursor:pointer;font-size:13px;background:none;border:none;padding:0 4px}
+.action-btn:hover{text-decoration:underline}
+.action-btn.danger{color:#FF3B30}
+.pagination{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+.pagination .info{font-size:13px;color:#8E8E93}
+.page-btn{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;justify-content:center}
+.page-btn.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:16px;width:90%;max-width:700px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{height:56px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E5E5E5}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{width:32px;height:32px;border-radius:50%;background:#F5F5F7;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#8E8E93;border:none}
+.modal-body{flex:1;overflow-y:auto;padding:20px}
+.modal-footer{padding:16px 20px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:12px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;color:#8E8E93;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;height:40px;border:1px solid #E5E5E5;border-radius:8px;padding:0 12px;font-size:14px;outline:none;background:#fff}
+.form-group textarea{height:80px;padding:10px 12px;resize:none}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:#007AFF}
+.form-row{display:flex;gap:16px}
+.form-row .form-group{flex:1}
+.preview-iframe{width:100%;height:600px;border:1px solid #E5E5E5;border-radius:8px;background:#FAFAFA}
+/* 预览弹窗更大 */
+.modal.preview{width:95%;max-width:1200px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">门户管理 ▶ <span>站点管理</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">站点管理</div>
+<div class="search-bar">
+        <input type="text" placeholder="搜索门户名称">
+        <select><option>全部状态</option><option>已发布</option><option>草稿</option><option>已下线</option></select>
+        <button class="btn-primary" onclick="openNewModal()">+ 新建门户</button>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th>门户名称</th><th>域名</th><th>主题</th><th>页面数</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+        <div class="pagination">
+          <div class="info">共 <span>5</span> 条</div>
+          <div><button class="page-btn active">1</button></div>
+        </div>
+      </div>
+</div>
+
+<!-- 新建/编辑弹窗 -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">新建门户</div><button class="modal-close" onclick="closeModal('formModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>门户名称</label><input type="text" placeholder="请输入门户名称"></div>
+        <div class="form-group"><label>域名</label><input type="text" placeholder="如: park.cloudhub.cn"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>默认主题</label>
+          <select><option>简约白</option><option>科技蓝</option><option>活力橙</option><option>午夜黑</option></select>
+        </div>
+        <div class="form-group"><label>状态</label>
+          <select><option>草稿</option><option>已发布</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>描述</label><textarea placeholder="请输入门户描述"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>SEO标题</label><input type="text" placeholder="搜索引擎显示标题"></div>
+        <div class="form-group"><label>SEO关键词</label><input type="text" placeholder="关键词1,关键词2,..."></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default" onclick="closeModal('formModal')">取消</button>
+      <button class="btn-primary">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 预览弹窗 -->
+<div class="modal-overlay" id="previewModal">
+  <div class="modal preview">
+    <div class="modal-header"><div class="modal-title">门户预览 - 企业工作台</div><button class="modal-close" onclick="closeModal('previewModal')">×</button></div>
+    <div class="modal-body" style="padding:0">
+      <iframe class="preview-iframe" src="portal-preview.html"></iframe>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-default" onclick="closeModal('previewModal')">关闭</button>
+      <button class="btn-primary">发布门户</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var portals=[
+  {name:'企业工作台',domain:'work.cloudhub.cn',theme:'科技蓝',pages:8,status:'published',time:'2026-04-10 09:00'},
+  {name:'物业管理系统',domain:'property.cloudhub.cn',theme:'简约白',pages:12,status:'published',time:'2026-03-28 14:30'},
+  {name:'访客预约平台',domain:'visitor.cloudhub.cn',theme:'活力橙',pages:5,status:'draft',time:'2026-05-02 10:15'},
+  {name:'智慧园区门户',domain:'park.cloudhub.cn',theme:'午夜黑',pages:15,status:'offline',time:'2026-02-15 11:00'},
+  {name:'员工服务台',domain:'hr.cloudhub.cn',theme:'简约白',pages:6,status:'published',time:'2026-04-20 08:30'},
+];
+var statusMap={published:'已发布',draft:'草稿',offline:'已下线'};
+var statusClass={published:'tag-published',draft:'tag-draft',offline:'tag-offline'};
+function renderTable(){
+  var tbody=document.getElementById('tableBody');
+  tbody.innerHTML=portals.map(function(p){
+    return '<tr><td><strong>'+p.name+'</strong></td><td>'+p.domain+'</td><td>'+p.theme+'</td><td>'+p.pages+'</td><td><span class="tag '+statusClass[p.status]+'">'+statusMap[p.status]+'</span></td><td>'+p.time+'</td><td><button class="action-btn" onclick="openPreview()">预览</button><button class="action-btn" onclick="openNewModal()">编辑</button><button class="action-btn">复制</button><button class="action-btn danger">删除</button></td></tr>';
+  }).join('');
+}
+function openNewModal(){document.getElementById('formModal').style.display='flex';}
+function openPreview(){document.getElementById('previewModal').style.display='flex';}
+function closeModal(id){document.getElementById(id).style.display='none';}
+document.addEventListener('DOMContentLoaded',renderTable);
+</script>
+</body>
+</html>

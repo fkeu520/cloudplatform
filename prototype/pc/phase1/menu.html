@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>菜单管理 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+.layout{display:flex;min-height:600px}
+.left-panel{width:380px;border-right:1px solid #E5E5E5;padding:20px}
+.right-panel{flex:1;padding:20px;overflow-y:auto}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.btn-danger{background:#FF3B30;color:#fff}
+.btn-danger:hover{background:#D63028}
+.btn-sm{padding:4px 10px;font-size:12px}
+.tree-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.tree-node{display:flex;align-items:center;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;transition:background 0.15s}
+.tree-node:hover{background:#F5F5F7}
+.tree-node.selected{background:#E8F0FE}
+.tree-node .toggle{width:20px;height:20px;display:flex;align-items:center;justify-content:center;color:#8E8E93;font-size:10px}
+.tree-node .icon{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;margin-right:10px;font-size:12px;color:#fff}
+.tree-node .name{flex:1;font-size:13px}
+.tree-node .meta{font-size:11px;color:#8E8E93;margin-right:8px}
+.tree-node .actions{opacity:0;transition:opacity 0.15s}
+.tree-node:hover .actions{opacity:1}
+.tree-children{padding-left:24px;display:none}
+.tree-children.show{display:block}
+.form-row{margin-bottom:16px}
+.form-row label{display:block;font-size:13px;color:#515154;margin-bottom:6px;font-weight:500}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:14px}
+.form-row input:focus,.form-row select:focus{border-color:#007AFF}
+.form-row textarea{resize:vertical;min-height:80px}
+.form-row .row{display:flex;gap:16px}
+.form-row .col{flex:1}
+.form-row .tip{font-size:11px;color:#8E8E93;margin-top:4px}
+.radio-group{display:flex;gap:20px}
+.radio-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px}
+.radio-item input{width:16px;height:16px;accent-color:#007AFF}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:520px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.placeholder-panel{text-align:center;color:#8E8E93;padding:80px 0}
+.placeholder-panel p{font-size:48px;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>菜单管理</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">菜单管理</div>
+<div class="card">
+<div class="layout">
+<div class="left-panel">
+<div class="tree-header">
+<span style="font-size:15px;font-weight:600">菜单结构</span>
+<button class="btn btn-primary btn-sm" onclick="openAddMenu()">+ 新增</button>
+</div>
+<div id="menuTree"></div>
+</div>
+<div class="right-panel" id="formPanel">
+<div class="placeholder-panel">
+<p>📁</p>
+<p>请选择左侧菜单进行编辑</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="menuModal">
+<div class="modal">
+<div class="modal-header">
+<h3 id="menuModalTitle">新增菜单</h3>
+<button class="close" onclick="closeMenuModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="menuForm" onsubmit="return saveMenu()">
+<input type="hidden" id="menuId">
+<div class="form-row">
+<label>菜单类型 <span style="color:#FF3B30">*</span></label>
+<div class="radio-group">
+<label class="radio-item"><input type="radio" name="menuType" value="dir" checked onclick="toggleMenuType('dir')"> 目录</label>
+<label class="radio-item"><input type="radio" name="menuType" value="menu" onclick="toggleMenuType('menu')"> 菜单</label>
+<label class="radio-item"><input type="radio" name="menuType" value="btn" onclick="toggleMenuType('btn')"> 按钮</label>
+</div>
+</div>
+<div class="form-row">
+<label>上级菜单</label>
+<select id="parentMenu">
+<option value="">作为一级菜单</option>
+<option value="1">系统管理</option>
+<option value="2">  用户管理</option>
+<option value="3">  角色管理</option>
+<option value="4">数据看板</option>
+</select>
+</div>
+<div class="form-row">
+<label>菜单名称 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="menuName" required placeholder="请输入菜单名称">
+</div>
+<div class="form-row" id="pathRow">
+<label>路由路径</label>
+<input type="text" id="menuPath" placeholder="请输入路由路径，如：/user">
+</div>
+<div class="form-row" id="componentRow">
+<label>组件路径</label>
+<input type="text" id="menuComponent" placeholder="请输入组件路径，如：system/user/index">
+</div>
+<div class="form-row">
+<div class="row">
+<div class="col">
+<label>图标</label>
+<input type="text" id="menuIcon" placeholder="如：user, settings">
+</div>
+<div class="col">
+<label>排序</label>
+<input type="number" id="menuSort" value="0" placeholder="数值越小越靠前">
+</div>
+</div>
+</div>
+<div class="form-row" id="permRow" style="display:none">
+<label>权限标识</label>
+<input type="text" id="menuPerm" placeholder="如：system:user:add">
+</div>
+<div class="form-row">
+<label>状态</label>
+<div class="radio-group">
+<label class="radio-item"><input type="radio" name="menuStatus" value="1" checked> 启用</label>
+<label class="radio-item"><input type="radio" name="menuStatus" value="0"> 禁用</label>
+</div>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeMenuModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('menuForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+<script>
+var mockTree=[
+{id:1,name:"系统管理",icon:"⚙️",iconBg:"#8E8E93",type:"dir",path:"",sort:1,children:[
+{id:2,name:"用户管理",icon:"👤",iconBg:"#007AFF",type:"menu",path:"/system/user",component:"system/user/index",sort:1,children:[
+{id:5,name:"新增用户",type:"btn",perm:"system:user:add",sort:1},
+{id:6,name:"编辑用户",type:"btn",perm:"system:user:edit",sort:2},
+{id:7,name:"删除用户",type:"btn",perm:"system:user:delete",sort:3}
+]},
+{id:3,name:"角色管理",icon:"🔐",iconBg:"#5856D6",type:"menu",path:"/system/role",component:"system/role/index",sort:2,children:[]},
+{id:4,name:"菜单管理",icon:"📁",iconBg:"#34C759",type:"menu",path:"/system/menu",component:"system/menu/index",sort:3,children:[]}
+]},
+{id:8,name:"数据看板",icon:"📊",iconBg:"#007AFF",type:"menu",path:"/dashboard",component:"dashboard/index",sort:2,children:[]},
+{id:9,name:"组织管理",icon:"🏢",iconBg:"#FF9500",type:"menu",path:"/system/org",component:"system/org/index",sort:3,children:[]},
+{id:10,name:"字典管理",icon:"📋",iconBg:"#FF3B30",type:"menu",path:"/system/dict",component:"system/dict/index",sort:4,children:[]}
+];
+var currentMenuId=null;
+function renderTree(nodes,depth,html){
+html=html||"";
+nodes.forEach(function(n){
+var hasChildren=n.children&&n.children.length>0;
+var typeLabel={dir:"目录",menu:"菜单",btn:"按钮"}[n.type]||"菜单";
+html+='<div class="tree-node" data-id="'+n.id+'" onclick="selectMenu('+n.id+')">';
+html+='<span class="toggle" onclick="event.stopPropagation();toggleNode(this)">'+(hasChildren?'▼':' ')+'</span>';
+html+='<span class="icon" style="background:'+n.iconBg+'">'+n.icon+'</span>';
+html+='<span class="name">'+n.name+'</span>';
+html+='<span class="meta">'+typeLabel+'</span>';
+html+='<span class="actions">';
+html+='<button class="btn btn-default btn-sm" onclick="event.stopPropagation();openAddChild('+n.id+')">+子级</button> ';
+html+='<button class="btn btn-default btn-sm" onclick="event.stopPropagation();editMenu('+n.id+')">编辑</button> ';
+html+='<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteMenu('+n.id+')">删除</button>';
+html+='</span>';
+html+='</div>';
+if(hasChildren){
+html+='<div class="tree-children">'+renderTree(n.children,depth+1,'')+'</div>';
+}
+});
+return html;
+}
+function toggleNode(el){
+var children=el.parentElement.nextElementSibling;
+if(children&&children.classList.contains("tree-children")){
+children.classList.toggle("show");
+el.textContent=children.classList.contains("show")?"▼":"▶";
+}
+}
+function selectMenu(id){
+currentMenuId=id;
+document.querySelectorAll(".tree-node").forEach(function(el){el.classList.remove("selected")});
+document.querySelector('.tree-node[data-id="'+id+'"]').classList.add("selected");
+renderForm();
+}
+function renderForm(){
+var node=findNode(mockTree,currentMenuId);
+if(!node){return;}
+var typeMap={dir:"目录",menu:"菜单",btn:"按钮"};
+var html='<div style="max-width:500px">';
+html+='<div style="font-size:16px;font-weight:600;margin-bottom:20px">编辑菜单：'+node.name+'</div>';
+html+='<div class="form-row"><label>菜单名称</label><input type="text" value="'+node.name+'" id="formName"></div>';
+html+='<div class="form-row"><label>菜单类型</label><div style="padding:10px 0">'+typeMap[node.type]+'</div></div>';
+html+='<div class="form-row"><label>路由路径</label><input type="text" value="'+(node.path||'')+'" id="formPath"></div>';
+html+='<div class="form-row"><label>组件路径</label><input type="text" value="'+(node.component||'')+'" id="formComponent"></div>';
+html+='<div class="form-row"><label>图标</label><input type="text" value="'+(node.icon||'')+'" id="formIcon"></div>';
+html+='<div class="form-row"><label>排序</label><input type="number" value="'+(node.sort||0)+'" id="formSort"></div>';
+if(node.perm) html+='<div class="form-row"><label>权限标识</label><input type="text" value="'+node.perm+'" id="formPerm"></div>';
+html+='<div style="display:flex;gap:12px;margin-top:24px">';
+html+='<button class="btn btn-default" onclick="renderTreeHTML()">取消</button>';
+html+='<button class="btn btn-primary" onclick="saveMenuFromForm()">保存</button>';
+html+='</div>';
+html+='</div>';
+document.getElementById("formPanel").innerHTML=html;
+}
+function findNode(nodes,id){
+for(var i=0;i<nodes.length;i++){
+if(nodes[i].id==id) return nodes[i];
+if(nodes[i].children){
+var found=findNode(nodes[i].children,id);
+if(found) return found;
+}
+}
+return null;
+}
+function openAddMenu(){
+document.getElementById("menuModalTitle").textContent="新增菜单";
+document.getElementById("menuForm").reset();
+document.getElementById("menuId").value="";
+document.getElementById("menuModal").classList.add("show");
+}
+function openAddChild(parentId){
+document.getElementById("menuModalTitle").textContent="新增子菜单";
+document.getElementById("menuForm").reset();
+document.getElementById("menuId").value="";
+document.getElementById("parentMenu").value=parentId;
+document.getElementById("menuModal").classList.add("show");
+}
+function editMenu(id){
+var n=findNode(mockTree,id);
+if(!n)return;
+document.getElementById("menuModalTitle").textContent="编辑菜单";
+document.getElementById("menuId").value=id;
+document.getElementById("menuName").value=n.name;
+document.getElementById("menuPath").value=n.path||"";
+document.getElementById("menuComponent").value=n.component||"";
+document.getElementById("menuIcon").value=n.icon||"";
+document.getElementById("menuSort").value=n.sort||0;
+if(n.perm) document.getElementById("menuPerm").value=n.perm;
+document.getElementById("menuModal").classList.add("show");
+}
+function toggleMenuType(type){
+document.getElementById("pathRow").style.display=type=="dir"?"none":"block";
+document.getElementById("componentRow").style.display=type=="dir"?"none":"block";
+document.getElementById("permRow").style.display=type=="btn"?"block":"none";
+}
+function closeMenuModal(){
+document.getElementById("menuModal").classList.remove("show");
+}
+function saveMenu(){
+closeMenuModal();
+alert("演示模式：菜单保存成功");
+renderTreeHTML();
+}
+function saveMenuFromForm(){
+alert("演示模式：菜单保存成功");
+renderTreeHTML();
+}
+function deleteMenu(id){
+if(!confirm("确定要删除该菜单吗？"))return;
+mockTree=mockTree.filter(function(n){return n.id!==id;});
+renderTreeHTML();
+}
+function renderTreeHTML(){
+document.getElementById("menuTree").innerHTML=renderTree(mockTree,0);
+}
+renderTreeHTML();
+</script>
+</body>
+</html>

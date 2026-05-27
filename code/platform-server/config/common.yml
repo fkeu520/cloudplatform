@@ -1,0 +1,57 @@
+# ================================================
+# 云枢中台 - 公共配置
+# 共享给所有微服务
+# ================================================
+
+spring:
+  # 数据库
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://platform-mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: platform
+    password: platform123
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  # Redis
+  data:
+    redis:
+      host: platform-redis
+      port: 6379
+      database: 0
+      timeout: 10s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+# MyBatis Plus（各服务可按需覆盖）
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.cloudhub.platform.user.domain.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# JWT 配置
+jwt:
+  secret: cloudhub-platform-secret-key-2024
+  expire-time: 604800  # 7天（秒）
+
+# 日志级别
+logging:
+  level:
+    com.cloudhub.platform: DEBUG
+    org.springframework.cloud.gateway: INFO

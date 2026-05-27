@@ -1,0 +1,34 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: platform-user
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: platform
+    password: platform123
+
+  data:
+    redis:
+      host: redis
+      port: 6379
+      database: 0
+      timeout: 10s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: nacos:8848
+        enabled: true
+      config:
+        server-addr: nacos:8848
+        enabled: false

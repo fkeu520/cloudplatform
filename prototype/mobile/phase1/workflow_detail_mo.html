@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>审批详情 - 智慧园区管理平台</title>
+<style>
+:root{--bg:#F5F5F7;--primary:#007AFF;--secondary:#8E8E93;--success:#34C759;--warning:#FF9500;--danger:#FF3B30;--card:#FFFFFF;--border:#E5E5E5;--text:#1C1C1E;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.page{max-width:430px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+.status-bar{height:47px;background:var(--card);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;font-size:14px;font-weight:600;}
+.header{height:50px;background:var(--card);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:17px;font-weight:600;border-bottom:0.5px solid var(--border);position:sticky;top:0;z-index:10;}
+.back-btn{color:var(--primary);font-size:15px;cursor:pointer;padding:8px 0;}
+.content{flex:1;overflow-y:auto;padding-bottom:80px;}
+.badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:12px;font-weight:500;}
+.badge-warning{background:#FEF3E2;color:#FF9500;}
+.badge-success{background:#E8F8EF;color:#34C759;}
+.badge-danger{background:#FDECEA;color:#FF3B30;}
+.card{background:var(--card);margin:12px 16px;padding:16px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
+.card-title{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title .type-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.info-table{width:100%;}
+.info-row{display:flex;padding:10px 0;border-bottom:0.5px solid var(--border);}
+.info-row:last-child{border-bottom:none;}
+.info-label{flex:0 0 90px;color:var(--secondary);font-size:14px;}
+.info-value{flex:1;font-size:14px;font-weight:500;}
+.action-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;padding:12px 16px;background:var(--card);border-top:0.5px solid var(--border);display:flex;gap:12px;z-index:100;}
+.action-bar .btn{flex:1;height:48px;border-radius:10px;border:none;font-size:16px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.btn-reject{background:#F2F2F7;color:var(--text);}
+.btn-approve{background:var(--primary);color:#fff;}
+.btn-approve:active,.btn-reject:active{opacity:0.8;}
+.section-title{font-size:13px;color:var(--secondary);padding:0 16px;margin:16px 0 8px;font-weight:500;}
+.timeline{padding:0 16px;}
+.tl-item{display:flex;gap:12px;padding-bottom:20px;position:relative;}
+.tl-item::before{content:'';position:absolute;left:7px;top:20px;bottom:0;width:2px;background:var(--border);}
+.tl-item:last-child::before{display:none;}
+.tl-dot{width:16px;height:16px;border-radius:50%;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;z-index:1;}
+.tl-dot.done{background:var(--success);}
+.tl-dot.current{background:var(--primary);}
+.tl-dot.pending{background:var(--border);}
+.tl-body{flex:1;padding-top:0;}
+.tl-title{font-size:14px;font-weight:600;}
+.tl-sub{font-size:12px;color:var(--secondary);margin-top:2px;}
+.tl-time{font-size:12px;color:var(--secondary);margin-top:4px;}
+.reject-reason{padding:12px;background:#FFF5F5;border-radius:8px;border:1px solid #FFD0D0;margin-top:8px;font-size:13px;color:var(--danger);}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="status-bar"><span id="statusTime">9:41</span></div>
+  <div class="header">
+    <div class="back-btn" onclick="history.back()">‹ 返回</div>
+    <span>审批详情</span>
+    <div style="width:50px"></div>
+  </div>
+
+  <div class="content">
+    <!-- 审批状态卡片 -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">
+        <div class="type-icon" style="background:#FEF3E2;color:#FF9500">📋</div>
+        <span>设备报修申请</span>
+      </div>
+      <div style="text-align:center;padding:16px 0;">
+        <div class="badge badge-warning" style="font-size:14px;padding:6px 20px;">待审批</div>
+      </div>
+    </div>
+
+    <!-- 申请信息 -->
+    <div class="section-title">申请信息</div>
+    <div class="card">
+      <div class="info-row">
+        <div class="info-label">申请人</div>
+        <div class="info-value">李明</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">所属部门</div>
+        <div class="info-value">工程部</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">申请时间</div>
+        <div class="info-value">2026-05-19 08:30</div>
+      </div>
+    </div>
+
+    <!-- 报修内容 -->
+    <div class="section-title">报修内容</div>
+    <div class="card">
+      <div class="info-row">
+        <div class="info-label">设备名称</div>
+        <div class="info-value">A栋电梯 #3</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">设备编号</div>
+        <div class="info-value">ELV-A3-001</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">故障位置</div>
+        <div class="info-value">A栋 · 3楼</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">故障描述</div>
+        <div class="info-value">电梯门关闭异常，运行时有异响</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">预约时间</div>
+        <div class="info-value" style="color:var(--danger)">2026-05-19 14:00</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">紧急程度</div>
+        <div class="info-value" style="color:var(--warning);font-weight:600">紧急</div>
+      </div>
+      <div class="info-row">
+        <div class="info-label">附件</div>
+        <div class="info-value" style="color:var(--primary)">故障照片.jpg (2.3MB)</div>
+      </div>
+    </div>
+
+    <!-- 审批流程 -->
+    <div class="section-title">审批流程</div>
+    <div class="card">
+      <div class="tl-item">
+        <div class="tl-dot done">✓</div>
+        <div class="tl-body">
+          <div class="tl-title">提交申请</div>
+          <div class="tl-sub">李明 · 工程部</div>
+          <div class="tl-time">05-19 08:30</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot current">→</div>
+        <div class="tl-body">
+          <div class="tl-title">审批中</div>
+          <div class="tl-sub">张三 · 物业管理部</div>
+          <div class="tl-time">审批中...</div>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot pending">○</div>
+        <div class="tl-body">
+          <div class="tl-title">最终审批</div>
+          <div class="tl-sub">待指定</div>
+          <div class="tl-time">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史审批意见 -->
+    <div class="section-title">审批意见</div>
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0;">张</div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;font-weight:600;">张三</span>
+            <span style="font-size:12px;color:var(--secondary);">05-19 09:30</span>
+          </div>
+          <div style="font-size:13px;color:var(--secondary);margin-top:2px;">物业管理部 · 主管</div>
+          <div style="margin-top:8px;font-size:14px;color:var(--text);">收到报修请求，已安排工程人员提前到场检测。请注意安全。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部操作栏 -->
+  <div class="action-bar">
+    <button class="btn btn-reject" onclick="handleReject()">驳回</button>
+    <button class="btn btn-approve" onclick="handleApprove()">同意</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const token = localStorage.getItem('mo_token');
+  if (!token) location.href = '../login_mo.html';
+})();
+function updateClock(){
+  const now=new Date();
+  document.getElementById('statusTime').textContent=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+}
+setInterval(updateClock,1000);updateClock();
+
+function handleApprove() {
+  if (confirm('确认同意该审批？')) {
+    alert('审批已提交');
+    history.back();
+  }
+}
+function handleReject() {
+  if (confirm('确认驳回该审批？')) {
+    alert('已驳回');
+    history.back();
+  }
+}
+</script>
+</body>
+</html>

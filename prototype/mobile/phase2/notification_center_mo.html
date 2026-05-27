@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>消息中心</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:#F5F5F7;color:#1C1C1E;font-size:14px;-webkit-font-smoothing:antialiased}
+.page-wrap{max-width:430px;margin:0 auto;min-height:100vh;background:#F5F5F7;padding-bottom:70px}
+
+/* Header */
+.header{position:sticky;top:0;z-index:100;background:#fff;height:50px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(0,0,0,0.06)}
+.header h1{font-size:17px;font-weight:600}
+
+/* Tab */
+.main-tabs{display:flex;background:#fff;border-bottom:1px solid rgba(0,0,0,0.06)}
+.main-tab{flex:1;padding:14px 0;text-align:center;font-size:15px;color:#8E8E93;cursor:pointer;position:relative}
+.main-tab.active{color:#007AFF;font-weight:600}
+.main-tab.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:#007AFF;border-radius:1px}
+
+/* List */
+.list{padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.notice-card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:14px 16px;cursor:pointer;transition:opacity 0.2s}
+.notice-card:active{opacity:0.7}
+.notice-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.notice-tag{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500;flex-shrink:0}
+.tag-top{background:#FF3B30;color:#fff}
+.tag-new{background:#007AFF;color:#fff}
+.notice-title{font-size:15px;font-weight:500;color:#1C1C1E;flex:1;line-height:1.4}
+.notice-title.has-unread{font-weight:600}
+.notice-content{font-size:13px;color:#8E8E93;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.notice-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.notice-time{font-size:12px;color:#8E8E93}
+.unread-dot{width:8px;height:8px;border-radius:50%;background:#FF3B30;flex-shrink:0}
+.notice-card.unread{padding-left:14px}
+.notice-card.unread::before{content:'';position:absolute;left:6px;top:50%;transform:translateY(-50%);width:4px;height:40%;background:#007AFF;border-radius:2px}
+
+/* Tab Content */
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Bottom Tab */
+.bottom-tab{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;background:#fff;border-top:1px solid rgba(0,0,0,0.06);height:50px;display:flex;z-index:200}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:#8E8E93;text-decoration:none}
+.tab-item.active{color:#007AFF}
+.tab-icon{font-size:20px}
+.tab-label{font-size:10px}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="header">
+    <h1>消息中心</h1>
+  </div>
+
+  <div class="main-tabs">
+    <div class="main-tab active" onclick="switchMainTab(this, 0)">通知公告</div>
+    <div class="main-tab" onclick="switchMainTab(this, 1)">系统消息</div>
+    <div class="main-tab" onclick="switchMainTab(this, 2)">互动消息</div>
+  </div>
+
+  <!-- 通知公告 -->
+  <div class="tab-content active" id="tab0">
+    <div class="list">
+      <div class="notice-card unread" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <span class="notice-tag tag-top">置顶</span>
+          <span class="notice-title has-unread">关于2026年端午节放假安排的通知</span>
+        </div>
+        <div class="notice-content">公司全体员工：根据国家节假日规定，结合公司实际，现将2026年端午节放假安排通知如下...</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-19 09:00</span>
+          <span class="unread-dot"></span>
+        </div>
+      </div>
+      <div class="notice-card unread" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <span class="notice-tag tag-new">新</span>
+          <span class="notice-title has-unread">关于开展2026年度员工体检的通知</span>
+        </div>
+        <div class="notice-content">为保障员工身体健康，提升企业凝聚力，公司定于6月份开展年度员工健康体检...</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-18 14:30</span>
+          <span class="unread-dot"></span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'">
+        <div class="notice-top">
+          <span class="notice-title">关于规范办公设备使用管理的通知</span>
+        </div>
+        <div class="notice-content">为进一步加强公司办公设备管理，提高设备使用效率，现就相关事项通知如下...</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-15 10:00</span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'">
+        <div class="notice-top">
+          <span class="notice-title">2026年第一季度工作总结会议纪要</span>
+        </div>
+        <div class="notice-content">会议时间：2026年4月28日 会议地点：公司第一会议室 参会人员：各部门负责人...</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-12 16:20</span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'">
+        <div class="notice-top">
+          <span class="notice-title">关于加强信息安全管理的重要通知</span>
+        </div>
+        <div class="notice-content">各部门应加强对信息安全的管理，确保公司数据安全，具体要求如下...</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-10 09:30</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 系统消息 -->
+  <div class="tab-content" id="tab1">
+    <div class="list">
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <div style="width:32px;height:32px;border-radius:8px;background:#E8F4FF;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">✓</div>
+          <span class="notice-title">您的请假申请已通过审批</span>
+        </div>
+        <div class="notice-content">张明，您的请假申请（FLOW-2026-0515-0012）已通过最终审批，请知悉。</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-15 17:30</span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <div style="width:32px;height:32px;border-radius:8px;background:#FFF3E8;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">!</div>
+          <span class="notice-title">您有新的待审批流程</span>
+        </div>
+        <div class="notice-content">张明，您有一笔费用报销申请需要处理，请尽快登录系统进行审批。</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-19 08:00</span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <div style="width:32px;height:32px;border-radius:8px;background:#F0FFF0;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">↑</div>
+          <span class="notice-title">流程已超时提醒</span>
+        </div>
+        <div class="notice-content">您的采购申请（FLOW-2026-0510-0028）已超时3天，请及时处理。</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-13 10:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 互动消息 -->
+  <div class="tab-content" id="tab2">
+    <div class="list">
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <div style="width:32px;height:32px;border-radius:50%;background:#007AFF;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:600">李</div>
+          <span class="notice-title">李静 回复了您的申请</span>
+        </div>
+        <div class="notice-content">收到，年假申请已阅，同意。请注意安排好手头工作交接。</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-19 11:20</span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <div style="width:32px;height:32px;border-radius:50%;background:#34C759;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:600">王</div>
+          <span class="notice-title">王芳 评论了您的文档</span>
+        </div>
+        <div class="notice-content">文档整体写得不错，第二部分的 数据分析 部分可以再补充一些图表。</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-18 16:45</span>
+        </div>
+      </div>
+      <div class="notice-card" onclick="location.href='notification_detail_mo.html'" style="position:relative">
+        <div class="notice-top">
+          <div style="width:32px;height:32px;border-radius:50%;background:#FF9500;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:600">赵</div>
+          <span class="notice-title">赵强 @了您</span>
+        </div>
+        <div class="notice-content">@张明 差旅报销单需要补签字，麻烦明天上午处理一下。</div>
+        <div class="notice-footer">
+          <span class="notice-time">05-17 14:10</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Tab -->
+<div class="bottom-tab">
+  <a href="portal_preview_mo.html" class="tab-item">
+    <span class="tab-icon">🏠</span>
+    <span class="tab-label">工作台</span>
+  </a>
+  <a href="notification_center_mo.html" class="tab-item active">
+    <span class="tab-icon">💬</span>
+    <span class="tab-label">消息</span>
+  </a>
+  <a href="workflow_mo.html" class="tab-item">
+    <span class="tab-icon">✓</span>
+    <span class="tab-label">审批</span>
+  </a>
+  <a href="#" class="tab-item">
+    <span class="tab-icon">👤</span>
+    <span class="tab-label">我的</span>
+  </a>
+</div>
+
+<script>
+if (!localStorage.getItem('mo_user')) {
+  location.href = 'login_mo.html';
+}
+function switchMainTab(el, idx) {
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab' + idx).classList.add('active');
+}
+</script>
+</body>
+</html>

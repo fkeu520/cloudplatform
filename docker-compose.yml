@@ -1,4 +1,11 @@
 
+# ==============================================================================
+# Docker Compose Installation Path
+# ==============================================================================
+# Windows: C:\Program Files\Docker\Docker\resources\bin\docker-compose.exe
+# Usage: & "C:\Program Files\Docker\Docker\resources\bin\docker-compose.exe" up -d
+# ==============================================================================
+
 services:
   # ============ MySQL 8.0 ============
   mysql:
@@ -52,7 +59,7 @@ services:
       KAFKA_NODE_ID: 0
       KAFKA_PROCESS_ROLES: controller,broker
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
@@ -65,7 +72,7 @@ services:
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -77,12 +84,6 @@ services:
     restart: unless-stopped
     environment:
       MODE: standalone
-      SPRING_DATASOURCE_PLATFORM: mysql
-      MYSQL_SERVICE_HOST: mysql
-      MYSQL_SERVICE_PORT: 3306
-      MYSQL_SERVICE_DB_NAME: platform
-      MYSQL_SERVICE_USER: platform
-      MYSQL_SERVICE_PASSWORD: platform123
       NACOS_AUTH_ENABLE: false
       JVM_XMS: 512m
       JVM_XMX: 512m
@@ -96,7 +97,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
       interval: 15s
       timeout: 10s
-      retries: 3
+      retries: 10
+      start_period: 30s
 
   # ============ MinIO ============
   minio:
@@ -135,7 +137,7 @@ services:
     volumes:
       - es-data:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200 | grep -q ' tagline'"]
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -152,6 +154,235 @@ services:
     depends_on:
       - elasticsearch
 
+  # ============ Logstash ============
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.12.0
+    container_name: platform-logstash
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      - elasticsearch
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9600"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ XXL-JOB Admin ============
+  xxl-job-admin:
+    image: xuxueli/xxl-job-admin:2.4.0
+    container_name: platform-xxl-job-admin
+    restart: unless-stopped
+    environment:
+      - PARAMS=--spring.datasource.url=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai --spring.datasource.username=platform --spring.datasource.password=platform123
+    ports:
+      - "8088:8088"
+    volumes:
+      - xxl-job-data:/data/applogs
+    depends_on:
+      - mysql
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/xxl-job-admin/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ 后端服务 ============
+  platform-user:
+    build: ./code/platform-server
+    container_name: platform-user
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform123
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
+      - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ 消息中心 ============
+  platform-message:
+    build:
+      context: ./code/platform-server
+      dockerfile: Dockerfile.message
+    container_name: platform-message
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform123
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
+      - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/message/site/unread-count"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ 认证中心 ============
+  platform-auth:
+    build:
+      context: ./code/platform-server
+      dockerfile: Dockerfile.auth
+    container_name: platform-auth
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform123
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
+      - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/auth/v3/api-docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ 工作流引擎 ============
+  platform-workflow:
+    build:
+      context: ./code/platform-server
+      dockerfile: Dockerfile.workflow
+    container_name: platform-workflow
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform123
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
+      - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ 运营管理后端 ============
+  platform-ops:
+    build:
+      context: ./code/platform-server
+      dockerfile: Dockerfile.ops
+    container_name: platform-ops
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=platform
+      - SPRING_DATASOURCE_PASSWORD=platform123
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
+      - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  # ============ 运营管理前端 ============
+  platform-ops-admin:
+    build: ./code/platform-ops-admin
+    container_name: platform-ops-admin
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    depends_on:
+      - platform-ops
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============ Kafka UI ============
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: platform-kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8089:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: platform
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      - kafka
+
+  # ============ 前端服务 ============
+  platform-admin:
+    build: ./code/platform-admin
+    container_name: platform-admin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - platform-user
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   mysql-data:
   redis-data:
@@ -160,3 +391,4 @@ volumes:
   nacos-logs:
   minio-data:
   es-data:
+  xxl-job-data:

@@ -1,0 +1,11 @@
+target/
+.mvn/
+*.md
+*.bat
+*.ps1
+mvnw
+mvnw.cmd
+.git
+test-*.ps1
+sql/
+config/

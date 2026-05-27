@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据看板 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden;padding:20px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+.stat-card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:20px;position:relative;overflow:hidden}
+.stat-card .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:12px}
+.stat-card .value{font-size:28px;font-weight:700;color:#1D1D1F;margin-bottom:4px}
+.stat-card .label{font-size:13px;color:#8E8E93}
+.stat-card .trend{position:absolute;top:20px;right:20px;font-size:11px;padding:2px 8px;border-radius:10px}
+.stat-card .trend.up{background:#E8F5E9;color:#34C759}
+.stat-card .trend.down{background:#FFEBEE;color:#FF3B30}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.chart-card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);padding:20px}
+.chart-title{font-size:15px;font-weight:600;margin-bottom:16px}
+.chart-area{height:200px;position:relative}
+.bar-chart{display:flex;align-items:flex-end;justify-content:space-around;height:100%;padding:0 10px}
+.bar-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1}
+.bar{width:40px;background:linear-gradient(180deg,#007AFF 0%,#5856D6 100%);border-radius:6px 6px 0 0;transition:height 0.3s;min-height:10px}
+.bar-wrap span{font-size:11px;color:#8E8E93}
+.bar-label{font-size:12px;color:#515154;margin-top:4px}
+.chart-card .sub-title{font-size:12px;color:#8E8E93;margin-bottom:12px}
+.pie-chart{display:flex;align-items:center;justify-content:center;gap:24px;height:100%}
+.pie{width:140px;height:140px;border-radius:50%;background:conic-gradient(#007AFF 0% 45%,#5856D6 45% 70%,#34C759 70% 85%,#FF9500 85% 100%);position:relative}
+.pie::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;background:#fff;border-radius:50%}
+.pie-legend{display:flex;flex-direction:column;gap:10px}
+.pie-legend .item{display:flex;align-items:center;gap:8px;font-size:13px}
+.pie-legend .dot{width:10px;height:10px;border-radius:50%}
+.health-list{height:100%;overflow-y:auto}
+.health-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F0F0F5}
+.health-item:last-child{border-bottom:none}
+.health-item .dot{width:8px;height:8px;border-radius:50%;background:#34C759}
+.health-item .dot.warn{background:#FF9500}
+.health-item .dot.error{background:#FF3B30}
+.health-item .name{flex:1;font-size:13px}
+.health-item .status{font-size:12px;padding:2px 8px;border-radius:10px;background:#E8F5E9;color:#34C759}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.quick-item{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border-radius:10px;border:1px solid #E5E5E5;cursor:pointer;transition:all 0.15s}
+.quick-item:hover{border-color:#007AFF;background:#F0F7FF}
+.quick-item .icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff}
+.quick-item .label{font-size:13px;color:#515154}
+.log-list{height:280px;overflow-y:auto}
+.log-item{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid #F0F0F5}
+.log-item:last-child{border-bottom:none}
+.log-item .time{font-size:12px;color:#8E8E93;width:60px;flex-shrink:0}
+.log-item .user{font-size:13px;font-weight:500;width:70px;flex-shrink:0}
+.log-item .text{font-size:13px;color:#515154;flex:1}
+.log-item .module{font-size:12px;color:#8E8E93;background:#F5F5F7;padding:2px 8px;border-radius:4px;flex-shrink:0}
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">首页 ▶ <span>数据看板</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">数据看板</div>
+<div class="stats-grid">
+<div class="stat-card">
+<div class="icon" style="background:linear-gradient(135deg,#007AFF,#0056CC)">👥</div>
+<div class="value">1,284</div>
+<div class="label">用户总数</div>
+<div class="trend up">↑ 12%</div>
+</div>
+<div class="stat-card">
+<div class="icon" style="background:linear-gradient(135deg,#5856D6,#3730A3)">🔐</div>
+<div class="value">8</div>
+<div class="label">角色总数</div>
+<div class="trend up">↑ 1</div>
+</div>
+<div class="stat-card">
+<div class="icon" style="background:linear-gradient(135deg,#34C759,#1B8A3A)">🟢</div>
+<div class="value">156</div>
+<div class="label">在线用户</div>
+<div class="trend down">↓ 3%</div>
+</div>
+<div class="stat-card">
+<div class="icon" style="background:linear-gradient(135deg,#FF9500,#CC7700)">📊</div>
+<div class="value">3,892</div>
+<div class="label">今日访问</div>
+<div class="trend up">↑ 23%</div>
+</div>
+</div>
+<div class="chart-grid">
+<div class="chart-card">
+<div class="chart-title">近7天访问趋势</div>
+<div class="chart-area">
+<div class="bar-chart">
+<div class="bar-wrap"><div class="bar" style="height:120px"></div><span>周一</span><span class="bar-label">3,421</span></div>
+<div class="bar-wrap"><div class="bar" style="height:95px"></div><span>周二</span><span class="bar-label">2,856</span></div>
+<div class="bar-wrap"><div class="bar" style="height:140px"></div><span>周三</span><span class="bar-label">4,012</span></div>
+<div class="bar-wrap"><div class="bar" style="height:110px"></div><span>周四</span><span class="bar-label">3,289</span></div>
+<div class="bar-wrap"><div class="bar" style="height:160px"></div><span>周五</span><span class="bar-label">4,567</span></div>
+<div class="bar-wrap"><div class="bar" style="height:130px"></div><span>周六</span><span class="bar-label">3,892</span></div>
+<div class="bar-wrap"><div class="bar" style="height:145px"></div><span>周日</span><span class="bar-label">4,123</span></div>
+</div>
+</div>
+</div>
+<div class="chart-card">
+<div class="chart-title">用户角色分布</div>
+<div class="sub-title">总用户数 1,284</div>
+<div class="chart-area">
+<div class="pie-chart">
+<div class="pie"></div>
+<div class="pie-legend">
+<div class="item"><div class="dot" style="background:#007AFF"></div>超级管理员 <span style="color:#007AFF;font-weight:600">5</span></div>
+<div class="item"><div class="dot" style="background:#5856D6"></div>系统管理员 <span style="color:#5856D6;font-weight:600">23</span></div>
+<div class="item"><div class="dot" style="background:#34C759"></div>普通用户 <span style="color:#34C759;font-weight:600">1,180</span></div>
+<div class="item"><div class="dot" style="background:#FF9500"></div>审计员 <span style="color:#FF9500;font-weight:600">76</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="chart-title">系统健康状态</div>
+<div class="health-list">
+<div class="health-item">
+<div class="dot"></div>
+<div class="name">CPU 使用率</div>
+<div style="flex:1;height:6px;background:#E5E5E5;border-radius:3px;margin:0 12px"><div style="width:35%;height:100%;background:#34C759;border-radius:3px"></div></div>
+<span class="status">35%</span>
+</div>
+<div class="health-item">
+<div class="dot"></div>
+<div class="name">内存使用率</div>
+<div style="flex:1;height:6px;background:#E5E5E5;border-radius:3px;margin:0 12px"><div style="width:58%;height:100%;background:#34C759;border-radius:3px"></div></div>
+<span class="status">58%</span>
+</div>
+<div class="health-item">
+<div class="dot warn"></div>
+<div class="name">磁盘使用率</div>
+<div style="flex:1;height:6px;background:#E5E5E5;border-radius:3px;margin:0 12px"><div style="width:76%;height:100%;background:#FF9500;border-radius:3px"></div></div>
+<span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#FFF3E0;color:#FF9500">76%</span>
+</div>
+<div class="health-item">
+<div class="dot"></div>
+<div class="name">数据库连接</div>
+<div style="flex:1;height:6px;background:#E5E5E5;border-radius:3px;margin:0 12px"><div style="width:42%;height:100%;background:#34C759;border-radius:3px"></div></div>
+<span class="status">42%</span>
+</div>
+<div class="health-item">
+<div class="dot"></div>
+<div class="name">API 响应时间</div>
+<div style="flex:1;height:6px;background:#E5E5E5;border-radius:3px;margin:0 12px"><div style="width:28%;height:100%;background:#34C759;border-radius:3px"></div></div>
+<span class="status">86ms</span>
+</div>
+<div class="health-item">
+<div class="dot"></div>
+<div class="name">网络带宽</div>
+<div style="flex:1;height:6px;background:#E5E5E5;border-radius:3px;margin:0 12px"><div style="width:65%;height:100%;background:#34C759;border-radius:3px"></div></div>
+<span class="status">65%</span>
+</div>
+</div>
+</div>
+<div class="bottom-grid">
+<div class="card">
+<div class="chart-title">快捷操作</div>
+<div class="quick-grid">
+<div class="quick-item">
+<div class="icon" style="background:#007AFF">👤</div>
+<div class="label">新增用户</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#5856D6">🔐</div>
+<div class="label">角色配置</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#34C759">📁</div>
+<div class="label">菜单管理</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#FF9500">⚙️</div>
+<div class="label">参数配置</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#FF3B30">📋</div>
+<div class="label">字典管理</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#007AFF">🏢</div>
+<div class="label">组织管理</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#5856D6">📊</div>
+<div class="label">数据看板</div>
+</div>
+<div class="quick-item">
+<div class="icon" style="background:#34C759">📝</div>
+<div class="label">操作日志</div>
+</div>
+</div>
+</div>
+<div class="card">
+<div class="chart-title">最新操作日志</div>
+<div class="log-list">
+<div class="log-item">
+<div class="time">14:32</div>
+<div class="user">张三</div>
+<div class="text">编辑了用户「李四」的信息</div>
+<div class="module">用户管理</div>
+</div>
+<div class="log-item">
+<div class="time">14:28</div>
+<div class="user">admin</div>
+<div class="text">配置了「系统管理员」角色的权限</div>
+<div class="module">角色管理</div>
+</div>
+<div class="log-item">
+<div class="time">14:15</div>
+<div class="user">王五</div>
+<div class="text">新增了一级菜单「数据看板」</div>
+<div class="module">菜单管理</div>
+</div>
+<div class="log-item">
+<div class="time">14:02</div>
+<div class="user">admin</div>
+<div class="text">修改了系统参数「会话超时」</div>
+<div class="module">参数配置</div>
+</div>
+<div class="log-item">
+<div class="time">13:45</div>
+<div class="user">赵六</div>
+<div class="text">禁用了用户「周八」</div>
+<div class="module">用户管理</div>
+</div>
+<div class="log-item">
+<div class="time">13:30</div>
+<div class="user">孙七</div>
+<div class="text">新增了字典类型「通知类型」</div>
+<div class="module">字典管理</div>
+</div>
+<div class="log-item">
+<div class="time">13:18</div>
+<div class="user">admin</div>
+<div class="text">编辑了组织「华东区」的信息</div>
+<div class="module">组织管理</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<template>
+  <el-container class="layout-container">
+    <el-aside width="220px">
+      <div class="logo">
+        <span>云枢中台</span>
+      </div>
+      <el-menu
+        :default-active="activeMenu"
+        router
+        class="sidebar-menu"
+        background-color="#304156"
+        text-color="#bfcbd9"
+        active-text-color="#409eff"
+      >
+        <template v-for="item in menuList" :key="item.path || item.id">
+          <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.path">
+            <template #title>
+              <el-icon v-if="item.iconName"><component :is="item.iconComponent || item.iconName" /></el-icon>
+              <i v-else-if="item.iconName" :class="item.iconName" />
+              <span>{{ item.name }}</span>
+            </template>
+            <template v-for="child in item.children" :key="child.path || child.id">
+              <el-menu-item :index="child.path">
+                <el-icon v-if="child.iconName"><component :is="child.iconComponent || child.iconName" /></el-icon>
+                <span>{{ child.name }}</span>
+              </el-menu-item>
+            </template>
+          </el-sub-menu>
+          <el-menu-item v-else :index="item.path">
+            <el-icon v-if="item.iconName"><component :is="item.iconComponent || item.iconName" /></el-icon>
+            <span>{{ item.name }}</span>
+          </el-menu-item>
+        </template>
+      </el-menu>
+    </el-aside>
+    <el-container>
+      <el-header>
+        <div class="header-left">
+          <span class="page-title">{{ route.meta.title || '首页' }}</span>
+        </div>
+        <div class="header-right">
+          <div class="notify-wrapper" @mouseenter="showNotifyPopover" @mouseleave="hideNotifyDelayed">
+            <el-badge :value="notifyCount" :hidden="notifyCount === 0" class="notify-badge">
+              <el-button text size="large" style="border:none;font-size:20px;padding:4px">
+                <el-icon><Bell /></el-icon>
+              </el-button>
+            </el-badge>
+
+            <el-popover ref="notifyPopoverRef" :visible="notifyVisible" placement="bottom-end" :width="360" trigger="manual" @show="onNotifyShow" @hide="onNotifyHide">
+              <template #reference>
+                <span></span>
+              </template>
+              <div class="notify-panel" @mouseenter="onPanelEnter" @mouseleave="hideNotifyDelayed">
+                <div class="notify-header">
+                  <span>消息通知</span>
+                  <el-button v-if="notifyCount > 0" text size="small" @click="markAllRead">全部已读</el-button>
+                </div>
+
+                <div v-if="siteNotifyList.length > 0" class="notify-section">
+                  <div class="notify-section-title">系统消息</div>
+                  <div v-for="n in siteNotifyList" :key="'site-'+n.id" class="notify-item" @click="goSiteDetail(n)">
+                    <div class="notify-dot notify-dot-blue" v-if="n.readStatus === 0" />
+                    <div class="notify-dot notify-dot-read" v-else />
+                    <div class="notify-content">
+                      <div class="notify-title">{{ n.title }}</div>
+                      <div class="notify-meta">{{ n.senderName || '系统' }} · {{ formatTime(n.createTime) }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="notifyList.length > 0" class="notify-section">
+                  <div class="notify-section-title">流程通知</div>
+                  <div v-for="n in notifyList" :key="'wf-'+n.id" class="notify-item" @click="gotoTask(n)">
+                    <div class="notify-dot notify-dot-orange" />
+                    <div class="notify-content">
+                      <div class="notify-title">{{ n.taskName }}</div>
+                      <div class="notify-meta">流程实例: {{ n.processInstanceId?.slice(0, 12) }}...</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="notifyList.length === 0 && siteNotifyList.length === 0" class="notify-empty">暂无新通知</div>
+
+                <div class="notify-footer">
+                  <el-button text size="small" @click="goMessageList">
+                    查看更多
+                    <el-icon><ArrowRight /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </el-popover>
+          </div>
+
+          <el-dropdown @command="handleCommand">
+            <span class="user-info">
+              <el-avatar :size="32" src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" />
+              <span class="username">{{ userStore.userInfo?.username || '管理员' }}</span>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </el-header>
+      <el-main>
+        <router-view />
+      </el-main>
+    </el-container>
+  </el-container>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { DataAnalysis, Setting, Grid, OfficeBuilding, Notebook, Files, User, UserFilled, List, Folder, Collection, Edit, Monitor, Document, Bell, ArrowRight } from '@element-plus/icons-vue'
+import { ElMessage, ElNotification } from 'element-plus'
+import { getUserMenus, getUserPermissions } from '@/api/menu'
+import { getUnreadNotifies, markNotifyRead, markAllNotifyRead } from '@/api/workflow'
+import { getUnreadSiteMessageCount, getSiteMessagePage } from '@/api/message'
+import { useUserStore } from '@/stores/user'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+const activeMenu = () => route.path
+const menuList = ref<any[]>([])
+const username = localStorage.getItem('username') || 'admin'
+
+const notifyCount = ref(0)
+const notifyList = ref<any[]>([])
+const siteNotifyList = ref<any[]>([])
+const notifyVisible = ref(false)
+const notifyPopoverRef = ref()
+let prevCount = 0
+let pollTimer: any = null
+
+const iconMap: Record<string, any> = {
+  DataAnalysis, Setting, Grid, OfficeBuilding, Notebook, Files,
+  FileText: Document, Collection, Edit, Monitor,
+  Building: Folder, Folder, User, UserFilled, List,
+  Role: UserFilled, Menu: List
+}
+
+async function pollNotifies() {
+  try {
+    const [notifyRes, msgCountRes, msgListRes] = await Promise.all([
+      getUnreadNotifies(username),
+      getUnreadSiteMessageCount(username),
+      getSiteMessagePage({ pageNum: 1, pageSize: 5, readStatus: 0, userId: username })
+    ]) as any[]
+
+    const notifyData = notifyRes?.data || notifyRes
+    const workflowCount = notifyData?.count || 0
+    const messageCount = (msgCountRes?.data ?? msgCountRes) ?? 0
+
+    notifyCount.value = workflowCount + (typeof messageCount === 'number' ? messageCount : 0)
+    notifyList.value = notifyData?.records || []
+    const siteData = msgListRes?.data || msgListRes
+    siteNotifyList.value = siteData?.records || []
+
+    const currentCount = workflowCount + (typeof messageCount === 'number' ? messageCount : 0)
+    if (currentCount > prevCount && prevCount > 0) {
+      const diff = currentCount - prevCount
+      ElNotification({
+        title: '新的通知',
+        message: `您有 ${diff} 条新消息`,
+        type: 'warning',
+        duration: 5000
+      })
+    }
+    prevCount = currentCount
+  } catch { /* ignore */ }
+}
+
+let hideTimer: any = null
+
+function showNotifyPopover() {
+  if (hideTimer) clearTimeout(hideTimer)
+  pollNotifies()
+  notifyVisible.value = true
+}
+
+function hideNotifyDelayed() {
+  hideTimer = setTimeout(() => { notifyVisible.value = false }, 200)
+}
+
+function onPanelEnter() {
+  if (hideTimer) clearTimeout(hideTimer)
+}
+
+function onNotifyShow() {}
+
+function onNotifyHide() {
+  notifyVisible.value = false
+}
+
+function goMessageList() {
+  notifyVisible.value = false
+  router.push('/message/list')
+}
+
+function goSiteDetail(n: any) {
+  notifyVisible.value = false
+  router.push(`/message/detail/${n.id}`)
+}
+
+function formatTime(dt: any): string {
+  if (!dt) return ''
+  const d = new Date(dt)
+  if (isNaN(d.getTime())) return String(dt)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function gotoTask(n: any) {
+  await markNotifyRead(n.taskId)
+  notifyCount.value = Math.max(0, notifyCount.value - 1)
+  notifyVisible.value = false
+  router.push('/workflow/task-todo')
+}
+
+async function markAllRead() {
+  await markAllNotifyRead(username)
+  notifyList.value = []
+  notifyVisible.value = false
+  const msgRes = await getUnreadSiteMessageCount(username) as any
+  notifyCount.value = (msgRes?.data ?? msgRes) ?? 0
+}
+
+const loadMenus = async () => {
+  try {
+    const [menuRes, permRes] = await Promise.all([getUserMenus(), getUserPermissions()])
+    if (menuRes.data) menuList.value = processMenus(menuRes.data)
+    if (permRes.data) userStore.setPermissions(permRes.data)
+  } catch { ElMessage.error('加载菜单失败') }
+}
+
+const processMenus = (menus: any[]): any[] => {
+  return menus.map(item => {
+    item.iconName = item.icon || ''
+    if (item.icon && iconMap[item.icon]) item.iconComponent = iconMap[item.icon]
+    else item.iconComponent = null
+    delete item.icon
+    if (item.children && item.children.length > 0) item.children = processMenus(item.children)
+    return item
+  })
+}
+
+const handleCommand = (command: string) => {
+  if (command === 'logout') {
+    userStore.logout()
+    router.push('/login')
+    ElMessage.success('已退出登录')
+  }
+}
+
+onMounted(async () => {
+  await loadMenus()
+  prevCount = 0
+  await pollNotifies()
+  pollTimer = setInterval(pollNotifies, 15000)
+})
+
+onBeforeUnmount(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
+</script>
+
+<style scoped>
+.layout-container { height: 100%; }
+.el-aside { background-color: #304156; }
+.logo { height: 60px; line-height: 60px; text-align: center; color: #fff; font-size: 18px; font-weight: bold; border-bottom: 1px solid #3d4a5c; }
+.sidebar-menu { border-right: none; }
+.el-header { display: flex; align-items: center; justify-content: space-between; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 0 16px; }
+.header-left { font-size: 16px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.username { color: #333; }
+.el-main { background: #f5f7fa; }
+.notify-badge { line-height: 1; }
+.notify-badge :deep(.el-badge__content) { top: 4px; right: 4px; font-size: 10px; padding: 0 4px; height: 16px; line-height: 16px; border: none; }
+.notify-wrapper { position: relative; display: inline-flex; align-items: center; }
+.notify-panel { max-height: 400px; overflow-y: auto; }
+.notify-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #ebeef5; font-weight: 600; font-size: 14px; }
+.notify-section { margin-top: 4px; }
+.notify-section-title { font-size: 12px; color: #909399; padding: 6px 4px 2px; font-weight: 500; }
+.notify-empty { text-align: center; padding: 30px 0; color: #909399; font-size: 13px; }
+.notify-list { margin-top: 4px; }
+.notify-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px 4px; border-bottom: 1px solid #f5f5f5; cursor: pointer; transition: background 0.2s; border-radius: 4px; }
+.notify-item:hover { background: #f5f7fa; }
+.notify-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.notify-dot-orange { background: #e6a23c; }
+.notify-dot-blue { background: #409eff; }
+.notify-dot-read { background: #c0c4cc; }
+.notify-content { flex: 1; min-width: 0; }
+.notify-title { font-size: 13px; color: #303133; }
+.notify-meta { font-size: 11px; color: #909399; margin-top: 2px; }
+.notify-footer { text-align: center; padding: 8px 0 0; border-top: 1px solid #ebeef5; margin-top: 8px; }
+</style>
