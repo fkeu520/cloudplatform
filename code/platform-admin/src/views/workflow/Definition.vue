@@ -49,8 +49,12 @@
         <el-form-item label="流程Key">
           <el-input v-model="designForm.processKey" placeholder="必填，唯一标识" :disabled="!!designForm.editingId" />
         </el-form-item>
+        <el-form-item label="设计器">
+          <el-switch v-model="designForm.useNewDesigner" active-text="新版" inactive-text="旧版" />
+        </el-form-item>
       </el-form>
-      <ProcessDesigner ref="designerRef" v-model="designForm.bpmnXml" @publish="handleDeploySubmit" />
+      <ProcessDesigner v-if="!designForm.useNewDesigner" ref="designerRef" v-model="designForm.bpmnXml" @publish="handleDeploySubmit" />
+      <BpmnDesigner v-else ref="bpmnDesignerRef" :model-value="designForm.bpmnXml" @save="onBpmnSave" />
       <template #footer>
         <el-button @click="designVisible=false">取消</el-button>
       </template>
@@ -78,6 +82,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDefinitionPage, deployDefinition, suspendDefinition, activateDefinition, deleteDefinition, getDefinitionXml, startInstance } from '../../api/workflow'
 import ProcessDesigner from '@/components/ProcessDesigner.vue'
+import BpmnDesigner from '@/components/BpmnDesigner.vue'
 
 const list = ref<any[]>([])
 const total = ref(0)
@@ -85,10 +90,11 @@ const loading = ref(false)
 const query = reactive({ pageNum: 1, pageSize: 10 })
 
 const designerRef = ref()
+const bpmnDesignerRef = ref()
 const designVisible = ref(false)
 const designTitle = ref('新建流程')
 const deployLoading = ref(false)
-const designForm = reactive({ processName: '', processKey: '', bpmnXml: '', editingId: '' })
+const designForm = reactive({ processName: '', processKey: '', bpmnXml: '', editingId: '', useNewDesigner: false })
 
 const startVisible = ref(false)
 const startLoading = ref(false)
@@ -136,6 +142,11 @@ async function handleDeploySubmit() {
     designVisible.value = false
     fetchData()
   } finally { deployLoading.value = false }
+}
+
+function onBpmnSave(xml: string) {
+  designForm.bpmnXml = xml
+  handleDeploySubmit()
 }
 
 async function handleToggle(row: any) {
