@@ -15,10 +15,12 @@
           <template #default="{ row }">{{ formatDate(row.createTime) }}</template>
         </el-table-column>
         <el-table-column prop="priority" label="优先级" width="70" align="center" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleApprove(row)">审批</el-button>
             <el-button type="warning" link @click="handleTransfer(row)">转办</el-button>
+            <el-button v-if="!row.assignee" type="success" link @click="handleClaim(row)">签收</el-button>
+            <el-button v-else type="info" link @click="handleUnclaim(row)">退回</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -81,7 +83,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getTodoTasks, getDoneTasks, completeTask, rejectTask, transferTask } from '../../api/workflow'
+import { getTodoTasks, getDoneTasks, completeTask, rejectTask, transferTask, claimTask, unclaimTask } from '../../api/workflow'
+import { ElMessageBox } from 'element-plus'
 
 const username = localStorage.getItem('username') || 'admin'
 
@@ -154,6 +157,24 @@ function handleTransfer(row: any) {
   transferTaskId.value = row.id
   transferUserId.value = ''
   transferVisible.value = true
+}
+
+async function handleClaim(row: any) {
+  try {
+    await ElMessageBox.confirm('确认签收此任务？', '签收提示')
+    await claimTask(row.id, username)
+    ElMessage.success('签收成功')
+    fetchTodo()
+  } catch { /* cancel or error */ }
+}
+
+async function handleUnclaim(row: any) {
+  try {
+    await ElMessageBox.confirm('确认退回任务？退回后可从候选任务中重新签收', '退回提示')
+    await unclaimTask(row.id)
+    ElMessage.success('已退回')
+    fetchTodo()
+  } catch { /* cancel or error */ }
 }
 
 async function handleTransferSubmit() {

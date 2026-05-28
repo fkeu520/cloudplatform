@@ -112,6 +112,35 @@ public class UserService {
     }
 
     /**
+     * 内部验证密码（供 auth 服务调用）
+     */
+    public UserVO validatePassword(String username, String password) {
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new BizException("用户名或密码错误");
+        }
+        String hashedPwd = md5(password);
+        if (!hashedPwd.equals(user.getPassword())) {
+            throw new BizException("用户名或密码错误");
+        }
+        if (user.getStatus() == 0) {
+            throw new BizException("账号已被禁用，请联系管理员");
+        }
+        return toUserVO(user);
+    }
+
+    /**
+     * 内部按用户名查找（供 auth 服务调用）
+     */
+    public UserVO getByUsername(String username) {
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new BizException("用户不存在");
+        }
+        return toUserVO(user);
+    }
+
+    /**
      * 退出登录
      */
     public void logout(Long userId) {

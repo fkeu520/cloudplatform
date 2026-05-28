@@ -5,116 +5,115 @@ import com.cloudhub.platform.common.util.JwtUtil;
 import com.cloudhub.platform.auth.domain.vo.AuthVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 认证服务
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final StringRedisTemplate redisTemplate;
+    private final RestTemplate restTemplate;
+
+    @Value("${user.service.url:http://localhost:8081}")
+    private String userServiceUrl;
 
     private static final String SMS_CODE_PREFIX = "auth:sms:";
     private static final String TOKEN_BLACKLIST_PREFIX = "auth:token:blacklist:";
-    private static final long SMS_CODE_EXPIRE_SECONDS = 300; // 5分钟
-    private static final long TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600L; // 7天
+    private static final long SMS_CODE_EXPIRE_SECONDS = 300;
+    private static final long TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600L;
 
-    /**
-     * 账号密码登录
-     */
     public AuthVO loginByPassword(String username, String password) {
-        // TODO: 调用 user-center RPC 或者 restTemplate 查询用户
-        // 临时模拟：只有 admin/123456 能登录
-        if (!"admin".equals(username) || !"123456".equals(password)) {
-            throw new BizException("用户名或密码错误");
+        String url = userServiceUrl + "/user/internal/validate";
+        Map<String, String> body = Map.of("username", username, "password", password);
+        try {
+            Map<String, Object> result = restTemplate.postForObject(url, body, Map.class);
+            if (result == null || !Integer.valueOf(200).equals(result.get("code"))) {
+                String msg = result != null ? (String) result.getOrDefault("message", "用户名或密码错误") : "认证服务不可用";
+                throw new BizException(msg);
+            }
+            Map<String, Object> userData = (Map<String, Object>) result.get("data");
+            String userId = String.valueOf(userData.get("id"));
+            return generateAuthVO(userId);
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("调用用户服务验证失败: {}", e.getMessage());
+            throw new BizException("认证服务不可用，请稍后重试");
         }
-
-        String userId = "1"; // 模拟用户ID
-        return generateAuthVO(userId);
     }
 
-    /**
-     * 发送短信验证码
-     */
     public void sendSmsCode(String mobile) {
-        // 模拟发送：生成6位验证码
         String code = String.format("%06d", new Random().nextInt(999999));
         String key = SMS_CODE_PREFIX + mobile;
         redisTemplate.opsForValue().set(key, code, SMS_CODE_EXPIRE_SECONDS, TimeUnit.SECONDS);
-        log.info("【短信验证码】{} -> {}", mobile, code); // 实际生产不打印
+        log.info("[SMS Code] {} -> {}", mobile, code);
     }
 
-    /**
-     * 短信验证码登录
-     */
     public AuthVO loginBySms(String mobile, String code) {
         String key = SMS_CODE_PREFIX + mobile;
         String cached = redisTemplate.opsForValue().get(key);
         if (cached == null) {
-            throw new BizException("验证码已过期，请重新获取");
+            throw new BizException("验证码已过期，请重新发送");
         }
         if (!cached.equals(code)) {
             throw new BizException("验证码错误");
         }
-        // 验证通过，删除验证码
         redisTemplate.delete(key);
-
-        // TODO: 根据手机号查询用户，不存在则自动注册
-        String userId = "1"; // 模拟
-        return generateAuthVO(userId);
+        String url = userServiceUrl + "/user/internal/by-username/" + mobile;
+        try {
+            Map<String, Object> result = restTemplate.getForObject(url, Map.class);
+            if (result == null || !Integer.valueOf(200).equals(result.get("code"))) {
+                throw new BizException("手机号未注册，请先注册");
+            }
+            Map<String, Object> userData = (Map<String, Object>) result.get("data");
+            String userId = String.valueOf(userData.get("id"));
+            return generateAuthVO(userId);
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("调用用户服务查询失败: {}", e.getMessage());
+            throw new BizException("认证服务不可用，请稍后重试");
+        }
     }
 
-    /**
-     * 刷新Token
-     */
     public AuthVO refreshToken(String token) {
-        // 简单处理：解析旧token，返回新token
         if (!JwtUtil.validate(token)) {
-            throw new BizException("Token无效");
+            throw new BizException("Invalid token");
         }
         String userId = JwtUtil.getUserId(token);
         return generateAuthVO(userId);
     }
 
-    /**
-     * 验证Token
-     */
     public void validateToken(String token) {
         if (!JwtUtil.validate(token)) {
-            throw new BizException("Token无效或已过期");
+            throw new BizException("Invalid or expired token");
         }
     }
 
-    /**
-     * 退出登录
-     */
     public void logout(String token) {
         try {
             String userId = JwtUtil.getUserId(token);
             long expire = JwtUtil.parse(token).getExpiration().getTime() - System.currentTimeMillis();
             if (expire > 0) {
-                // 将token加入黑名单，过期时间与剩余TTL一致
                 String key = TOKEN_BLACKLIST_PREFIX + token;
                 redisTemplate.opsForValue().set(key, userId, expire, TimeUnit.MILLISECONDS);
             }
         } catch (Exception e) {
-            log.warn("退出登录解析Token失败: {}", e.getMessage());
+            log.warn("Logout parse token failed: {}", e.getMessage());
         }
     }
-
-    // ========== 内部方法 ==========
 
     private AuthVO generateAuthVO(String userId) {
         String token = JwtUtil.generate(userId, TOKEN_EXPIRE_SECONDS);
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
-
         AuthVO vo = new AuthVO();
         vo.setToken(token);
         vo.setExpireTime(expireTime);

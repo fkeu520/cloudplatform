@@ -38,6 +38,10 @@
             <i class="fas fa-bell" style="margin-right:6px;width:16px;text-align:center" />
             <span>消息记录</span>
           </el-menu-item>
+          <el-menu-item index="/monitor">
+            <i class="fas fa-heartbeat" style="margin-right:6px;width:16px;text-align:center" />
+            <span>系统监控</span>
+          </el-menu-item>
           <el-menu-item index="/kafka" @click="openKafkaUI">
             <i class="fas fa-envelope" style="margin-right:6px;width:16px;text-align:center" />
             <span>消息队列</span>

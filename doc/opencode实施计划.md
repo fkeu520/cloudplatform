@@ -1,41 +1,44 @@
 # 云枢中台 - Opencode 实施计划
 
-**版本：** v2.5  
-**日期：** 2026-05-27 
-**依据：** 云枢中台技术方案 v1.1 + 分析调整建议 + 网络资讯核实（2026-05-19）  
+**版本：** v4.0  
+**日期：** 2026-05-28  
+**代码验证：** ✅ 实际代码全量校验  
 **定位：** 构建通用技术底座，价值驱动、小步快跑
 
 ---
 
 ## 1. 现状评估
 
-| 模块 | 状态 | 完成度 |
-|------|------|--------|
-| **platform-server** | 已有 4 个 Maven 模块 | Phase 1 完成 70% |
-| - platform-ops | 运营管理服务（租户/存储/MQ/网关/日志审计） | 0%（待建） |
-| - platform-common | 公共模块（实体基类、异常、统一返回、工具类） | 100% |
-| - platform-gateway | API 网关（JWT 鉴权、限流、路由） | 100% |
-| - platform-auth | 认证服务（密码登录、短信登录、Token 管理） | 90% |
-| - platform-user | 用户中心（用户/角色/菜单/组织 CRUD + RBAC + 字典 + 参数配置） | 100% |
-| **platform-admin** | Vue 3 + TypeScript + Element Plus 前端（系统管理） | Phase 1 完成 80% |
-| **platform-ops-admin** | Vue 3 + TypeScript + Element Plus 前端（运营管理，待建） | 0% |
-| - 布局/路由/登录 | Layout + Vue Router + Pinia + Axios | 100% |
-| - 系统管理 CRUD | 用户/角色/菜单/组织/字典/参数 管理页面 | 100% |
-| - 数据看板 | Dashboard 统计卡片 | 80% |
-| - TableActions 组件 | 通用操作列组件（>3 个按钮折叠） | 100% |
-| **platform-app** | UniApp 小程序（仅启动脚本，无源码） | 0% |
-| **后台服务（未创建）** | 门户/应用/运营/流程/消息/内容/任务/IoT/数据服务 | 0% |
+| 模块 | 状态 | 完成度 | 验证方式 |
+|------|------|--------|---------|
+| **platform-server** | 已有 7 个 Maven 模块 | Phase 1-2 完成 90% | 代码确认 |
+| - platform-common | 公共模块（实体基类、异常、统一返回、工具类） | 100% | 代码确认 |
+| - platform-gateway | API 网关（JWT 鉴权、限流、路由） | 100% | 代码确认 |
+| - platform-auth | 认证服务（密码登录、短信登录、Token 管理） | **70%** ⚠️ | 代码确认 — 仍有硬编码 mock 用户 |
+| - platform-user | 用户中心（用户/角色/菜单/组织 CRUD + RBAC + 字典 + 参数配置） | 100% | 代码确认 |
+| - platform-workflow | 流程中心（Flowable 6.8.1 + SVG 设计器 + 审批 + 监控） | 100% | 代码确认 |
+| - platform-ops | 运营管理服务（租户/存储/网关/日志审计） | 80% | 代码确认 — MinIO 配置完成，部分剩余 |
+| - platform-message | 消息中心（渠道/模板/发送引擎/站内信/记录） | **100%** ✅ | 代码确认 — P0~P5 全部完成 |
+| **platform-admin** | Vue 3 + Element Plus 前端 | 系统管理 100%，流程 100%，消息 100% | 代码确认 |
+| **platform-ops-admin** | Vue 3 + Element Plus 运营前端 | 脚手架/登录/布局/租户 100%，存储/网关/审计 待补 | 代码确认 |
+| **platform-app** | UniApp 小程序（仅启动脚本，无源码） | 0% | 目录确认 |
+| **待创建** | 应用中心/内容中心/任务中心/运营中心/门户中心/IoT/数据中台 | 0% | — |
 
 ---
 
 ## 2. 总体实施路线
 
 ```
-Phase 1A (已完成) ──→ Phase 1B (当前 Sprint) ──→ Phase 1C (待开始) ──→ Phase 2
-  字典+参数配置          基础设施修复           运营管理服务             依依赖关系排序
-                          前后端联调验证         platform-ops +           
-                          动态菜单+按钮权限       platform-ops-admin       
-                          操作日志+文件管理      （运营管理独立入口）
+Phase 1A (已完成) ──→ Phase 1B (已完成) ──→ Phase 1C (部分完成) ──→ Phase 2 Sprint 1-2 (已完成)
+   字典+参数配置          基础设施修复           运营管理服务             流程中心 + 消息中心
+                           前后端联调验证         platform-ops +           
+                           动态菜单+按钮权限       platform-ops-admin       
+                           操作日志+文件管理      
+                                                                │
+                         ┌──────────────────────────────────────┘
+                         ▼
+                   待修复项 ──→ platform-auth 改造 + 统一登录密码
+                   下一阶段 ──→ Sprint 3 (应用/内容/任务中心)
                                                       │
                           ┌───────────────────────────┼───────────────────────────┐
                           ▼                           ▼                           ▼
@@ -85,7 +88,7 @@ Phase 1A (已完成) ──→ Phase 1B (当前 Sprint) ──→ Phase 1C (待�
 
 ---
 
-## 4. Phase 1B — 前后端联调验证 + 技术增强（当前 Sprint）
+## 4. Phase 1B — 前后端联调验证 + 技术增强（已完成 ✅）
 
 ### 目标
 验证 Phase 1 成果可端到端工作，补充前端核心能力（动态菜单、权限指令、操作日志），为 Phase 2 打好基础。
@@ -147,7 +150,7 @@ Phase 1A (已完成) ──→ Phase 1B (当前 Sprint) ──→ Phase 1C (待�
 
 ---
 
-## 5. Phase 1C — 运营管理服务（进行中）
+## 5. Phase 1C — 运营管理服务（部分完成）
 
 ### 目标
 构建独立运营管理服务 `platform-ops` + 独立前端 `platform-ops-admin`，为系统运维人员提供可视化管理能力。
@@ -172,7 +175,7 @@ platform-ops-admin (新建)   ← 独立 Vue 3 应用，端口 8090
 | 1 | `platform-ops` 模块创建：pom.xml、bootstrap.yml、入口类、Gateway 路由配置 | 1h | 启动成功，注册到 Nacos | ✅ |
 | 2 | `sys_tenant` 表 + `Tenant` 实体 + Flyway 初始化 SQL（含默认租户数据） | 1h | 迁移自动执行 | ✅ |
 | 3 | 租户 CRUD API + 启停/状态管理 | 1.5h | 启停后关联用户继承状态 | ✅ |
-| 4 | 现有代码中 `tenantId` 硬编码（默认1）改为 Nacos 配置 + 上下文获取 | 1h | 多租户数据隔离生效 |
+| 4 | TenantId 硬编码改 Nacos 配置 + MyBatis-Plus 多租户插件 | 2h | **补充设计：** 明确采用列隔离方案，配置 `TenantLineInnerInterceptor` 自动追加 `AND tenant_id = ?`，跨租户查询需显式授权注解 |
 
 #### 模块二：对象存储配置（3h）
 
@@ -205,7 +208,7 @@ platform-ops-admin (新建)   ← 独立 Vue 3 应用，端口 8090
 
 ### 前端任务
 
-#### 模块六：platform-ops-admin 独立应用（6h）
+#### 模块六：platform-ops-admin 独立应用（9h）
 
 | # | 任务 | 预计 | 检查项 |
 |---|------|------|--------|
@@ -217,6 +220,7 @@ platform-ops-admin (新建)   ← 独立 Vue 3 应用，端口 8090
 | 6 | 服务网关管理页面（路由表格 + 谓词/过滤器 JSON 编辑） | 1h | 路由动态刷新 |
 | 7 | 日志审计页面（Tab 切换：操作日志 / 登录日志 / API 日志） | 0.5h | 搜索 + 详情查看 |
 | 8 | 消息队列入口（点击打开 kafka-ui 新标签页） | 0.5h | 跳转正常 |
+| 9 | **系统监控面板**：Actuator `/health` 聚合所有服务 + Redis 命中率/连接池/Kafka Lag 展示 | 3h | 所有服务健康状态可见 |
 
 ### 部署清单
 
@@ -258,9 +262,35 @@ kafka-ui:
 
 ---
 
-## 5. Phase 2 — 中台平台核心（按依赖关系分 Sprint）
+## 修补阶段 — 基础设施修复（建议优先于 Sprint 3）
+
+代码验证发现以下阻塞性问题，建议在进入新功能开发前优先修复：
+
+| 优先级 | 问题 | 位置 | 预计 |
+|--------|------|------|------|
+| ~~P0~~ | ~~platform-auth 硬编码 mock → 调用 user 服务~~ | ✅ 已修复 | 3h |
+| ~~P0~~ | ~~统一登录密码（管理/运营平台两套接口）~~ | ✅ 已修复 | 1h |
+| ~~P1~~ | ~~Kafka acks=all + 重试~~ | ✅ `MessageRetryService` + `acks=all` | 3h |
+| ~~P1~~ | ~~多租户隔离规范化~~ | ✅ `TenantContextHolder` + `TenantFilter` + `TenantLineInnerInterceptor` | 2h |
+| ~~P1~~ | ~~SSE 实时推送替代 15s 轮询~~ | ✅ `SseService` + `SseController` + 前端 EventSource | 4h |
+| ~~P1~~ | ~~SiteMessageSender 真实对接~~ | ✅ 写入 `sys_message` 表 | 1h |
+| ~~P2~~ | ~~系统监控面板~~ | ✅ `MonitorController` + `monitor/Index.vue` | 3h |
+| ~~P2~~ | ~~数据权限模块~~ | ✅ `@DataScope` + `DataScopeAspect` | 4h |
+| ~~P2~~ | ~~画布网格对齐~~ | ✅ `snapToGrid(20px)` + SVG 网格 | 2h |
+| ~~P2~~ | ~~流程验证~~ | ✅ `WorkflowValidationService` | 3h |
+| ~~P2~~ | ~~任务签收UI~~ | ✅ `TaskTodo.vue` claim/unclaim | 2h |
+| P3 | SmsSender 阿里云 SDK 对接 | 待接入 | 3h |
+| P3 | EmailSender / AppPushSender 渠道实现 | 新建 | 4h |
+| P2 | **ops-admin 系统监控面板**：Actuator 聚合 + 组件状态 | `platform-ops-admin` | 3h |
+| P2 | **数据权限模块**：`@DataScope` + SQL 拦截器 + 前端角色配置 | 前后端 | 4h |
+| P2 | 画布交互优化（拖拽、网格对齐） | `ProcessDesigner.vue` | 3h |
+| P2 | 流程验证（BPMN 语法校验、版本管理） | `platform-workflow` | 4h |
+| P2 | 用户任务签收（claim/unclaim） | 前后端 | 3h |
+
+## 6. Phase 2 — 中台平台核心（按依赖关系分 Sprint）
 
 聚焦通用技术底座能力。**不再多个微服务并行启动**，按依赖关系和价值大小排序，每个 Sprint 有可交付产出。
+**当前状态：** Sprint 1（流程中心）✅ + Sprint 2（消息中心）✅ **已完成**。下一阶段建议先修复基础设施问题，再进入 Sprint 3。
 
 ### 项目模块结构（Phase 2 新增）
 
@@ -286,10 +316,11 @@ platform-server/
 
 ---
 
-### Sprint 1：流程中心（2 周）
+### Sprint 1：流程中心 ✅（已完成）
 
 **依赖：** 用户中心（已完成）  
-**理由：** 流程中心是业务中台核心能力，被多个后续模块依赖（任务中心、运营中心、物联中台规则引擎）。
+**理由：** 流程中心是业务中台核心能力，被多个后续模块依赖（任务中心、运营中心、物联中台规则引擎）。  
+**实际状态（2026-05-28 代码验证）：** 全部完成。含 SVG 自定义设计器、请假申请、候选人配置（含人员/岗位 Tab 切换）。
 
 > **⚠️ 决策点：** 启动前确认是否需要 Flowable Enterprise 版（2025.1.x）的 AI Agent Task 功能。开源版 6.8.1 满足 BPMN 审批需求，AI 审批需另行购买许可。
 
@@ -316,11 +347,12 @@ platform-server/
 
 ---
 
-### Sprint 2：消息中心（当前 Sprint - 2 周）
+### Sprint 2：消息中心（已完成 ✅）
 
 **服务名：** `platform-message`（端口 8085）  
 **依赖：** 用户中心（已完成）  
-**理由：** 流程审批的待办通知、审批结果推送需要消息中心支撑。消息中心也是后续运营中心、物联中台报警通知的基础。
+**理由：** 流程审批的待办通知、审批结果推送需要消息中心支撑。消息中心也是后续运营中心、物联中台报警通知的基础。  
+**实际状态（2026-05-28 代码验证）：** P0~P5 **全部完成**，含 P4 消息历史记录页。
 
 #### 架构设计
 
@@ -354,34 +386,34 @@ platform-message
 | `sys_message_template` | 消息模板 | template_code, channel_code, sign_name, template_id, template_content, params_json |
 | `sys_message_record` | 消息发送记录 | channel_code, template_id, receiver_address, send_status, send_time, error_msg, business_type, business_id |
 
-#### 后端任务
+#### 后端任务（全部 ✅ 代码验证完成）
 
-| # | 任务 | 预计 | 检查项 |
-|---|------|------|--------|
-| 1 | Maven 模块创建 + 独立数据库 `platform_message` + Flyway 4 张表 + platform-user 代码迁移 | 2h | `platform-message` 启动成功，端口 8085，独立 Flyway 迁移表 |
-| 2 | 渠道配置 CRUD API | 2h | 渠道增删改查，配置 JSON 可编辑 |
-| 3 | 阿里云短信 SDK 集成 + SmsSender（先占位模拟，只记日志不调阿里云） | 2h | 配置正确时可模拟发送短信 |
-| 4 | 站内信发送 + 查询 API | 2h | 写入 sys_message_record + 站内信查询 |
-| 5 | ChannelSender 接口 + 策略选择器 | 1.5h | 根据 channel_code 自动选择实现 |
-| 6 | 消息模板 CRUD API + 变量解析引擎 | 2h | 模板 `{name}` 自动替换为实际值 |
-| 7 | 消息发送 API（单条/批量/测试） | 2h | 测试发送验证渠道连通性 |
-| 8 | 消息记录 API（分页/详情/重发） | 1.5h | 按渠道/状态/时间/关键词筛选 |
-| 9 | Kafka 异步发送【主模式】+ 消费端回调更新发送状态 | 2h | 发送请求→Kafka→消费→ChannelSender→状态更新，失败可重试(3 次) |
-| 10 | Gateway 添加 `/message/**` 路由 | 0.5h | 路由正确转发到 8085 |
+| # | 任务 | 代码确认 | 状态 |
+|---|------|---------|------|
+| 1 | Maven 模块创建 + 独立数据库 `platform_message` + Flyway 4 张表 + platform-user 代码迁移 | `PlatformMessageApplication.java` + `V1__init_message_tables.sql` | ✅ |
+| 2 | 渠道配置 CRUD API | `MessageChannelController.java` | ✅ |
+| 3 | 阿里云短信 SDK 集成 + SmsSender（占位模拟，只记日志） | `SmsSender.java` — 占位模式 | ✅ |
+| 4 | 站内信发送 + 查询 API | `SiteMessageController.java` | ✅ |
+| 5 | ChannelSender 接口 + 策略选择器 | `ChannelSender.java` + `ChannelSenderRegistry.java` | ✅ |
+| 6 | 消息模板 CRUD API + 变量解析引擎 | `MessageTemplateController.java` | ✅ |
+| 7 | 消息发送 API（单条/批量/测试） | `MessageRecordController.java` — send/test-send | ✅ |
+| 8 | 消息记录 API（分页/详情/重发/删除） | `MessageRecordController.java` — page/detail/resend/delete | ✅ |
+| 9 | Kafka 异步发送 + 消费端回调更新发送状态 | `MessageSendConsumer.java` — 重试 3 次 | ✅ |
+| 10 | Gateway 添加 `/message/**` 路由 | `platform-gateway/application.yml:109-113` | ✅ |
 
-#### 前端任务
+#### 前端任务（全部 ✅ 代码验证完成）
 
-| # | 任务 | 说明 | 预计 |
-|---|------|------|------|
-| 1 | 消息记录列表页 | 渠道/状态/时间/关键词筛选，分页 | 2h |
-| 2 | 消息记录详情页 | 完整消息信息 + 发送链路 + 重发按钮 | 1h |
-| 3 | 渠道配置管理页 | 渠道列表 + 新增/编辑弹窗（JSON配置器） | 2h |
-| 4 | 渠道测试发送弹窗 | 选择渠道 + 输入接收地址 + 发送验证 | 1h |
-| 5 | 短信模板管理页 | 模板列表 + 新增/编辑（变量定义表格） | 2h |
-| 6 | 站内信列表页 | 已收站内信分类查看（通知/系统/互动） | 1.5h |
-| 7 | 站内信详情页 | 完整内容展示，自动标记已读 | 0.5h |
-| 8 | 侧边栏菜单调整 | 消息中心拆为子菜单（记录/渠道/模板/站内信） | 1h |
-| 9 | 铃铛弹窗改造 | 区分流程通知+站内信入口，角标合并计数 | 1h |
+| # | 任务 | 代码确认 | 状态 |
+|---|------|---------|------|
+| 1 | 消息记录列表页（渠道/状态/时间/关键词筛选，分页） | `Record.vue` — 216 行 | ✅ |
+| 2 | 消息记录详情弹窗 + 重发按钮 | `Record.vue` — 详情 dialog + resend | ✅ |
+| 3 | 渠道配置管理页（JSON配置器） | `Channel.vue` — 212 行 | ✅ |
+| 4 | 渠道测试发送弹窗 | `Channel.vue` — test-send dialog | ✅ |
+| 5 | 短信模板管理页（变量定义表格） | `Template.vue` — 200 行 | ✅ |
+| 6 | 站内信列表页（类型筛选/搜索/分页/已读/删除） | `List.vue` — 251 行 | ✅ |
+| 7 | 站内信详情页（自动标记已读） | `Detail.vue` — 114 行 | ✅ |
+| 8 | 侧边栏菜单：消息记录/渠道/模板/站内信 4 个子菜单 | `router/index.ts` — 5 条路由 | ✅ |
+| 9 | 铃铛弹窗（流程通知+系统消息两栏，角标合并，15s 轮询） | `Layout.vue` — 321 行 | ✅ |
 
 #### 路由对照
 
@@ -457,7 +489,8 @@ platform-message
 
 ---
 
-## 6. Phase 3 — 物联中台（独立项目）
+## 7. Phase 3 — 物联中台（独立项目）
+
 
 > **定位：** 独立子项目 `platform-iot`，复用 `platform-shared` 共享层（用户中心 API 客户端 + 认证 SDK）。
 > **前置条件：** 依赖 Phase 2 Sprint 1 流程中心（规则引擎触发审批）、Sprint 2 消息中心（报警通知）。
@@ -498,7 +531,7 @@ platform-iot/
 
 ---
 
-## 7. Phase 4 — 数据中台（独立项目）
+## 8. Phase 4 — 数据中台（独立项目）
 
 > **定位：** 独立子项目 `platform-data`，复用 `platform-shared` 共享层。
 > **前置条件：** 建议 Phase 2 核心服务运行稳定后再启动，避免资源争抢。
@@ -518,7 +551,7 @@ platform-data/
 
 ---
 
-## 8. Phase 5 — 门户中心（通用展示层）
+## 9. Phase 5 — 门户中心（通用展示层）
 
 > **定位：** 通用展示层，提供多风格主题、可视化配置、场景化组件能力。
 > **前置条件：** 依赖 Phase 2 消息中心（消息组件）、流程中心（待办组件）、Phase 3 物联中台（设备状态组件）。
@@ -544,7 +577,7 @@ platform-data/
 
 ---
 
-## 9. 前端管理后台（跟随各 Sprint）
+## 10. 前端管理后台（跟随各 Sprint）
 
 > **调整说明：** 前端页面嵌入每个 Sprint 的任务中。每个中心的后端 API 完成后立即开发对应前端页面，避免后端做完等前端。
 
@@ -599,9 +632,9 @@ platform-admin/src/views/
 
 ---
 
-## 10. CI/CD 与测试策略
+## 11. CI/CD 与测试策略
 
-### 10.1 CI/CD 流水线
+### 11.1 CI/CD 流水线
 
 | 阶段 | 工具 | 说明 |
 |------|------|------|
@@ -612,7 +645,15 @@ platform-admin/src/views/
 | 构建打包 | Maven + Docker | 生成 JAR + Docker 镜像 |
 | 部署 | Docker Compose / K8s | 自动部署到测试环境 |
 
-### 10.2 测试策略
+### 11.2 CI 增强
+
+| # | 任务 | 说明 | 预计 |
+|---|------|------|------|
+| 1 | **Maven 依赖分析**：`mvn dependency:analyze` 加入 pre-commit hooks 或 CI 流水线 | 检测未使用/未声明的依赖，防止版本漂移 | 0.5h |
+| 2 | **OpenAPI 3.0 导出**：每 Sprint 产出 `docs/api/{service}-api.yaml` | 使用 springdoc 的 `springdoc.api-docs.enabled=true` 导出 | 1h/Sprint |
+| 3 | **开发者指南**：M1 前完成《开发者指南》（环境搭建/模块说明/调试方法） | 存放于 `docs/developer-guide.md` | 2h |
+
+### 11.3 测试策略
 
 | 测试类型 | 覆盖率要求 | 说明 |
 |----------|-----------|------|
@@ -622,7 +663,7 @@ platform-admin/src/views/
 | E2E 测试 | 核心流程 | Playwright 自动化测试 |
 | 混沌测试 | 关键服务 | 注入网络延迟、服务宕机等故障 |
 
-### 10.3 监控告警体系
+### 11.4 监控告警体系
 
 | 组件 | 用途 | 部署方式 |
 |------|------|---------|
@@ -633,7 +674,7 @@ platform-admin/src/views/
 
 ---
 
-## 11. 技术栈版本对照表（推荐）
+## 12. 技术栈版本对照表（推荐）
 
 | 组件 | 当前版本 | 推荐版本 | 说明 |
 |------|----------|----------|------|
@@ -651,7 +692,7 @@ platform-admin/src/views/
 
 ---
 
-## 12. 里程碑节点
+## 13. 里程碑节点
 
 | 里程碑 | 时间 | 关键验收点 |
 |--------|------|-----------|
@@ -661,7 +702,7 @@ platform-admin/src/views/
 
 ---
 
-## 13. 参考资料
+## 14. 参考资料
 
 | 编号 | 来源 | 链接 |
 |------|------|------|

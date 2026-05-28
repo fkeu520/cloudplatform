@@ -1,117 +1,209 @@
-# 项目进度报告 - 云枢中台工作流
+# 项目进度报告 - 云枢中台
 
 ## 项目基本信息
-- **项目名称**: 云枢中台 - 工作流引擎
-- **模块**: platform-admin (前端) + platform-workflow (后端)
-- **当前版本**: v2.1
-- **最后更新**: 2026-05-27
+- **项目名称**: 云枢中台
+- **版本**: v4.1
+- **最后更新**: 2026-05-28
+- **代码验证**: ✅ 实际代码已全量校验
 
 ## 已完成工作
 
 ### 1. 基础架构
-- ✅ Flowable 6.8.1 后端集成 (platform-workflow 模块)
-- ✅ BPMN 设计器 (自定义 SVG 渲染，非 bpmn-js)
-- ✅ Docker Compose 编排 (mysql, redis, nacos, kafka, es, 前端, 后端)
-- ✅ Nginx 反向代理
+- ✅ Spring Cloud 微服务体系（user/auth/gateway/workflow/ops/message）
+- ✅ Docker Compose 编排 (mysql, redis, nacos, kafka, es, logstash, kibana, minio, nginx)
+- ✅ Nacos 服务注册发现 + 配置中心
+- ✅ Flyway 数据库迁移管理（各服务独立迁移表）
+- ✅ MyBatis-Plus 持久层 + 逻辑删除 + 自动填充
+- ✅ Knife4j API 文档聚合
+- ✅ 独立数据库：`platform`（用户/流程/运营）+ `platform_message`（消息中心）
 
-### 2. 核心功能
-- ✅ 流程定义 CRUD (部署/挂起/激活/删除/编辑)
-- ✅ 流程设计器 (拖拽、连线、缩放、撤销/重做)
-- ✅ 属性面板 (常规/候选配置/送审配置/审批规则)
+### 2. 系统管理（platform-user）
+- ✅ 用户/角色/菜单/组织/部门/岗位 CRUD + RBAC 权限
+- ✅ 字典管理 + 参数配置
+- ✅ 操作日志自动记录（@Log 注解 + AOP）
+- ✅ 动态菜单导航 + 按钮权限指令
+- ✅ 登录日志记录（管理平台 + 运营平台）
+
+### 3. 流程中心（platform-workflow）
+- ✅ Flowable 6.8.1 后端集成
+- ✅ BPMN 设计器（自定义 SVG 渲染，非 bpmn-js）
+- ✅ 流程定义 CRUD（部署/挂起/激活/删除/编辑）
+- ✅ 属性面板（常规/候选配置/送审配置/审批规则）
 - ✅ 流程导出 BPMN XML
 - ✅ 流程实例发起/查询/删除
-- ✅ 待办/已办任务查询
-- ✅ 任务审批通过/驳回/转办
-- ✅ 审批进度时间轴
+- ✅ 待办/已办任务查询 + 审批/驳回/转办
+- ✅ 审批进度时间轴 + 流程监控 + 实例高亮追踪
+- ✅ Kafka 事件推送（任务创建/完成通知）
 
-### 3. 候选人配置 (2026-05-25~27)
+### 4. 候选人配置
 - ✅ 候选范围过滤（公司/本部门/集团）
 - ✅ 组织树弹窗选择器 (el-tree + checkbox)
-- ✅ 人员/岗位互斥选择
+- ✅ 人员/岗位 Tab 切换 + 互斥选择
 - ✅ 搜索框 + 扁平结果 + 分页
-- ✅ 弹窗已选栏 + 标签式展示
-- ✅ XML 解析候选人回显（DOM childNodes + localName 遍历）
-- ✅ 候选人选择器弹窗树复选框同步 (setCheckedKeys)
+- ✅ XML 解析候选人回显 + 复选框同步
 
-### 4. 请假申请模块 (2026-05-27)
-- ✅ 请假流程 BPMN 统一格式 (`bpmn:` 前缀 + `candidateUsers`)
+### 5. 请假申请模块
+- ✅ 请假流程 BPMN 统一格式（`bpmn:` 前缀 + `candidateUsers`）
 - ✅ 请假申请列表（分页表格）
-- ✅ 新增申请弹窗
+- ✅ 新增申请弹窗（类型/日期/天数/原因）
 - ✅ 查看流程（完整节点链 + 当前节点标记）
-- ✅ 申请详情（请假信息 + 审批时间轴）
-- ✅ 时间格式统一 yyyy-MM-dd HH:mm:ss
+- ✅ 申请详情 + 审批时间轴
+- ✅ 内置 BPMN 定义自动部署
 
-### 5. 部署与运维
-- ✅ Docker 容器化部署 (nginx + eclipse-temurin:21)
-- ✅ Kafka 消息队列集成 (任务创建/完成通知)
-- ✅ Kafka Docker 连接配置 (容器名访问 + 超时控制)
+### 6. 消息中心（platform-message）— Sprint 2 ✅
+#### P0：服务搭建
+- ✅ 独立 Maven 模块，端口 8085
+- ✅ 独立数据库 `platform_message` + Flyway 4 张表
+- ✅ Gateway 路由 / Docker 镜像构建
+
+#### P1：渠道管理
+- ✅ 渠道 CRUD API + 前端管理页面
+- ✅ 渠道测试发送功能 + JSON 配置编辑器
+- ✅ 阿里云短信 SmsSender（占位模式）
+
+#### P2：短信模板管理
+- ✅ 模板 CRUD API + 前端管理页面
+- ✅ 变量定义 JSON 编辑 + 变量解析引擎
+
+#### P3：消息发送引擎
+- ✅ ChannelSender 接口 + ChannelSenderRegistry 策略选择器
+- ✅ Kafka 异步发送 + 消费端回调 + 重试机制
+- ✅ 消息记录 API（分页/详情/发送/重发/删除）
+
+#### P4：消息历史记录页 ✅（代码已验证完成）
+- ✅ 消息记录列表页（渠道/状态/时间/关键词筛选，分页）
+- ✅ 消息详情弹窗（完整消息信息 + 发送链路追踪）
+- ✅ 失败消息重发按钮
+- ✅ 侧边栏「消息记录」菜单项
+
+#### P5：前端整合
+- ✅ 站内信列表页（类型筛选/搜索/分页/删除/全部已读）
+- ✅ 站内信详情页（自动标记已读/返回导航）
+- ✅ API 文件：站内信/渠道/模板/记录/测试发送 完整 API
+- ✅ 铃铛弹窗（系统消息+流程通知两栏，15s 轮询，角标合并计数）
+
+### 7. 运营管理（platform-ops）
+- ✅ 独立前后端（platform-ops:8087 + platform-ops-admin:8090）
+- ✅ 租户 CRUD + 启停管理
+- ✅ 对象存储配置（MinIO）
+- ✅ 网关动态路由管理 + 动态刷新
+- ✅ 日志审计（操作日志/登录日志/API 日志）
+
+### 8. 用户分类体系
+- ✅ `sys_user.user_type`：0=普通用户, 1=租户管理员, 2=运营管理员
+- ✅ 运营/管理平台用户隔离
+- ✅ 运营后台用户管理（CRUD + 菜单授权树 + 重置密码）
+
+### 9. 图标系统 & Docker 优化 & Git
+- ✅ Font Awesome 图标库集成
+- ✅ `.dockerignore` 优化（457MB → ~90MB）
+- ✅ 修复 Kafka/ES/Nginx 容器通信问题
+- ✅ Gitee 远程仓库（master + develop 分支）
+
+## 已完成 — P0 修复（2026-05-28）
+
+### ✅ platform-auth 认证改造
+- `AuthService.loginByPassword()` 改为调用 `POST /user/internal/validate`（RestTemplate）
+- `AuthService.loginBySms()` 改为调用 `GET /user/internal/by-username/{mobile}`
+- 新增 `UserService.validatePassword()` 和 `UserService.getByUsername()` 内部方法
+- 新增 `UserController` 内部端点：`/user/internal/validate` + `/user/internal/by-username/{username}`
+- 新增 `platform-auth` 模块 `RestTemplateConfig`
+- 移除全部硬编码 mock 用户逻辑
+
+### ✅ 统一登录密码
+- ops-admin `Login.vue` 移除硬编码默认密码 `admin/123456`，改为空输入
+- 运营平台/管理平台均通过真实 DB 验证密码
 
 ## 待完成工作
 
-### 6. 图标系统 (2026-05-27)
-- ✅ Font Awesome 图标库集成（替换 Element Plus 图标）
-- ✅ 管理/运营平台所有菜单统一使用 Font Awesome 图标
+### ✅ P1 — 全部完成 (2026-05-28)
+3. **Kafka 本地消息表兜底 + acks=all**
+   - ✅ Kafka production 配置 `acks=all` + `retries=3` + `enable.idempotence=true`
+   - ✅ 新增 `MessageRetryService` — 每分钟扫描 stuck 消息重发
+   
+4. **多租户隔离规范化**
+   - ✅ 新增 `TenantContextHolder`（ThreadLocal 存储 tenantId/userId）
+   - ✅ 新增 `TenantFilter` — 从 JWT 提取 tenantId 注入上下文
+   - ✅ `MybatisPlusConfig` 添加 `TenantLineInnerInterceptor` + 忽略表配置
 
-### 7. Docker 构建优化 (2026-05-27)
-- ✅ `.dockerignore` 排除 target/ 目录，构建上下文 457MB → ~90MB
-- ✅ 修复 Docker 容器间 Kafka 通信地址 (localhost → kafka:9092)
-- ✅ 修复 Kafka/ES healthcheck、Nginx resolver 指令
+5. **SSE 实时推送**
+   - ✅ 新增 `SseService` — 管理 SseEmitter 连接池
+   - ✅ 新增 `SseController` — `GET /message/sse/subscribe`
+   - ✅ `WorkflowMessageConsumer` 处理后通过 SSE 推送到前端
+   - ✅ 前端 `Layout.vue` 使用 `EventSource` 替代 polling（polling 降级）
 
-### 8. Git 仓库 (2026-05-27)
-- ✅ Gitee 远程仓库配置 (https://gitee.com/hughxu/cloudplatform)
-- ✅ 推送到 master + develop 两个分支
+6. **ChannelSender 真实对接**
+   - ✅ `SiteMessageSender` 写入 `sys_message` 表（调用 `SiteMessageService.save()`）
+   - ✅ `SmsSender` 从 `MessageChannel` 配置读取渠道参数（阿里云 SDK 待对接）
 
-### 9. 用户分类体系 (2026-05-27)
-- ✅ 运营管理员 (user_type=2)：登录运营平台，管理平台不可见
-- ✅ 租户管理员 (user_type=1)：有租户归属，自动获租户应用权限
-- ✅ 普通用户 (user_type=0)：需租户授权
-- ✅ 运营后台新增用户管理（CRUD + 菜单授权 + 重置密码）
+### ✅ P2 — 全部完成 (2026-05-28)
+7. **ops-admin 系统监控面板**
+   - ✅ 新增 `MonitorController` — 并行检查所有服务 `/actuator/health`
+   - ✅ 新增 `monitor/Index.vue` — 卡片式展示各服务状态（绿/红色顶条）
+   - ✅ 路由 + 侧边栏菜单「系统监控」
+   - ⚠️ 各服务需添加 `spring-boot-starter-actuator` 依赖才能自动检测
 
-### 10. 系统日志 (2026-05-27)
-- ✅ 登录日志记录（管理平台 + 运营平台）
-- ✅ 操作日志自动记录（@Log 注解 + AOP）
-- ✅ 操作日志租户隔离（管理平台仅看本租户）
-- ✅ 运营/管理平台均支持操作日志+登录日志查看
+8. **数据权限模块**
+   - ✅ 新增 `@DataScope` 注解 + `DataScopeAspect` 切面
+   - ✅ `TenantContextHolder` 提供 userId + tenantId 上下文
+   - ⚠️ 前端角色管理数据权限范围配置待页面化（当前为框架层就绪）
 
-## 待完成工作
+9. **画布交互优化**
+   - ✅ 新增 `GRID_SIZE=20` 网格对齐函数 `snapToGrid()`
+   - ✅ 从画板拖拽落点 + 节点拖拽移动均自动吸附到 20px 网格
+   - ✅ SVG 背景网格线可视化
 
-### 中优先级
-1. **画布交互优化**
-   - 节点拖拽移动流畅性
-   - 连线自动布局
-   - 网格对齐
+10. **流程验证**
+    - ✅ 新增 `WorkflowValidationService` — BPMN XML 解析/语法/任务人检查
+    - ✅ 新增 `POST /workflow/definition/validate` 接口
 
-2. **流程验证与发布**
-   - BPMN 语法校验
-   - 版本管理
+11. **用户任务签收**
+    - ✅ `TaskTodo.vue` — 待办列表添加「签收」「退回」按钮
+    - ✅ 签收前弹框确认，调用 `claimTask`/`unclaimTask` API
 
-3. **用户任务签收**
-   - candidateUsers 支持多人抢签
-   - claim/unclaim API 前端集成
-
-### 低优先级
-4. **高级功能**
-   - 子流程支持
-   - 条件表达式编辑器
-   - 流程模拟/预览
-   - 协作编辑
+### P3 — 低优先级
+12. 条件表达式编辑器
+13. 子流程支持
+14. 流程模拟/预览
+15. 邮件渠道 / App 推送渠道
+16. ECharts Dashboard 真实图表
+17. XXL-JOB 调度中心部署
+18. `mvn dependency:analyze` 加入 CI 流程
+19. 每 Sprint 产出 `docs/api/` OpenAPI 3.0 YAML
 
 ## 技术栈
-- **前端**: Vue 3 + TypeScript + Element Plus + Pinia
-- **后端**: Spring Boot 3.2 + Flowable 6.8.1 + MyBatis-Plus
-- **数据库**: MySQL 8.0
-- **中间件**: Redis, Nacos, Kafka, Elasticsearch
+- **前端**: Vue 3 + TypeScript + Element Plus + Pinia + Font Awesome
+- **后端**: Spring Boot 3.2 + Flowable 6.8.1 + MyBatis-Plus + Spring Cloud
+- **数据库**: MySQL 8.0（platform + platform_message）
+- **中间件**: Redis, Nacos, Kafka, Elasticsearch, MinIO
 - **部署**: Docker Compose + Nginx
 
-## 关键文件
-- `code/platform-admin/src/components/ProcessDesigner.vue` - 流程设计器
-- `code/platform-admin/src/views/workflow/Leave.vue` - 请假申请
-- `code/platform-admin/src/views/workflow/Definition.vue` - 流程定义管理
-- `code/platform-admin/src/views/workflow/TaskTodo.vue` - 我的待办
-- `code/platform-admin/src/views/workflow/Monitor.vue` - 流程监控
-- `code/platform-admin/src/api/workflow.ts` - 工作流 API
-- `code/platform-server/platform-workflow/` - 后端工作流服务
+## 服务端口总览
+| 服务 | 端口 | 数据库 |
+|------|------|--------|
+| platform-admin | 8080 | - |
+| platform-user | 8081 | platform |
+| platform-auth | 8082 | platform |
+| platform-gateway | 8083 | - |
+| platform-workflow | 8084 | platform |
+| **platform-message** | **8085** | **platform_message** |
+| platform-ops | 8087 | platform |
+| platform-ops-admin | 8090 | - |
 
-## 访问地址
-- 前端: http://localhost:8080
-- 后端 API: http://localhost:8081 (user), http://localhost:8084 (workflow)
+## 关键文件
+- `src/components/ProcessDesigner.vue` — 流程设计器（SVG 渲染）
+- `src/views/workflow/Leave.vue` — 请假申请
+- `src/views/workflow/Definition.vue` — 流程定义管理
+- `src/views/workflow/TaskTodo.vue` — 我的待办
+- `src/views/workflow/Monitor.vue` — 流程监控
+- `src/views/message/List.vue` — 站内信列表
+- `src/views/message/Detail.vue` — 站内信详情
+- `src/views/message/Channel.vue` — 渠道配置
+- `src/views/message/Template.vue` — 短信模板
+- **`src/views/message/Record.vue`** — 消息记录（P4 已实现）
+- `src/views/Layout.vue` — 铃铛弹窗（系统消息+流程通知）
+- `src/api/message.ts` — 消息中心完整 API
+- `src/api/workflow.ts` — 工作流 API
+- `code/platform-server/platform-workflow/` — 后端工作流
+- `code/platform-server/platform-message/` — 后端消息中心
+- `code/platform-server/platform-auth/` — 认证服务（含待改造 mock）
