@@ -325,6 +325,16 @@
                 <el-option v-for="n in nodes" :key="n.id" :label="n.label" :value="n.id" :disabled="n.id === selectedConnection.from" />
               </el-select>
             </div>
+            <div class="prop-field" v-if="isExclusiveSource">
+              <label class="prop-label">条件表达式</label>
+              <el-input
+                v-model="selectedConnection.conditionExpr"
+                size="small"
+                placeholder='例: ${day > 3}'
+                clearable
+              />
+              <div style="font-size:11px;color:#909399;margin-top:4px">使用 ${变量} 格式，满足条件时走此分支</div>
+            </div>
             <div class="prop-field" style="margin-top: 24px;">
               <el-button type="danger" size="small" @click="deleteConnection(selectedConnection)" style="width: 100%">
                 <el-icon><Delete /></el-icon> 删除此连线
@@ -798,6 +808,13 @@ const nodeItems = [
 
 const selectedNode = computed(() => nodes.value.find(n => n.id === selectedNodeId.value) || null)
 const selectedConnection = computed(() => connections.value.find(c => c.id === selectedConnectionId.value) || null)
+
+const isExclusiveSource = computed(() => {
+  const conn = selectedConnection.value
+  if (!conn) return false
+  const src = nodes.value.find((n: any) => n.id === conn.from)
+  return src && src.type === 'exclusive'
+})
 const canUndo = computed(() => historyIndex.value > 0)
 const canRedo = computed(() => historyIndex.value < history.value.length - 1)
 
@@ -1490,7 +1507,15 @@ function generateBpmnXml(): string {
   }
 
   for (const conn of connections.value) {
-    lines.push(`    <bpmn:sequenceFlow id="${conn.id}" sourceRef="${conn.from}" targetRef="${conn.to}" />`)
+    let line = `    <bpmn:sequenceFlow id="${conn.id}" sourceRef="${conn.from}" targetRef="${conn.to}"`
+    if (conn.conditionExpr) {
+      line += `>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${conn.conditionExpr}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>`
+    } else {
+      line += ' />'
+    }
+    lines.push(line)
   }
 
   lines.push('  </bpmn:process>')
