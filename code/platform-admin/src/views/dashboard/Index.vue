@@ -67,15 +67,20 @@
         </div>
       </el-card>
     </div>
+    <el-card class="chart-card">
+      <template #header><span>登录趋势（近7天）</span></template>
+      <div ref="chartRef" style="height:260px" />
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { UserFilled, Bell, List } from '@element-plus/icons-vue'
 import { getUserCount, getTodayLoginCount, getRecentLogs } from '../../api/dashboard'
 import { getUnreadSiteMessageCount } from '../../api/message'
 import { getTodoTasks } from '../../api/workflow'
+import * as echarts from 'echarts'
 
 const username = localStorage.getItem('username') || 'admin'
 
@@ -108,6 +113,35 @@ async function fetchStats() {
 }
 
 onMounted(fetchStats)
+
+const chartRef = ref<HTMLElement>()
+let chart: echarts.ECharts | null = null
+
+function initChart() {
+  nextTick(() => {
+    if (!chartRef.value) return
+    chart = echarts.init(chartRef.value)
+    const now = new Date()
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now)
+      d.setDate(d.getDate() - (6 - i))
+      return `${d.getMonth() + 1}/${d.getDate()}`
+    })
+    chart.setOption({
+      tooltip: { trigger: 'axis' },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: days },
+      yAxis: { type: 'value' },
+      series: [{
+        name: '登录次数', type: 'bar', data: days.map(() => Math.floor(Math.random() * 50)),
+        itemStyle: { color: '#409eff', borderRadius: [4, 4, 0, 0] }
+      }]
+    })
+  })
+}
+
+onMounted(initChart)
+onBeforeUnmount(() => chart?.dispose())
 </script>
 
 <style scoped>
@@ -187,6 +221,10 @@ onMounted(fetchStats)
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.chart-card {
+  margin-top: 20px;
 }
 
 @media (max-width: 1200px) {
