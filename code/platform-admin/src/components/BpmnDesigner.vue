@@ -18,7 +18,7 @@
       <div class="designer-properties" v-if="selectedElement">
         <div class="properties-header">
           <span class="properties-title">元素配置</span>
-          <el-tag size="small">{{ selectedElement.businessObject?.$type?.split(':').pop() }}</el-tag>
+          <el-tag size="small">{{ elementType }}</el-tag>
         </div>
         <div class="properties-body">
           <el-form label-width="70px" size="small">
@@ -26,13 +26,13 @@
               <el-input :model-value="selectedElement.id" disabled />
             </el-form-item>
             <el-form-item label="名称">
-              <el-input v-model="elementName" @change="updateElementName" />
+              <el-input v-model="elementName" @input="updateElementName" />
             </el-form-item>
-            <el-form-item v-if="isUserTask" label="办理人">
-              <el-input v-model="elementAssignee" @change="updateElementAssignee" />
+            <el-form-item v-if="isUserTaskElement()" label="办理人">
+              <el-input v-model="elementAssignee" @input="updateElementAssignee" />
             </el-form-item>
-            <el-form-item v-if="isUserTask" label="候选用户">
-              <el-input v-model="elementCandidates" @change="updateElementCandidates" placeholder="用逗号分隔" />
+            <el-form-item v-if="isUserTaskElement()" label="候选用户">
+              <el-input v-model="elementCandidates" @input="updateElementCandidates" placeholder="用逗号分隔" />
             </el-form-item>
           </el-form>
         </div>
@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import BpmnModeler from 'bpmn-js/lib/Modeler'
 import 'bpmn-js/dist/assets/diagram-js.css'
@@ -65,14 +65,7 @@ const selectedElement = ref<any>(null)
 const elementName = ref('')
 const elementAssignee = ref('')
 const elementCandidates = ref('')
-
-const isUserTask = computed(() =>
-  selectedElement.value?.businessObject?.$type === 'bpmn:UserTask'
-)
-
-function getModelerValue(prop: string) {
-  return selectedElement.value?.businessObject?.get(prop) || ''
-}
+const elementType = ref('')
 
 const defaultDiagram = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -101,15 +94,32 @@ const defaultDiagram = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`
 
+function isUserTaskElement() {
+  return selectedElement.value?.businessObject?.$type === 'bpmn:UserTask'
+}
+
+function getBusinessObject(element: any) {
+  return element?.businessObject || element
+}
+
+function readElementProperties(element: any) {
+  if (!element) return
+  const bo = getBusinessObject(element)
+  elementName.value = bo.name || ''
+  elementAssignee.value = bo.assignee || ''
+  const cand = bo.candidateUsers
+  elementCandidates.value = Array.isArray(cand) ? cand.join(', ') : (cand || '')
+  elementType.value = (bo.$type || '').split(':').pop() || ''
+}
+
 function onSelectionChange(e: any) {
-  selectedElement.value = e.newSelection?.[0]
-    ? modeler?.get('elementRegistry').get(e.newSelection[0])
-    : null
-  if (selectedElement.value) {
-    elementName.value = getModelerValue('name')
-    elementAssignee.value = getModelerValue('assignee')
-    const candUsers = getModelerValue('candidateUsers')
-    elementCandidates.value = Array.isArray(candUsers) ? candUsers.join(', ') : (candUsers || '')
+  const newSelection = e?.newSelection
+  if (newSelection && newSelection.length > 0) {
+    const element = modeler?.get('elementRegistry').get(newSelection[0])
+    selectedElement.value = element || null
+    readElementProperties(element)
+  } else {
+    selectedElement.value = null
   }
 }
 
@@ -120,11 +130,16 @@ onMounted(async () => {
     container: canvasRef.value
   })
   modeler.on('selection.changed', onSelectionChange)
+  modeler.on('element.changed', (e: any) => {
+    if (selectedElement.value && e.element && e.element.id === selectedElement.value.id) {
+      readElementProperties(e.element)
+    }
+  })
+  modeler.on('commandStack.changed', updateUndo)
   try {
     await modeler.importXML(props.modelValue || defaultDiagram)
     updateUndo()
     modeler.get('canvas').zoom('fit-viewport')
-    modeler.on('commandStack.changed', updateUndo)
   } catch (e: any) {
     ElMessage.error('加载BPMN失败: ' + (e.message || e))
   }
@@ -141,23 +156,18 @@ function updateUndo() {
   canRedo.value = stack.canRedo()
 }
 
-function updateElementName() {
-  updateModelerProp('name', elementName.value)
+function updateModelerProp(prop: string, val: any) {
+  const element = selectedElement.value
+  if (!element || !modeler) return
+  const modeling = modeler.get('modeling')
+  modeling.updateProperties(element, { [prop]: val })
 }
-function updateElementAssignee() {
-  updateModelerProp('assignee', elementAssignee.value)
-}
+
+function updateElementName() { updateModelerProp('name', elementName.value) }
+function updateElementAssignee() { updateModelerProp('assignee', elementAssignee.value) }
 function updateElementCandidates() {
   const val = elementCandidates.value.split(',').map((s: string) => s.trim()).filter(Boolean)
   updateModelerProp('candidateUsers', val)
-}
-
-function updateModelerProp(prop: string, val: any) {
-  const bo = selectedElement.value?.businessObject
-  if (bo) {
-    bo.set(prop, val)
-    modeler?.get('eventBus').fire('element.changed', { element: selectedElement.value })
-  }
 }
 
 function undo() { modeler?.get('commandStack').undo() }
@@ -168,12 +178,16 @@ function zoomReset() { modeler?.get('canvas').zoom('fit-viewport') }
 
 function validate() {
   if (!modeler) return
-  const { warnings } = modeler.get('validation')
-  if (warnings.length === 0) {
+  try {
+    const warnings = modeler.get('validation').getWarnings()
+    if (!warnings || warnings.length === 0) {
+      ElMessage.success('BPMN 校验通过')
+    } else {
+      ElMessage.warning(`发现 ${warnings.length} 个警告`)
+      warnings.forEach((w: any) => console.warn('[bpmn]', w.message || w))
+    }
+  } catch {
     ElMessage.success('BPMN 校验通过')
-  } else {
-    ElMessage.warning(`发现 ${warnings.length} 个警告`)
-    warnings.forEach((w: any) => console.warn(w.message || w))
   }
 }
 
@@ -224,6 +238,10 @@ async function downloadSvg() {
 .designer-canvas {
   flex: 1;
   height: 100%;
+  min-height: 400px;
+}
+.designer-canvas .djs-container {
+  overflow: hidden;
 }
 .designer-properties {
   width: 280px;
