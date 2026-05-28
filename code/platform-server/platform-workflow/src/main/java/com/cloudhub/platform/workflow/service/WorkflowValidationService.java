@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.bpmn.converter.BpmnXMLConverter;
 import org.flowable.bpmn.model.BpmnModel;
+import org.flowable.bpmn.model.ExclusiveGateway;
 import org.flowable.bpmn.model.Process;
+import org.flowable.bpmn.model.SequenceFlow;
 import org.flowable.bpmn.model.UserTask;
 import org.flowable.common.engine.api.io.InputStreamProvider;
 import org.springframework.stereotype.Service;
@@ -58,6 +60,14 @@ public class WorkflowValidationService {
                         (task.getCandidateGroups() == null || task.getCandidateGroups().isEmpty())) {
                         errors.add(Map.of("level", "WARN", "message",
                             "用户任务 '" + (task.getName() != null ? task.getName() : task.getId()) + "' 未配置办理人"));
+                    }
+                }
+                List<ExclusiveGateway> gateways = process.findFlowElementsOfType(ExclusiveGateway.class);
+                for (ExclusiveGateway gw : gateways) {
+                    List<SequenceFlow> outgoing = gw.getOutgoingFlows();
+                    if (outgoing == null || outgoing.isEmpty()) {
+                        errors.add(Map.of("level", "ERROR", "message",
+                            "互斥网关 '" + (gw.getName() != null ? gw.getName() : gw.getId()) + "' 没有出口连线"));
                     }
                 }
             }
