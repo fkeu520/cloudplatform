@@ -185,7 +185,7 @@
                 clearable
               />
             </div>
-            <div class="prop-field" v-if="selectedNode.type === 'approval'">
+            <div class="prop-field" v-if="selectedNode.type === 'approval' || selectedNode.type === 'callActivity'">
               <label class="prop-label">节点描述</label>
               <el-input 
                 v-model="selectedNode.description" 
@@ -194,6 +194,16 @@
                 type="textarea"
                 :rows="2"
               />
+            </div>
+            <div class="prop-field" v-if="selectedNode.type === 'callActivity'">
+              <label class="prop-label"><span class="required">*</span> 子流程Key</label>
+              <el-input 
+                v-model="selectedNode.calledElement" 
+                size="small" 
+                placeholder="请输入已部署的流程定义Key"
+                clearable
+              />
+              <div style="font-size:11px;color:#909399;margin-top:4px">输入已部署的流程定义 Key，运行时自动启动子流程</div>
             </div>
           </div>
 
@@ -562,7 +572,7 @@ import {
   Upload, Document,
   CircleCheck, CircleClose, User, UserFilled,
   CirclePlus, Plus, Setting, Operation, DocumentCopy,
-  QuestionFilled, Delete, Connection, OfficeBuilding
+  QuestionFilled, Delete, Connection, OfficeBuilding, Folder
 } from '@element-plus/icons-vue'
 
 const canvasRef = ref<HTMLElement>()
@@ -803,7 +813,8 @@ const nodeItems = [
   { type: 'end', label: '结束', icon: CircleClose, iconClass: 'icon-end' },
   { type: 'approval', label: '审批任务', icon: User, iconClass: 'icon-approval' },
   { type: 'exclusive', label: '互斥网关', icon: CirclePlus, iconClass: 'icon-gateway' },
-  { type: 'parallel', label: '并行网关', icon: Plus, iconClass: 'icon-gateway' }
+  { type: 'parallel', label: '并行网关', icon: Plus, iconClass: 'icon-gateway' },
+  { type: 'callActivity', label: '子流程', icon: Folder, iconClass: 'icon-call' }
 ]
 
 const selectedNode = computed(() => nodes.value.find(n => n.id === selectedNodeId.value) || null)
@@ -826,7 +837,7 @@ watch(() => selectedNode.value?.candidateScope, (newVal, oldVal) => {
 })
 
 function getNodeTypeMap(): Record<string, string> {
-  return { 'startEvent': 'start', 'endEvent': 'end', 'userTask': 'approval', 'exclusiveGateway': 'exclusive', 'parallelGateway': 'parallel' }
+  return { 'startEvent': 'start', 'endEvent': 'end', 'userTask': 'approval', 'exclusiveGateway': 'exclusive', 'parallelGateway': 'parallel', 'callActivity': 'callActivity' }
 }
 
 function parseBpmnXml(xml: string) {
@@ -1232,6 +1243,7 @@ function getNodeTypeLabel(type: string) {
     start: '开始事件',
     end: '结束事件',
     approval: '审批任务',
+    callActivity: '子流程',
     subprocess: '子过程',
     exclusive: '互斥网关',
     parallel: '并行网关'
@@ -1244,6 +1256,7 @@ function getNodeTypeName(type: string) {
     start: 'START',
     end: 'END',
     approval: 'APPROVAL',
+    callActivity: 'CALL',
     subprocess: 'SUBPROCESS',
     exclusive: 'GATEWAY',
     parallel: 'GATEWAY'
@@ -1313,7 +1326,8 @@ function onCanvasDrop(e: DragEvent) {
     defaultTarget: 'manual',
     approvalMode: 'single',
     skipContinuous: false,
-    eSignature: false
+    eSignature: false,
+    calledElement: ''
   }
   nodes.value.push(newNode)
 
@@ -1503,6 +1517,8 @@ function generateBpmnXml(): string {
       lines.push(`    <bpmn:exclusiveGateway id="${node.id}" name="${node.label}" />`)
     } else if (node.type === 'parallel') {
       lines.push(`    <bpmn:parallelGateway id="${node.id}" name="${node.label}" />`)
+    } else if (node.type === 'callActivity') {
+      lines.push(`    <bpmn:callActivity id="${node.id}" name="${node.label}" calledElement="${node.calledElement || 'subprocess'}" />`)
     }
   }
 
@@ -1688,7 +1704,7 @@ onBeforeUnmount(() => {
 .icon-end { background: linear-gradient(135deg, #fef0f0 0%, #fde2e2 100%); color: #f56c6c; }
 .icon-approval { background: linear-gradient(135deg, #ecf5ff 0%, #e6f0ff 100%); color: #409eff; }
 .icon-gateway { background: linear-gradient(135deg, #fdf6ec 0%, #faecd8 100%); color: #e6a23c; }
-.icon-subprocess, .icon-group { background: linear-gradient(135deg, #f4f4f5 0%, #e9e9eb 100%); color: #909399; }
+.icon-subprocess, .icon-group, .icon-call { background: linear-gradient(135deg, #f4f4f5 0%, #e9e9eb 100%); color: #909399; }
 .icon-drag, .icon-select, .icon-connect { background: linear-gradient(135deg, #f4f4f5 0%, #e9e9eb 100%); color: #606266; }
 
 .palette-label {
