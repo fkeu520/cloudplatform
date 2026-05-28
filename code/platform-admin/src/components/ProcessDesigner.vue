@@ -1471,11 +1471,11 @@ function addNodeAfter(node: any, type: string) {
   saveHistory()
   const newNode = {
     id: 'node_' + (++nodeIdCounter),
-    type,
-    label: getNodeTypeLabel(type),
+    type: type === 'condition' ? 'approval' : type,
+    label: type === 'condition' ? '条件分支' : getNodeTypeLabel(type),
     description: '',
     x: node.x + 150,
-    y: node.y,
+    y: node.y + (node.type === 'exclusive' ? connections.value.filter(c => c.from === node.id).length * 80 : 0),
     candidateScope: 'company',
     candidateType: 'personnel',
     personnel: [],
@@ -1486,6 +1486,18 @@ function addNodeAfter(node: any, type: string) {
     eSignature: false
   }
   nodes.value = [...nodes.value, newNode]
+
+  if (node.type === 'exclusive') {
+    connections.value = [...connections.value, {
+      id: 'conn_' + (++connIdCounter),
+      from: node.id,
+      to: newNode.id,
+      conditionExpr: '${condition}'
+    }]
+    selectNode(newNode)
+    ElMessage.success(`已添加条件分支，请在连线属性中设置条件表达式`)
+    return
+  }
 
   const outgoingConns = connections.value.filter(c => c.from === node.id)
 
