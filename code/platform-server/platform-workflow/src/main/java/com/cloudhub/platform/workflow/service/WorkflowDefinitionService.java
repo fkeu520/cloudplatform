@@ -55,17 +55,39 @@ public class WorkflowDefinitionService {
             throw new BizException("BPMN XML 不能为空");
         }
         String name = StringUtils.isNotBlank(processName) ? processName : "未命名流程";
-        Deployment deployment = repositoryService.createDeployment()
-                .name(name)
-                .addString(name + ".bpmn20.xml", bpmnXml)
-                .deploy();
-        ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
-                .deploymentId(deployment.getId()).singleResult();
-        return Map.of(
-                "deploymentId", deployment.getId(),
-                "deployTime", deployment.getDeploymentTime(),
-                "processDefinitionId", pd != null ? pd.getId() : null
-        );
+        try {
+            Deployment deployment = repositoryService.createDeployment()
+                    .name(name)
+                    .addString(name + ".bpmn20.xml", bpmnXml)
+                    .deploy();
+            ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                    .deploymentId(deployment.getId()).singleResult();
+            return Map.of(
+                    "deploymentId", deployment.getId(),
+                    "deployTime", deployment.getDeploymentTime(),
+                    "processDefinitionId", pd != null ? pd.getId() : null
+            );
+        } catch (org.flowable.common.engine.api.FlowableException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("Errors while parsing")) {
+                // Extract readable validation errors
+                StringBuilder sb = new StringBuilder("流程定义验证失败:\n");
+                for (String line : msg.split("\n")) {
+                    if (line.contains("Problem:") || line.contains("| Problem:")) {
+                        int idx = line.indexOf("| Problem: '");
+                        int end = line.indexOf("'", (idx > 0 ? idx : 0) + 11);
+                        if (idx > 0 && end > idx) {
+                            String problem = line.substring(idx + 11, end);
+                            sb.append("- ").append(problem).append("\n");
+                        }
+                    }
+                }
+                if (sb.length() > 20) {
+                    throw new BizException(sb.toString().trim());
+                }
+            }
+            throw new BizException("流程部署失败: " + (msg != null ? msg : "未知错误"));
+        }
     }
 
     @Transactional
