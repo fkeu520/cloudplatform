@@ -72,7 +72,7 @@ const routes: RouteRecordRaw[] = [
         path: 'system/log',
         name: 'OperLog',
         component: () => import('@/views/system/log/Index.vue'),
-        meta: { title: '操作日志', icon: 'fas fa-file-alt', parent: 'system' }
+        meta: { title: '日志查看', icon: 'fas fa-file-alt', parent: 'system' }
       },
       {
         path: 'workflow/definition',
