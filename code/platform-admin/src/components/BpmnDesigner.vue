@@ -45,6 +45,9 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import BpmnModeler from 'bpmn-js/lib/Modeler'
+import 'bpmn-js/dist/assets/diagram-js.css'
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css'
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-codes.css'
 
 const emit = defineEmits<{
   (e: 'save', xml: string): void
@@ -196,11 +199,13 @@ async function downloadSvg() {
 }
 </script>
 
-<style scoped>
+<style>
 .bpmn-designer {
-  height: 100%;
+  height: 65vh;
   display: flex;
   flex-direction: column;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
 }
 .designer-toolbar {
   display: flex;
@@ -214,11 +219,11 @@ async function downloadSvg() {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 .designer-canvas {
   flex: 1;
   height: 100%;
-  min-height: 400px;
 }
 .designer-properties {
   width: 280px;
