@@ -65,16 +65,16 @@ public class UserService {
     public LoginVO login(String username, String password) {
         User user = userMapper.selectByUsername(username);
         if (user == null) {
-            saveLoginLog(null, username, 0, 0, "用户名或密码错误");
+            saveLoginLog(null, username, 0, 0L, 0, "用户名或密码错误");
             throw new BizException("用户名或密码错误");
         }
         String hashedPwd = md5(password);
         if (!hashedPwd.equals(user.getPassword())) {
-            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, 0, "密码错误");
+            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId(user), 0, "密码错误");
             throw new BizException("用户名或密码错误");
         }
         if (user.getStatus() == 0) {
-            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, 0, "账号已禁用");
+            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId(user), 0, "账号已禁用");
             throw new BizException("账号已被禁用，请联系管理员");
         }
 
@@ -86,7 +86,7 @@ public class UserService {
         user.setLastLoginTime(LocalDateTime.now());
         userMapper.updateById(user);
 
-        saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, 1, "登录成功");
+        saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId, 1, "登录成功");
 
         LoginVO vo = new LoginVO();
         vo.setToken(token);
@@ -95,12 +95,17 @@ public class UserService {
         return vo;
     }
 
-    private void saveLoginLog(Long userId, String username, Integer userType, Integer status, String message) {
+    private Long tenantId(User user) {
+        return user.getTenantId() != null ? user.getTenantId().longValue() : 0L;
+    }
+
+    private void saveLoginLog(Long userId, String username, Integer userType, Long tenantId, Integer status, String message) {
         try {
             LoginLog log = new LoginLog();
             log.setUserId(userId);
             log.setUsername(username);
             log.setUserType(userType);
+            log.setTenantId(tenantId);
             log.setLoginType(0);
             log.setStatus(status);
             log.setMessage(message);
@@ -424,6 +429,7 @@ public class UserService {
             vo.setUserType(user.getUserType());
             vo.setUserTypeDesc(user.getUserType() == 0 ? "普通用户" : user.getUserType() == 1 ? "租户管理员" : "运营管理员");
         }
+        vo.setTenantId(user.getTenantId() != null ? user.getTenantId().longValue() : 0L);
         // 查询用户关联的角色ID列表
         vo.setRoleIds(userRoleMapper.selectList(
             new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserRole>()
