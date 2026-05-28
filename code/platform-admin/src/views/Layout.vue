@@ -136,6 +136,7 @@ const notifyVisible = ref(false)
 const notifyPopoverRef = ref()
 let prevCount = 0
 let pollTimer: any = null
+let sseSource: EventSource | null = null
 
 const faIconMap: Record<string, string> = {
   DataAnalysis: 'fas fa-chart-bar',
@@ -276,15 +277,53 @@ const handleCommand = (command: string) => {
   }
 }
 
+function connectSse() {
+  const userId = localStorage.getItem('userId')
+  if (!userId) return
+  const base = import.meta.env.VITE_API_BASE || '/api'
+  sseSource = new EventSource(`${base}/message/sse/subscribe?userId=${userId}`)
+  sseSource.addEventListener('connected', () => {
+    log('SSE 已连接')
+  })
+  sseSource.addEventListener('workflow-notify', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data)
+      notifyCount.value++
+      ElNotification({ title: '新的流程通知', message: data.title || '待办任务', type: 'warning', duration: 5000 })
+      pollNotifies()
+    } catch { /* ignore */ }
+  })
+  sseSource.addEventListener('site-notify', (e: MessageEvent) => {
+    try {
+      const data = JSON.parse(e.data)
+      notifyCount.value++
+      ElNotification({ title: '新消息', message: data.title || '系统消息', type: 'info', duration: 5000 })
+      pollNotifies()
+    } catch { /* ignore */ }
+  })
+  sseSource.onerror = () => {
+    log('SSE 连接异常，切换轮询模式')
+    sseSource?.close()
+    sseSource = null
+    if (!pollTimer) pollTimer = setInterval(pollNotifies, 15000)
+  }
+}
+
+function log(msg: string) {
+  if (import.meta.env.DEV) console.log('[SSE]', msg)
+}
+
 onMounted(async () => {
   await loadMenus()
   prevCount = 0
   await pollNotifies()
-  pollTimer = setInterval(pollNotifies, 15000)
+  try { connectSse() } catch { /* fallback to polling */ }
+  if (!sseSource) pollTimer = setInterval(pollNotifies, 15000)
 })
 
 onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (sseSource) sseSource.close()
 })
 </script>
 

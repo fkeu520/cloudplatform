@@ -26,9 +26,13 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
     producer:
+      acks: all
+      retries: 3
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
         spring.json.type.mapping: messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest
     consumer:
       group-id: message-send-consumer

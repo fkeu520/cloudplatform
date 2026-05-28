@@ -30,7 +30,7 @@ import { login } from '../api/auth'
 const router = useRouter()
 const formRef = ref()
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: '123456' })
+const form = reactive({ username: '', password: '' })
 const rules = {
   username: [{ required: true, message: '请输入用户名' }],
   password: [{ required: true, message: '请输入密码' }]

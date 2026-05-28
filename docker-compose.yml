@@ -216,7 +216,7 @@ services:
       nacos:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8081/user/v3/api-docs"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -245,7 +245,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/message/site/unread-count"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8085/message/site/unread-count"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -266,6 +266,7 @@ services:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
       - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
+      - USER_SERVICE_URL=http://platform-user:8081
     depends_on:
       mysql:
         condition: service_healthy
@@ -274,7 +275,7 @@ services:
       nacos:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/auth/v3/api-docs"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8082/auth/v3/api-docs"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -308,7 +309,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8084/workflow/v3/api-docs"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -339,6 +340,11 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8087/ops/v3/api-docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # ============ 运营管理前端 ============
   platform-ops-admin:
@@ -350,7 +356,7 @@ services:
     depends_on:
       - platform-ops
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -378,7 +384,7 @@ services:
     depends_on:
       - platform-user
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 10s
       retries: 3

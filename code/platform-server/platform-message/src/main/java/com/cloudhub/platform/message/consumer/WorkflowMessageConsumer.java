@@ -2,10 +2,13 @@ package com.cloudhub.platform.message.consumer;
 
 import com.cloudhub.platform.message.domain.entity.MessageRecord;
 import com.cloudhub.platform.message.service.MessageRecordService;
+import com.cloudhub.platform.message.service.SseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class WorkflowMessageConsumer {
 
     private final MessageRecordService messageRecordService;
+    private final SseService sseService;
 
     @KafkaListener(topics = "${spring.kafka.topic.workflow-message:workflow-message}", groupId = "message-workflow-consumer")
     public void consume(WorkflowMessage message) {
@@ -33,6 +37,15 @@ public class WorkflowMessageConsumer {
             record.setBusinessId(message.getProcessInstanceId());
             record.setSendStatus(2);
             messageRecordService.save(record);
+
+            if (record.getReceiverId() != null) {
+                sseService.sendToUser(record.getReceiverId(), "workflow-notify", Map.of(
+                    "id", record.getId(),
+                    "title", record.getTitle(),
+                    "businessType", "workflow",
+                    "businessId", record.getBusinessId()
+                ));
+            }
 
             log.info("[消息中心] 已创建流程通知消息记录: recordId={}, assignee={}", record.getId(), message.getAssignee());
         } catch (Exception e) {

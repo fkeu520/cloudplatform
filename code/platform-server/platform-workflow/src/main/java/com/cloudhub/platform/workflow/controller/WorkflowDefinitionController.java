@@ -2,6 +2,7 @@ package com.cloudhub.platform.workflow.controller;
 
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.workflow.service.WorkflowDefinitionService;
+import com.cloudhub.platform.workflow.service.WorkflowValidationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.Map;
 public class WorkflowDefinitionController {
 
     private final WorkflowDefinitionService workflowDefinitionService;
+    private final WorkflowValidationService workflowValidationService;
 
     @Operation(summary = "分页查询流程定义")
     @GetMapping("/page")
@@ -32,6 +34,12 @@ public class WorkflowDefinitionController {
     @GetMapping("/{definitionId}")
     public Result<?> getById(@PathVariable String definitionId) {
         return Result.ok(workflowDefinitionService.getById(definitionId));
+    }
+
+    @Operation(summary = "验证BPMN XML")
+    @PostMapping("/validate")
+    public Result<?> validate(@RequestBody Map<String, String> params) {
+        return Result.ok(workflowValidationService.validateBpmn(params.get("bpmnXml")));
     }
 
     @Operation(summary = "部署流程（上传BPMN XML）")

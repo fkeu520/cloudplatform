@@ -2,12 +2,17 @@ package com.cloudhub.platform.message.channel.impl;
 
 import com.cloudhub.platform.message.channel.ChannelSender;
 import com.cloudhub.platform.message.domain.entity.MessageRecord;
+import com.cloudhub.platform.message.service.MessageChannelService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-@Component
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class SmsSender implements ChannelSender {
+
+    private final MessageChannelService messageChannelService;
 
     @Override
     public String channelCode() {
@@ -16,8 +21,13 @@ public class SmsSender implements ChannelSender {
 
     @Override
     public void send(MessageRecord record) {
-        log.info("[短信-占位] 发送短信: phone={}, content={}",
-                record.getReceiverAddress(), record.getContent());
-        log.info("[短信-占位] 正式生产环境将调用阿里云短信SDK发送");
+        String configJson = messageChannelService.lambdaQuery()
+            .eq(com.cloudhub.platform.message.domain.entity.MessageChannel::getChannelCode, "sms")
+            .oneOpt()
+            .map(c -> c.getConfigJson())
+            .orElse("{}");
+        log.info("[短信] 发送短信 phone={}, content={}, channelConfig={}",
+                record.getReceiverAddress(), record.getContent(), configJson);
+        log.info("[短信] 正式生产将调用阿里云短信SDK: accessKey从channelConfig读取");
     }
 }

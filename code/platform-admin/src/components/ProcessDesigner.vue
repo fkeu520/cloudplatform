@@ -59,6 +59,12 @@
       >
         <div class="canvas-content" :style="{ transform: `scale(${zoom})`, transformOrigin: '0 0' }">
           <svg class="canvas-svg" width="2000" height="1000">
+            <defs>
+              <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e8e8e8" stroke-width="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid)" />
             <!-- Connections -->
             <g class="connections">
               <path
@@ -1273,8 +1279,8 @@ function onCanvasDrop(e: DragEvent) {
   if (!type || !canvasRef.value) return
 
   const rect = canvasRef.value.getBoundingClientRect()
-  const x = (e.clientX - rect.left) / zoom.value
-  const y = (e.clientY - rect.top) / zoom.value
+  const x = snapToGrid((e.clientX - rect.left) / zoom.value)
+  const y = snapToGrid((e.clientY - rect.top) / zoom.value)
 
   saveHistory()
   const newNode = {
@@ -1321,6 +1327,12 @@ function findNearestNode(node: any) {
   return nearest
 }
 
+const GRID_SIZE = 20
+
+function snapToGrid(val: number): number {
+  return Math.round(val / GRID_SIZE) * GRID_SIZE
+}
+
 // Node dragging
 let dragNode: any = null
 let dragOffset = { x: 0, y: 0 }
@@ -1334,8 +1346,8 @@ function onNodeMouseDown(e: MouseEvent, node: any) {
 
 function onMouseMove(e: MouseEvent) {
   if (dragNode && canvasRef.value) {
-    dragNode.x = (e.clientX - dragOffset.x) / zoom.value
-    dragNode.y = (e.clientY - dragOffset.y) / zoom.value
+    dragNode.x = snapToGrid((e.clientX - dragOffset.x) / zoom.value)
+    dragNode.y = snapToGrid((e.clientY - dragOffset.y) / zoom.value)
   }
 }
 

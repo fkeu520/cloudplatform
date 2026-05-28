@@ -60,6 +60,24 @@ public class UserController {
         return Result.ok();
     }
 
+    @Operation(summary = "内部验证密码（供 auth 服务调用）")
+    @PostMapping("/internal/validate")
+    public Result<UserVO> validatePassword(@RequestBody @Validated Map<String, String> params) {
+        String username = params.get("username");
+        String password = params.get("password");
+        if (username == null || password == null) {
+            throw new BizException("用户名和密码不能为空");
+        }
+        UserVO vo = userService.validatePassword(username, password);
+        return Result.ok(vo);
+    }
+
+    @Operation(summary = "内部按用户名查找用户（供 auth 服务调用）")
+    @GetMapping("/internal/by-username/{username}")
+    public Result<UserVO> getByUsername(@PathVariable String username) {
+        return Result.ok(userService.getByUsername(username));
+    }
+
     // ========== 用户管理 ==========
 
     @Operation(summary = "分页查询用户")

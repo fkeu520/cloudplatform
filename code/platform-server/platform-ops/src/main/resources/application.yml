@@ -60,6 +60,8 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 springdoc:
+  api-docs:
+    path: /ops/v3/api-docs
 
 knife4j:
   enable: true
