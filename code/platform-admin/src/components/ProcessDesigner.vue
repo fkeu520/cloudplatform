@@ -22,6 +22,9 @@
         </el-button>
       </div>
       <div class="toolbar-right">
+        <el-button size="small" @click="previewVisible = true">
+          <el-icon><View /></el-icon> 预览
+        </el-button>
         <el-button type="primary" size="small" @click="saveAndPublish">
           <el-icon><Upload /></el-icon> 保存并发布
         </el-button>
@@ -549,6 +552,21 @@
         <el-button type="primary" size="small" @click="confirmTreeSelection">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- Preview Dialog -->
+    <el-dialog v-model="previewVisible" title="流程预览" width="800px" top="5vh">
+      <div class="preview-canvas" ref="previewRef">
+        <svg width="100%" :viewBox="`0 0 2000 1000`">
+          <g class="connections">
+            <path v-for="conn in connections" :key="conn.id" :d="getConnectionPath(conn)" class="connection-line" />
+          </g>
+          <g v-for="node in nodes" :key="node.id" :transform="`translate(${node.x}, ${node.y})`">
+            <rect x="-40" y="-30" width="80" height="60" rx="8" class="preview-node" />
+            <text x="0" y="4" text-anchor="middle" class="preview-text">{{ node.label || getNodeTypeLabel(node.type) }}</text>
+          </g>
+        </svg>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -572,7 +590,7 @@ import {
   Upload, Document,
   CircleCheck, CircleClose, User, UserFilled,
   CirclePlus, Plus, Setting, Operation, DocumentCopy,
-  QuestionFilled, Delete, Connection, OfficeBuilding, Folder
+  QuestionFilled, Delete, Connection, OfficeBuilding, Folder, View
 } from '@element-plus/icons-vue'
 
 const canvasRef = ref<HTMLElement>()
@@ -608,6 +626,7 @@ const loading = ref(false)
 
 // Dialog state
 const orgTreeDialogVisible = ref(false)
+const previewVisible = ref(false)
 const dialogSelectMode = ref<'personnel' | 'position'>('personnel')
 const orgTreeRef = ref()
 const checkedUserIds = ref<string[]>([])
@@ -1752,6 +1771,24 @@ onBeforeUnmount(() => {
 .connection-line.selected {
   stroke: #409eff;
   stroke-width: 3;
+}
+
+.preview-canvas {
+  background: #fafafa;
+  border-radius: 8px;
+  min-height: 400px;
+  overflow: auto;
+}
+.preview-node {
+  fill: #e8f4fd;
+  stroke: #409eff;
+  stroke-width: 1.5;
+  cursor: default;
+}
+.preview-text {
+  font-size: 13px;
+  fill: #333;
+  pointer-events: none;
 }
 
 .node-group {

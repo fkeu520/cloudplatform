@@ -69,6 +69,15 @@ knife4j:
     enable-swagger-models: true
     enable-footer: false
 
+xxl:
+  job:
+    admin:
+      addresses: http://xxl-job-admin:8088/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: platform-executor
+      port: 9999
+
 logging:
   level:
     com.cloudhub.platform: DEBUG
