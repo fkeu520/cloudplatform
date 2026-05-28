@@ -155,7 +155,7 @@ INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `name`, `path`, `component`, `
 (22, 20, '新增参数', NULL, NULL, 2, NULL, 0, 'system:config:add'),
 (23, 20, '编辑参数', NULL, NULL, 2, NULL, 0, 'system:config:edit'),
 (24, 20, '删除参数', NULL, NULL, 2, NULL, 0, 'system:config:del'),
-(25, 1, '操作日志', '/system/log', 'system/log/index', 1, 'fas fa-file-alt', 5, 'system:log:list');
+(25, 1, '日志查看', '/system/log', 'system/log/index', 1, 'fas fa-file-alt', 5, 'system:log:list');
 
 -- 超级管理员拥有所有菜单
 INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`) SELECT 1, `id` FROM `sys_menu`;
