@@ -15,8 +15,8 @@
           <UserFilled />
         </div>
         <div class="stat-content">
-          <p class="stat-value">{{ stats.todayActive }}</p>
-          <p class="stat-label">今日活跃</p>
+          <p class="stat-value">{{ stats.todayLogin }}</p>
+          <p class="stat-label">今日登录</p>
         </div>
       </el-card>
       <el-card class="stat-card">
@@ -30,35 +30,40 @@
       </el-card>
       <el-card class="stat-card">
         <div class="stat-icon purple">
-          <ArrowUp />
+          <List />
         </div>
         <div class="stat-content">
-          <p class="stat-value">{{ stats.avgResponseTime }}ms</p>
-          <p class="stat-label">平均响应时间</p>
+          <p class="stat-value">{{ stats.pendingTasks }}</p>
+          <p class="stat-label">待办任务</p>
         </div>
       </el-card>
     </div>
 
     <div class="info-cards">
-      <el-card title="系统概览" class="info-card">
-        <el-timeline>
-          <el-timeline-item timestamp="刚刚" placement="top">
-            <el-card size="small">系统启动成功</el-card>
-          </el-timeline-item>
-          <el-timeline-item timestamp="5分钟前" placement="top">
-            <el-card size="small">用户 admin 登录系统</el-card>
-          </el-timeline-item>
-          <el-timeline-item timestamp="10分钟前" placement="top">
-            <el-card size="small">用户数据同步完成</el-card>
+      <el-card class="info-card">
+        <template #header><span>最近活动</span></template>
+        <el-timeline v-if="recentLogs.length > 0">
+          <el-timeline-item
+            v-for="log in recentLogs"
+            :key="log.id"
+            :timestamp="log.loginTime"
+            placement="top"
+          >
+            <el-card size="small">
+              {{ log.message || (log.status === 1 ? '登录成功' : '登录失败') }}
+              <span style="color:#909399;font-size:12px"> — {{ log.username }}</span>
+            </el-card>
           </el-timeline-item>
         </el-timeline>
+        <div v-else class="no-data">暂无活动记录</div>
       </el-card>
-      <el-card title="快速操作" class="info-card">
+      <el-card class="info-card">
+        <template #header><span>快速操作</span></template>
         <div class="quick-actions">
-          <el-button type="primary" size="small">新增用户</el-button>
-          <el-button size="small">角色管理</el-button>
-          <el-button size="small">系统配置</el-button>
-          <el-button size="small">操作日志</el-button>
+          <el-button type="primary" size="small" @click="$router.push('/system/user')">新增用户</el-button>
+          <el-button size="small" @click="$router.push('/system/role')">角色管理</el-button>
+          <el-button size="small" @click="$router.push('/system/config')">系统配置</el-button>
+          <el-button size="small" @click="$router.push('/system/dict')">字典管理</el-button>
         </div>
       </el-card>
     </div>
@@ -66,15 +71,43 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
-import { UserFilled, Bell, ArrowUp } from '@element-plus/icons-vue'
+import { ref, reactive, onMounted } from 'vue'
+import { UserFilled, Bell, List } from '@element-plus/icons-vue'
+import { getUserCount, getTodayLoginCount, getRecentLogs } from '../../api/dashboard'
+import { getUnreadSiteMessageCount } from '../../api/message'
+import { getTodoTasks } from '../../api/workflow'
+
+const username = localStorage.getItem('username') || 'admin'
 
 const stats = reactive({
-  totalUsers: 1256,
-  todayActive: 328,
-  unreadMessages: 15,
-  avgResponseTime: 45
+  totalUsers: 0,
+  todayLogin: 0,
+  unreadMessages: 0,
+  pendingTasks: 0
 })
+
+const recentLogs = ref<any[]>([])
+const loading = ref(false)
+
+async function fetchStats() {
+  loading.value = true
+  try {
+    const [userRes, loginRes, msgRes, taskRes, logsRes] = await Promise.all([
+      getUserCount().catch(() => ({ data: { total: 0 } })),
+      getTodayLoginCount().catch(() => ({ data: { total: 0 } })),
+      getUnreadSiteMessageCount(username).catch(() => ({ data: 0 })),
+      getTodoTasks({ userId: username, pageNum: 1, pageSize: 1 }).catch(() => ({ data: { total: 0 } })),
+      getRecentLogs().catch(() => ({ data: { records: [] } }))
+    ])
+    stats.totalUsers = (userRes as any).data?.total || 0
+    stats.todayLogin = (loginRes as any).data?.total || 0
+    stats.unreadMessages = (msgRes as any).data ?? 0
+    stats.pendingTasks = (taskRes as any).data?.total || 0
+    recentLogs.value = (logsRes as any).data?.records?.slice(0, 5) || []
+  } catch { /* ignore */ } finally { loading.value = false }
+}
+
+onMounted(fetchStats)
 </script>
 
 <style scoped>
