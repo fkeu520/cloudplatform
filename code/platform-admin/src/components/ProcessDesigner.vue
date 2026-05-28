@@ -121,6 +121,24 @@
               >
                 {{ node.label }}
               </text>
+              <!-- Connection Handle -->
+              <circle
+                v-if="node.type !== 'end'"
+                :cx="node.x + 42"
+                :cy="node.y"
+                r="6"
+                class="conn-handle"
+                @mousedown.stop="onConnHandleMouseDown($event, node)"
+              />
+              <!-- Temporary Connection Line -->
+              <line
+                v-if="connectingFrom === node.id"
+                :x1="node.x + 42"
+                :y1="node.y"
+                :x2="connMousePos.x"
+                :y2="connMousePos.y"
+                class="temp-connection"
+              />
               <!-- Floating Action Menu -->
               <g v-if="selectedNodeId === node.id && node.type !== 'start' && node.type !== 'end'" class="node-actions-menu" :transform="'translate(' + (node.x + 55) + ', ' + (node.y - 55) + ')'">
                 <!-- Row 1: Approval, Exclusive -->
@@ -1229,6 +1247,7 @@ function selectConnection(conn: any) {
 }
 
 function onCanvasClick() {
+  connectingFrom.value = null
   selectedNodeId.value = null
   selectedConnectionId.value = null
 }
@@ -1386,6 +1405,48 @@ function snapToGrid(val: number): number {
 // Node dragging
 let dragNode: any = null
 let dragOffset = { x: 0, y: 0 }
+
+// Connection dragging
+const connectingFrom = ref<string | null>(null)
+const connMousePos = ref({ x: 0, y: 0 })
+
+function onConnHandleMouseDown(_e: MouseEvent, node: any) {
+  connectingFrom.value = node.id
+  connMousePos.value = { x: node.x + 42, y: node.y }
+  document.addEventListener('mousemove', onConnMouseMove)
+  document.addEventListener('mouseup', onConnMouseUp)
+}
+
+function onConnMouseMove(e: MouseEvent) {
+  if (!connectingFrom.value) return
+  connMousePos.value = {
+    x: (e.clientX - (canvasRef.value?.getBoundingClientRect().left || 0)) / zoom.value,
+    y: (e.clientY - (canvasRef.value?.getBoundingClientRect().top || 0)) / zoom.value
+  }
+}
+
+function onConnMouseUp(e: MouseEvent) {
+  if (!connectingFrom.value) return
+  const rect = canvasRef.value?.getBoundingClientRect()
+  if (rect) {
+    const mx = (e.clientX - rect.left) / zoom.value
+    const my = (e.clientY - rect.top) / zoom.value
+    const target = nodes.value.find((n: any) =>
+      Math.abs(n.x - mx) < 35 && Math.abs(n.y - my) < 25 && n.id !== connectingFrom.value
+    )
+    if (target && !connections.value.some(c => c.from === connectingFrom.value && c.to === target.id)) {
+      saveHistory()
+      connections.value.push({
+        id: 'conn_' + (++connIdCounter),
+        from: connectingFrom.value,
+        to: target.id
+      })
+    }
+  }
+  connectingFrom.value = null
+  document.removeEventListener('mousemove', onConnMouseMove)
+  document.removeEventListener('mouseup', onConnMouseUp)
+}
 
 function onNodeMouseDown(e: MouseEvent, node: any) {
   dragNode = node
@@ -1771,6 +1832,28 @@ onBeforeUnmount(() => {
 .connection-line.selected {
   stroke: #409eff;
   stroke-width: 3;
+}
+
+.conn-handle {
+  fill: #409eff;
+  stroke: #fff;
+  stroke-width: 2;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.node-group:hover .conn-handle {
+  opacity: 1;
+}
+.conn-handle:hover {
+  fill: #66b1ff;
+}
+
+.temp-connection {
+  stroke: #409eff;
+  stroke-width: 2;
+  stroke-dasharray: 5, 3;
+  pointer-events: none;
 }
 
 .preview-canvas {
