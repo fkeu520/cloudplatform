@@ -41,7 +41,9 @@ public class AuthService {
             }
             Map<String, Object> userData = (Map<String, Object>) result.get("data");
             String userId = String.valueOf(userData.get("id"));
-            return generateAuthVO(userId);
+            Number tenantNum = (Number) userData.get("tenantId");
+            Long tenantId = tenantNum != null ? tenantNum.longValue() : 0L;
+            return generateAuthVO(userId, tenantId);
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
@@ -75,7 +77,9 @@ public class AuthService {
             }
             Map<String, Object> userData = (Map<String, Object>) result.get("data");
             String userId = String.valueOf(userData.get("id"));
-            return generateAuthVO(userId);
+            Number tenantNum = (Number) userData.get("tenantId");
+            Long tenantId = tenantNum != null ? tenantNum.longValue() : 0L;
+            return generateAuthVO(userId, tenantId);
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
@@ -89,7 +93,8 @@ public class AuthService {
             throw new BizException("Invalid token");
         }
         String userId = JwtUtil.getUserId(token);
-        return generateAuthVO(userId);
+        Long tenantId = JwtUtil.getTenantId(token);
+        return generateAuthVO(userId, tenantId != null ? tenantId : 0L);
     }
 
     public void validateToken(String token) {
@@ -111,8 +116,11 @@ public class AuthService {
         }
     }
 
-    private AuthVO generateAuthVO(String userId) {
+    private AuthVO generateAuthVO(String userId, Long tenantId) {
         String token = JwtUtil.generate(userId, TOKEN_EXPIRE_SECONDS);
+        if (tenantId != null && tenantId > 0) {
+            token = JwtUtil.generate(userId, "", tenantId, TOKEN_EXPIRE_SECONDS);
+        }
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
         AuthVO vo = new AuthVO();
         vo.setToken(token);

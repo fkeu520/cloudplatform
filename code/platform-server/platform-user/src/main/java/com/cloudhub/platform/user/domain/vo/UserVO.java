@@ -27,6 +27,7 @@ public class UserVO {
     private String statusDesc;
     private Integer userType;
     private String userTypeDesc;
+    private Long tenantId;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createTime;
     private List<String> roles;    // 角色名称列表
