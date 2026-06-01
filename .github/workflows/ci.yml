@@ -113,7 +113,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-jars
-          path: code/platform-server
+          path: .  # 保持原始路径结构
 
       - name: Download admin dist
         uses: actions/download-artifact@v4
@@ -153,10 +153,11 @@ jobs:
             docker push $img
           done
 
-          # 前端镜像
+          # 回到仓库根目录再构建前端
+          cd "$GITHUB_WORKSPACE"
           for fe in platform-admin platform-ops-admin; do
             img="ghcr.io/${{ github.repository }}/${fe}:latest"
             echo "Building $img"
-            docker build -t $img ./code/$fe
+            docker build -t $img "./code/$fe"
             docker push $img
           done
