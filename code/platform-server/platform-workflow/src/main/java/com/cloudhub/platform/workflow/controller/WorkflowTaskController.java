@@ -20,21 +20,31 @@ public class WorkflowTaskController {
     @Operation(summary = "我的待办")
     @GetMapping("/todo")
     public Result<?> todo(
-            @RequestParam String userId,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+            @RequestParam(required = false) String userId,
             @RequestParam(required = false) String processName,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.ok(workflowTaskService.todoPage(userId, processName, pageNum, pageSize));
+        String actualUserId = headerUserId != null ? headerUserId : userId;
+        if (actualUserId == null || actualUserId.isBlank()) {
+            return Result.badRequest("缺少用户标识");
+        }
+        return Result.ok(workflowTaskService.todoPage(actualUserId, processName, pageNum, pageSize));
     }
 
     @Operation(summary = "我的已办")
     @GetMapping("/done")
     public Result<?> done(
-            @RequestParam String userId,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+            @RequestParam(required = false) String userId,
             @RequestParam(required = false) String processName,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.ok(workflowTaskService.donePage(userId, processName, pageNum, pageSize));
+        String actualUserId = headerUserId != null ? headerUserId : userId;
+        if (actualUserId == null || actualUserId.isBlank()) {
+            return Result.badRequest("缺少用户标识");
+        }
+        return Result.ok(workflowTaskService.donePage(actualUserId, processName, pageNum, pageSize));
     }
 
     @Operation(summary = "查询任务详情")
@@ -48,8 +58,13 @@ public class WorkflowTaskController {
     public Result<Void> complete(@PathVariable String taskId,
                                   @RequestBody(required = false) Map<String, Object> params,
                                   @RequestParam(required = false) String comment,
-                                  @RequestParam String userId) {
-        workflowTaskService.complete(taskId, params, comment, userId);
+                                  @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+                                  @RequestParam(required = false) String userId) {
+        String actualUserId = headerUserId != null ? headerUserId : userId;
+        if (actualUserId == null || actualUserId.isBlank()) {
+            return Result.badRequest("缺少用户标识");
+        }
+        workflowTaskService.complete(taskId, params, comment, actualUserId);
         return Result.ok();
     }
 
@@ -57,8 +72,13 @@ public class WorkflowTaskController {
     @PostMapping("/{taskId}/reject")
     public Result<Void> reject(@PathVariable String taskId,
                                 @RequestParam(required = false) String comment,
-                                @RequestParam String userId) {
-        workflowTaskService.reject(taskId, comment, userId);
+                                @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+                                @RequestParam(required = false) String userId) {
+        String actualUserId = headerUserId != null ? headerUserId : userId;
+        if (actualUserId == null || actualUserId.isBlank()) {
+            return Result.badRequest("缺少用户标识");
+        }
+        workflowTaskService.reject(taskId, comment, actualUserId);
         return Result.ok();
     }
 
@@ -66,15 +86,26 @@ public class WorkflowTaskController {
     @PostMapping("/{taskId}/transfer")
     public Result<Void> transfer(@PathVariable String taskId,
                                   @RequestParam String newAssignee,
-                                  @RequestParam String userId) {
-        workflowTaskService.transfer(taskId, newAssignee, userId);
+                                  @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+                                  @RequestParam(required = false) String userId) {
+        String actualUserId = headerUserId != null ? headerUserId : userId;
+        if (actualUserId == null || actualUserId.isBlank()) {
+            return Result.badRequest("缺少用户标识");
+        }
+        workflowTaskService.transfer(taskId, newAssignee, actualUserId);
         return Result.ok();
     }
 
     @Operation(summary = "签收任务")
     @PostMapping("/{taskId}/claim")
-    public Result<Void> claim(@PathVariable String taskId, @RequestParam String userId) {
-        workflowTaskService.claim(taskId, userId);
+    public Result<Void> claim(@PathVariable String taskId,
+                               @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+                               @RequestParam(required = false) String userId) {
+        String actualUserId = headerUserId != null ? headerUserId : userId;
+        if (actualUserId == null || actualUserId.isBlank()) {
+            return Result.badRequest("缺少用户标识");
+        }
+        workflowTaskService.claim(taskId, actualUserId);
         return Result.ok();
     }
 

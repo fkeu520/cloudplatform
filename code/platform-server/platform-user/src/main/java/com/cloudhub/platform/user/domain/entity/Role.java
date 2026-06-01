@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @TableName("sys_role")
 public class Role {
 
-    @TableId
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /** 角色编码 */

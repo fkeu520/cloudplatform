@@ -3,7 +3,9 @@ package com.cloudhub.platform.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.user.domain.entity.Menu;
+import com.cloudhub.platform.user.domain.entity.User;
 import com.cloudhub.platform.user.mapper.MenuMapper;
+import com.cloudhub.platform.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 public class MenuService {
 
     private final MenuMapper menuMapper;
+    private final UserMapper userMapper;
 
     /**
      * 获取所有菜单（树形结构）
@@ -51,10 +54,28 @@ public class MenuService {
 
     /**
      * 根据用户ID获取菜单树（动态权限）
+     * - 租户管理员(userType=1)：返回全部启用菜单
+     * - 普通用户(userType=0)：通过角色+直接授权获取菜单
+     * - 运营管理员(userType=2)：返回空（只能登录运营后台）
      */
     public List<Map<String, Object>> getUserMenus(Long userId) {
-        List<Menu> menus = menuMapper.selectByUserId(userId);
-        return buildTree(menus, 0L);
+        // 查询用户类型
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return new ArrayList<>();
+        }
+        Integer userType = user.getUserType() != null ? user.getUserType() : 0;
+
+        if (userType == 1) {
+            // 租户管理员：全部启用菜单
+            return buildTree(menuMapper.selectAllEnabled(), 0L);
+        } else if (userType == 2) {
+            // 运营管理员：不能访问管理后台，返回空
+            return new ArrayList<>();
+        } else {
+            // 普通用户：通过角色 + 直接授权菜单
+            return buildTree(menuMapper.selectByUserId(userId), 0L);
+        }
     }
 
     /**

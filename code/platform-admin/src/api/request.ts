@@ -22,7 +22,8 @@ request.interceptors.response.use(
       ElMessage.error('登录已过期，请重新登录')
       router.push('/login')
     } else {
-      ElMessage.error(error.message || '请求失败')
+      const msg = error.response?.data?.message || error.message || '请求失败'
+      ElMessage.error(msg)
     }
     return Promise.reject(error)
   }

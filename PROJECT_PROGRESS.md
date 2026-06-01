@@ -2,8 +2,8 @@
 
 ## 项目基本信息
 - **项目名称**: 云枢中台
-- **版本**: v4.1
-- **最后更新**: 2026-05-28
+- **版本**: v6.1
+- **最后更新**: 2026-05-29 (18:30)
 - **代码验证**: ✅ 实际代码已全量校验
 
 ## 已完成工作
@@ -113,6 +113,69 @@
 ### ✅ 统一登录密码
 - ops-admin `Login.vue` 移除硬编码默认密码 `admin/123456`，改为空输入
 - 运营平台/管理平台均通过真实 DB 验证密码
+
+## 已完成 — 安全与优化修复（2026-05-29）
+
+### ✅ 严重安全问题修复
+- JWT 密钥改为从环境变量 `JWT_SECRET` 读取，fallback 为开发默认值
+- SMS 验证码日志脱敏，不再打印明文验证码
+- SMS 发送增加频率限制（每分钟1次），使用 `SecureRandom` 替代 `Random`
+- ELK 查询增加 JSON 转义，防止 JSON 注入攻击
+- 网关白名单移除 `/actuator`、`/swagger`、`/v3/api-docs` 等敏感路径
+- CORS 配置改为从环境变量 `CORS_ORIGINS` 读取，默认限制为 localhost
+- 前端 `Detail.vue` XSS 修复：`formatContent` 函数增加 HTML 转义
+- 全局异常处理不再暴露内部异常详情给客户端
+
+### ✅ 高风险问题修复
+- AuthController Token 处理：增加 `stripBearer()` 方法处理 "Bearer " 前缀
+- 限流器竞态条件修复：使用 `LongAdder` + `AtomicLong` 替代 `AtomicInteger`
+- 分布式锁原子性修复：`unlock()` 方法使用 Lua 脚本保证原子操作
+- SSE 广播迭代安全修复：收集失败 key 后批量删除
+- 工作流任务接口安全：从 `X-User-Id` Header 获取 userId，防止伪造
+- SSE 订阅端点安全：优先从 Header 获取 userId，缺失时抛异常
+
+### ✅ 中等问题修复
+- RestTemplate 超时配置：auth/ops 模块增加连接超时(3s)和读取超时(10s)
+- Redis 配置路径修复：workflow 模块 `spring.redis` → `spring.data.redis`
+- 日志输出修复：workflow 模块 `StdOutImpl` → `Slf4jImpl`，common.yml 同步修改
+- Kafka 反序列化安全：`trusted.packages` 从 `"*"` 改为具体包路径
+- Flyway 配置补全：workflow 模块增加 `validate-on-migrate: false`
+- LogAspect 空指针修复：`e.getMessage()` 增加 null 检查
+- SmsSender 客户端缓存：避免每次发送创建新 Client 实例
+- TenantService 异常处理：`createRootOrg` 失败时抛异常而非静默忽略
+- 前端 SSE 事件监听清理：`onBeforeUnmount` 中正确移除事件监听器
+
+### ✅ 密码传输加密（2026-05-29）
+- 新增 `RsaUtil` 工具类：RSA-2048 非对称加密，支持密钥对生成/加解密
+- 新增 `GET /auth/public-key` 接口：前端获取 RSA 公钥
+- `AuthService.loginByPassword()` 支持解密 RSA 加密后的密码
+- 前端新增 `crypto.ts` 工具模块：封装 jsencrypt 加密逻辑
+- platform-admin/ops-admin 登录页密码 RSA 加密后再传输
+- 用户新增/创建页面密码字段 RSA 加密传输
+- 两个前端项目新增 `jsencrypt` 依赖
+
+## 已完成 — Docker 初始化 & 运营后台修复（2026-05-29）
+
+### ✅ Docker 全量初始化
+- Docker Desktop 重置后重建全部 17 个容器
+- 修复 Nacos Derby 数据库损坏（清除 `nacos-data` 卷重建）
+- 修复 Flyway V16 迁移失败（`sys_oper_log` 表缺失，手动建表并标记成功）
+- 修复 `platform_message` 数据库权限（`platform` 用户授权）
+- 修复 MySQL 编码：`/etc/mysql/conf.d/my.cnf` 权限 777→644，`character_set_client/connection/results` 恢复 `utf8mb4`
+
+### ✅ 运营后台 500 超时修复
+- 根因：`flyway_schema_history` 表被 user 和 ops 模块共用，版本号重叠（V7-V10），导致 ops 的 V5/V8/V9/V10 迁移被跳过
+- 手动补列：`sys_tenant.tenant_type`、`sys_user.dept_id`/`post_id`、`sys_organization.short_name`/`full_name`/`legal_person` 等
+- 手动建表：`sys_storage_config`、`sys_app`、`sys_tenant_app`
+- `TenantService.createAdmin()` 修复：添加 `params.put("userType", 1)`，创建的管理员正确标记为租户管理员
+- `TenantService.listAdmins()` 修复：URL 添加 `&userType=1` 过滤
+
+### ✅ 雪花算法改造（代码修改，待编译部署）
+- `V4__init_org_tables.sql`：`sys_dept`/`sys_post` 移除 `AUTO_INCREMENT`，种子数据去掉硬编码 `id`
+- `Menu.java`：`@TableId` → `@TableId(type = IdType.ASSIGN_ID)`
+- `Role.java`：`@TableId` → `@TableId(type = IdType.ASSIGN_ID)`
+- `OperLog.java(ops)`：新增 `@TableId(type = IdType.ASSIGN_ID)`
+- 数据库 `sys_dept`/`sys_post` 已手动建表并插入种子数据
 
 ## 待完成工作
 

@@ -2,6 +2,7 @@ package com.cloudhub.platform.auth.service;
 
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.util.JwtUtil;
+import com.cloudhub.platform.common.util.RsaUtil;
 import com.cloudhub.platform.auth.domain.vo.AuthVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -30,7 +30,17 @@ public class AuthService {
     private static final long SMS_CODE_EXPIRE_SECONDS = 300;
     private static final long TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600L;
 
-    public AuthVO loginByPassword(String username, String password) {
+    public AuthVO loginByPassword(String username, String encryptedPassword) {
+        // 解密前端传来的 RSA 加密密码
+        String password;
+        try {
+            password = RsaUtil.decrypt(encryptedPassword);
+        } catch (Exception e) {
+            log.warn("密码解密失败，可能未加密或加密方式错误: {}", e.getMessage());
+            // 兼容未加密的情况（开发阶段）
+            password = encryptedPassword;
+        }
+
         String url = userServiceUrl + "/user/internal/validate";
         Map<String, String> body = Map.of("username", username, "password", password);
         try {
@@ -43,7 +53,7 @@ public class AuthService {
             String userId = String.valueOf(userData.get("id"));
             Number tenantNum = (Number) userData.get("tenantId");
             Long tenantId = tenantNum != null ? tenantNum.longValue() : 0L;
-            return generateAuthVO(userId, tenantId);
+            return generateAuthVO(userId, tenantId, userData);
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
@@ -53,10 +63,19 @@ public class AuthService {
     }
 
     public void sendSmsCode(String mobile) {
-        String code = String.format("%06d", new Random().nextInt(999999));
+        // 频率限制：同一手机号每分钟最多1次
+        String rateLimitKey = SMS_CODE_PREFIX + "rate:" + mobile;
+        Boolean exists = redisTemplate.hasKey(rateLimitKey);
+        if (Boolean.TRUE.equals(exists)) {
+            throw new BizException("验证码发送过于频繁，请稍后再试");
+        }
+        // 使用 SecureRandom 替代 Random
+        String code = String.format("%06d", new java.security.SecureRandom().nextInt(999999));
         String key = SMS_CODE_PREFIX + mobile;
         redisTemplate.opsForValue().set(key, code, SMS_CODE_EXPIRE_SECONDS, TimeUnit.SECONDS);
-        log.info("[SMS Code] {} -> {}", mobile, code);
+        // 设置频率限制（60秒）
+        redisTemplate.opsForValue().set(rateLimitKey, "1", 60, TimeUnit.SECONDS);
+        log.info("[SMS Code] {} -> ****** (code sent)", mobile);
     }
 
     public AuthVO loginBySms(String mobile, String code) {
@@ -79,7 +98,7 @@ public class AuthService {
             String userId = String.valueOf(userData.get("id"));
             Number tenantNum = (Number) userData.get("tenantId");
             Long tenantId = tenantNum != null ? tenantNum.longValue() : 0L;
-            return generateAuthVO(userId, tenantId);
+            return generateAuthVO(userId, tenantId, userData);
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
@@ -117,15 +136,25 @@ public class AuthService {
     }
 
     private AuthVO generateAuthVO(String userId, Long tenantId) {
+        return generateAuthVO(userId, tenantId, null);
+    }
+
+    private AuthVO generateAuthVO(String userId, Long tenantId, Map<String, Object> userData) {
+        // 从 userData 中获取 userType
+        Integer userType = null;
+        if (userData != null && userData.get("userType") instanceof Number) {
+            userType = ((Number) userData.get("userType")).intValue();
+        }
         String token = JwtUtil.generate(userId, TOKEN_EXPIRE_SECONDS);
         if (tenantId != null && tenantId > 0) {
-            token = JwtUtil.generate(userId, "", tenantId, TOKEN_EXPIRE_SECONDS);
+            token = JwtUtil.generate(userId, "", tenantId, userType, TOKEN_EXPIRE_SECONDS);
         }
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
         AuthVO vo = new AuthVO();
         vo.setToken(token);
         vo.setExpireTime(expireTime);
         vo.setUserId(Long.parseLong(userId));
+        vo.setUser(userData);
         return vo;
     }
 }

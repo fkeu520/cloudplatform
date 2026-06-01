@@ -14,11 +14,16 @@ public interface MenuMapper extends BaseMapper<Menu> {
     @Select("SELECT * FROM sys_menu WHERE deleted = 0 AND status = 1 ORDER BY sort ASC")
     List<Menu> selectAllEnabled();
 
-    @Select("SELECT m.* FROM sys_menu m " +
+    @Select("(SELECT m.* FROM sys_menu m " +
             "LEFT JOIN sys_role_menu rm ON m.id = rm.menu_id " +
             "LEFT JOIN sys_user_role ur ON ur.role_id = rm.role_id " +
             "WHERE ur.user_id = #{userId} AND m.deleted = 0 AND m.status = 1 " +
-            "GROUP BY m.id ORDER BY m.sort ASC")
+            "GROUP BY m.id) " +
+            "UNION " +
+            "(SELECT m.* FROM sys_menu m " +
+            "INNER JOIN sys_user_menu um ON m.id = um.menu_id " +
+            "WHERE um.user_id = #{userId} AND m.deleted = 0 AND m.status = 1) " +
+            "ORDER BY sort ASC")
     List<Menu> selectByUserId(@Param("userId") Long userId);
 
     @Select("SELECT m.* FROM sys_menu m " +

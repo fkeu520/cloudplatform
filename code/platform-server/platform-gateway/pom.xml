@@ -81,6 +81,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Actuator（健康检查 / Docker healthcheck） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- SpringDoc OpenAPI WebFlux（Gateway 聚合 Swagger） -->
         <dependency>
             <groupId>org.springdoc</groupId>

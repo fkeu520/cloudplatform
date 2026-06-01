@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS sys_dept
 (
-    id              BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    id              BIGINT NOT NULL PRIMARY KEY COMMENT '主键ID',
     org_id          BIGINT NOT NULL COMMENT '所属组织ID',
     parent_id       BIGINT DEFAULT 0 COMMENT '父部门ID',
     name            VARCHAR(100) NOT NULL COMMENT '部门名称',
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS sys_dept
 
 CREATE TABLE IF NOT EXISTS sys_post
 (
-    id              BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    id              BIGINT NOT NULL PRIMARY KEY COMMENT '主键ID',
     org_id          BIGINT NOT NULL COMMENT '所属组织ID',
     dept_id         BIGINT COMMENT '所属部门ID',
     name            VARCHAR(100) NOT NULL COMMENT '岗位名称',
@@ -50,22 +50,22 @@ INSERT IGNORE INTO sys_organization (id, parent_id, name, code, type, short_name
 (2, 1, '总部', 'HEAD', 2, '总部', '云枢科技集团有限公司总部', 1),
 (3, 1, '华东分公司', 'EAST', 4, '华东分公司', '云枢科技集团有限公司华东分公司', 1);
 
-INSERT IGNORE INTO sys_dept (id, org_id, parent_id, name, code, sort, status) VALUES
-(1, 2, 0, '总经办', 'GM', 1, 1),
-(2, 2, 0, '人力资源部', 'HR', 2, 1),
-(3, 2, 0, '财务部', 'FIN', 3, 1),
-(4, 2, 0, '技术部', 'TECH', 4, 1),
-(5, 3, 0, '华东销售部', 'EAST_SALES', 1, 1),
-(6, 3, 0, '华东客服部', 'EAST_CS', 2, 1);
+INSERT IGNORE INTO sys_dept (org_id, parent_id, name, code, sort, status) VALUES
+(2, 0, '总经办', 'GM', 1, 1),
+(2, 0, '人力资源部', 'HR', 2, 1),
+(2, 0, '财务部', 'FIN', 3, 1),
+(2, 0, '技术部', 'TECH', 4, 1),
+(3, 0, '华东销售部', 'EAST_SALES', 1, 1),
+(3, 0, '华东客服部', 'EAST_CS', 2, 1);
 
-INSERT IGNORE INTO sys_post (id, org_id, dept_id, name, code, level, sort, status) VALUES
-(1, 2, 1, '总经理', 'GM', 'P10', 1, 1),
-(2, 2, 1, '副总经理', 'DGM', 'P9', 2, 1),
-(3, 2, 2, 'HR总监', 'HR_DIR', 'P8', 1, 1),
-(4, 2, 2, 'HR经理', 'HR_MGR', 'P6', 2, 1),
-(5, 2, 3, '财务总监', 'FIN_DIR', 'P8', 1, 1),
-(6, 2, 4, '技术总监', 'TECH_DIR', 'P8', 1, 1),
-(7, 2, 4, '架构师', 'ARCH', 'P7', 2, 1),
-(8, 2, 4, '开发工程师', 'DEV', 'P5', 3, 1),
-(9, 3, 5, '区域销售经理', 'SALES_MGR', 'P6', 1, 1),
-(10, 3, 6, '客服代表', 'CS', 'P3', 1, 1);
+INSERT IGNORE INTO sys_post (org_id, name, code, level, sort, status) VALUES
+(2, '总经理', 'GM', 'P10', 1, 1),
+(2, '副总经理', 'DGM', 'P9', 2, 1),
+(2, 'HR总监', 'HR_DIR', 'P8', 1, 1),
+(2, 'HR经理', 'HR_MGR', 'P6', 2, 1),
+(2, '财务总监', 'FIN_DIR', 'P8', 1, 1),
+(2, '技术总监', 'TECH_DIR', 'P8', 1, 1),
+(2, '架构师', 'ARCH', 'P7', 2, 1),
+(2, '开发工程师', 'DEV', 'P5', 3, 1),
+(3, '区域销售经理', 'SALES_MGR', 'P6', 1, 1),
+(3, '客服代表', 'CS', 'P3', 1, 1);

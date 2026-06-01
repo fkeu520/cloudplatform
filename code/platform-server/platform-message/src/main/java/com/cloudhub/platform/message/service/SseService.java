@@ -37,12 +37,14 @@ public class SseService {
     }
 
     public void broadcast(String eventName, Object data) {
+        java.util.List<Long> failedKeys = new java.util.ArrayList<>();
         emitters.forEach((userId, emitter) -> {
             try {
                 emitter.send(SseEmitter.event().name(eventName).data(data));
             } catch (Exception e) {
-                emitters.remove(userId);
+                failedKeys.add(userId);
             }
         });
+        failedKeys.forEach(emitters::remove);
     }
 }

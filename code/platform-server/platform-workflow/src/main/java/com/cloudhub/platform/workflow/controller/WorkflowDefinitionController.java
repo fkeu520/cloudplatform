@@ -46,7 +46,7 @@ public class WorkflowDefinitionController {
     @PostMapping("/deploy")
     public Result<?> deploy(@RequestBody Map<String, String> params) {
         return Result.ok(workflowDefinitionService.deploy(
-                params.get("processName"), params.get("bpmnXml")));
+                params.get("processName"), params.get("processKey"), params.get("bpmnXml")));
     }
 
     @Operation(summary = "挂起流程定义")

@@ -323,7 +323,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (pollTimer) clearInterval(pollTimer)
-  if (sseSource) sseSource.close()
+  if (sseSource) {
+    sseSource.removeEventListener('workflow-notify', () => {})
+    sseSource.removeEventListener('site-notify', () => {})
+    sseSource.onerror = null
+    sseSource.close()
+    sseSource = null
+  }
 })
 </script>
 

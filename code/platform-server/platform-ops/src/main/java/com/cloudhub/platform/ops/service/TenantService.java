@@ -82,7 +82,8 @@ public class TenantService {
             restTemplate.postForEntity(userServiceUrl + "/org", orgReq, String.class);
             log.info("租户[{}]根组织已创建: {}", tenant.getId(), tenant.getTenantName());
         } catch (Exception e) {
-            log.warn("租户[{}]根组织创建失败: {}", tenant.getId(), e.getMessage());
+            log.error("租户[{}]根组织创建失败", tenant.getId(), e);
+            throw new BizException("根组织创建失败: " + e.getMessage());
         }
     }
 
@@ -113,7 +114,7 @@ public class TenantService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> listAdmins(Long tenantId, int pageNum, int pageSize) {
         try {
-            String url = userServiceUrl + "/user/page?tenantId=" + tenantId + "&pageNum=" + pageNum + "&pageSize=" + pageSize;
+            String url = userServiceUrl + "/user/page?tenantId=" + tenantId + "&userType=1&pageNum=" + pageNum + "&pageSize=" + pageSize;
             Map<String, Object> resp = restTemplate.getForObject(url, Map.class);
             if (resp != null && resp.containsKey("data")) {
                 return (Map<String, Object>) resp.get("data");
@@ -129,6 +130,7 @@ public class TenantService {
         if (tenant == null) throw new BizException("租户不存在");
         params.put("tenantId", tenantId);
         params.put("orgId", tenantId);
+        params.put("userType", 1);
         params.put("status", 1);
         try {
             restTemplate.postForEntity(userServiceUrl + "/user", params, String.class);

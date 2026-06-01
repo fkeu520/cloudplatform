@@ -17,10 +17,12 @@ import java.util.Map;
 @Slf4j
 public class JwtUtil {
 
-    /** 盐值（生产环境从配置中心读取） */
-    private static final String SECRET = "cloudhub-platform-secret-key-2024";
+    /** 盐值（从环境变量读取，fallback 为开发默认值） */
+    private static final String SECRET = System.getenv("JWT_SECRET") != null
+            ? System.getenv("JWT_SECRET")
+            : System.getProperty("jwt.secret", "cloudhub-platform-secret-key-2024-change-in-production");
 
-    /** HS256 密钥 */
+    /** HS256 密钥（至少 256 位） */
     private static final SecretKey KEY = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 
     /**
@@ -47,9 +49,9 @@ public class JwtUtil {
     }
 
     /**
-     * 生成 Token（含用户名、租户ID）
+     * 生成 Token（含用户名、租户ID、用户类型）
      */
-    public static String generate(String subject, String username, Long tenantId, long expireSec) {
+    public static String generate(String subject, String username, Long tenantId, Integer userType, long expireSec) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", subject);
         if (username != null) {
@@ -58,6 +60,9 @@ public class JwtUtil {
         if (tenantId != null) {
             claims.put("tenantId", tenantId);
         }
+        if (userType != null) {
+            claims.put("userType", userType);
+        }
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
@@ -65,6 +70,13 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + expireSec * 1000))
                 .signWith(KEY)
                 .compact();
+    }
+
+    /**
+     * 生成 Token（含用户名、租户ID）- 兼容旧调用
+     */
+    public static String generate(String subject, String username, Long tenantId, long expireSec) {
+        return generate(subject, username, tenantId, null, expireSec);
     }
 
     /**
@@ -116,7 +128,24 @@ public class JwtUtil {
      * @return 用户ID
      */
     public static String getUserId(String token) {
-        return parse(token).getSubject();
+        try {
+            if (token == null || token.isBlank()) return null;
+            return parse(token).getSubject();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 从 Token 获取用户类型
+     */
+    public static Integer getUserType(String token) {
+        try {
+            if (token == null || token.isBlank()) return null;
+            return parse(token).get("userType", Integer.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

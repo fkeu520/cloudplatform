@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @TableName("sys_menu")
 public class Menu {
 
-    @TableId
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
 
     /** 父菜单ID */

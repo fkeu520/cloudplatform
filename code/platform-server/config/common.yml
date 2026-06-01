@@ -37,7 +37,7 @@ mybatis-plus:
   type-aliases-package: com.cloudhub.platform.user.domain.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       id-type: assign_id
@@ -45,9 +45,9 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
-# JWT 配置
+# JWT 配置（生产环境请通过环境变量 JWT_SECRET 覆盖）
 jwt:
-  secret: cloudhub-platform-secret-key-2024
+  secret: ${JWT_SECRET:cloudhub-platform-secret-key-2024-change-in-production}
   expire-time: 604800  # 7天（秒）
 
 # 日志级别

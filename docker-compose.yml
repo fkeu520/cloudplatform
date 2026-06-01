@@ -87,18 +87,27 @@ services:
       NACOS_AUTH_ENABLE: false
       JVM_XMS: 512m
       JVM_XMX: 512m
+      # 使用 MySQL 替代 Derby
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_DB_NAME: platform_nacos
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_USER: platform
+      MYSQL_SERVICE_PASSWORD: platform123
     ports:
       - "8848:8848"
       - "9848:9848"
     volumes:
-      - nacos-data:/home/nacos/data
       - nacos-logs:/home/nacos/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/readiness"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8848/nacos/v1/console/health/readiness"]
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 40s
 
   # ============ MinIO ============
   minio:
@@ -313,6 +322,32 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # ============ API 网关 ============
+  platform-gateway:
+    build:
+      context: ./code/platform-server
+      dockerfile: Dockerfile.gateway
+    container_name: platform-gateway
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      - NACOS_SERVER_ADDR=nacos:8848
+      - REDIS_HOST=redis
+      - CORS_ORIGINS=http://localhost:8080,http://localhost:8090
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
+    depends_on:
+      nacos:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   # ============ 运营管理后端 ============
   platform-ops:

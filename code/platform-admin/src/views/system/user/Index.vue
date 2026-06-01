@@ -121,6 +121,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById } from '@/api/user'
 import { getRoleList } from '@/api/role'
+import { rsaEncrypt } from '@/api/crypto'
 import TableActions from '@/components/TableActions.vue'
 import type { User, UserPageVO } from '@/api/user'
 import type { Role } from '@/api/role'
@@ -287,7 +288,12 @@ async function handleSubmit() {
       loadData()
     }
   } else {
-    const res: any = await createUser(formData as User)
+    // 新增用户时加密密码
+    const submitData = { ...formData }
+    if (submitData.password) {
+      submitData.password = await rsaEncrypt(submitData.password)
+    }
+    const res: any = await createUser(submitData as User)
     if (res.code === 200) {
       ElMessage.success('创建成功')
       dialogVisible.value = false

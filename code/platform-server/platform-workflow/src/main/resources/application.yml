@@ -19,11 +19,12 @@ spring:
     username: platform
     password: platform123
 
-  redis:
-    host: localhost
-    port: 6379
-    database: 0
-    timeout: 10s
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 10s
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
@@ -40,7 +41,7 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.type.mapping: taskNotify:com.cloudhub.platform.workflow.notify.TaskNotifyMessage
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: com.cloudhub.platform.workflow
         max.poll.interval.ms: 5000
     topic:
       task-notify: task-notify
@@ -50,6 +51,7 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    validate-on-migrate: false
     table: flyway_schema_history_workflow
 
 flowable:
@@ -63,7 +65,7 @@ flowable:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 springdoc:
   api-docs:

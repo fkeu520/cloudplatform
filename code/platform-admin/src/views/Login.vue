@@ -42,6 +42,7 @@ import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import { useUserStore } from '@/stores/user'
+import { rsaEncrypt } from '@/api/crypto'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -63,7 +64,13 @@ const handleLogin = async () => {
 
   loading.value = true
   try {
-    const res: any = await request.post('/user/login', form)
+    // 使用 RSA 公钥加密密码
+    const encryptedPassword = await rsaEncrypt(form.password)
+    
+    const res: any = await request.post('/auth/login', {
+      username: form.username,
+      password: encryptedPassword
+    })
     const token = res.data?.token
     if (!token) {
       ElMessage.error('登录异常，未获取到Token')
@@ -75,6 +82,14 @@ const handleLogin = async () => {
     userStore.setToken(token)
     
     const userInfo = res.data?.user
+
+    // 运营管理员不能登录管理平台
+    if (userInfo && userInfo.userType === 2) {
+      ElMessage.error('运营管理员请登录运营后台')
+      localStorage.removeItem('token')
+      return
+    }
+
     if (userInfo) {
       localStorage.setItem('userId', String(userInfo.id || ''))
       userStore.setUserInfo(userInfo)

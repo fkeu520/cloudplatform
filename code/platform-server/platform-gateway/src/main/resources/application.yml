@@ -29,9 +29,9 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
       config:
-        server-addr: localhost:8848
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         enabled: false
 
     gateway:
@@ -44,100 +44,65 @@ spring:
         add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
-            allowed-origins: '*'
+            allowed-origins: ${CORS_ORIGINS:http://localhost:8080,http://localhost:8090}
             allowed-methods: '*'
             allowed-headers: '*'
             allow-credentials: false
             max-age: 3600
 
-      # 路由配置
+      # 路由配置（通过 Nacos 服务发现 lb:// 方式，适用于 Docker 和本地开发）
       routes:
-        # 用户中心 - 用户管理
+        # 用户中心
         - id: platform-user
-          uri: http://localhost:8081
+          uri: lb://platform-user
           predicates:
-            - Path=/user/**
+            - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
 
-        # 用户中心 - 角色管理
-        - id: platform-user-role
-          uri: http://localhost:8081
-          predicates:
-            - Path=/role/**
-
-        # 用户中心 - 菜单管理
-        - id: platform-user-menu
-          uri: http://localhost:8081
-          predicates:
-            - Path=/menu/**
-
-        # 用户中心 - 字典管理
-        - id: platform-user-dict-type
-          uri: http://localhost:8081
-          predicates:
-            - Path=/dict/**
-
-        # 用户中心 - 参数配置
-        - id: platform-user-config
-          uri: http://localhost:8081
-          predicates:
-            - Path=/config/**
-
-        # 用户中心 - 组织管理
-        - id: platform-user-org
-          uri: http://localhost:8081
-          predicates:
-            - Path=/org/**
-
-        # 认证中心（必须放 user 路由之后，否则 /auth/** 会被 /user/** 误匹配）
+        # 认证中心
         - id: platform-auth
-          uri: http://127.0.0.1:8082
+          uri: lb://platform-auth
           predicates:
             - Path=/auth/**
 
         # 运营管理服务
-        - id: platform-ops-tenant
-          uri: http://localhost:8087
+        - id: platform-ops
+          uri: lb://platform-ops
           predicates:
-            - Path=/tenant/**, /storage/**, /gateway-route/**, /audit/**, /app/**, /tenant-app/**
+            - Path=/tenant/**, /storage/**, /gateway-route/**, /audit/**, /app/**, /tenant-app/**, /ops/**, /ops-user/**
 
         # 流程中心
         - id: platform-workflow
-          uri: http://localhost:8084
+          uri: lb://platform-workflow
           predicates:
             - Path=/workflow/**
 
         # 消息中心
         - id: platform-message
-          uri: http://localhost:8085
+          uri: lb://platform-message
           predicates:
             - Path=/message/**
 
         # 网关自身管理接口
         - id: platform-gateway-self
-          uri: http://localhost:8083
+          uri: lb://platform-gateway
           predicates:
             - Path=/gateway/**
 
         # Swagger / API 文档
-        - id: platform-auth-api-docs
-          uri: http://127.0.0.1:8082
+        - id: platform-api-docs
+          uri: lb://platform-gateway
           predicates:
-            - Path=/auth/v3/api-docs
-
-        - id: platform-user-api-docs
-          uri: http://localhost:8081
-          predicates:
-            - Path=/user/v3/api-docs
-
-        - id: platform-swagger-ui
-          uri: http://localhost:8081
-          predicates:
-            - Path=/doc.html, /webjars/**, /swagger-ui/**, /v3/api-docs, /v3/api-docs/swagger-config
+            - Path=/v3/api-docs/**, /swagger-ui/**, /webjars/**, /doc.html
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       database: 0
       timeout: 10s
       lettuce:

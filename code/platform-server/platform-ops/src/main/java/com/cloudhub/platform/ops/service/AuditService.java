@@ -57,24 +57,28 @@ public class AuditService {
     }
 
     public Map<String, Object> searchElk(String keyword, String startTime, String endTime, int from, int size) {
+        RestClient client = null;
         try {
             String host = esUri.replace("http://", "").replace("https://", "");
             String scheme = esUri.startsWith("https") ? "https" : "http";
             int port = host.contains(":") ? Integer.parseInt(host.split(":")[1]) : 9200;
             host = host.split(":")[0];
 
-            RestClient client = RestClient.builder(new HttpHost(host, port, scheme)).build();
+            client = RestClient.builder(new HttpHost(host, port, scheme)).build();
+
+            // JSON 注入防护：对 keyword 进行转义
+            String safeKeyword = keyword != null ? escapeJson(keyword) : null;
 
             StringBuilder query = new StringBuilder();
             query.append("{\"query\":{\"bool\":{\"must\":[");
-            if (keyword != null && !keyword.isBlank()) {
-                query.append("{\"multi_match\":{\"query\":\"").append(keyword).append("\",\"fields\":[\"message\",\"level\",\"service\"]}}");
+            if (safeKeyword != null && !safeKeyword.isBlank()) {
+                query.append("{\"multi_match\":{\"query\":\"").append(safeKeyword).append("\",\"fields\":[\"message\",\"level\",\"service\"]}}");
             } else {
                 query.append("{\"match_all\":{}}");
             }
             if (startTime != null && endTime != null) {
-                    query.append(",{\"range\":{\"@timestamp\":{\"gte\":\"").append(startTime)
-                        .append("\",\"lte\":\"").append(endTime).append("\"}}}");
+                    query.append(",{\"range\":{\"@timestamp\":{\"gte\":\"").append(escapeJson(startTime))
+                        .append("\",\"lte\":\"").append(escapeJson(endTime)).append("\"}}}");
             }
             query.append("]}},\"from\":").append(from).append(",\"size\":").append(size)
                     .append(",\"sort\":[{\"@timestamp\":{\"order\":\"desc\"}}]}");
@@ -90,7 +94,6 @@ public class AuditService {
             try (Scanner scanner = new Scanner(response.getEntity().getContent())) {
                 result.put("body", scanner.useDelimiter("\\A").hasNext() ? scanner.next() : "{}");
             }
-            client.close();
             return result;
         } catch (IOException e) {
             log.warn("ELK查询失败: {}", e.getMessage());
@@ -98,6 +101,19 @@ public class AuditService {
             error.put("status", 500);
             error.put("error", "ELK查询失败: " + e.getMessage());
             return error;
+        } finally {
+            if (client != null) {
+                try { client.close(); } catch (IOException ignored) {}
+            }
         }
+    }
+
+    private String escapeJson(String str) {
+        if (str == null) return null;
+        return str.replace("\\", "\\\\")
+                  .replace("\"", "\\\"")
+                  .replace("\n", "\\n")
+                  .replace("\r", "\\r")
+                  .replace("\t", "\\t");
     }
 }

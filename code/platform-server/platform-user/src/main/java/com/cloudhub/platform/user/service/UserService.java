@@ -31,6 +31,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.cloudhub.platform.common.util.RsaUtil;
 import org.springframework.util.DigestUtils;
 
 import java.util.Arrays;
@@ -39,6 +40,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Slf4j
 @Service
@@ -68,7 +70,15 @@ public class UserService {
             saveLoginLog(null, username, 0, 0L, 0, "用户名或密码错误");
             throw new BizException("用户名或密码错误");
         }
-        String hashedPwd = md5(password);
+        // 解密 RSA 加密的密码
+        String rawPassword;
+        try {
+            rawPassword = RsaUtil.decrypt(password);
+        } catch (Exception e) {
+            log.warn("RSA解密失败, username={}", username, e);
+            throw new BizException("用户名或密码错误");
+        }
+        String hashedPwd = md5(rawPassword);
         if (!hashedPwd.equals(user.getPassword())) {
             saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId(user), 0, "密码错误");
             throw new BizException("用户名或密码错误");
@@ -79,7 +89,8 @@ public class UserService {
         }
 
         Long tenantId = user.getTenantId() != null ? user.getTenantId().longValue() : 0L;
-        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, TOKEN_EXPIRE_SECONDS);
+        Integer userType = user.getUserType();
+        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, userType, TOKEN_EXPIRE_SECONDS);
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
 
         // 更新最后登录信息
@@ -118,19 +129,26 @@ public class UserService {
 
     /**
      * 内部验证密码（供 auth 服务调用）
+     * 验证成功时同步记录登录日志
      */
     public UserVO validatePassword(String username, String password) {
         User user = userMapper.selectByUsername(username);
         if (user == null) {
+            saveLoginLog(null, username, 0, 0L, 0, "用户名或密码错误");
             throw new BizException("用户名或密码错误");
         }
         String hashedPwd = md5(password);
         if (!hashedPwd.equals(user.getPassword())) {
+            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId(user), 0, "密码错误");
             throw new BizException("用户名或密码错误");
         }
         if (user.getStatus() == 0) {
+            saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId(user), 0, "账号已禁用");
             throw new BizException("账号已被禁用，请联系管理员");
         }
+        // 登录成功，记录日志
+        Long tenantId = user.getTenantId() != null ? user.getTenantId().longValue() : 0L;
+        saveLoginLog(user.getId(), username, user.getUserType() != null ? user.getUserType() : 0, tenantId, 1, "登录成功");
         return toUserVO(user);
     }
 
