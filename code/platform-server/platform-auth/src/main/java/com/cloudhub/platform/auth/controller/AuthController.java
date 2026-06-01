@@ -1,6 +1,7 @@
 package com.cloudhub.platform.auth.controller;
 
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.common.util.RsaUtil;
 import com.cloudhub.platform.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,12 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
+    @Operation(summary = "获取RSA公钥（前端加密密码用）")
+    @GetMapping("/public-key")
+    public Result<Map<String, String>> publicKey() {
+        return Result.ok(Map.of("publicKey", RsaUtil.getPublicKey()));
+    }
 
     @Operation(summary = "账号密码登录")
     @PostMapping("/login")

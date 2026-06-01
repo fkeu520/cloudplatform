@@ -211,7 +211,8 @@ services:
       - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_FLYWAY_ENABLED=false
+      - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
       - SPRING_DATA_REDIS_HOST=redis
@@ -240,7 +241,8 @@ services:
     ports:
       - "8085:8085"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_FLYWAY_ENABLED=false
+      - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
       - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
@@ -269,7 +271,8 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_FLYWAY_ENABLED=false
+      - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
       - SPRING_DATA_REDIS_HOST=redis
@@ -300,7 +303,8 @@ services:
       - "8084:8084"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_FLYWAY_ENABLED=false
+      - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
       - SPRING_DATA_REDIS_HOST=redis
@@ -359,7 +363,8 @@ services:
     ports:
       - "8087:8087"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      - SPRING_FLYWAY_ENABLED=false
+      - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
       - SPRING_DATA_REDIS_HOST=redis
