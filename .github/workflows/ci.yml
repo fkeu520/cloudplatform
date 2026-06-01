@@ -98,3 +98,65 @@ jobs:
           name: frontend-ops-dist
           path: code/platform-ops-admin/dist
           retention-days: 3
+
+  # =============================================
+  # Docker 镜像构建（仅 develop/master 分支）
+  # =============================================
+  docker:
+    needs: [backend, frontend-admin, frontend-ops]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download JARs
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jars
+          path: code/platform-server
+
+      - name: Download admin dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-admin-dist
+          path: code/platform-admin/dist
+
+      - name: Download ops dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-ops-dist
+          path: code/platform-ops-admin/dist
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Images
+        run: |
+          # 后端 Dockerfile 映射
+          declare -A DF_MAP
+          DF_MAP[platform-user]=Dockerfile
+          DF_MAP[platform-auth]=Dockerfile.auth
+          DF_MAP[platform-gateway]=Dockerfile.gateway
+          DF_MAP[platform-workflow]=Dockerfile.workflow
+          DF_MAP[platform-message]=Dockerfile.message
+          DF_MAP[platform-ops]=Dockerfile.ops
+
+          cd code/platform-server
+          for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops; do
+            img="ghcr.io/${{ github.repository }}/${svc}:latest"
+            echo "Building $img"
+            docker build -f "${DF_MAP[$svc]}" -t $img .
+            docker push $img
+          done
+
+          # 前端镜像
+          for fe in platform-admin platform-ops-admin; do
+            img="ghcr.io/${{ github.repository }}/${fe}:latest"
+            echo "Building $img"
+            docker build -t $img ./code/$fe
+            docker push $img
+          done
