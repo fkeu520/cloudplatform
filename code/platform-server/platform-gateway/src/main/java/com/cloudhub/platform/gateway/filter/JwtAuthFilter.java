@@ -26,11 +26,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/auth/sms/send",
             "/auth/sms/login",
             "/auth/refresh",
+            "/auth/public-key",
+            "/message/sse",
             "/user/login",
             "/user/register",
-            "/actuator",
-            "/swagger",
-            "/v3/api-docs"
+            "/user/internal",
+            "/actuator/health"
     );
 
     @Override

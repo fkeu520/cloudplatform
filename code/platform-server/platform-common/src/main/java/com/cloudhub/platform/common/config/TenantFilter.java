@@ -5,11 +5,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+@Slf4j
 @Component
 public class TenantFilter extends OncePerRequestFilter {
 
@@ -20,10 +22,14 @@ public class TenantFilter extends OncePerRequestFilter {
             String auth = request.getHeader("Authorization");
             if (auth != null && auth.startsWith("Bearer ")) {
                 String token = auth.substring(7);
-                String userId = JwtUtil.getUserId(token);
-                Long tenantId = JwtUtil.getTenantId(token);
-                if (userId != null) TenantContextHolder.setUserId(Long.parseLong(userId));
-                if (tenantId != null) TenantContextHolder.setTenantId(tenantId);
+                try {
+                    String userId = JwtUtil.getUserId(token);
+                    Long tenantId = JwtUtil.getTenantId(token);
+                    if (userId != null) TenantContextHolder.setUserId(Long.parseLong(userId));
+                    if (tenantId != null) TenantContextHolder.setTenantId(tenantId);
+                } catch (Exception e) {
+                    log.warn("JWT token parsing failed: {}", e.getMessage());
+                }
             }
             chain.doFilter(request, response);
         } finally {

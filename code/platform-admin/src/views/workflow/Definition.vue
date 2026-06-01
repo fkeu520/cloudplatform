@@ -137,7 +137,7 @@ async function handleDeploySubmit() {
   if (!bpmnXml || bpmnXml === '<?xml') { ElMessage.warning('请先设计流程'); return }
   deployLoading.value = true
   try {
-    await deployDefinition({ processName: designForm.processName, bpmnXml })
+    await deployDefinition({ processName: designForm.processName, processKey: designForm.processKey, bpmnXml })
     ElMessage.success('部署成功')
     designVisible.value = false
     fetchData()

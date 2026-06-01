@@ -56,7 +56,14 @@ function formatTime(dt: any): string {
 
 function formatContent(content: string): string {
   if (!content) return ''
-  return content.replace(/\n/g, '<br/>')
+  // 先转义 HTML 特殊字符，防止 XSS
+  const escaped = content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+  return escaped.replace(/\n/g, '<br/>')
 }
 
 function goBack() {

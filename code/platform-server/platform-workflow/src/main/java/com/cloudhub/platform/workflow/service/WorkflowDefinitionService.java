@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.regex.Matcher;
 
 @Service
 @RequiredArgsConstructor
@@ -50,15 +51,29 @@ public class WorkflowDefinitionService {
     }
 
     @Transactional
-    public Map<String, Object> deploy(String processName, String bpmnXml) {
+    public Map<String, Object> deploy(String processName, String processKey, String bpmnXml) {
         if (StringUtils.isBlank(bpmnXml)) {
             throw new BizException("BPMN XML 不能为空");
         }
         String name = StringUtils.isNotBlank(processName) ? processName : "未命名流程";
+        String key = StringUtils.isNotBlank(processKey) ? processKey : null;
+        String finalXml = bpmnXml;
+        // 如果传入了 processKey，替换 XML 中的 process id 及 BPMNDiagram 引用
+        if (key != null) {
+            finalXml = bpmnXml.replaceAll(
+                "(<bpmn:process\\s+id=\")[^\"]+\"",
+                "$1" + Matcher.quoteReplacement(key) + "\""
+            );
+            // 同步更新 BPMNPlane 中的 bpmnElement 引用
+            finalXml = finalXml.replaceAll(
+                "(bpmnElement=\")" + "process" + "\"",
+                "$1" + Matcher.quoteReplacement(key) + "\""
+            );
+        }
         try {
             Deployment deployment = repositoryService.createDeployment()
                     .name(name)
-                    .addString(name + ".bpmn20.xml", bpmnXml)
+                    .addString(name + ".bpmn20.xml", finalXml)
                     .deploy();
             ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
                     .deploymentId(deployment.getId()).singleResult();

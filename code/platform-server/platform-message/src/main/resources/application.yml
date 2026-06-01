@@ -40,7 +40,7 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.type.mapping: messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: com.cloudhub.platform.message
     topic:
       message-send: message-send
       workflow-message: workflow-message

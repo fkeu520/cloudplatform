@@ -26,6 +26,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login } from '../api/auth'
+import { rsaEncrypt } from '../api/crypto'
 
 const router = useRouter()
 const formRef = ref()
@@ -41,7 +42,9 @@ async function handleLogin() {
   if (!valid) return
   loading.value = true
   try {
-    const res = await login({ username: form.username, password: form.password })
+    // 使用 RSA 公钥加密密码
+    const encryptedPassword = await rsaEncrypt(form.password)
+    const res = await login({ username: form.username, password: encryptedPassword })
     const data = res.data
     localStorage.setItem('token', data.token)
     localStorage.setItem('userId', String(data.userId || ''))

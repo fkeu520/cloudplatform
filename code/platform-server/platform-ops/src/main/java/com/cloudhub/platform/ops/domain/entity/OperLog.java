@@ -1,12 +1,13 @@
 package com.cloudhub.platform.ops.domain.entity;
 
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
 @TableName("sys_oper_log")
 public class OperLog {
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     private String title;
     private Integer businessType;

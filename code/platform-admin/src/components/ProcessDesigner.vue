@@ -229,12 +229,12 @@
           </div>
 
           <!-- Candidate Config -->
-          <div class="prop-section" v-if="selectedNode.type === 'approval'">
-            <div class="prop-section-header">
-              <el-icon><Setting /></el-icon>
-              <span class="prop-section-title">配置候选</span>
-            </div>
-            <div class="prop-field">
+            <div class="prop-section" v-if="selectedNode.type === 'approval'">
+              <div class="prop-section-header">
+                <el-icon><Setting /></el-icon>
+                <span class="prop-section-title">配置候选</span>
+              </div>
+              <div class="prop-field">
               <label class="prop-label">候选范围</label>
               <el-radio-group v-model="selectedNode.candidateScope" size="small">
                 <el-radio value="company">公司</el-radio>
@@ -931,11 +931,16 @@ function parseBpmnXml(xml: string) {
 
       const node: any = {
         id, type: bpmnType, label: name || getNodeTypeLabel(bpmnType),
-        x, y, description: '',
-        candidateScope: 'company', candidateType: 'personnel',
+        x, y,
+        description: el.getAttribute('flowable:description') || '',
+        candidateScope: el.getAttribute('flowable:candidateScope') || 'company',
+        candidateType: 'personnel',
         personnel: [], position: null,
-        defaultTarget: 'manual', approvalMode: 'single',
-        skipContinuous: false, eSignature: false
+        defaultTarget: el.getAttribute('flowable:defaultTarget') || 'manual',
+        approvalMode: el.getAttribute('flowable:approvalMode') || 'single',
+        skipContinuous: el.getAttribute('flowable:skipContinuous') === 'true',
+        eSignature: el.getAttribute('flowable:eSignature') === 'true',
+        calledElement: el.getAttribute('calledElement') || ''
       }
 
       if (bpmnType === 'approval') {
@@ -954,12 +959,14 @@ function parseBpmnXml(xml: string) {
             const tagName = (child as Element).localName || ''
             if (tagName === 'candidateUsers') {
               node.personnel = (child.textContent || '').split(',').map((s: string) => s.trim()).filter(Boolean)
+              node.candidateType = 'personnel'
             }
             if (tagName === 'candidateGroups') {
               const groupVal = (child.textContent || '').split(',').map((s: string) => s.trim()).filter(Boolean)
               const posId = groupVal.find((g: string) => g.startsWith('group_'))
               if (posId) node.position = parseInt(posId.replace('group_', ''))
               else node.position = parseInt(groupVal[0]) || null
+              node.candidateType = 'position'
             }
           }
         }
@@ -974,10 +981,19 @@ function parseBpmnXml(xml: string) {
       const el = processEl.children[i] as Element
       const tag = el.localName || el.tagName.split(':').pop() || ''
       if (tag !== 'sequenceFlow') continue
+      let conditionExpr = ''
+      for (let ci = 0; ci < el.childNodes.length; ci++) {
+        const c = el.childNodes[ci]
+        if (c.nodeType === 1 && (c as Element).localName === 'conditionExpression') {
+          conditionExpr = (c as Element).textContent || ''
+          break
+        }
+      }
       parsedConns.push({
         id: el.getAttribute('id') || '',
         from: el.getAttribute('sourceRef') || '',
-        to: el.getAttribute('targetRef') || ''
+        to: el.getAttribute('targetRef') || '',
+        conditionExpr
       })
     }
 
@@ -1492,10 +1508,10 @@ function addNodeAfter(node: any, type: string) {
       id: 'conn_' + (++connIdCounter),
       from: node.id,
       to: newNode.id,
-      conditionExpr: '${condition}'
+      conditionExpr: '${true}'
     }]
     selectNode(newNode)
-    ElMessage.success(`已添加条件分支，请在连线属性中设置条件表达式`)
+    ElMessage.success(`已添加条件分支，请在连线属性中设置条件表达式（默认 ${true}）`)
     return
   }
 
@@ -1584,7 +1600,7 @@ function deleteSelectedNode() {
 function generateBpmnXml(): string {
   const lines: string[] = []
   lines.push('<?xml version="1.0" encoding="UTF-8"?>')
-  lines.push('<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="http://flowable.org/processdef">')
+  lines.push('<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://flowable.org/processdef">')
   lines.push('  <bpmn:process id="process" name="流程" isExecutable="true">')
 
   for (const node of nodes.value) {
@@ -1593,7 +1609,14 @@ function generateBpmnXml(): string {
     } else if (node.type === 'end') {
       lines.push(`    <bpmn:endEvent id="${node.id}" name="${node.label}" />`)
     } else if (node.type === 'approval') {
-      lines.push(`    <bpmn:userTask id="${node.id}" name="${node.label}" flowable:assignee="admin">`)
+      let attrs = `id="${node.id}" name="${node.label}"`
+      if (node.candidateScope) attrs += ` flowable:candidateScope="${node.candidateScope}"`
+      if (node.defaultTarget) attrs += ` flowable:defaultTarget="${node.defaultTarget}"`
+      if (node.approvalMode) attrs += ` flowable:approvalMode="${node.approvalMode}"`
+      if (node.skipContinuous) attrs += ` flowable:skipContinuous="true"`
+      if (node.eSignature) attrs += ` flowable:eSignature="true"`
+      if (node.description) attrs += ` flowable:description="${node.description}"`
+      lines.push(`    <bpmn:userTask ${attrs}>`)
       if (node.personnel?.length > 0 || node.position) {
         lines.push('      <bpmn:extensionElements>')
         if (node.personnel?.length > 0) {
@@ -1618,7 +1641,7 @@ function generateBpmnXml(): string {
     let line = `    <bpmn:sequenceFlow id="${conn.id}" sourceRef="${conn.from}" targetRef="${conn.to}"`
     if (conn.conditionExpr) {
       line += `>
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${conn.conditionExpr}</bpmn:conditionExpression>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${escapeXml(conn.conditionExpr)}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>`
     } else {
       line += ' />'
@@ -1673,16 +1696,28 @@ function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (selectedConnection.value) {
       deleteConnection(selectedConnection.value)
-    } else if (selectedNode.value && selectedNode.value.id !== 'start') {
+    } else   if (selectedNode.value && selectedNode.value.id !== 'start') {
       deleteSelectedNode()
     }
   }
+}
+
+function escapeXml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 onMounted(async () => {
   saveHistory()
   await loadOrgTree()
   await loadAllData()
+  // 员工数据加载完成后，刷新已选人员的姓名显示
+  for (const node of nodes.value) {
+    if (node.type === 'approval' && node.personnel?.length > 0) {
+      node.personnelNames = node.personnel
+        .map((uid: string) => getUserName(uid))
+        .join(', ')
+    }
+  }
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mouseup', onMouseUp)
   document.addEventListener('keydown', onKeydown)

@@ -116,7 +116,8 @@ public class LogAspect {
             // 异常信息
             if (e != null) {
                 operLog.setStatus(1);
-                operLog.setErrorMsg(e.getMessage().length() > 2000 ? e.getMessage().substring(0, 2000) : e.getMessage());
+                String errorMsg = e.getMessage();
+                operLog.setErrorMsg(errorMsg != null ? (errorMsg.length() > 2000 ? errorMsg.substring(0, 2000) : errorMsg) : "未知异常");
             }
 
             // 保存日志

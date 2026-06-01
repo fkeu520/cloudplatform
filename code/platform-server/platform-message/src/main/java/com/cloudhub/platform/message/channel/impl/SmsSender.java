@@ -21,6 +21,10 @@ public class SmsSender implements ChannelSender {
 
     private final MessageChannelService messageChannelService;
 
+    // 缓存 Client 实例，配置变更时重建
+    private volatile Client cachedClient;
+    private volatile String cachedConfigJson;
+
     @Override
     public String channelCode() {
         return "sms";
@@ -34,11 +38,10 @@ public class SmsSender implements ChannelSender {
             return;
         }
         try {
-            Config aliyunConfig = new Config()
-                    .setAccessKeyId(config.getAccessKeyId())
-                    .setAccessKeySecret(config.getAccessKeySecret());
-            aliyunConfig.setEndpoint("dysmsapi.aliyuncs.com");
-            Client client = new Client(aliyunConfig);
+            Client client = getOrCreateClient(config);
+            if (client == null) {
+                throw new RuntimeException("短信客户端初始化失败");
+            }
 
             SendSmsRequest request = new SendSmsRequest()
                     .setPhoneNumbers(record.getReceiverAddress())
@@ -60,6 +63,30 @@ public class SmsSender implements ChannelSender {
         } catch (Exception e) {
             log.error("[短信] 发送异常 phone={}", record.getReceiverAddress(), e);
             throw new RuntimeException("短信发送异常: " + e.getMessage());
+        }
+    }
+
+    private Client getOrCreateClient(SmsConfig config) {
+        try {
+            String configJson = JSON.toJSONString(config);
+            if (cachedClient != null && configJson.equals(cachedConfigJson)) {
+                return cachedClient;
+            }
+            synchronized (this) {
+                if (cachedClient != null && configJson.equals(cachedConfigJson)) {
+                    return cachedClient;
+                }
+                Config aliyunConfig = new Config()
+                        .setAccessKeyId(config.getAccessKeyId())
+                        .setAccessKeySecret(config.getAccessKeySecret());
+                aliyunConfig.setEndpoint("dysmsapi.aliyuncs.com");
+                cachedClient = new Client(aliyunConfig);
+                cachedConfigJson = configJson;
+                return cachedClient;
+            }
+        } catch (Exception e) {
+            log.error("[短信] 创建客户端失败", e);
+            return null;
         }
     }
 

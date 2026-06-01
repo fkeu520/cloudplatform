@@ -14,6 +14,15 @@
         <el-table-column label="创建时间" width="180">
           <template #default="{ row }">{{ formatDate(row.createTime) }}</template>
         </el-table-column>
+        <el-table-column label="办理人" width="160">
+          <template #default="{ row }">
+            <span v-if="row.assignee">{{ row.assignee }}</span>
+            <el-tag v-else-if="row.candidateUsers?.length" size="small" type="warning">
+              候选: {{ row.candidateUsers.join(', ') }}
+            </el-tag>
+            <span v-else style="color:#909399">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="priority" label="优先级" width="70" align="center" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">

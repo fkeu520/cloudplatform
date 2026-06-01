@@ -232,6 +232,7 @@ import { getOrgTree, createOrg, updateOrg, deleteOrg } from '@/api/org'
 import { getDeptTree, getDeptList, createDept, updateDept, deleteDept } from '@/api/dept'
 import { getPostByDeptId, createPost, updatePost, deletePost } from '@/api/post'
 import { getUserPage, createUser, updateUser } from '@/api/user'
+import { rsaEncrypt } from '@/api/crypto'
 
 const loading = ref(false)
 const userLoading = ref(false)
@@ -664,9 +665,11 @@ async function handleCreateSubmit() {
     ElMessage.error('用户名和密码不能为空')
     return
   }
+  // 加密密码
+  const encryptedPassword = await rsaEncrypt(createForm.password)
   const data: any = {
     username: createForm.username,
-    password: createForm.password,
+    password: encryptedPassword,
     nickname: createForm.nickname || undefined,
     mobile: createForm.mobile || undefined,
     email: createForm.email || undefined

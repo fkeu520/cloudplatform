@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.task.api.Task;
 import org.flowable.task.api.TaskInfo;
 import org.flowable.task.api.TaskQuery;
@@ -35,14 +36,48 @@ public class WorkflowTaskService {
         if (StringUtils.isBlank(userId)) {
             throw new BizException("用户ID不能为空");
         }
-        TaskQuery query = taskService.createTaskQuery().taskAssignee(userId).active();
+        // 查找该用户的待办：包括直接指定办理人的任务 + 候选任务
+        List<Task> tasks;
+        long total;
+        // 候选任务（未指定办理人，按候选人查询）
+        List<Task> candidateTasks = taskService.createTaskQuery().taskCandidateUser(userId).active()
+                .orderByTaskCreateTime().desc().list();
+        // 直接指定办理人的任务
+        List<Task> assignedTasks = taskService.createTaskQuery().taskAssignee(userId).active()
+                .orderByTaskCreateTime().desc().list();
+        // 合并去重
+        Set<String> seen = new HashSet<>();
+        tasks = new ArrayList<>();
+        for (Task t : candidateTasks) { seen.add(t.getId()); tasks.add(t); }
+        for (Task t : assignedTasks) { if (!seen.contains(t.getId())) tasks.add(t); }
+
+        // 按创建时间排序
+        tasks.sort((a, b) -> {
+            Date ca = a.getCreateTime(), cb = b.getCreateTime();
+            if (ca == null && cb == null) return 0;
+            if (ca == null) return 1;
+            if (cb == null) return -1;
+            return cb.compareTo(ca);
+        });
+
+        // 按流程名称过滤
         if (StringUtils.isNotBlank(processName)) {
-            query.processDefinitionNameLike("%" + processName + "%");
+            tasks = tasks.stream()
+                    .filter(t -> {
+                        String pn = t.getProcessDefinitionId() != null ?
+                            historyService.createHistoricProcessInstanceQuery()
+                                .processInstanceId(t.getProcessInstanceId()).singleResult()
+                                .getProcessDefinitionName() : "";
+                        return pn.contains(processName);
+                    })
+                    .toList();
         }
-        long total = query.count();
-        List<Task> tasks = query.orderByTaskCreateTime().desc()
-                .listPage((pageNum - 1) * pageSize, pageSize);
-        return Map.of("records", tasks.stream().map(this::taskToMap).toList(),
+
+        total = tasks.size();
+        int from = (pageNum - 1) * pageSize;
+        int to = Math.min(from + pageSize, tasks.size());
+        List<Task> page = from < tasks.size() ? tasks.subList(from, to) : List.of();
+        return Map.of("records", page.stream().map(this::taskToMap).toList(),
                 "total", total, "size", pageSize, "current", pageNum);
     }
 
@@ -166,6 +201,17 @@ public class WorkflowTaskService {
         m.put("taskDefinitionKey", task.getTaskDefinitionKey());
         m.put("priority", task.getPriority());
         m.put("dueDate", task.getDueDate());
+        // 添加候选人信息
+        List<String> candidateUsers = new ArrayList<>();
+        if (task instanceof Task t) {
+            List<IdentityLink> links = taskService.getIdentityLinksForTask(t.getId());
+            for (IdentityLink link : links) {
+                if ("candidate".equals(link.getType()) && link.getUserId() != null) {
+                    candidateUsers.add(link.getUserId());
+                }
+            }
+        }
+        m.put("candidateUsers", candidateUsers);
         if (task instanceof HistoricTaskInstance hti) {
             m.put("endTime", hti.getEndTime());
             m.put("durationInMillis", hti.getDurationInMillis());

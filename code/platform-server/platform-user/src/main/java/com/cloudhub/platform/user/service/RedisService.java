@@ -119,12 +119,13 @@ public class RedisService {
     }
 
     /**
-     * 释放锁（必须判断 value 匹配才能释放，防止误删他人的锁）
+     * 释放锁（Lua 脚本保证原子性）
      */
     public void unlock(String key, String value) {
-        String current = get(key);
-        if (value.equals(current)) {
-            del(key);
-        }
+        String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+        org.springframework.data.redis.core.script.DefaultRedisScript<Long> redisScript = new org.springframework.data.redis.core.script.DefaultRedisScript<>();
+        redisScript.setScriptText(script);
+        redisScript.setResultType(Long.class);
+        redisTemplate.execute(redisScript, java.util.Collections.singletonList(key), value);
     }
 }

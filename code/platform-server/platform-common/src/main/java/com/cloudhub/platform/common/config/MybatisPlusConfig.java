@@ -25,7 +25,8 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         "sys_message_template", "sys_message_record",
         "sys_menu", "sys_role_menu", "sys_user_role", "sys_user_menu",
         "sys_dept", "sys_post", "sys_storage_config",
-        "sys_gateway_route", "sys_app"
+        "sys_gateway_route", "sys_app",
+        "sys_oper_log", "sys_login_log"
     );
 
     @Bean

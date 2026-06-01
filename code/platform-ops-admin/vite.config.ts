@@ -12,9 +12,11 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      // 统一走 API 网关（需先启动 Docker 中的 platform-gateway）
       '/api': {
-        target: 'http://localhost:8087',
-        changeOrigin: true
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
   }
