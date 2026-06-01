@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, master, feature/*]
+  pull_request:
+    branches: [develop, master]
+
+env:
+  MAVEN_OPTS: -Dmaven.test.skip=true
+
+jobs:
+  # =============================================
+  # 后端编译
+  # =============================================
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compile
+        run: |
+          cd code/platform-server
+          mvn clean package -DskipTests
+          
+      - name: Upload JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jars
+          path: |
+            code/platform-server/platform-user/target/*.jar
+            code/platform-server/platform-auth/target/*.jar
+            code/platform-server/platform-gateway/target/*.jar
+            code/platform-server/platform-workflow/target/*.jar
+            code/platform-server/platform-message/target/*.jar
+            code/platform-server/platform-ops/target/*.jar
+          retention-days: 3
+
+  # =============================================
+  # 前端编译（管理后台）
+  # =============================================
+  frontend-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: code/platform-admin/package-lock.json
+
+      - name: Build
+        run: |
+          cd code/platform-admin
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-admin-dist
+          path: code/platform-admin/dist
+          retention-days: 3
+
+  # =============================================
+  # 前端编译（运营后台）
+  # =============================================
+  frontend-ops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: code/platform-ops-admin/package-lock.json
+
+      - name: Build
+        run: |
+          cd code/platform-ops-admin
+          npm install
+          npm run build
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ops-dist
+          path: code/platform-ops-admin/dist
+          retention-days: 3
