@@ -94,8 +94,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     }
 
     private Mono<Void> unauthorized(ServerWebExchange exchange, String message) {
+        // P0 修复: 必须返回 setComplete() 的 Mono 才能把 401 状态码写入响应,
+        // 之前 return Mono.empty() 会导致 NettyWriteResponseFilter 兜底写 200 空响应,
+        // 前端拿到 HTTP 200 + Content-Length: 0 无法识别未鉴权状态。
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        exchange.getResponse().setComplete();
-        return Mono.empty();
+        return exchange.getResponse().setComplete();
     }
 }
