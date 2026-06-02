@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>填写意见</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;background:#F5F5F7;color:#1C1C1E;font-size:14px;-webkit-font-smoothing:antialiased}
+.page-wrap{max-width:430px;margin:0 auto;min-height:100vh;background:#fff}
+
+/* Header */
+.header{background:#fff;height:50px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid rgba(0,0,0,0.06);position:sticky;top:0;z-index:100}
+.back{font-size:24px;color:#007AFF;cursor:pointer;margin-right:12px}
+.header h1{font-size:17px;font-weight:600}
+
+/* Tags */
+.tags{padding:16px;display:flex;gap:10px;flex-wrap:wrap}
+.tag{padding:8px 20px;border-radius:20px;font-size:14px;border:1px solid #E5E5EA;background:#fff;cursor:pointer;transition:all 0.2s}
+.tag.selected{background:#007AFF;color:#fff;border-color:#007AFF}
+.tag:active{opacity:0.8}
+
+/* Textarea */
+.textarea-wrap{padding:0 16px}
+textarea{width:100%;height:180px;border:1px solid #E5E5EA;border-radius:12px;padding:14px;font-size:15px;font-family:inherit;resize:none;outline:none;line-height:1.6}
+textarea:focus{border-color:#007AFF}
+
+/* Hint */
+.hint{padding:12px 16px;font-size:12px;color:#8E8E93}
+
+/* Submit */
+.submit-wrap{padding:16px;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:430px;max-width:100%;background:#fff;border-top:1px solid rgba(0,0,0,0.06)}
+.submit-btn{width:100%;height:48px;background:#007AFF;color:#fff;border:none;border-radius:8px;font-size:17px;font-weight:600;cursor:pointer}
+.submit-btn:active{opacity:0.8}
+.submit-btn:disabled{background:#D1D1D6;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="header">
+    <span class="back" onclick="history.back()">‹</span>
+    <h1>填写意见</h1>
+  </div>
+
+  <div style="height:16px"></div>
+
+  <div class="tags">
+    <div class="tag" onclick="selectTag(this)">同意</div>
+    <div class="tag" onclick="selectTag(this)">驳回</div>
+    <div class="tag" onclick="selectTag(this)">已阅</div>
+    <div class="tag" onclick="selectTag(this)">需补充</div>
+    <div class="tag" onclick="selectTag(this)">转交</div>
+  </div>
+
+  <div class="textarea-wrap">
+    <textarea id="opinion" placeholder="请输入审批意见..."></textarea>
+  </div>
+
+  <div class="hint">选填，可输入不超过500字的审批意见</div>
+</div>
+
+<div class="submit-wrap">
+  <button class="submit-btn" onclick="submit()">提交</button>
+</div>
+
+<script>
+if (!localStorage.getItem('mo_user')) {
+  location.href = 'login_mo.html';
+}
+function selectTag(el) {
+  document.querySelectorAll('.tag').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('opinion').value = el.textContent + '：';
+}
+function submit() {
+  var opinion = document.getElementById('opinion').value.trim();
+  if (!opinion) {
+    alert('请填写审批意见');
+    return;
+  }
+  alert('提交成功');
+  location.href = 'workflow_mo.html';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>参数配置 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-box{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.search-box input,.search-box select{padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:13px}
+.search-box input:focus,.search-box select:focus{border-color:#007AFF}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.btn-danger{background:#FF3B30;color:#fff}
+.btn-danger:hover{background:#D63028}
+.btn-sm{padding:4px 10px;font-size:12px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid #E5E5E5}
+th{background:#FAFAFA;font-weight:500;color:#8E8E93;font-size:13px}
+tr:hover td{background:#F9F9FB}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-str{background:#E3F2FD;color:#007AFF}
+.badge-int{background:#E8F5E9;color:#34C759}
+.badge-bool{background:#FFF3E0;color:#FF9500}
+.badge-json{background:#F3E5F5;color:#9C27B0}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}
+.pagination .info{font-size:13px;color:#8E8E93}
+.pagination .pages{display:flex;gap:4px;align-items:center}
+.pagination .pages button{width:32px;height:32px;border:1px solid #E5E5E5;border-radius:6px;background:#fff;cursor:pointer;font-size:13px}
+.pagination .pages button:hover{background:#F5F5F7}
+.pagination .pages button.active{background:#007AFF;color:#fff;border-color:#007AFF}
+.pagination .pages button.disabled{opacity:0.4;cursor:not-allowed}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:520px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.form-row{margin-bottom:16px}
+.form-row label{display:block;font-size:13px;color:#515154;margin-bottom:6px;font-weight:500}
+.form-row input,.form-row select,.form-row textarea{width:100%;padding:10px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:14px}
+.form-row input:focus,.form-row select:focus{border-color:#007AFF}
+.form-row textarea{resize:vertical;min-height:100px;font-family:monospace;font-size:13px}
+.form-row .tip{font-size:11px;color:#8E8E93;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>参数配置</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">参数配置</div>
+<div class="card" style="padding:16px 20px">
+<div class="toolbar">
+<div class="search-box">
+<input type="text" id="searchName" placeholder="参数名称">
+<input type="text" id="searchKey" placeholder="参数键">
+<select id="searchType">
+<option value="">全部类型</option>
+<option value="str">字符串</option>
+<option value="int">数值</option>
+<option value="bool">布尔值</option>
+<option value="json">JSON</option>
+</select>
+<button class="btn btn-primary" onclick="searchConfig()">搜索</button>
+<button class="btn btn-default" onclick="resetSearch()">重置</button>
+</div>
+<button class="btn btn-primary" onclick="openAddModal()" style="margin-left:auto">+ 新增参数</button>
+</div>
+<div id="configTable"></div>
+<div class="pagination">
+<div class="info">共 <span id="totalCount">0</span> 条记录</div>
+<div class="pages" id="pagination"></div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="configModal">
+<div class="modal">
+<div class="modal-header">
+<h3 id="modalTitle">新增参数</h3>
+<button class="close" onclick="closeModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="configForm" onsubmit="return saveConfig()">
+<input type="hidden" id="configId">
+<div class="form-row">
+<label>参数名称 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="formName" required placeholder="请输入参数名称">
+</div>
+<div class="form-row">
+<label>参数键 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="formKey" required placeholder="如：system.name" style="font-family:monospace">
+</div>
+<div class="form-row">
+<label>参数值 <span style="color:#FF3B30">*</span></label>
+<textarea id="formValue" required placeholder="请输入参数值" style="font-family:monospace"></textarea>
+</div>
+<div class="form-row">
+<label>类型 <span style="color:#FF3B30">*</span></label>
+<select id="formType" required>
+<option value="str">字符串</option>
+<option value="int">数值</option>
+<option value="bool">布尔值</option>
+<option value="json">JSON</option>
+</select>
+</div>
+<div class="form-row">
+<label>备注</label>
+<input type="text" id="formRemark" placeholder="请输入备注信息">
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('configForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+<script>
+var mockConfigs=[
+{id:1,name:"系统名称",key:"system.name",value:"平台管理系统",type:"str",remark:"显示在标题栏",createTime:"2024-01-10"},
+{id:2,name:"系统Logo",key:"system.logo",value:"data:image/svg+xml;base64,...",type:"str",remark:"Base64编码",createTime:"2024-01-10"},
+{id:3,name:"会话超时",key:"system.session.timeout",value:"1800",type:"int",remark:"单位：秒",createTime:"2024-01-15"},
+{id:4,name:"密码最小长度",key:"system.password.minLength",value:"8",type:"int",remark:"密码策略",createTime:"2024-01-18"},
+{id:5,name:"登录失败锁定",key:"system.login.failLock",value:"true",type:"bool",remark:"连续失败5次锁定",createTime:"2024-02-01"},
+{id:6,name:"文件上传大小",key:"system.upload.maxSize",value:"10485760",type:"int",remark:"10MB",createTime:"2024-02-10"},
+{id:7,name:"允许的文件类型",key:"system.upload.allowTypes",value:'["jpg","png","pdf","docx"]',type:"json",remark:"允许上传的文件扩展名",createTime:"2024-02-10"},
+{id:8,name:"邮件服务器",key:"mail.smtp.host",value:"smtp.exmail.qq.com",type:"str",remark:"SMTP服务器地址",createTime:"2024-02-15"},
+{id:9,name:"邮件端口",key:"mail.smtp.port",value:"465",type:"int",remark:"SSL端口",createTime:"2024-02-15"},
+{id:10,name:"发件人邮箱",key:"mail.from.address",value:"noreply@example.com",type:"str",remark:"系统发件邮箱",createTime:"2024-02-15"},
+{id:11,name:"Token有效期",key:"jwt.expire",value:"86400",type:"int",remark:"24小时，单位秒",createTime:"2024-03-01"},
+{id:12,name:"刷新Token有效期",key:"jwt.refresh.expire",value:"604800",type:"int",remark:"7天，单位秒",createTime:"2024-03-01"},
+{id:13,name:"数据分页大小",key:"system.page.size",value:"20",type:"int",remark:"默认分页大小",createTime:"2024-03-10"},
+{id:14,name:"开启注册",key:"system.register.enabled",value:"false",type:"bool",remark:"是否允许用户自助注册",createTime:"2024-03-15"},
+{id:15,name:"缓存策略",key:"cache.config",value:'{"ttl":3600,"max":1000}',type:"json",remark:"缓存配置",createTime:"2024-04-01"}
+];
+var currentPage=1;
+var pageSize=10;
+var typeMap={str:"字符串",int:"数值",bool:"布尔值",json:"JSON"};
+var typeBadge={str:"badge-str",int:"badge-int",bool:"badge-bool",json:"badge-json"};
+function renderTable(page){
+var start=(page-1)*pageSize;
+var end=Math.min(start+pageSize,mockConfigs.length);
+var html='<table><thead><tr><th>参数名称</th><th>参数键</th><th>参数值</th><th>类型</th><th>备注</th><th>创建时间</th><th width="120">操作</th></tr></thead><tbody>';
+for(var i=start;i<end;i++){
+var c=mockConfigs[i];
+var displayValue=c.value.length>40?c.value.substring(0,40)+"...":c.value;
+html+='<tr>';
+html+='<td>'+c.name+'</td>';
+html+='<td style="font-family:monospace;font-size:12px;color:#5856D6">'+c.key+'</td>';
+html+='<td style="font-family:monospace;font-size:12px" title="'+c.value+'">'+displayValue+'</td>';
+html+='<td><span class="badge '+typeBadge[c.type]+'">'+typeMap[c.type]+'</span></td>';
+html+='<td>'+(c.remark||'-')+'</td>';
+html+='<td>'+c.createTime+'</td>';
+html+='<td><button class="btn btn-default btn-sm" onclick="editConfig('+c.id+')">编辑</button> <button class="btn btn-danger btn-sm" onclick="deleteConfig('+c.id+')">删除</button></td>';
+html+='</tr>';
+}
+html+='</tbody></table>';
+document.getElementById("configTable").innerHTML=html;
+document.getElementById("totalCount").textContent=mockConfigs.length;
+renderPagination();
+}
+function renderPagination(){
+var total=Math.ceil(mockConfigs.length/pageSize);
+var html='';
+html+='<button '+(currentPage==1?'class="disabled"':'')+' onclick="goPage('+(currentPage-1)+')">‹</button>';
+var start=Math.max(1,currentPage-2);
+var end=Math.min(total,currentPage+2);
+for(var i=start;i<=end;i++){
+html+='<button '+(i==currentPage?'class="active"':'')+' onclick="goPage('+i+')">'+i+'</button>';
+}
+html+='<button '+(currentPage==total?'class="disabled"':'')+' onclick="goPage('+(currentPage+1)+')">›</button>';
+document.getElementById("pagination").innerHTML=html;
+}
+function goPage(p){
+var total=Math.ceil(mockConfigs.length/pageSize);
+if(p<1||p>total)return;
+currentPage=p;
+renderTable(currentPage);
+}
+function searchConfig(){
+var name=document.getElementById("searchName").value;
+var key=document.getElementById("searchKey").value;
+console.log("搜索:",name,key);
+alert("演示模式：搜索功能已触发");
+}
+function resetSearch(){
+document.getElementById("searchName").value="";
+document.getElementById("searchKey").value="";
+document.getElementById("searchType").value="";
+renderTable(1);
+}
+function openAddModal(){
+document.getElementById("modalTitle").textContent="新增参数";
+document.getElementById("configForm").reset();
+document.getElementById("configId").value="";
+document.getElementById("configModal").classList.add("show");
+}
+function editConfig(id){
+var c=mockConfigs.find(function(x){return x.id==id;});
+if(!c)return;
+document.getElementById("modalTitle").textContent="编辑参数";
+document.getElementById("configId").value=id;
+document.getElementById("formName").value=c.name;
+document.getElementById("formKey").value=c.key;
+document.getElementById("formValue").value=c.value;
+document.getElementById("formType").value=c.type;
+document.getElementById("formRemark").value=c.remark||"";
+document.getElementById("configModal").classList.add("show");
+}
+function closeModal(){
+document.getElementById("configModal").classList.remove("show");
+}
+function saveConfig(){
+var id=document.getElementById("configId").value;
+var name=document.getElementById("formName").value;
+var key=document.getElementById("formKey").value;
+var value=document.getElementById("formValue").value;
+var type=document.getElementById("formType").value;
+var remark=document.getElementById("formRemark").value;
+if(id){
+var c=mockConfigs.find(function(x){return x.id==id;});
+if(c){c.name=name;c.key=key;c.value=value;c.type=type;c.remark=remark;}
+}else{
+var newId=mockConfigs.length>0?Math.max.apply(null,mockConfigs.map(function(x){return x.id;}))+1:1;
+mockConfigs.unshift({id:newId,name:name,key:key,value:value,type:type,remark:remark,createTime:new Date().toISOString().substring(0,10)});
+}
+closeModal();
+renderTable(1);
+}
+function deleteConfig(id){
+if(!confirm("确定要删除该参数吗？"))return;
+mockConfigs=mockConfigs.filter(function(c){return c.id!==id;});
+renderTable(currentPage);
+}
+renderTable(1);
+</script>
+</body>
+</html>

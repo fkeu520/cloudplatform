@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>角色管理 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+.layout{display:flex;min-height:600px}
+.left-panel{width:300px;border-right:1px solid #E5E5E5;padding:20px}
+.right-panel{flex:1;padding:20px;overflow-y:auto}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.btn-danger{background:#FF3B30;color:#fff}
+.btn-danger:hover{background:#D63028}
+.btn-sm{padding:4px 10px;font-size:12px}
+.role-card{padding:16px;border:1px solid #E5E5E5;border-radius:10px;margin-bottom:12px;cursor:pointer;transition:all 0.15s}
+.role-card:hover{border-color:#007AFF;box-shadow:0 2px 8px rgba(0,122,255,0.1)}
+.role-card.active{border-color:#007AFF;background:#F0F7FF}
+.role-card .name{font-size:15px;font-weight:600;margin-bottom:4px}
+.role-card .code{font-size:12px;color:#8E8E93;margin-bottom:8px}
+.role-card .footer{display:flex;justify-content:space-between;align-items:center}
+.role-card .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-active{background:#E8F5E9;color:#34C759}
+.badge-disabled{background:#F5F5F5;color:#8E8E93}
+.section-title{font-size:15px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #E5E5E5}
+.tree-item{margin-bottom:8px}
+.tree-item .item-row{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;cursor:pointer}
+.tree-item .item-row:hover{background:#F5F5F7}
+.tree-item .item-row.selected{background:#E8F0FE}
+.tree-item .item-row input[type="checkbox"]{width:16px;height:16px;accent-color:#007AFF}
+.tree-item .label{font-size:13px}
+.tree-item .children{padding-left:28px;margin-top:4px}
+.tree-node{display:flex;align-items:center;gap:6px;padding:6px 0}
+.tree-node input{margin-right:4px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.checkbox-item{display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;font-size:13px}
+.checkbox-item input{width:16px;height:16px;accent-color:#007AFF}
+.config-row{display:flex;gap:16px;margin-bottom:16px;align-items:center}
+.config-row label{font-size:13px;color:#515154;width:80px}
+.config-row select{flex:1;padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:480px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.form-row{margin-bottom:16px}
+.form-row label{display:block;font-size:13px;color:#515154;margin-bottom:6px;font-weight:500}
+.form-row input,.form-row textarea{width:100%;padding:10px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:14px}
+.form-row input:focus,.form-row textarea:focus{border-color:#007AFF}
+.form-row textarea{resize:vertical;min-height:80px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>角色管理</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">角色管理</div>
+<div class="card">
+<div class="layout">
+<div class="left-panel">
+<div style="margin-bottom:16px">
+<button class="btn btn-primary" onclick="openAddRole()" style="width:100%">+ 新增角色</button>
+</div>
+<div id="roleList"></div>
+</div>
+<div class="right-panel" id="permPanel">
+<div style="text-align:center;color:#8E8E93;padding:80px 0">
+<p style="font-size:48px;margin-bottom:16px">👈</p>
+<p>请选择左侧角色进行权限配置</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="roleModal">
+<div class="modal">
+<div class="modal-header">
+<h3 id="roleModalTitle">新增角色</h3>
+<button class="close" onclick="closeRoleModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="roleForm" onsubmit="return saveRole()">
+<input type="hidden" id="roleId">
+<div class="form-row">
+<label>角色名称 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="roleName" required placeholder="请输入角色名称">
+</div>
+<div class="form-row">
+<label>角色编码 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="roleCode" required placeholder="请输入角色编码，如：admin">
+</div>
+<div class="form-row">
+<label>描述</label>
+<textarea id="roleDesc" placeholder="请输入角色描述"></textarea>
+</div>
+<div class="form-row">
+<label>状态</label>
+<select id="roleStatus">
+<option value="1">启用</option>
+<option value="0">禁用</option>
+</select>
+</div>
+<div class="form-row">
+<label>排序</label>
+<input type="number" id="roleSort" value="0" placeholder="数值越小越靠前">
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeRoleModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('roleForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+<script>
+var mockRoles=[
+{id:1,name:"超级管理员",code:"super_admin",desc:"拥有系统所有权限",status:1,sort:1},
+{id:2,name:"系统管理员",code:"sys_admin",desc:"负责系统日常运维管理",status:1,sort:2},
+{id:3,name:"普通用户",code:"user",desc:"普通业务操作人员",status:1,sort:3},
+{id:4,name:"审计员",code:"auditor",desc:"查看系统操作日志和审计",status:1,sort:4},
+{id:5,name:"业务主管",code:"biz_manager",desc:"管理部门业务和数据",status:1,sort:5},
+{id:6,name:"访客",code:"guest",desc:"仅查看权限",status:0,sort:99}
+];
+var menuTree=[
+{name:"首页/工作台",children:[]},
+{name:"系统管理",children:[
+{name:"用户管理",children:[{name:"查看"},{name:"新增"},{name:"编辑"},{name:"删除"}]},
+{name:"角色管理",children:[{name:"查看"},{name:"新增"},{name:"编辑"},{name:"删除"}]},
+{name:"菜单管理",children:[{name:"查看"},{name:"新增"},{name:"编辑"},{name:"删除"}]},
+{name:"组织管理",children:[{name:"查看"},{name:"新增"},{name:"编辑"},{name:"删除"}]},
+{name:"字典管理",children:[{name:"查看"},{name:"新增"},{name:"编辑"},{name:"删除"}]},
+{name:"参数配置",children:[{name:"查看"},{name:"新增"},{name:"编辑"},{name:"删除"}]}
+]},
+{name:"数据看板",children:[]}
+];
+var currentRoleId=null;
+function renderRoles(){
+var html="";
+mockRoles.forEach(function(r){
+html+='<div class="role-card '+(r.id==currentRoleId?'active':'')+'" onclick="selectRole('+r.id+')">';
+html+='<div class="name">'+r.name+'</div>';
+html+='<div class="code">'+r.code+'</div>';
+html+='<div class="footer">';
+html+='<span class="badge '+(r.status==1?'badge-active':'badge-disabled')+'">'+(r.status==1?'启用':'禁用')+'</span>';
+html+='<div>';
+html+='<button class="btn btn-default btn-sm" onclick="event.stopPropagation();editRole('+r.id+')">编辑</button> ';
+html+='<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteRole('+r.id+')">删除</button>';
+html+='</div>';
+html+='</div>';
+html+='</div>';
+});
+document.getElementById("roleList").innerHTML=html;
+}
+function selectRole(id){
+currentRoleId=id;
+renderRoles();
+renderPermPanel();
+}
+function renderPermPanel(){
+var role=mockRoles.find(function(r){return r.id==currentRoleId;});
+if(!role){return;}
+var html='<div class="section-header"><div class="section-title">权限配置：'+role.name+'</div></div>';
+html+='<div style="margin-bottom:24px">';
+html+='<div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#515154">功能权限（菜单树）</div>';
+html+='<div style="padding:16px;background:#FAFAFA;border-radius:10px">';
+function renderTree(nodes,depth){
+var h='<div style="margin-left:'+(depth*16)+'px">';
+nodes.forEach(function(n){
+h+='<div class="tree-node">';
+h+='<input type="checkbox" id="perm_'+n.name.replace(/\s/g,"_")+'">';
+h+='<label for="perm_'+n.name.replace(/\s/g,"_")+'">'+n.name+'</label>';
+h+='</div>';
+if(n.children&&n.children.length>0){
+h+=renderTree(n.children,depth+1);
+}
+});
+h+='</div>';
+return h;
+}
+html+=renderTree(menuTree,0);
+html+='</div>';
+html+='</div>';
+html+='<div>';
+html+='<div style="font-size:14px;font-weight:600;margin-bottom:12px;color:#515154">数据权限（范围配置）</div>';
+html+='<div style="padding:16px;background:#FAFAFA;border-radius:10px">';
+html+='<div style="display:flex;flex-wrap:wrap;gap:16px">';
+html+='<label class="checkbox-item"><input type="checkbox" checked> 所有数据</label>';
+html+='<label class="checkbox-item"><input type="checkbox"> 本部门及下级</label>';
+html+='<label class="checkbox-item"><input type="checkbox"> 本部门</label>';
+html+='<label class="checkbox-item"><input type="checkbox"> 仅本人</label>';
+html+='<label class="checkbox-item"><input type="checkbox"> 自定义</label>';
+html+='</div>';
+html+='<div style="margin-top:16px">';
+html+='<label style="font-size:13px;color:#515154;margin-bottom:8px;display:block">自定义数据范围</label>';
+html+='<select style="width:200px;padding:8px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none">';
+html+='<option>选择组织...</option>';
+html+='<option>集团总部</option>';
+html+='<option>华东区</option>';
+html+='<option>华南区</option>';
+html+='</select>';
+html+='</div>';
+html+='</div>';
+html+='</div>';
+html+='<div style="margin-top:24px;display:flex;gap:12px;justify-content:flex-end">';
+html+='<button class="btn btn-default">重置</button>';
+html+='<button class="btn btn-primary" onclick="savePerm()">保存配置</button>';
+html+='</div>';
+document.getElementById("permPanel").innerHTML=html;
+}
+function openAddRole(){
+document.getElementById("roleModalTitle").textContent="新增角色";
+document.getElementById("roleForm").reset();
+document.getElementById("roleId").value="";
+document.getElementById("roleModal").classList.add("show");
+}
+function editRole(id){
+var r=mockRoles.find(function(x){return x.id==id;});
+if(!r)return;
+document.getElementById("roleModalTitle").textContent="编辑角色";
+document.getElementById("roleId").value=id;
+document.getElementById("roleName").value=r.name;
+document.getElementById("roleCode").value=r.code;
+document.getElementById("roleDesc").value=r.desc;
+document.getElementById("roleStatus").value=r.status;
+document.getElementById("roleSort").value=r.sort;
+document.getElementById("roleModal").classList.add("show");
+}
+function closeRoleModal(){
+document.getElementById("roleModal").classList.remove("show");
+}
+function saveRole(){
+closeRoleModal();
+alert("演示模式：角色保存成功");
+renderRoles();
+}
+function deleteRole(id){
+if(!confirm("确定要删除该角色吗？"))return;
+mockRoles=mockRoles.filter(function(r){return r.id!==id;});
+renderRoles();
+}
+function savePerm(){
+alert("演示模式：权限配置保存成功");
+}
+renderRoles();
+</script>
+</body>
+</html>

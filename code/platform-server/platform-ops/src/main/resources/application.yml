@@ -1,0 +1,91 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: platform-ops
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: platform
+    password: platform123
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 10s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  config:
+    import:
+      - optional:nacos:common.yml
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    validate-on-migrate: false
+    # 独立 schema_history 表,避免与 platform-user 的 flyway_schema_history 版本号冲突
+    table: flyway_schema_history_ops
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        enabled: true
+        # 启动时容忍 Nacos gRPC 客户端未就绪
+        fail-fast: false
+      config:
+        server-addr: localhost:8848
+        enabled: false
+
+  elasticsearch:
+    uris: http://localhost:9200
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.cloudhub.platform.ops.domain.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  # 雪花 ID 显式配置 (避免 MP 3.5.5 默认 (0,0) 导致多服务同集群碰撞)
+  snowflake:
+    worker-id: ${MYBATIS_PLUS_SNOWFLAKE_WORKER_ID:4}
+    datacenter-id: ${MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID:1}
+
+springdoc:
+  api-docs:
+    path: /ops/v3/api-docs
+
+knife4j:
+  enable: true
+  setting:
+    enable-swagger-models: true
+    enable-footer: false
+
+xxl:
+  job:
+    admin:
+      addresses: http://xxl-job-admin:8088/xxl-job-admin
+    accessToken: default_token
+    executor:
+      appname: platform-executor
+      port: 9999
+
+logging:
+  level:
+    com.cloudhub.platform: DEBUG

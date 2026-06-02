@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字典管理 - 平台管理系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",sans-serif;background:#F5F5F7;color:#1D1D1F;font-size:14px}
+.topbar{height:56px;background:#fff;border-bottom:1px solid #E5E5E5;display:flex;align-items:center;padding:0 24px;gap:8px}
+.topbar .crumb{color:#8E8E93;font-size:14px}
+.topbar .crumb span{color:#1D1D1F}
+.page-title{font-size:18px;font-weight:600;margin-bottom:20px;padding-top:20px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:16px;overflow:hidden}
+.layout{display:flex;min-height:600px}
+.left-panel{width:320px;border-right:1px solid #E5E5E5;padding:20px}
+.right-panel{flex:1;padding:20px;overflow-y:auto}
+.btn{padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s;border:none}
+.btn-primary{background:#007AFF;color:#fff}
+.btn-primary:hover{background:#0066DD}
+.btn-default{background:#fff;border:1px solid #E5E5E5;color:#1D1D1F}
+.btn-default:hover{background:#F5F5F7}
+.btn-danger{background:#FF3B30;color:#fff}
+.btn-danger:hover{background:#D63028}
+.btn-sm{padding:4px 10px;font-size:12px}
+.type-card{padding:14px 16px;border:1px solid #E5E5E5;border-radius:10px;margin-bottom:10px;cursor:pointer;transition:all 0.15s}
+.type-card:hover{border-color:#007AFF}
+.type-card.active{border-color:#007AFF;background:#F0F7FF}
+.type-card .name{font-size:14px;font-weight:600;margin-bottom:4px}
+.type-card .meta{font-size:12px;color:#8E8E93;display:flex;justify-content:space-between}
+.tag-area{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#F0F0F5;border-radius:8px;font-size:13px;cursor:pointer;transition:all 0.15s}
+.tag:hover{background:#E0E0E5}
+.tag .del{font-size:14px;color:#8E8E93;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.tag .del:hover{background:#FF3B30;color:#fff}
+.tag-edit{background:#E8F0FE;color:#007AFF}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.section-title{font-size:15px;font-weight:600}
+.form-row{margin-bottom:16px}
+.form-row label{display:block;font-size:13px;color:#515154;margin-bottom:6px;font-weight:500}
+.form-row input,.form-row textarea{width:100%;padding:10px 12px;border:1px solid #E5E5E5;border-radius:8px;outline:none;font-size:14px}
+.form-row input:focus,.form-row textarea:focus{border-color:#007AFF}
+.form-row textarea{resize:vertical;min-height:80px}
+.form-row .row{display:flex;gap:16px}
+.form-row .col{flex:1}
+.form-row .tip{font-size:11px;color:#8E8E93;margin-top:4px}
+.radio-group{display:flex;gap:20px}
+.radio-item{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px}
+.radio-item input{width:16px;height:16px;accent-color:#007AFF}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:480px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #E5E5E5}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-header .close{width:28px;height:28px;border-radius:50%;border:none;background:#F5F5F7;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-body{padding:24px;overflow-y:auto;flex:1}
+.modal-footer{padding:16px 24px;border-top:1px solid #E5E5E5;display:flex;justify-content:flex-end;gap:10px}
+.placeholder-panel{text-align:center;color:#8E8E93;padding:80px 0}
+.placeholder-panel p{font-size:48px;margin-bottom:16px}
+.empty-panel{text-align:center;color:#8E8E93;padding:60px 0}
+.empty-panel p{margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="topbar">
+<span class="crumb">系统管理 ▶ <span>字典管理</span></span>
+</div>
+<div style="padding:0 24px 24px">
+<div class="page-title">字典管理</div>
+<div class="card">
+<div class="layout">
+<div class="left-panel">
+<div style="margin-bottom:16px">
+<button class="btn btn-primary" onclick="openAddType()" style="width:100%">+ 新增字典类型</button>
+</div>
+<div id="typeList"></div>
+</div>
+<div class="right-panel" id="dataPanel">
+<div class="placeholder-panel">
+<p>📋</p>
+<p>请选择左侧字典类型查看数据</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="typeModal">
+<div class="modal">
+<div class="modal-header">
+<h3 id="typeModalTitle">新增字典类型</h3>
+<button class="close" onclick="closeTypeModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="typeForm" onsubmit="return saveType()">
+<input type="hidden" id="typeId">
+<div class="form-row">
+<label>类型名称 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="typeName" required placeholder="如：用户状态">
+</div>
+<div class="form-row">
+<label>类型编码 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="typeCode" required placeholder="如：user_status">
+</div>
+<div class="form-row">
+<label>描述</label>
+<textarea id="typeDesc" placeholder="请输入描述"></textarea>
+</div>
+<div class="form-row">
+<label>排序</label>
+<input type="number" id="typeSort" value="0" placeholder="数值越小越靠前">
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeTypeModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('typeForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+<div class="modal-overlay" id="dataModal">
+<div class="modal" style="width:400px">
+<div class="modal-header">
+<h3 id="dataModalTitle">新增字典数据</h3>
+<button class="close" onclick="closeDataModal()">×</button>
+</div>
+<div class="modal-body">
+<form id="dataForm" onsubmit="return saveData()">
+<input type="hidden" id="dataId">
+<div class="form-row">
+<label>标签 <span style="color:#FF3B30">*</span></label>
+<input type="text" id="dataLabel" required placeholder="如：启用">
+</div>
+<div class="form-row">
+<label>值</label>
+<input type="text" id="dataValue" placeholder="如：1">
+</div>
+<div class="form-row">
+<label>排序</label>
+<input type="number" id="dataSort" value="0" placeholder="数值越小越靠前">
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button class="btn btn-default" onclick="closeDataModal()">取消</button>
+<button class="btn btn-primary" onclick="document.getElementById('dataForm').requestSubmit()">保存</button>
+</div>
+</div>
+</div>
+<script>
+var mockTypes=[
+{id:1,name:"用户状态",code:"user_status",desc:"系统用户状态",sort:1,data:[
+{label:"正常",value:"1",sort:1},
+{label:"禁用",value:"0",sort:2},
+{label:"锁定",value:"2",sort:3},
+{label:"过期",value:"3",sort:4}
+]},
+{id:2,name:"性别",code:"gender",desc:"性别字典",sort:2,data:[
+{label:"男",value:"1",sort:1},
+{label:"女",value:"0",sort:2},
+{label:"未知",value:"2",sort:3}
+]},
+{id:3,name:"菜单类型",code:"menu_type",desc:"菜单类型字典",sort:3,data:[
+{label:"目录",value:"dir",sort:1},
+{label:"菜单",value:"menu",sort:2},
+{label:"按钮",value:"btn",sort:3}
+]},
+{id:4,name:"数据状态",code:"data_status",desc:"数据状态",sort:4,data:[
+{label:"有效",value:"1",sort:1},
+{label:"无效",value:"0",sort:2},
+{label:"删除",value:"-1",sort:3}
+]},
+{id:5,name:"通知类型",code:"notice_type",desc:"通知消息类型",sort:5,data:[
+{label:"系统通知",value:"system",sort:1},
+{label:"业务通知",value:"biz",sort:2},
+{label:"预警通知",value:"warning",sort:3},
+{label:"审核通知",value:"audit",sort:4}
+]},
+{id:6,name:"优先级",code:"priority",desc:"优先级字典",sort:6,data:[
+{label:"紧急",value:"urgent",sort:1},
+{label:"高",value:"high",sort:2},
+{label:"中",value:"medium",sort:3},
+{label:"低",value:"low",sort:4}
+]}
+];
+var currentTypeId=null;
+function renderTypes(){
+var html="";
+mockTypes.forEach(function(t){
+html+='<div class="type-card '+(t.id==currentTypeId?'active':'')+'" onclick="selectType('+t.id+')">';
+html+='<div class="name">'+t.name+'</div>';
+html+='<div class="meta"><span>'+t.code+'</span><span>'+t.data.length+' 条数据</span></div>';
+html+='</div>';
+});
+document.getElementById("typeList").innerHTML=html;
+}
+function selectType(id){
+currentTypeId=id;
+renderTypes();
+renderDataPanel();
+}
+function renderDataPanel(){
+var type=mockTypes.find(function(t){return t.id==currentTypeId;});
+if(!type){
+document.getElementById("dataPanel").innerHTML='<div class="placeholder-panel"><p>📋</p><p>请选择左侧字典类型查看数据</p></div>';
+return;
+}
+var html='<div class="section-header">';
+html+='<div class="section-title">'+type.name+' <span style="font-size:12px;color:#8E8E93;font-weight:normal">('+type.code+')</span></div>';
+html+='<button class="btn btn-primary btn-sm" onclick="openAddData()">+ 新增数据</button>';
+html+='</div>';
+if(type.data.length==0){
+html+='<div class="empty-panel"><p>📭</p><p>暂无数据</p></div>';
+}else{
+html+='<div class="tag-area">';
+type.data.forEach(function(d){
+html+='<div class="tag" ondblclick="editData('+d.sort+')">';
+html+='<span>'+d.label+'</span>';
+if(d.value) html+='<span style="font-size:11px;color:#8E8E93">:'+d.value+'</span>';
+html+='<span class="del" onclick="event.stopPropagation();deleteData('+d.sort+')">×</span>';
+html+='</div>';
+});
+html+='</div>';
+}
+document.getElementById("dataPanel").innerHTML=html;
+}
+function openAddType(){
+document.getElementById("typeModalTitle").textContent="新增字典类型";
+document.getElementById("typeForm").reset();
+document.getElementById("typeId").value="";
+document.getElementById("typeModal").classList.add("show");
+}
+function editType(id){
+var t=mockTypes.find(function(x){return x.id==id;});
+if(!t)return;
+document.getElementById("typeModalTitle").textContent="编辑字典类型";
+document.getElementById("typeId").value=id;
+document.getElementById("typeName").value=t.name;
+document.getElementById("typeCode").value=t.code;
+document.getElementById("typeDesc").value=t.desc||"";
+document.getElementById("typeSort").value=t.sort||0;
+document.getElementById("typeModal").classList.add("show");
+}
+function closeTypeModal(){
+document.getElementById("typeModal").classList.remove("show");
+}
+function saveType(){
+closeTypeModal();
+alert("演示模式：字典类型保存成功");
+renderTypes();
+}
+function deleteType(id){
+if(!confirm("确定要删除该字典类型吗？"))return;
+mockTypes=mockTypes.filter(function(t){return t.id!==id;});
+if(currentTypeId==id) currentTypeId=null;
+renderTypes();
+}
+function openAddData(){
+document.getElementById("dataModalTitle").textContent="新增字典数据";
+document.getElementById("dataForm").reset();
+document.getElementById("dataId").value="";
+document.getElementById("dataModal").classList.add("show");
+}
+function editData(index){
+console.log("编辑数据:",index);
+closeDataModal();
+}
+function closeDataModal(){
+document.getElementById("dataModal").classList.remove("show");
+}
+function saveData(){
+closeDataModal();
+alert("演示模式：字典数据保存成功");
+renderDataPanel();
+}
+function deleteData(index){
+mockTypes.forEach(function(t){
+if(t.id==currentTypeId){
+t.data=t.data.filter(function(d){return d.sort!==index;});
+}
+});
+renderDataPanel();
+}
+renderTypes();
+</script>
+</body>
+</html>

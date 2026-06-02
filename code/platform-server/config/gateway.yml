@@ -1,0 +1,48 @@
+# ================================================
+# 云枢中台 - 网关配置
+# platform-gateway 使用
+# ================================================
+
+spring:
+  cloud:
+    gateway:
+      # 全局 CORS
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins: '*'
+            allowed-methods: '*'
+            allowed-headers: '*'
+            allow-credentials: false
+            max-age: 3600
+
+      # 路由配置
+      routes:
+        # 用户中心
+        - id: platform-user
+          uri: lb://platform-user
+          predicates:
+            - Path=/user/**
+          filters:
+            - StripPrefix=1
+
+        # 认证中心
+        - id: platform-auth
+          uri: lb://platform-auth
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+  data:
+    redis:
+      host: platform-redis
+      port: 6379
+      database: 0
+      timeout: 10s
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.cloudhub.platform: DEBUG

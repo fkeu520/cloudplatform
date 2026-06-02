@@ -1,0 +1,36 @@
+# 从 ghcr.io 拉取预构建镜像（替代本地构建）
+# 配合 docker-compose.yml 使用：
+#   docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up -d
+
+services:
+  platform-user:
+    image: ghcr.io/fkeu520/cloudplatform/platform-user:latest
+    build: []
+
+  platform-auth:
+    image: ghcr.io/fkeu520/cloudplatform/platform-auth:latest
+    build: []
+
+  platform-gateway:
+    image: ghcr.io/fkeu520/cloudplatform/platform-gateway:latest
+    build: []
+
+  platform-workflow:
+    image: ghcr.io/fkeu520/cloudplatform/platform-workflow:latest
+    build: []
+
+  platform-message:
+    image: ghcr.io/fkeu520/cloudplatform/platform-message:latest
+    build: []
+
+  platform-ops:
+    image: ghcr.io/fkeu520/cloudplatform/platform-ops:latest
+    build: []
+
+  platform-admin:
+    image: ghcr.io/fkeu520/cloudplatform/platform-admin:latest
+    build: []
+
+  platform-ops-admin:
+    image: ghcr.io/fkeu520/cloudplatform/platform-ops-admin:latest
+    build: []

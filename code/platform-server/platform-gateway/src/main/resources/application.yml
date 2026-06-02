@@ -1,0 +1,120 @@
+server:
+  port: 8083
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+spring:
+  main:
+    web-application-type: reactive
+
+  http:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+  application:
+    name: platform-gateway
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springdoc.webmvc.autoconfigure.SpringDocWebMvcAutoConfiguration
+      - com.github.xiaoymin.knife4j.spring.configuration.Knife4jAutoConfiguration
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        # 启动时允许 Nacos gRPC 客户端未就绪,避免 Docker Desktop 重启时 Nacos 还在 STARTING
+        # 导致 "Failed to start bean 'webServerStartStop'" 网关无法启动
+        fail-fast: false
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        enabled: false
+
+    gateway:
+      # 使用 Apache HTTP Client（避免 Netty Connection refused 问题）
+      httpclient:
+        type: apache
+
+      # 全局 CORS 配置
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins: ${CORS_ORIGINS:http://localhost:8080,http://localhost:8090}
+            allowed-methods: '*'
+            allowed-headers: '*'
+            allow-credentials: false
+            max-age: 3600
+
+      # 路由配置（通过 Nacos 服务发现 lb:// 方式，适用于 Docker 和本地开发）
+      routes:
+        # 用户中心
+        - id: platform-user
+          uri: lb://platform-user
+          predicates:
+            - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**
+          filters:
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
+
+        # 认证中心
+        - id: platform-auth
+          uri: lb://platform-auth
+          predicates:
+            - Path=/auth/**
+
+        # 运营管理服务
+        - id: platform-ops
+          uri: lb://platform-ops
+          predicates:
+            - Path=/tenant/**, /storage/**, /gateway-route/**, /audit/**, /app/**, /tenant-app/**, /ops/**, /ops-user/**
+
+        # 流程中心
+        - id: platform-workflow
+          uri: lb://platform-workflow
+          predicates:
+            - Path=/workflow/**
+
+        # 消息中心
+        - id: platform-message
+          uri: lb://platform-message
+          predicates:
+            - Path=/message/**
+
+        # 网关自身管理接口
+        - id: platform-gateway-self
+          uri: lb://platform-gateway
+          predicates:
+            - Path=/gateway/**
+
+        # Swagger / API 文档
+        - id: platform-api-docs
+          uri: lb://platform-gateway
+          predicates:
+            - Path=/v3/api-docs/**, /swagger-ui/**, /webjars/**, /doc.html
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: 0
+      timeout: 10s
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.cloudhub.platform: DEBUG
