@@ -87,6 +87,7 @@
               :value="org.id"
             />
           </el-select>
+          <span v-if="isEdit && currentNames.orgName && !orgList.find(o => o.id === formData.orgId)" class="current-label">{{ currentNames.orgName }}</span>
         </el-form-item>
         <el-form-item label="部门">
           <el-select v-model="formData.deptId" placeholder="请选择部门" clearable filterable :disabled="!formData.orgId" @change="onDeptChange">
@@ -97,6 +98,7 @@
               :value="dept.id"
             />
           </el-select>
+          <span v-if="isEdit && currentNames.deptName && !deptList.find(d => d.id === formData.deptId)" class="current-label">{{ currentNames.deptName }}</span>
         </el-form-item>
         <el-form-item label="岗位">
           <el-select v-model="formData.postId" placeholder="请选择岗位" clearable filterable :disabled="!formData.deptId">
@@ -107,6 +109,7 @@
               :value="post.id"
             />
           </el-select>
+          <span v-if="isEdit && currentNames.postName && !postList.find(p => p.id === formData.postId)" class="current-label">{{ currentNames.postName }}</span>
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="formData.mobile" />
@@ -265,6 +268,12 @@ function resetForm() {
   currentNames.deptName = ''
   currentNames.postName = ''
   currentId.value = null
+}
+
+/** 清理当前值对应的选项列表（在异步加载前调，避免加载完覆盖） */
+function clearListsForCurrent() {
+  deptList.value = []
+  postList.value = []
 }
 
 // 组织/部门/岗位级联
