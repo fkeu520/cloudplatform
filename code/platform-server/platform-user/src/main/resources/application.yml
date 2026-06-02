@@ -40,6 +40,8 @@ spring:
       discovery:
         server-addr: localhost:8848
         enabled: true
+        # 启动时容忍 Nacos gRPC 客户端未就绪 (Docker Desktop 重启时常见问题)
+        fail-fast: false
       config:
         server-addr: localhost:8848
         enabled: false
@@ -56,6 +58,11 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+  # 雪花 ID 显式配置 (避免 MP 3.5.5 默认 (0,0) 导致多服务同集群碰撞)
+  # 多机部署时通过环境变量 MYBATIS_PLUS_SNOWFLAKE_WORKER_ID 覆盖 (0-31)
+  snowflake:
+    worker-id: ${MYBATIS_PLUS_SNOWFLAKE_WORKER_ID:1}
+    datacenter-id: ${MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID:1}
 
 springdoc:
   api-docs:
