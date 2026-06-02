@@ -1,8 +1,54 @@
 # 云枢中台 CI/CD 操作手册
 
-**版本**: v1.0  
-**日期**: 2026-06-01  
+**版本**: v1.1  
+**日期**: 2026-06-02  
 **仓库**: https://github.com/fkeu520/cloudplatform
+
+---
+
+## ⚠️ 强约束: 禁止本地构建镜像 (2026-06-02 新增)
+
+> **用户原话**: "以后不要在 docker desktop 上构建镜像, 都通过 github 构建。此点记录到记忆文件及项目相关的文档里, 切忌勿要再犯"
+
+**禁止操作** (Docker Desktop 镜像构建 10+ 分钟必超时):
+```powershell
+docker compose build              # ❌ 禁止
+docker build -t xxx .              # ❌ 禁止
+cd code/platform-server
+mvn clean package -DskipTests      # ❌ 禁止 (本地打 jar)
+cd ../..
+docker compose build               # ❌ 禁止
+```
+
+**正确路径** (代码 → ghcr.io → 本地 pull):
+```powershell
+# 1. 改代码
+# 2. 提交 (本仓库启用 pre-commit 密钥扫描 hook)
+git add .
+git commit -m "feat/fix: ..."
+git push github develop    # 触发 GitHub Actions CI
+git push origin develop    # 同步 Gitee
+
+# 3. 等 CI 完成 (5-10 分钟), 镜像自动 push ghcr.io
+#    验证: https://github.com/fkeu520/cloudplatform/actions
+
+# 4. 本地拉取 + 重启
+docker compose pull
+docker compose up -d
+
+# 5. 单独重启某个服务 (如 gateway 修复后)
+docker compose up -d platform-gateway
+```
+
+**为什么禁止本地构建**:
+- Docker Desktop WSL2 后端构建 Java/Spring Boot 镜像 10+ 分钟必超时
+- 资源抢占影响其他开发体验
+- ghcr.io 镜像已与 master/develop 分支绑定, 无需本地重建
+
+**记录位置**:
+- `C:\Users\PC\.claude\user-constraints.md` (跨会话用户约束)
+- `PROGRESS.md` v6.7
+- `doc/项目进度.md` v6.7
 
 ---
 
@@ -13,16 +59,16 @@
 ```
 代码 Push → GitHub Actions 触发
                  │
-        ┌────────┼────────┐
-        ▼        ▼        ▼
-    backend  frontend  frontend
-    (Maven)  -admin    -ops
+         ┌────────┼────────┐
+         ▼        ▼        ▼
+     backend  frontend  frontend
+     (Maven)  -admin    -ops
                (npm)    (npm)
-        │        │        │
-        └────────┼────────┘
-                 ▼
-            构建产物
-          (Artifacts)
+         │        │        │
+         └────────┼────────┘
+                  ▼
+             构建产物
+           (Artifacts)
 ```
 
 ### 流水线文件位置

@@ -1,7 +1,166 @@
-# 进度保存 - 2026-06-02 (v6.6)
+# 进度保存 - 2026-06-02 (v6.7)
 
 ## 总体状态
-雪花算法 ID 改造端到端部署完成。代码在 commit 22c094a 中,镜像已推 ghcr.io,容器运行新代码,API 创建 dept/post 验证雪花 ID 正常生成。修复了 sys_dept/sys_post 种子数据因无 AUTO_INCREMENT + INSERT IGNORE 导致 id=0 PK 冲突的问题。
+**Spring Cloud Gateway 鉴权 P0 bug 修复** 走通 GitHub Actions → ghcr.io → 本地 pull 全链路。同时切换 8 服务到 ghcr 镜像 (禁止本地构建)。Docker 环境从 `docker system prune -a --volumes` 全清状态下完整恢复 (16 镜像 + 23 sys_* + 47 act_*/flw_* + 12 nacos)。请假申请流程前端 + BPMN + API 全部就绪。
+
+---
+
+## v6.7 本轮新完成 (本轮)
+
+### 1. P0: Gateway 鉴权失败响应丢失修复 ✅
+
+**症状**: 经 gateway 8083 的所有需鉴权 API 返回 `HTTP/1.1 200 + Content-Length: 0`  
+**根因**: `JwtAuthFilter.unauthorized()` (line 96-100) `setComplete()` 是异步 fire-and-forget, `return Mono.empty()` 没有订阅者 → `NettyWriteResponseFilter` (-1 顺序) 兜底写默认 200 空响应。  
+**修复**: `return exchange.getResponse().setComplete();`  
+**历史**: 自 `22c094a` (5月) 起潜在生产 bug, 前端无法识别未鉴权状态, 所有 API 看起来"通了"但 body 空。
+
+**commit**: `b26622c fix(gateway): 修复 JWT 鉴权失败响应丢失`
+
+### 2. 强约束: 禁止本地构建镜像 ✅
+
+**用户原话** (2026-06-02): "以后不要在 docker desktop 上构建镜像, 都通过 github 构建。此点记录到记忆文件及项目相关的文档里, 切忌勿要再犯"
+
+**实现**:
+- 8 服务 `build:` → `image: ghcr.io/fkeu520/cloudplatform/platform-*:latest`
+- 记录到 `C:\Users\PC\.claude\user-constraints.md` (跨会话用户约束)
+- 记录到 `doc/CI_CD操作手册.md` §一 (强约束醒目提示)
+- 记录到 `PROGRESS.md` v6.7 (本节)
+- 记录到 `doc/项目进度.md` v6.7 (本节)
+
+**commit**: `5d6f9f7 chore(docker): 切换 8 服务至 ghcr.io 镜像`
+
+### 3. Docker 环境全量恢复 ✅
+
+**触发**: `docker system prune -a --volumes` 清空全部 16 镜像 + 6 volume (mysql/redis/kafka/nacos/minio/es)  
+**恢复步骤**:
+1. 16 镜像 `docker pull` 全部成功 (8 platform + 8 基础设施)
+2. MySQL 缺 2 DB → 手工建 `platform` (已存) / `platform_message` (已存) / `platform_nacos` (新建 + 导入 nacos 12 表)
+3. 修复 `platform` 用户权限 → `GRANT ALL ON *.* TO 'platform'@'%'` (新 DB 无授权)
+4. Flyway 20 SQL 手动执行 (`SPRING_FLYWAY_ENABLED=false`, 不能 auto) → 23 sys_* 表 + 初始数据
+5. workflow 服务启动后 flowable 自动建 41 ACT_* + 6 FLW_* 表
+
+**验证**:
+- 9 服务 healthy (8 platform + nacos), 1 个待恢复 (platform-message)
+- 雪花 ID 端到端仍正常 (`GET /workflow/definition/page` 返回 JSON)
+- 请假 BPMN `leave-approval` 部署成功 (`POST /workflow/definition/deploy` 返回 200)
+
+### 4. 请假申请流程恢复 ✅
+
+**前端已存在** (无需新写):
+- `code/platform-admin/src/views/workflow/Leave.vue` (607 行, onMounted 自动部署 BPMN)
+- `code/platform-admin/src/api/workflow.ts` (120 行, 完整 workflow API)
+- `code/platform-admin/src/router/index.ts:96-98` 路由引用
+
+**菜单已存在** (Flyway V12):
+- sys_menu id=47, path=`/workflow/leave`, component=`workflow/leave/index`, perms=`workflow:leave:apply`
+
+**BPMN 已部署**:
+- processKey=`leave-approval`, processName=`请假审批流程`
+- task 链: start → deptApproval (assignee=admin) → hrApproval (assignee=admin) → end
+- 通过 `POST /workflow/definition/deploy` 调用部署, 200 成功
+
+**前端 BPMN XML**: 硬编码在 Leave.vue 的 `LEAVE_BPMN` 常量, onMounted → ensureDeployed() 触发
+
+### 5. 修正方案: 不在 user 服新建 Leave 模块
+
+**原计划**: 在 platform-user 服新建 LeaveController/Mapper/Service/Entity/WorkflowClient + sys_leave 表 + gateway /leave/** 路由  
+**修正**: 前端 Leave.vue 已存在, **直接调 workflow 服 API** (`/workflow/instance/start` + `/workflow/definition/deploy`), 不依赖 user 服  
+**回滚**: 删除 5 个 user 服 Java 文件 + RestTemplateConfig + leave.bpmn20.xml + sys_leave 表 + gateway `/leave/**` 路由  
+**结论**: 流程状态/审批流转由 flowable `act_ru_task` / `act_ru_variable` 自然管理, 不需要额外业务表
+
+---
+
+## 遗留问题清单更新 (2026-06-02 v6.7)
+
+| ID | 项 | 优先级 | 工作量 | 阻塞场景 | 状态 (2026-06-02 v6.7) |
+|----|----|--------|-------|---------|------------------|
+| P1-1 | MyBatis-Plus workerId/datacenterId 未显式配置 | 🔴 P1 | 30 分钟 | 多机部署 / 高并发 | ✅ **已修复并验证** |
+| P1-2 | Flyway 共享表版本冲突 (user+ops 共用) | 🔴 P1 | 1-2 小时 | 启用 Flyway 自动迁移 | 🟡 **代码已就位** (Flyway 仍 disabled) |
+| P2-3 | Gateway Nacos 启动竞态 | 🟡 P2 | 30 分钟 | Docker Desktop 频繁重启 | ✅ **已修复并真场景验证** |
+| **P0-GW** | **Gateway JWT 鉴权失败响应丢失 (200+空 body)** | 🔴 P0 | 5 分钟 | **所有经 gateway 的 API** | ✅ **已修复并部署** (v6.7) |
+| P3-GH-1 | Docker healthcheck 启动早期撞 Broken pipe | 🟡 P3 | 30 分钟 | 首次 `docker compose up` | 🟡 间歇 (重 rest 解决) |
+| P3-5 | 旧表残留小 AUTO_INCREMENT ID | 🟢 P3 | — | 无 (可接受) | ⏭️ 跳过 |
+| P3-6 | 种子数据用固定 1900xxx 段 | 🟢 P3 | — | 无 (可接受) | ⏭️ 跳过 |
+
+### P0-GW 修复验证 ✅
+
+**改动**: `JwtAuthFilter.java` 1 行 + 4 行注释
+**部署路径** (强约束: 不本地构建):
+1. `git push` → GitHub Actions CI #13 触发
+2. CI 构建 `platform-gateway:latest` → push ghcr.io
+3. 本地 `docker pull ghcr.io/.../platform-gateway:latest`
+4. `docker compose up -d platform-gateway` 重启
+
+**验证方法**:
+```bash
+# 无 token (应返回 401)
+curl -i http://localhost:8083/workflow/definition/page?pageSize=10
+# 期望: HTTP/1.1 401 Unauthorized
+
+# 登录后带 token (应返回 200 + JSON)
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8083/workflow/definition/page?pageSize=10
+# 期望: HTTP/1.1 200, Content-Type: application/json, body 含 {"code":200,...}
+```
+
+---
+
+## 服务状态 (2026-06-02 v6.7 恢复后)
+
+| 服务 | 状态 | 端口 | 备注 |
+|------|------|------|------|
+| platform-user | ✅ healthy | 8081 | |
+| platform-gateway | ✅ healthy | 8083 | v6.7 修复后正常 (旧版仍空 body bug) |
+| platform-message | 🟡 unhealthy | 8085 | 反复起不来, 待重 rest |
+| platform-workflow | ✅ healthy | 8084 | BPMN 部署成功 |
+| platform-auth | ✅ healthy | 8082 | |
+| platform-ops | ✅ healthy | 8087 | |
+| platform-nacos | ✅ healthy | 8848/9848 | |
+| platform-admin | ✅ healthy | 8080 | 前端 |
+| platform-ops-admin | ✅ healthy | 8090 | 前端 |
+
+---
+
+## 部署命令 (v6.7 更新, 强约束: 不本地构建)
+
+```powershell
+$env:PATH = "C:\Program Files\Docker\Docker\resources\bin;$env:PATH"
+cd D:\work\AI\output\platform
+
+# 验证状态
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+
+# 拉取最新镜像 (代码改后: git push → CI → 自动 push ghcr → 这里 pull)
+docker compose pull
+
+# 重启服务
+docker compose up -d
+
+# 单独重启某个服务
+docker compose up -d platform-gateway
+
+# 查看日志
+docker logs -f platform-gateway
+
+# 验证修复
+curl.exe -i http://localhost:8083/workflow/definition/page?pageSize=10
+# 期望: HTTP/1.1 401 Unauthorized (无 token)
+```
+
+**❌ 禁止 (用户强约束)**:
+```powershell
+# 不要在本地构建镜像 (Docker Desktop 镜像构建 10+ 分钟超时)
+docker compose build
+docker build -t xxx .
+```
+
+**✅ 正确做法**:
+```powershell
+# 1. 改代码
+# 2. git add + commit + push (双平台)
+# 3. 等 GitHub Actions CI 构建 (5-10 分钟)
+# 4. 本地 pull + 重启
+docker compose pull && docker compose up -d
+```
 
 ---
 
@@ -223,7 +382,9 @@ mybatis-plus:
 
 ---
 
-## 部署命令 (供参考)
+## 部署命令 (供参考) — v6.7 更新
+
+> ⚠️ **强约束 (2026-06-02)**: 禁止本地 `mvn package` + `docker compose build`! Docker Desktop 镜像构建超过 10 分钟必超时, 必须走 GitHub Actions → ghcr.io → 本地 pull。
 
 ```powershell
 $env:PATH = "C:\Program Files\Docker\Docker\resources\bin;$env:PATH"
@@ -232,13 +393,22 @@ cd D:\work\AI\output\platform
 # 验证状态
 docker ps --format 'table {{.Names}}\t{{.Status}}'
 
-# 修复 gateway Nacos 启动问题
+# 代码改完后, 走 GitHub Actions 路径
+git add .
+git commit -m "feat/fix: ..."
+git push github develop     # 触发 CI 构建 + push ghcr
+git push origin develop     # 同步到 Gitee
+
+# 等 CI 完成 (5-10 分钟) 后, 拉取 + 重启
+docker compose pull
+docker compose up -d
+
+# 单独重启某个服务 (如 gateway 修复后)
+docker compose up -d platform-gateway
+
+# 修复 gateway Nacos 启动问题 (历史 workaround)
 docker restart platform-gateway
 
-# 重新构建 (代码改了才需要)
-cd code/platform-server
-mvn clean package -DskipTests
-cd ../..
-docker compose build platform-user platform-ops platform-auth platform-workflow platform-message
-docker compose up -d platform-user platform-ops platform-auth platform-workflow platform-message
+# 查看日志
+docker logs -f platform-gateway
 ```
