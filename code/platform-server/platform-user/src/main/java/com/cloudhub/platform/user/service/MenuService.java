@@ -70,11 +70,10 @@ public class MenuService {
 
         // 获取当前请求的租户ID（从JWT Token解析而来，TenantFilter 已注入）
         Long tenantId = TenantContextHolder.getTenantId();
-        // 获取该租户已授权的应用ID列表
-        List<Long> authorizedAppIds = Collections.emptyList();
-        if (tenantId != null) {
-            authorizedAppIds = menuMapper.selectAuthorizedAppIds(tenantId);
-        }
+        // 获取该租户已授权的应用ID列表（effectively final，lambda 安全）
+        List<Long> authorizedAppIds = (tenantId != null)
+                ? menuMapper.selectAuthorizedAppIds(tenantId)
+                : Collections.emptyList();
 
         if (userType == 1) {
             // 租户管理员：只返回该租户已授权应用的启用菜单
