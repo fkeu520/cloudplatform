@@ -168,6 +168,8 @@ const roleList = ref<Role[]>([])
 const orgList = ref<any[]>([])
 const deptList = ref<any[]>([])
 const postList = ref<any[]>([])
+// 存储当前选中的组织/部门/岗位名称（供 ensureInList 在不重新请求时也能用）
+const currentNames = reactive({ orgName: '', deptName: '', postName: '' })
 
 const searchForm = reactive({
   keyword: '',
@@ -259,10 +261,23 @@ function resetForm() {
   formData.roleIds = []
   deptList.value = []
   postList.value = []
+  currentNames.orgName = ''
+  currentNames.deptName = ''
+  currentNames.postName = ''
   currentId.value = null
 }
 
 // 组织/部门/岗位级联
+
+/** 确保某个值存在于选项列表中，若不存在则追加（防止 el-select 显示 ID 而非名称） */
+function ensureInList(list: any[], value: number | null | undefined, label: string | null | undefined) {
+  if (value != null && label) {
+    const exists = list.some((item: any) => item.id === value)
+    if (!exists) {
+      list.push({ id: value, name: label })
+    }
+  }
+}
 
 async function loadOrgTree() {
   const res: any = await getOrgTree()
@@ -296,6 +311,8 @@ async function loadDepts(orgId: number) {
   const res: any = await getDeptList(orgId)
   if (res.code === 200) {
     deptList.value = res.data || []
+    // loadDepts 完成后，确保当前 deptId 仍在列表中（API 可能不包含已选择的项）
+    ensureInList(deptList, formData.deptId, currentNames.deptName)
   }
 }
 
@@ -311,6 +328,7 @@ async function loadPosts(deptId: number) {
   const res: any = await getPostByDeptId(deptId)
   if (res.code === 200) {
     postList.value = res.data || []
+    ensureInList(postList, formData.postId, currentNames.postName)
   }
 }
 
@@ -340,9 +358,17 @@ async function handleEdit(row: UserPageVO) {
     formData.orgId = user.orgId ? Number(user.orgId) : null
     formData.deptId = user.deptId ? Number(user.deptId) : null
     formData.postId = user.postId ? Number(user.postId) : null
+    // 保存显示名称，供 ensureInList 在异步加载后使用
+    currentNames.orgName = user.orgName || ''
+    currentNames.deptName = user.deptName || ''
+    currentNames.postName = user.postName || ''
     // 后端 UserVO.roleIds 为 Long[]，JS 中为 string[]
     formData.roleIds = (user.roleIds as string[]) || []
-    // 回显时加载对应的部门和岗位列表
+    // 确保当前值存在于选项列表中（防止 API 返回的 ID 与选项列表不匹配）
+    ensureInList(orgList, formData.orgId, currentNames.orgName)
+    ensureInList(deptList, formData.deptId, currentNames.deptName)
+    ensureInList(postList, formData.postId, currentNames.postName)
+    // 加载级联列表
     if (user.orgId) {
       loadDepts(user.orgId)
     }
