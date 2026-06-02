@@ -101,10 +101,19 @@ public class MenuService {
     }
 
     /**
-     * 根据用户ID获取权限列表
+     * 根据用户ID获取权限列表（已过滤租户未授权应用的权限）
      */
     public List<String> getUserPermissions(Long userId) {
         List<Menu> menus = menuMapper.selectByUserId(userId);
+        Long tenantId = TenantContextHolder.getTenantId();
+        if (tenantId != null) {
+            List<Long> appIds = menuMapper.selectAuthorizedAppIds(tenantId);
+            if (!appIds.isEmpty()) {
+                menus = menus.stream()
+                        .filter(m -> m.getAppId() == null || appIds.contains(m.getAppId()))
+                        .collect(Collectors.toList());
+            }
+        }
         return menus.stream()
                 .filter(m -> m.getPerms() != null && !m.getPerms().isEmpty())
                 .map(Menu::getPerms)
