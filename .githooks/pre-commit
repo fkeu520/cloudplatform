@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Pre-commit hook: secret scanner
+# Blocks commits that contain known credential patterns
+# Installed via: git config core.hooksPath .githooks
+
+set -e
+
+# ANSI colors (if terminal)
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    GREEN='\033[0;32m'
+    NC='\033[0m'
+else
+    RED=''
+    YELLOW=''
+    GREEN=''
+    NC=''
+fi
+
+# Patterns to block
+# Format: "Name|Regex"
+PATTERNS=(
+    'GitHub Classic PAT|ghp_[A-Za-z0-9]{36}'
+    'GitHub Fine-grained PAT|github_pat_[A-Za-z0-9_]{82}'
+    'GitHub OAuth Token|gho_[A-Za-z0-9]{36}'
+    'GitHub App Token|(ghu|ghs)_[A-Za-z0-9]{36}'
+    'GitHub Refresh Token|ghr_[A-Za-z0-9]{36}'
+    'AWS Access Key|AKIA[0-9A-Z]{16}'
+    'AWS Secret Key|aws_secret_access_key[[:space:]]*=[[:space:]]*["'"'"']?[A-Za-z0-9/+=]{40}'
+    'Private Key|-----BEGIN[[:space:]]*(RSA|EC|OPENSSH|DSA|PGP)?[[:space:]]*PRIVATE[[:space:]]*KEY-----'
+    'Slack Token|xox[baprs]-[A-Za-z0-9-]{10,}'
+    'Google API Key|AIza[0-9A-Za-z_-]{35}'
+    'JWT (eyJ...)|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'
+)
+
+# Get staged files (added/copied/modified/renamed)
+mapfile -t STAGED < <(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
+
+if [ ${#STAGED[@]} -eq 0 ]; then
+    exit 0
+fi
+
+found=0
+hits=()
+
+for file in "${STAGED[@]}"; do
+    # Skip if file doesn't exist (deleted, etc.)
+    [ -f "$file" ] || continue
+
+    # Skip binary files
+    if file --mime "$file" 2>/dev/null | grep -q 'charset=binary'; then
+        continue
+    fi
+
+    for entry in "${PATTERNS[@]}"; do
+        name="${entry%%|*}"
+        pattern="${entry#*|}"
+
+        if grep -qE "$pattern" "$file" 2>/dev/null; then
+            # Get line number of first match
+            lineno=$(grep -nE "$pattern" "$file" 2>/dev/null | head -1 | cut -d: -f1)
+            hits+=("  ${RED}❌${NC} ${name} in ${YELLOW}${file}:${lineno}${NC}")
+            found=1
+        fi
+    done
+done
+
+if [ $found -eq 1 ]; then
+    echo ""
+    echo -e "${RED}╔═══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  COMMIT BLOCKED: Potential secrets detected               ║${NC}"
+    echo -e "${RED}╚═══════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo "Hits found:"
+    printf '%s\n' "${hits[@]}"
+    echo ""
+    echo -e "${YELLOW}How to fix:${NC}"
+    echo "  1. Remove the secret from the file"
+    echo "  2. If it's a false positive, refactor or add to allowlist"
+    echo "  3. If you really must commit (NOT recommended):"
+    echo "     git commit --no-verify"
+    echo ""
+    echo -e "${GREEN}Reference: doc/git-workflow.md §5 (PAT 事件教训)${NC}"
+    exit 1
+fi
+
+exit 0
