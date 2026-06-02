@@ -335,9 +335,11 @@ async function handleEdit(row: UserPageVO) {
     formData.email = user.email
     formData.gender = user.gender
     formData.status = user.status
-    formData.orgId = user.orgId ?? null
-    formData.deptId = user.deptId ?? null
-    formData.postId = user.postId ?? null
+    // JSON 中 Long 被 @JsonFormat(Shape.STRING) 序列化为字符串，
+    // el-select 的 :value 是 Number，需要转换类型才能匹配选项
+    formData.orgId = user.orgId ? Number(user.orgId) : null
+    formData.deptId = user.deptId ? Number(user.deptId) : null
+    formData.postId = user.postId ? Number(user.postId) : null
     // 后端 UserVO.roleIds 为 Long[]，JS 中为 string[]
     formData.roleIds = (user.roleIds as string[]) || []
     // 回显时加载对应的部门和岗位列表
