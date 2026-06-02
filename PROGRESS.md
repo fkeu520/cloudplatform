@@ -1,4 +1,4 @@
-# 进度保存 - 2026-06-02 (v6.5)
+# 进度保存 - 2026-06-02 (v6.6)
 
 ## 总体状态
 雪花算法 ID 改造端到端部署完成。代码在 commit 22c094a 中,镜像已推 ghcr.io,容器运行新代码,API 创建 dept/post 验证雪花 ID 正常生成。修复了 sys_dept/sys_post 种子数据因无 AUTO_INCREMENT + INSERT IGNORE 导致 id=0 PK 冲突的问题。
@@ -160,10 +160,41 @@ mybatis-plus:
 9. `doc/项目进度.md` - v6.2 → v6.4, 雪花 ID 段 + 遗留问题章节
 10. `PROGRESS.md` - v6.2 → v6.4, 遗留问题清单带状态
 
-## v6.5 修改 (待提交, 本轮新生成)
+## v6.5 修改 (已提交 c24f1cb / acb5dca)
 
 - `PROGRESS.md` - v6.4 → v6.5, P2-3 真场景验证 + 安全修复 + Gitee PR 章节
 - `doc/项目进度.md` - v6.4 → v6.5, 同步上述新增内容
+
+## v6.6 运维基础建设 (本轮新生成)
+
+### A.1 GitHub SSH 别名 ✅
+- 新增 `github` remote: `git@github.com:fkeu520/cloudplatform.git` (SSH, ed25519)
+- 保留 `origin` 双 pushurl (Gitee HTTPS + GitHub SSH)
+- 验证: `git fetch github` 成功 (4 new refs), `git remote -v` 正确显示
+
+### A.2 双平台工作流文档 ✅
+- 新增 `doc/git-workflow.md` (v1.0)
+- 内容:
+  - Remote 配置详解 (含多 pushurl 设计)
+  - 常见 git 操作命令 (推送/拉取/检查)
+  - 双平台 PR 流程 (gh CLI + Gitee REST API)
+  - **§5 安全教训**: 2026-06-02 PAT 事件复盘 (URL 嵌入 PAT / 文档复述 token / push protection)
+  - 同步策略 + master SHA 差异说明
+  - 附录: 新机器上手初始化步骤
+
+### A.3 Pre-commit Secret Scan Hook ✅
+- 新增 `.githooks/pre-commit` (bash 语法, 跨平台)
+- 拦截 patterns: GitHub PAT (5 种) / AWS (Access Key + Secret) / Private Key / Slack / Google API / JWT
+- 配置: `git config core.hooksPath .githooks` (本地)
+- 测试: 假 `ghp_ABCDEF...` 提交 → hook 拦下, exit code 1, 输出清晰错误 + 修复建议
+- 配合 doc §5 形成"工具 + 文档"双层防护
+
+### 提交策略 (本轮)
+- 新增 2 文件: `.githooks/pre-commit` + `doc/git-workflow.md`
+- 文档更新: `PROGRESS.md` + `doc/项目进度.md` 同步 v6.6
+- 计划拆 2 commit:
+  1. `chore: 运维配置 (github remote + secret scan hook)`
+  2. `docs: 更新至 v6.6 (A 阶段运维基础完成)`
 
 ## 数据库变更 (已执行)
 
