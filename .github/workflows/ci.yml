@@ -7,14 +7,35 @@ on:
     branches: [develop, master]
 
 env:
-  MAVEN_OPTS: -Dmaven.test.skip=true
+  MAVEN_OPTS: --no-transfer-progress
 
 jobs:
+  # =============================================
+  # 后端测试 (与编译并行)
+  # =============================================
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run unit tests
+        run: |
+          cd code/platform-server
+          mvn test -pl platform-user -am -Dsurefire.failIfNoSpecifiedTests=false
+
   # =============================================
   # 后端编译
   # =============================================
   backend:
     runs-on: ubuntu-latest
+    needs: [backend-test]
     steps:
       - uses: actions/checkout@v4
 
@@ -58,10 +79,15 @@ jobs:
           cache: npm
           cache-dependency-path: code/platform-admin/package-lock.json
 
-      - name: Build
+      - name: Install & Test
         run: |
           cd code/platform-admin
           npm install --legacy-peer-deps
+          npm run test
+
+      - name: Build
+        run: |
+          cd code/platform-admin
           npm run build
 
       - name: Upload dist

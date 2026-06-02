@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# Pre-push hook: run automated tests for changed modules
+# Blocks push if any test fails.
+# Installed via: git config core.hooksPath .githooks
+#
+# Performance: only runs tests for modules that actually changed,
+# so a frontend-only change won't trigger a 2-minute Maven build.
+
+set -e
+
+# ANSI colors
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[0;33m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    RED=''; GREEN=''; YELLOW=''; CYAN=''; NC=''
+fi
+
+# Project root (relative to repo root)
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+# ==================== Collect changed files ====================
+# Compare the local branch with the remote ref being pushed to
+# Stdin format: <local-ref> <local-sha1> <remote-ref> <remote-sha1>
+CHANGED_FILES=""
+while read local_ref local_sha remote_ref remote_sha; do
+    # Skip deletion pushes
+    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+        continue
+    fi
+    # If remote is empty (new branch), diff against HEAD~1
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null || git diff --name-only HEAD)
+    else
+        CHANGED_FILES=$(git diff --name-only "$remote_sha".."$local_sha" 2>/dev/null || true)
+    fi
+done
+
+# If no changes detected, fall back to last commit
+if [ -z "$CHANGED_FILES" ]; then
+    CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null || true)
+fi
+
+if [ -z "$CHANGED_FILES" ]; then
+    echo -e "${YELLOW}[pre-push]${NC} No changed files detected, skipping tests."
+    exit 0
+fi
+
+echo -e "${CYAN}╔══════════════════════════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║  PRE-PUSH: Running automated tests...                       ║${NC}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+HAS_ERRORS=0
+
+# ==================== Backend (Java/Maven) ====================
+JAVA_CHANGES=$(echo "$CHANGED_FILES" | grep -E '^code/platform-server/' || true)
+if [ -n "$JAVA_CHANGES" ]; then
+    # Determine which modules changed
+    CHANGED_MODULES=$(echo "$JAVA_CHANGES" | grep -oE 'platform-(user|ops|auth|gateway|message|workflow|common)' | sort -u)
+
+    if [ -n "$CHANGED_MODULES" ]; then
+        echo -e "${YELLOW}[pre-push]${NC} Backend modules changed: ${CHANGED_MODULES}"
+        for MODULE in $CHANGED_MODULES; do
+            # Check if the module has test source
+            TEST_DIR="code/platform-server/$MODULE/src/test"
+            if [ -d "$TEST_DIR" ] && [ "$(find "$TEST_DIR" -name '*Test.java' 2>/dev/null | head -1)" ]; then
+                echo -e "${CYAN}[pre-push]${NC} Running tests for ${MODULE}..."
+                cd "$PROJECT_ROOT/code/platform-server"
+                if [ "$MODULE" = "platform-user" ]; then
+                    # platform-user depends on platform-common, build both
+                    ./mvnw.cmd test -pl "$MODULE" -am "-Dsurefire.failIfNoSpecifiedTests=false" "--no-transfer-progress" -q 2>/dev/null
+                else
+                    ./mvnw.cmd test -pl "$MODULE" "-Dsurefire.failIfNoSpecifiedTests=false" "--no-transfer-progress" -q 2>/dev/null
+                fi
+                MAVEN_EXIT=$?
+                cd "$PROJECT_ROOT"
+                if [ $MAVEN_EXIT -ne 0 ]; then
+                    echo -e "${RED}[pre-push]❌ ${MODULE} tests FAILED${NC}"
+                    HAS_ERRORS=1
+                else
+                    echo -e "${GREEN}[pre-push]✅ ${MODULE} tests PASSED${NC}"
+                fi
+            else
+                echo -e "${YELLOW}[pre-push]${NC} No tests found for ${MODULE}, skipping."
+            fi
+        done
+    fi
+fi
+
+# ==================== Frontend (Vue/Vitest) ====================
+FRONTEND_CHANGES=$(echo "$CHANGED_FILES" | grep -E '^code/platform-admin/' || true)
+if [ -n "$FRONTEND_CHANGES" ]; then
+    FRONTEND_DIR="$PROJECT_ROOT/code/platform-admin"
+    if [ -f "$FRONTEND_DIR/package.json" ] && [ -d "$FRONTEND_DIR/src/__tests__" ]; then
+        echo -e "${CYAN}[pre-push]${NC} Running frontend tests..."
+        cd "$FRONTEND_DIR"
+        if [ -f "node_modules/.bin/vitest" ]; then
+            ./node_modules/.bin/vitest run 2>/dev/null
+            VITEST_EXIT=$?
+            cd "$PROJECT_ROOT"
+            if [ $VITEST_EXIT -ne 0 ]; then
+                echo -e "${RED}[pre-push]❌ Frontend tests FAILED${NC}"
+                HAS_ERRORS=1
+            else
+                echo -e "${GREEN}[pre-push]✅ Frontend tests PASSED${NC}"
+            fi
+        else
+            echo -e "${YELLOW}[pre-push]${NC} vitest not installed, running npm install first..."
+            npm install --silent 2>/dev/null
+            ./node_modules/.bin/vitest run 2>/dev/null
+            VITEST_EXIT=$?
+            cd "$PROJECT_ROOT"
+            if [ $VITEST_EXIT -ne 0 ]; then
+                echo -e "${RED}[pre-push]❌ Frontend tests FAILED${NC}"
+                HAS_ERRORS=1
+            else
+                echo -e "${GREEN}[pre-push]✅ Frontend tests PASSED${NC}"
+            fi
+        fi
+    else
+        echo -e "${YELLOW}[pre-push]${NC} No frontend tests found, skipping."
+    fi
+fi
+
+# ==================== Result ====================
+echo ""
+if [ $HAS_ERRORS -eq 1 ]; then
+    echo -e "${RED}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║  PUSH BLOCKED: Some tests failed.                          ║${NC}"
+    echo -e "${RED}║  Fix the failures and try again.                            ║${NC}"
+    echo -e "${RED}║  To bypass: git push --no-verify                             ║${NC}"
+    echo -e "${RED}╚══════════════════════════════════════════════════════════════╝${NC}"
+    exit 1
+else
+    echo -e "${GREEN}╔══════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║  All tests passed. Push proceeding.                        ║${NC}"
+    echo -e "${GREEN}╚══════════════════════════════════════════════════════════════╝${NC}"
+    exit 0
+fi
