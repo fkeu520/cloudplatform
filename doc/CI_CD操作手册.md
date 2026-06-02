@@ -240,6 +240,8 @@ develop       → 日常开发，推送自动触发 CI
 feature/*     → 功能分支，推送自动触发 CI
 ```
 
+> 本地 git 协作（双平台推送 / PR 创建 / 凭据管理 / 安全教训）见 [`doc/git-workflow.md`](git-workflow.md)
+
 ---
 
 ## 九、快速参考
