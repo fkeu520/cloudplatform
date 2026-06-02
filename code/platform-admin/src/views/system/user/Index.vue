@@ -78,6 +78,36 @@
         <el-form-item label="昵称">
           <el-input v-model="formData.nickname" />
         </el-form-item>
+        <el-form-item label="组织">
+          <el-select v-model="formData.orgId" placeholder="请选择组织" clearable filterable @change="onOrgChange">
+            <el-option
+              v-for="org in orgList"
+              :key="org.id"
+              :label="org.name"
+              :value="org.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="部门">
+          <el-select v-model="formData.deptId" placeholder="请选择部门" clearable filterable :disabled="!formData.orgId" @change="onDeptChange">
+            <el-option
+              v-for="dept in deptList"
+              :key="dept.id"
+              :label="dept.name"
+              :value="dept.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="岗位">
+          <el-select v-model="formData.postId" placeholder="请选择岗位" clearable filterable :disabled="!formData.deptId">
+            <el-option
+              v-for="post in postList"
+              :key="post.id"
+              :label="post.name"
+              :value="post.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="formData.mobile" />
         </el-form-item>
@@ -121,6 +151,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById } from '@/api/user'
 import { getRoleList } from '@/api/role'
+import { getOrgTree } from '@/api/org'
+import { getDeptList } from '@/api/dept'
+import { getPostByDeptId } from '@/api/post'
 import { rsaEncrypt } from '@/api/crypto'
 import TableActions from '@/components/TableActions.vue'
 import type { User, UserPageVO } from '@/api/user'
@@ -132,6 +165,9 @@ const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const roleList = ref<Role[]>([])
+const orgList = ref<any[]>([])
+const deptList = ref<any[]>([])
+const postList = ref<any[]>([])
 
 const searchForm = reactive({
   keyword: '',
@@ -151,6 +187,9 @@ const formData = reactive<Partial<User>>({
   mobile: '',
   email: '',
   gender: 0,
+  orgId: null,
+  deptId: null,
+  postId: null,
   status: 1,
   roleIds: []
 })
@@ -213,9 +252,66 @@ function resetForm() {
   formData.mobile = ''
   formData.email = ''
   formData.gender = 0
+  formData.orgId = null
+  formData.deptId = null
+  formData.postId = null
   formData.status = 1
   formData.roleIds = []
+  deptList.value = []
+  postList.value = []
   currentId.value = null
+}
+
+// 组织/部门/岗位级联
+
+async function loadOrgTree() {
+  const res: any = await getOrgTree()
+  if (res.code === 200) {
+    // 展平树结构为列表（el-select 用）
+    function flatten(list: any[], result: any[]) {
+      for (const item of list) {
+        result.push({ id: item.id, name: item.name })
+        if (item.children && item.children.length > 0) {
+          flatten(item.children, result)
+        }
+      }
+    }
+    const flat: any[] = []
+    flatten(res.data || [], flat)
+    orgList.value = flat
+  }
+}
+
+async function onOrgChange(orgId: number | null | undefined) {
+  formData.deptId = null
+  formData.postId = null
+  deptList.value = []
+  postList.value = []
+  if (orgId) {
+    loadDepts(orgId)
+  }
+}
+
+async function loadDepts(orgId: number) {
+  const res: any = await getDeptList(orgId)
+  if (res.code === 200) {
+    deptList.value = res.data || []
+  }
+}
+
+async function onDeptChange(deptId: number | null | undefined) {
+  formData.postId = null
+  postList.value = []
+  if (deptId) {
+    loadPosts(deptId)
+  }
+}
+
+async function loadPosts(deptId: number) {
+  const res: any = await getPostByDeptId(deptId)
+  if (res.code === 200) {
+    postList.value = res.data || []
+  }
 }
 
 function handleAdd() {
@@ -239,8 +335,18 @@ async function handleEdit(row: UserPageVO) {
     formData.email = user.email
     formData.gender = user.gender
     formData.status = user.status
+    formData.orgId = user.orgId ?? null
+    formData.deptId = user.deptId ?? null
+    formData.postId = user.postId ?? null
     // 后端 UserVO.roleIds 为 Long[]，JS 中为 string[]
     formData.roleIds = (user.roleIds as string[]) || []
+    // 回显时加载对应的部门和岗位列表
+    if (user.orgId) {
+      loadDepts(user.orgId)
+    }
+    if (user.deptId) {
+      loadPosts(user.deptId)
+    }
   }
   dialogVisible.value = true
 }
@@ -305,6 +411,7 @@ async function handleSubmit() {
 onMounted(() => {
   loadData()
   loadRoles()
+  loadOrgTree()
 })
 </script>
 

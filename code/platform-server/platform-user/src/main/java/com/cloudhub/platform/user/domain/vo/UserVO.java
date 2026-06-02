@@ -23,6 +23,8 @@ public class UserVO {
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long postId;
     private String orgName;
+    private String deptName;
+    private String postName;
     private Integer status;
     private String statusDesc;
     private Integer userType;
