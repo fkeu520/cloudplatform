@@ -287,6 +287,8 @@ public class UserService {
         user.setEmail((String) params.get("email"));
         user.setGender(params.get("gender") != null ? toInt(params.get("gender")) : 0);
         user.setOrgId(toLong(params.get("orgId")));
+        user.setDeptId(toLong(params.get("deptId")));
+        user.setPostId(toLong(params.get("postId")));
         user.setStatus(params.get("status") != null ? toInt(params.get("status")) : 1);
         user.setTenantId(params.get("tenantId") != null ? toInt(params.get("tenantId")) : 1);
         user.setUserType(params.get("userType") != null ? toInt(params.get("userType")) : 0);
@@ -448,6 +450,19 @@ public class UserService {
             vo.setUserTypeDesc(user.getUserType() == 0 ? "普通用户" : user.getUserType() == 1 ? "租户管理员" : "运营管理员");
         }
         vo.setTenantId(user.getTenantId() != null ? user.getTenantId().longValue() : 0L);
+        // 查询组织/部门/岗位名称（供编辑回显）
+        if (user.getOrgId() != null) {
+            Organization org = organizationMapper.selectById(user.getOrgId());
+            if (org != null) vo.setOrgName(org.getName());
+        }
+        if (user.getDeptId() != null) {
+            Dept dept = deptMapper.selectById(user.getDeptId());
+            if (dept != null) vo.setDeptName(dept.getName());
+        }
+        if (user.getPostId() != null) {
+            Post post = postMapper.selectById(user.getPostId());
+            if (post != null) vo.setPostName(post.getName());
+        }
         // 查询用户关联的角色ID列表
         vo.setRoleIds(userRoleMapper.selectList(
             new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserRole>()
