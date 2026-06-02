@@ -42,6 +42,9 @@ public class Menu {
     /** 状态：0禁用 1启用 */
     private Integer status;
 
+    /** 所属应用ID（关联 sys_app.id），用于多租户应用级权限过滤 */
+    private Long appId;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
