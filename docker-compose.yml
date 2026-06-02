@@ -205,7 +205,7 @@ services:
 
   # ============ 后端服务 ============
   platform-user:
-    build: ./code/platform-server
+    image: ghcr.io/fkeu520/cloudplatform/platform-user:latest
     container_name: platform-user
     restart: unless-stopped
     ports:
@@ -236,9 +236,7 @@ services:
 
   # ============ 消息中心 ============
   platform-message:
-    build:
-      context: ./code/platform-server
-      dockerfile: Dockerfile.message
+    image: ghcr.io/fkeu520/cloudplatform/platform-message:latest
     container_name: platform-message
     restart: unless-stopped
     ports:
@@ -268,9 +266,7 @@ services:
 
   # ============ 认证中心 ============
   platform-auth:
-    build:
-      context: ./code/platform-server
-      dockerfile: Dockerfile.auth
+    image: ghcr.io/fkeu520/cloudplatform/platform-auth:latest
     container_name: platform-auth
     restart: unless-stopped
     ports:
@@ -299,9 +295,7 @@ services:
 
   # ============ 工作流引擎 ============
   platform-workflow:
-    build:
-      context: ./code/platform-server
-      dockerfile: Dockerfile.workflow
+    image: ghcr.io/fkeu520/cloudplatform/platform-workflow:latest
     container_name: platform-workflow
     restart: unless-stopped
     ports:
@@ -334,9 +328,7 @@ services:
 
   # ============ API 网关 ============
   platform-gateway:
-    build:
-      context: ./code/platform-server
-      dockerfile: Dockerfile.gateway
+    image: ghcr.io/fkeu520/cloudplatform/platform-gateway:latest
     container_name: platform-gateway
     restart: unless-stopped
     ports:
@@ -360,9 +352,7 @@ services:
 
   # ============ 运营管理后端 ============
   platform-ops:
-    build:
-      context: ./code/platform-server
-      dockerfile: Dockerfile.ops
+    image: ghcr.io/fkeu520/cloudplatform/platform-ops:latest
     container_name: platform-ops
     restart: unless-stopped
     ports:
@@ -395,7 +385,7 @@ services:
 
   # ============ 运营管理前端 ============
   platform-ops-admin:
-    build: ./code/platform-ops-admin
+    image: ghcr.io/fkeu520/cloudplatform/platform-ops-admin:latest
     container_name: platform-ops-admin
     restart: unless-stopped
     ports:
@@ -423,7 +413,7 @@ services:
 
   # ============ 前端服务 ============
   platform-admin:
-    build: ./code/platform-admin
+    image: ghcr.io/fkeu520/cloudplatform/platform-admin:latest
     container_name: platform-admin
     restart: unless-stopped
     ports:
