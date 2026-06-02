@@ -30,6 +30,9 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        # 启动时允许 Nacos gRPC 客户端未就绪,避免 Docker Desktop 重启时 Nacos 还在 STARTING
+        # 导致 "Failed to start bean 'webServerStartStop'" 网关无法启动
+        fail-fast: false
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         enabled: false

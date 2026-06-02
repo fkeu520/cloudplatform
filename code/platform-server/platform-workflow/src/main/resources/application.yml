@@ -9,6 +9,8 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+        # 启动时容忍 Nacos gRPC 客户端未就绪
+        fail-fast: false
       config:
         import-check:
           enabled: false

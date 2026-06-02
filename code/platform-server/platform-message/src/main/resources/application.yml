@@ -50,6 +50,8 @@ spring:
       discovery:
         server-addr: localhost:8848
         enabled: true
+        # 启动时容忍 Nacos gRPC 客户端未就绪
+        fail-fast: false
       config:
         server-addr: localhost:8848
         enabled: false
@@ -73,6 +75,10 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+  # 雪花 ID 显式配置 (使用独立 datacenter-id 区分不同数据库)
+  snowflake:
+    worker-id: ${MYBATIS_PLUS_SNOWFLAKE_WORKER_ID:1}
+    datacenter-id: ${MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID:2}
 
 knife4j:
   enable: true
