@@ -14,6 +14,20 @@ public interface MenuMapper extends BaseMapper<Menu> {
     @Select("SELECT * FROM sys_menu WHERE deleted = 0 AND status = 1 ORDER BY sort ASC")
     List<Menu> selectAllEnabled();
 
+    /** 查询租户已授权的应用ID列表（通过 sys_tenant_app 关联） */
+    @Select("SELECT app_id FROM sys_tenant_app WHERE tenant_id = #{tenantId} AND status = 1")
+    List<Long> selectAuthorizedAppIds(@Param("tenantId") Long tenantId);
+
+    /** 查询全部启用菜单，仅包含指定 app_ids 范围内的（供租户管理员使用） */
+    @Select({"<script>",
+            "SELECT * FROM sys_menu WHERE deleted = 0 AND status = 1",
+            "<if test='appIds != null and !appIds.isEmpty()'>",
+            "AND (app_id IS NULL OR app_id IN (<foreach item='id' collection='appIds' separator=','>#{id}</foreach>))",
+            "</if>",
+            "ORDER BY sort ASC",
+            "</script>"})
+    List<Menu> selectEnabledByAppIds(@Param("appIds") List<Long> appIds);
+
     @Select("(SELECT m.* FROM sys_menu m " +
             "LEFT JOIN sys_role_menu rm ON m.id = rm.menu_id " +
             "LEFT JOIN sys_user_role ur ON ur.role_id = rm.role_id " +

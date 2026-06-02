@@ -1,6 +1,7 @@
 package com.cloudhub.platform.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.user.domain.entity.Menu;
 import com.cloudhub.platform.user.domain.entity.User;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -53,9 +55,9 @@ public class MenuService {
     }
 
     /**
-     * 根据用户ID获取菜单树（动态权限）
-     * - 租户管理员(userType=1)：返回全部启用菜单
-     * - 普通用户(userType=0)：通过角色+直接授权获取菜单
+     * 根据用户ID获取菜单树（动态权限 + 多租户应用级过滤）
+     * - 租户管理员(userType=1)：返回该租户已授权应用的启用菜单
+     * - 普通用户(userType=0)：通过角色+直接授权获取，再过滤租户已授权应用
      * - 运营管理员(userType=2)：返回空（只能登录运营后台）
      */
     public List<Map<String, Object>> getUserMenus(Long userId) {
@@ -66,15 +68,36 @@ public class MenuService {
         }
         Integer userType = user.getUserType() != null ? user.getUserType() : 0;
 
+        // 获取当前请求的租户ID（从JWT Token解析而来，TenantFilter 已注入）
+        Long tenantId = TenantContextHolder.getTenantId();
+        // 获取该租户已授权的应用ID列表
+        List<Long> authorizedAppIds = Collections.emptyList();
+        if (tenantId != null) {
+            authorizedAppIds = menuMapper.selectAuthorizedAppIds(tenantId);
+        }
+
         if (userType == 1) {
-            // 租户管理员：全部启用菜单
-            return buildTree(menuMapper.selectAllEnabled(), 0L);
+            // 租户管理员：只返回该租户已授权应用的启用菜单
+            List<Menu> menus;
+            if (authorizedAppIds.isEmpty()) {
+                // 没有授权任何应用 → 返回空菜单
+                menus = new ArrayList<>();
+            } else {
+                menus = menuMapper.selectEnabledByAppIds(authorizedAppIds);
+            }
+            return buildTree(menus, 0L);
         } else if (userType == 2) {
             // 运营管理员：不能访问管理后台，返回空
             return new ArrayList<>();
         } else {
-            // 普通用户：通过角色 + 直接授权菜单
-            return buildTree(menuMapper.selectByUserId(userId), 0L);
+            // 普通用户：通过角色 + 直接授权菜单，再过滤租户已授权应用
+            List<Menu> menus = menuMapper.selectByUserId(userId);
+            if (!authorizedAppIds.isEmpty()) {
+                menus = menus.stream()
+                        .filter(m -> m.getAppId() == null || authorizedAppIds.contains(m.getAppId()))
+                        .collect(Collectors.toList());
+            }
+            return buildTree(menus, 0L);
         }
     }
 
