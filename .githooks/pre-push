@@ -73,9 +73,9 @@ if [ -n "$JAVA_CHANGES" ]; then
                 cd "$PROJECT_ROOT/code/platform-server"
                 if [ "$MODULE" = "platform-user" ]; then
                     # platform-user depends on platform-common, build both
-                    ./mvnw.cmd test -pl "$MODULE" -am "-Dsurefire.failIfNoSpecifiedTests=false" "--no-transfer-progress" -q 2>/dev/null
+                    ./mvnw.cmd test -pl "$MODULE" -am "-Dsurefire.failIfNoSpecifiedTests=false" -q 2>/dev/null
                 else
-                    ./mvnw.cmd test -pl "$MODULE" "-Dsurefire.failIfNoSpecifiedTests=false" "--no-transfer-progress" -q 2>/dev/null
+                    ./mvnw.cmd test -pl "$MODULE" "-Dsurefire.failIfNoSpecifiedTests=false" -q 2>/dev/null
                 fi
                 MAVEN_EXIT=$?
                 cd "$PROJECT_ROOT"

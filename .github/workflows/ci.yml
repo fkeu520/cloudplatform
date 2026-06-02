@@ -7,7 +7,7 @@ on:
     branches: [develop, master]
 
 env:
-  MAVEN_OPTS: --no-transfer-progress
+  MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
 
 jobs:
   # =============================================
