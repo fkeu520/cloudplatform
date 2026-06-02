@@ -58,9 +58,10 @@ jobs:
           cache: npm
           cache-dependency-path: code/platform-admin/package-lock.json
 
-      - name: Build
+      - name: Install & Build
         run: |
           cd code/platform-admin
+          npm install --legacy-peer-deps
           npm run build
 
       - name: Upload dist
