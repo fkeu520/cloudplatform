@@ -1,7 +1,53 @@
-# 进度保存 - 2026-06-02 (v6.7)
+# 进度保存 - 2026-06-02 (v6.8 进行中)
 
 ## 总体状态
-**Spring Cloud Gateway 鉴权 P0 bug 修复** 走通 GitHub Actions → ghcr.io → 本地 pull 全链路。同时切换 8 服务到 ghcr 镜像 (禁止本地构建)。Docker 环境从 `docker system prune -a --volumes` 全清状态下完整恢复 (16 镜像 + 23 sys_* + 47 act_*/flw_* + 12 nacos)。请假申请流程前端 + BPMN + API 全部就绪。
+**员工编辑组织/部门/岗位回显bug (未解决)**。后端+前端已做修复 (级联选择器/ensureInList/Name兜底)，镜像已部署，但 `el-select` 仍显示ID而非名称。暂停排查，明天继续。
+
+---
+
+## v6.8 进行中 (2026-06-02 本轮新增)
+
+### 1. 自动化测试体系搭建 ✅
+
+| 组件 | 框架 | 用例数 | 状态 |
+|------|------|--------|------|
+| 后端单元测试 | JUnit 5 + Mockito | MenuServiceTest 8个 | ✅ CI通过 |
+| 前端单元测试 | Vitest + Vue Test Utils | user-store.test.ts 6个 | ✅ CI通过 |
+| pre-push hook | shell脚本 | — | ✅ 自动检测变更模块跑测试 |
+| CI 流水线 | GitHub Actions | — | ✅ 构建编译正常 |
+
+**commit**: `2b4ab94 ci(test): 引入自动化测试框架 + pre-push hook 自动测试`
+
+### 2. 员工编辑组织/部门/岗位回显 🔴 未解决
+
+**问题**: 点开编辑用户对话框时，组织/部门/岗位 `el-select` 显示 ID 而非名称。
+
+**已做的修复 (已部署到镜像)**:
+
+| 修复 | 文件 | 说明 |
+|------|------|------|
+| 后端: 补充deptName/postName | UserVO.java | 新增 deptName/postName 字段 |
+| 后端: toUserVO填充名称 | UserService.java | 查org/dept/post表赋值名称 |
+| 后端: create补deptId/postId | UserService.java | 新增用户时保存部门和岗位 |
+| 前端: 级联选择器 | Index.vue | 组织→部门→岗位三级联动 |
+| 前端: Number()转换 | Index.vue | JSON字符串转Number匹配option |
+| 前端: ensureInList兜底 | Index.vue | 保证当前值存在于选项列表 |
+| 前端: 名称文本兜底 | Index.vue | span显示currentNames.orgName |
+
+**怀疑方向**:
+1. `el-select` 的 `:value` 类型匹配问题 (Number vs String)
+2. 异步加载时序 (orgList被loadOrgTree覆盖)
+3. Vue 3 + Element Plus 响应式更新问题
+
+**状态**: ⏸️ 暂停，明天继续排查
+
+### 3. 其他 ✅
+
+| 项 | 说明 | commit |
+|----|------|--------|
+| 修复 platform-message 服务 | 表在platform库非platform_message，RENAME修复 | — |
+| 修复 platform-gateway 鉴权bug | JwtAuthFilter.unauthorized() 返回setComplete() | `b26622c` |
+| 修复多租户菜单过滤 | app_id + sys_tenant_app 过滤 | (上次会话) |
 
 ---
 
