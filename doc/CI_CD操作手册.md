@@ -167,6 +167,7 @@ jobs:
 | Maven 编译失败 | Java 语法错误或依赖下载失败 | 本地 `mvn clean package` 先验证 |
 | npm install 失败 | 依赖包下载超时 | 检查 package-lock.json，重试 |
 | 测试失败 | 单元测试断言不通过 | 本地运行测试定位问题 |
+| **启动时 Bean 缺失 (L2 阶段)** | AutoConfiguration 误排除 | 查看启动日志 `Negative matches`, 移除对应 exclude |
 
 ### 本地复现
 
@@ -181,6 +182,14 @@ npm install --legacy-peer-deps && npm run build
 cd ../platform-ops-admin
 npm install && npm run build
 ```
+
+### L2 优化相关的 CI 注意事项
+
+实施 [`L2_Spring精简优化方案.md`](../L2_Spring精简优化方案.md) 时：
+
+- **Phase 1-2（公共配置 + AutoConfiguration 排除）**: CI 编译通过即代表成功，无需改 CI 配置
+- **Phase 3（pom 精简）**: 必须保证 `mvn clean package` 编译通过；可在 PR 中加 `mvn dependency:tree` diff 检查
+- **性能基准**: 部署后用 [`性能基准.md`](../性能基准.md) 模板记录 docker stats 采样数据
 
 ---
 
@@ -301,3 +310,15 @@ feature/*     → 功能分支，推送自动触发 CI
 1. 打开对应 CI 运行记录
 2. 底部 **Artifacts** 区域
 3. 点击下载 `backend-jars`、`frontend-admin-dist`、`frontend-ops-dist`
+
+---
+
+## 十、相关文档
+
+| 文档 | 说明 |
+|------|------|
+| [`部署指南.md`](../部署指南.md) | 单机/集群部署流程 |
+| [`服务器配置清单.md`](../服务器配置清单.md) | 硬件配置建议 |
+| [`L2_Spring精简优化方案.md`](../L2_Spring精简优化方案.md) | 后端服务内存优化方案 |
+| [`性能基准.md`](../性能基准.md) | 优化前后对比数据模板 |
+| [`环境搭建指引.md`](../环境搭建指引.md) | 开发环境搭建 |
