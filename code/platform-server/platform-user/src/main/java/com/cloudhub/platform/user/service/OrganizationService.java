@@ -59,7 +59,7 @@ public class OrganizationService {
         }
 
         Organization org = new Organization();
-        org.setParentId(params.get("parentId") != null ? ((Number) params.get("parentId")).longValue() : 0L);
+        org.setParentId(toLong(params.get("parentId"), 0L));
         org.setName(name);
         org.setCode((String) params.get("code"));
         org.setType(params.get("type") != null ? ((Number) params.get("type")).intValue() : 1);
@@ -80,7 +80,7 @@ public class OrganizationService {
             throw new BizException("组织不存在");
         }
         if (params.containsKey("name")) exist.setName((String) params.get("name"));
-        if (params.containsKey("parentId")) exist.setParentId(((Number) params.get("parentId")).longValue());
+        if (params.containsKey("parentId")) exist.setParentId(toLong(params.get("parentId"), null));
         if (params.containsKey("code")) exist.setCode((String) params.get("code"));
         if (params.containsKey("type")) exist.setType(((Number) params.get("type")).intValue());
         if (params.containsKey("sort")) exist.setSort(((Number) params.get("sort")).intValue());
@@ -104,12 +104,19 @@ public class OrganizationService {
         orgMapper.deleteById(id);
     }
 
+    private Long toLong(Object val, Long defaultVal) {
+        if (val == null) return defaultVal;
+        if (val instanceof Number) return ((Number) val).longValue();
+        if (val instanceof String) return Long.parseLong((String) val);
+        throw new IllegalArgumentException("Cannot convert to Long: " + val);
+    }
+
     private List<Map<String, Object>> buildTree(List<Organization> orgs, Long parentId) {
         return orgs.stream()
                 .filter(o -> o.getParentId().equals(parentId))
                 .map(o -> {
                     Map<String, Object> node = new java.util.HashMap<>();
-                    node.put("id", o.getId());
+                    node.put("id", o.getId().toString());
                     node.put("name", o.getName());
                     node.put("code", o.getCode());
                     node.put("type", o.getType());
