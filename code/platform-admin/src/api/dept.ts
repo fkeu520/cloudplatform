@@ -21,7 +21,7 @@ export function getDeptTree(orgId?: number) {
   })
 }
 
-export function getDeptList(orgId: number) {
+export function getDeptList(orgId: number | string) {
   return request({
     url: `/dept/org/${orgId}`,
     method: 'get'

@@ -33,7 +33,7 @@ export function getPostByOrgId(orgId: number) {
   })
 }
 
-export function getPostByDeptId(deptId: number) {
+export function getPostByDeptId(deptId: number | string) {
   return request({
     url: `/post/dept/${deptId}`,
     method: 'get'
