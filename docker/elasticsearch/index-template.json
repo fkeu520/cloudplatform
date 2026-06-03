@@ -2,7 +2,24 @@
   "index_patterns": ["platform-logs-*"],
   "template": {
     "settings": {
-      "index.lifecycle.name": "platform-logs-policy"
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "platform-logs-1d-retention",
+      "index.lifecycle.rollover_alias": "platform-logs"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "message": { "type": "text" },
+        "log_level": { "type": "keyword" },
+        "log_message": { "type": "text" },
+        "logger": { "type": "keyword" },
+        "service": { "type": "keyword" },
+        "container_name": { "type": "keyword" },
+        "host": { "type": "keyword" },
+        "tags": { "type": "keyword" }
+      }
     }
-  }
+  },
+  "priority": 100
 }
