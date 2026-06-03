@@ -94,6 +94,12 @@ services:
       MYSQL_SERVICE_PORT: 3306
       MYSQL_SERVICE_USER: platform
       MYSQL_SERVICE_PASSWORD: platform123
+      # Spring Boot 标准数据源配置（Nacos 2.2.3 需要）
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/platform_nacos?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: platform
+      SPRING_DATASOURCE_PASSWORD: platform123
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_SQL_INIT_PLATFORM: mysql
     ports:
       - "8848:8848"
       - "9848:9848"
@@ -272,7 +278,6 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - SPRING_FLYWAY_ENABLED=false
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123

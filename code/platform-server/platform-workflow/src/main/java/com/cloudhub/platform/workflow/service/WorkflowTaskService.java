@@ -15,6 +15,7 @@ import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.task.api.Task;
 import org.flowable.task.api.TaskInfo;
 import org.flowable.task.api.history.HistoricTaskInstance;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class WorkflowTaskService {
     private final TaskService taskService;
     private final RuntimeService runtimeService;
     private final HistoryService historyService;
+    private final JdbcTemplate jdbcTemplate;
     private final TaskNotifyProducer taskNotifyProducer;
     private final WorkflowMessageProducer workflowMessageProducer;
 
@@ -38,9 +40,25 @@ public class WorkflowTaskService {
         // 查找该用户的待办：包括直接指定办理人的任务 + 候选任务
         List<Task> tasks;
         long total;
-        // 候选任务（未指定办理人，按候选人查询）
-        List<Task> candidateTasks = taskService.createTaskQuery().taskCandidateUser(userId).active()
-                .orderByTaskCreateTime().desc().list();
+        // 候选任务：直接查 ACT_RU_IDENTITYLINK 拿 task IDs（不依赖 ACT_ID_USER）
+        // 原因：taskCandidateUser(userId) 会 JOIN ACT_ID_USER，若用户不在该表则返回空
+        List<Task> candidateTasks = new ArrayList<>();
+        try {
+            List<String> taskIds = jdbcTemplate.queryForList(
+                "SELECT TASK_ID_ FROM ACT_RU_IDENTITYLINK WHERE TYPE_ = 'candidate' AND USER_ID_ = ?",
+                String.class, userId);
+            if (!taskIds.isEmpty()) {
+                candidateTasks = taskService.createTaskQuery()
+                    .taskIds(new HashSet<>(taskIds))
+                    .active()
+                    .list();
+            }
+            log.info("[TODO-QUERY] userId={}, candidate taskIds={}, found {} tasks",
+                userId, taskIds, candidateTasks.size());
+        } catch (Exception e) {
+            log.warn("Candidate query via JdbcTemplate failed, falling back to standard: {}", e.getMessage());
+            candidateTasks = taskService.createTaskQuery().taskCandidateUser(userId).active().list();
+        }
         // 直接指定办理人的任务
         List<Task> assignedTasks = taskService.createTaskQuery().taskAssignee(userId).active()
                 .orderByTaskCreateTime().desc().list();

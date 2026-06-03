@@ -413,47 +413,16 @@ function saveFlowableData() {
         }
       }
 
-      // 候选人/组 - 写入 extensionElements
-      if (elementType.value === 'UserTask') {
-        // 获取或创建 extensionElements
-        if (!bo.extensionElements) {
-          bo.extensionElements = moddle.create('bpmn:ExtensionElements')
-        }
-        // 清除旧的 flowable 扩展元素
-        if (bo.extensionElements.values) {
-          bo.extensionElements.values = bo.extensionElements.values.filter((v: any) => {
-            const type = v.$type || ''
-            return !type.includes('CandidateUsers') && !type.includes('CandidateGroups')
-          })
-        }
-        // 添加新的候选人
-        if (data.candidateUsers) {
-          const candUsers = moddle.create('flowable:CandidateUsers')
-          candUsers.rawText = data.candidateUsers
-          if (bo.extensionElements.values) {
-            bo.extensionElements.values.push(candUsers)
-          } else {
-            bo.extensionElements.values = [candUsers]
-          }
-        }
-        // 添加新的候选组
-        if (data.candidateGroups) {
-          const candGroups = moddle.create('flowable:CandidateGroups')
-          candGroups.rawText = data.candidateGroups
-          if (bo.extensionElements.values) {
-            bo.extensionElements.values.push(candGroups)
-          } else {
-            bo.extensionElements.values = [candGroups]
-          }
-        }
+      // 候选人/组 - 仅保存到 flowableData Map，由 injectFlowableProps 写入 XML
+      // Flowable 要求候选人作为 userTask 的直接属性 (flowable:candidateUsers="1,2,3")
+      // 不通过 modeling.updateProperties 写入，因为 bpmn-js 不原生支持 flowable 扩展
 
-        // flowable 自定义属性直接写入 businessObject
-        if (data.candidateScope) bo.candidateScope = data.candidateScope
-        if (data.defaultTarget) bo.defaultTarget = data.defaultTarget
-        if (data.approvalMode) bo.approvalMode = data.approvalMode
-        if (data.skipContinuous === 'true') bo.skipContinuous = 'true'
-        if (data.eSignature === 'true') bo.eSignature = 'true'
-      }
+      // flowable 自定义属性直接写入 businessObject (非标准 BPMN，仅用于前端状态保持)
+      if (data.candidateScope) bo.candidateScope = data.candidateScope
+      if (data.defaultTarget) bo.defaultTarget = data.defaultTarget
+      if (data.approvalMode) bo.approvalMode = data.approvalMode
+      if (data.skipContinuous === 'true') bo.skipContinuous = 'true'
+      if (data.eSignature === 'true') bo.eSignature = 'true'
 
       // 子流程
       if (elementType.value === 'CallActivity' && data.calledElement) {
@@ -482,7 +451,53 @@ function loadFlowableData(elementId: string) {
   conditionExpression.value = data.conditionExpression || ''
 }
 
+function extractFlowableDataFromXml(xml: string) {
+  // 字符串正则提取，绕过 DOM 命名空间问题
+  // 匹配所有有 id 的 BPMN 元素: <bpmn:XXX ... id="..." ... />
+  const elementRegex = /<bpmn:(\w+)\b([^>]*?)\/?>/g
+  let match: RegExpExecArray | null
+  while ((match = elementRegex.exec(xml)) !== null) {
+    const tagName = match[1] // e.g., userTask, sequenceFlow, callActivity
+    const attrsStr = match[2]
+    const idMatch = attrsStr.match(/\bid="([^"]+)"/)
+    if (!idMatch) continue
+    const id = idMatch[1]
+    const data: Record<string, string> = {}
+
+    // 提取 flowable: 开头的属性
+    const flowableAttrRegex = /\bflowable:([a-zA-Z]+)="([^"]*)"/g
+    let attrMatch: RegExpExecArray | null
+    while ((attrMatch = flowableAttrRegex.exec(attrsStr)) !== null) {
+      data[attrMatch[1]] = attrMatch[2]
+    }
+
+    // 提取 conditionExpression (sequenceFlow 的子元素)
+    if (tagName === 'sequenceFlow') {
+      const condMatch = xml.match(
+        new RegExp(`<bpmn:sequenceFlow\\b[^>]*?\\bid="${id}"[^>]*>[\\s\\S]*?<bpmn:conditionExpression[^>]*>([\\s\\S]*?)<\\/bpmn:conditionExpression>`)
+      )
+      if (condMatch) data.conditionExpression = condMatch[1]
+    }
+
+    // 提取 extensionElements 中的 candidateUsers/candidateGroups (兼容旧格式)
+    if (tagName === 'userTask') {
+      const extMatch = xml.match(
+        new RegExp(`<bpmn:userTask\\b[^>]*?\\bid="${id}"[\\s\\S]*?<bpmn:extensionElements>([\\s\\S]*?)<\\/bpmn:extensionElements>`)
+      )
+      if (extMatch) {
+        const cuMatch = extMatch[1].match(/<flowable:candidateUsers[^>]*>([\s\S]*?)<\/flowable:candidateUsers>/)
+        if (cuMatch) data.candidateUsers = cuMatch[1].trim()
+        const cgMatch = extMatch[1].match(/<flowable:candidateGroups[^>]*>([\s\S]*?)<\/flowable:candidateGroups>/)
+        if (cgMatch) data.candidateGroups = cgMatch[1].trim()
+      }
+    }
+
+    if (Object.keys(data).length > 0) flowableData.set(id, data)
+  }
+}
+
 function extractFlowableData(doc: Document) {
+  // 保留 DOM 版本以备调用，但优先使用字符串版本
   const ns = 'http://flowable.org/bpmn'
   const root = doc.documentElement
   const allElements = root.querySelectorAll('*')
@@ -655,7 +670,8 @@ onMounted(async () => {
         console.warn('XML parse error, using default diagram')
         rawXml = defaultDiagram
       } else {
-        extractFlowableData(doc)
+        // 使用字符串正则提取，绕过 DOM 命名空间问题
+        extractFlowableDataFromXml(rawXml)
       }
     } catch (e) {
       console.warn('Failed to extract flowable data:', e)
@@ -706,62 +722,90 @@ function updateConditionExpression() {
 function injectXmlns(rootEl: Element) { if (!rootEl.hasAttribute('xmlns:flowable')) rootEl.setAttribute('xmlns:flowable', 'http://flowable.org/bpmn') }
 
 function injectFlowableProps(xml: string): string {
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(xml, 'text/xml')
-  const ns = 'http://flowable.org/bpmn'
-  const bpmnNs = 'http://www.omg.org/spec/BPMN/20100524/MODEL'
-  const xsiNs = 'http://www.w3.org/2001/XMLSchema-instance'
-  const root = doc.documentElement
-  injectXmlns(root)
-  root.setAttribute('targetNamespace', 'http://flowable.org/processdef')
+  // 1. 确保根元素有 xmlns:flowable 声明
+  if (!/xmlns:flowable\s*=/.test(xml)) {
+    xml = xml.replace(
+      /(<bpmn:definitions\b[^>]*?)(\s*>)/,
+      '$1 xmlns:flowable="http://flowable.org/bpmn"$2'
+    )
+  }
+  // 2. 确保 targetNamespace 设置
+  if (!/targetNamespace\s*=/.test(xml)) {
+    xml = xml.replace(
+      /(<bpmn:definitions\b[^>]*?)(\s*>)/,
+      '$1 targetNamespace="http://flowable.org/processdef"$2'
+    )
+  }
 
-  // 使用 getElementsByTagName 替代 querySelectorAll（DOMParser 中命名空间选择器不可靠）
-  const userTasks = Array.from(doc.getElementsByTagName('bpmn:userTask'))
-  userTasks.forEach((taskEl) => {
-    const id = taskEl.getAttribute('id'); if (!id) return
-    const data = flowableData.get(id); if (!data) return
-    if (data.candidateScope) taskEl.setAttributeNS(ns, 'flowable:candidateScope', data.candidateScope)
-    if (data.defaultTarget) taskEl.setAttributeNS(ns, 'flowable:defaultTarget', data.defaultTarget)
-    if (data.approvalMode) taskEl.setAttributeNS(ns, 'flowable:approvalMode', data.approvalMode)
-    if (data.skipContinuous === 'true') taskEl.setAttributeNS(ns, 'flowable:skipContinuous', 'true')
-    if (data.eSignature === 'true') taskEl.setAttributeNS(ns, 'flowable:eSignature', 'true')
-    if (data.candidateUsers || data.candidateGroups) {
-      let extEl = taskEl.getElementsByTagName('bpmn:extensionElements')[0] as Element | undefined
-      if (!extEl) { extEl = doc.createElementNS(bpmnNs, 'bpmn:extensionElements'); taskEl.insertBefore(extEl, taskEl.firstChild) }
-      if (data.candidateUsers) {
-        const existing = Array.from(extEl.getElementsByTagName('flowable:candidateUsers'))[0]
-        if (existing) existing.remove()
-        const el = doc.createElementNS(ns, 'flowable:candidateUsers'); el.textContent = data.candidateUsers; extEl.appendChild(el)
+  // 3. 为每个 userTask 注入 flowable 属性 (使用字符串替换，绕过 DOM 命名空间问题)
+  flowableData.forEach((data, elementId) => {
+    // 匹配 <bpmn:userTask ... id="elementId" ... /> 或 <bpmn:userTask ... id="elementId" ...>...</bpmn:userTask>
+    // 使用 [\s\S] 匹配换行，[^>]* 不会跨过 ">"
+    // 注意：attrs 捕获组已包含 <bpmn:userTask 标签名
+    const taskRegex = new RegExp(
+      `(<bpmn:userTask\\b[^>]*?\\bid="${elementId}"[^>]*?)(\\s*/?>)`,
+      'g'
+    )
+    xml = xml.replace(taskRegex, (_match, attrs, close) => {
+      // attrs 已经包含 <bpmn:userTask 标签名，只处理属性部分
+      let newAttrs = attrs
+      // 移除已存在的 flowable 属性 (避免重复)
+      newAttrs = newAttrs.replace(/\s+flowable:[a-zA-Z]+="[^"]*"/g, '')
+      // 注入候选人/组 (Flowable 要求作为 userTask 直接属性)
+      const injectAttrs: string[] = []
+      if (data.candidateUsers) injectAttrs.push(`flowable:candidateUsers="${data.candidateUsers}"`)
+      if (data.candidateGroups) injectAttrs.push(`flowable:candidateGroups="${data.candidateGroups}"`)
+      if (data.candidateScope) injectAttrs.push(`flowable:candidateScope="${data.candidateScope}"`)
+      if (data.defaultTarget) injectAttrs.push(`flowable:defaultTarget="${data.defaultTarget}"`)
+      if (data.approvalMode) injectAttrs.push(`flowable:approvalMode="${data.approvalMode}"`)
+      if (data.skipContinuous === 'true') injectAttrs.push(`flowable:skipContinuous="true"`)
+      if (data.eSignature === 'true') injectAttrs.push(`flowable:eSignature="true"`)
+      if (injectAttrs.length > 0) {
+        newAttrs += ' ' + injectAttrs.join(' ')
       }
-      if (data.candidateGroups) {
-        const existing = Array.from(extEl.getElementsByTagName('flowable:candidateGroups'))[0]
-        if (existing) existing.remove()
-        const el = doc.createElementNS(ns, 'flowable:candidateGroups'); el.textContent = data.candidateGroups; extEl.appendChild(el)
-      }
+      return newAttrs + close
+    })
+
+    // 4. callActivity 的 calledElement
+    if (data.calledElement) {
+      const callRegex = new RegExp(
+        `(<bpmn:callActivity\\b[^>]*?\\bid="${elementId}"[^>]*?)(\\s*/?>)`,
+        'g'
+      )
+      xml = xml.replace(callRegex, (_match, attrs, close) => {
+        let newAttrs = attrs.replace(/\s+calledElement="[^"]*"/g, '')
+        newAttrs += ` calledElement="${data.calledElement}"`
+        return `<bpmn:callActivity${newAttrs}${close}`
+      })
+    }
+
+    // 5. sequenceFlow 的 conditionExpression (是子元素)
+    if (data.conditionExpression) {
+      const flowRegex = new RegExp(
+        `(<bpmn:sequenceFlow\\b[^>]*?\\bid="${elementId}"[^>]*?)(/?>)`,
+        'g'
+      )
+      xml = xml.replace(flowRegex, (match, attrs, close) => {
+        const condXml = `<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${data.conditionExpression}</bpmn:conditionExpression>`
+        if (close === '/>') {
+          // 自闭合标签 → 改为开闭标签 + 条件子元素
+          return `<bpmn:sequenceFlow${attrs}>${condXml}</bpmn:sequenceFlow>`
+        }
+        // 已有子元素：移除旧条件表达式，追加新条件
+        let result = match.replace(
+          /<bpmn:conditionExpression[^>]*>[\s\S]*?<\/bpmn:conditionExpression>/g,
+          ''
+        )
+        result = result.replace(
+          /(<\/bpmn:sequenceFlow>)/,
+          `${condXml}$1`
+        )
+        return result
+      })
     }
   })
 
-  const callActivities = Array.from(doc.getElementsByTagName('bpmn:callActivity'))
-  callActivities.forEach((el) => {
-    const id = el.getAttribute('id'); if (!id) return
-    const data = flowableData.get(id); if (data?.calledElement) el.setAttribute('calledElement', data.calledElement)
-  })
-
-  const seqFlows = Array.from(doc.getElementsByTagName('bpmn:sequenceFlow'))
-  seqFlows.forEach((el) => {
-    const id = el.getAttribute('id'); if (!id) return
-    const data = flowableData.get(id)
-    if (data?.conditionExpression) {
-      const existing = Array.from(el.getElementsByTagName('bpmn:conditionExpression'))[0]
-      if (existing) existing.remove()
-      const condEl = doc.createElementNS(bpmnNs, 'bpmn:conditionExpression')
-      condEl.setAttributeNS(xsiNs, 'xsi:type', 'bpmn:tFormalExpression')
-      condEl.textContent = data.conditionExpression
-      el.appendChild(condEl)
-    }
-  })
-
-  return new XMLSerializer().serializeToString(doc)
+  return xml
 }
 
 async function handleSave() {
