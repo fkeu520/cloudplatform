@@ -126,7 +126,14 @@
               <el-tag v-if="!t.endTime" size="small" type="warning">进行中</el-tag>
               <el-tag v-else size="small" type="success">已完成</el-tag>
             </div>
-            <div v-if="t.assignee" class="tl-meta">办理人: {{ t.assignee }}</div>
+            <!-- 已办: 显示办理人昵称 (优先 assignee, 退回 startUserId) -->
+            <div v-if="t.endTime && t.assignee" class="tl-meta">
+              办理人: <strong>{{ resolveUserName(t.assignee) }}</strong>
+            </div>
+            <!-- 待办: 显示候选人昵称列表 -->
+            <div v-else-if="!t.endTime && t.activityType === 'userTask'" class="tl-meta">
+              候选人: <strong>{{ resolveCandidateNames(t.candidateUsers) }}</strong>
+            </div>
           </el-timeline-item>
         </el-timeline>
         <div v-else class="empty-state">暂无审批记录</div>
@@ -171,6 +178,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, CircleCheck, CircleClose, Loading } from '@element-plus/icons-vue'
 import { deployDefinition, startInstance, getInstancePage, getInstanceById, getInstanceTimeline } from '@/api/workflow'
+import { getUserPage } from '@/api/user'
 
 const LEAVE_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="http://flowable.org/processdef">
@@ -242,6 +250,8 @@ const detailTimeline = ref<any[]>([])
 const pathVisible = ref(false)
 const pathNodes = ref<any[]>([])
 const currentNodeIndex = ref(0)
+// 用户 ID -> {nickname, username} 映射, 用于审批过程显示昵称
+const userMap = ref<Record<string, { nickname: string; username: string }>>({})
 
 const DEPLOY_KEY = 'leave-approval'
 
@@ -311,13 +321,15 @@ async function submitApplication() {
   submitting.value = true
   try {
     const userId = localStorage.getItem('userId') || '1'
+    const username = localStorage.getItem('username') || userId
     await startInstance({
       processDefinitionKey: DEPLOY_KEY,
       variables: {
         leaveType: form.value.leaveType,
         leaveDays: form.value.days,
         reason: form.value.reason,
-        applicant: 'admin'
+        applicant: username,        // 流程变量: 发起人昵称
+        applicantId: userId        // 流程变量: 发起人 ID
       },
       userId
     })
@@ -413,8 +425,44 @@ function getPathNodeClass(node: any) {
 
 onMounted(async () => {
   await ensureDeployed()
-  await loadMyInstances()
+  await Promise.all([loadMyInstances(), loadUserMap()])
 })
+
+/**
+ * 加载所有用户, 构造 userId -> {nickname, username} 映射
+ * 用于审批过程显示"已办人昵称"和"待办候选人昵称"
+ */
+async function loadUserMap() {
+  try {
+    const res: any = await getUserPage({ pageNum: 1, pageSize: 500, status: 1 })
+    if (res.code === 200) {
+      const map: Record<string, { nickname: string; username: string }> = {}
+      for (const u of (res.data?.records || [])) {
+        map[String(u.id)] = {
+          nickname: u.nickname || u.username || String(u.id),
+          username: u.username || String(u.id)
+        }
+      }
+      userMap.value = map
+    }
+  } catch (e) {
+    console.warn('loadUserMap failed:', e)
+  }
+}
+
+/** 解析一个 userId 显示名: 优先昵称, 退到 username, 再退到原 ID */
+function resolveUserName(userId: string | null | undefined): string {
+  if (!userId) return '-'
+  const u = userMap.value[String(userId)]
+  if (u) return u.nickname
+  return String(userId)
+}
+
+/** 解析候选人列表为可显示的昵称串 */
+function resolveCandidateNames(ids: string[] | null | undefined): string {
+  if (!ids || ids.length === 0) return '无'
+  return ids.map(id => resolveUserName(id)).join('、')
+}
 </script>
 
 <style scoped>
