@@ -176,12 +176,12 @@ const LEAVE_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" targetNamespace="http://flowable.org/processdef">
   <bpmn:process id="leave-approval" name="请假审批流程" isExecutable="true">
     <bpmn:startEvent id="startEvent" name="开始" />
-    <bpmn:userTask id="deptApproval" name="部门审批" flowable:assignee="admin">
+    <bpmn:userTask id="deptApproval" name="部门审批">
       <bpmn:extensionElements>
         <flowable:candidateUsers>1</flowable:candidateUsers>
       </bpmn:extensionElements>
     </bpmn:userTask>
-    <bpmn:userTask id="hrApproval" name="人事审批" flowable:assignee="admin">
+    <bpmn:userTask id="hrApproval" name="人事审批">
       <bpmn:extensionElements>
         <flowable:candidateUsers>1</flowable:candidateUsers>
       </bpmn:extensionElements>
