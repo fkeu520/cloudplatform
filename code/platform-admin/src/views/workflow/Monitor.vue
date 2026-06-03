@@ -29,7 +29,14 @@
             <el-timeline v-if="timelineMap[row.id]" style="margin:12px">
               <el-timeline-item v-for="act in timelineMap[row.id]" :key="act.activityId"
                 :timestamp="act.startTime" :type="act.endTime ? 'primary' : 'warning'">
-                {{ act.activityName }} ({{ act.activityType }}) — {{ act.assignee || '未分配' }}
+                {{ act.activityName }} ({{ act.activityType }}) —
+                <template v-if="act.endTime">
+                  办理人: <strong>{{ resolveUserName(act.assignee) }}</strong>
+                </template>
+                <template v-else-if="act.activityType === 'userTask'">
+                  候选人: <strong>{{ resolveCandidateNames(act.candidateUsers) }}</strong>
+                </template>
+                <template v-else>-</template>
               </el-timeline-item>
             </el-timeline>
             <el-empty v-else description="加载中..." />
@@ -37,7 +44,11 @@
         </el-table-column>
         <el-table-column prop="processDefinitionName" label="流程名称" min-width="140" />
         <el-table-column prop="processDefinitionKey" label="流程Key" width="100" />
-        <el-table-column prop="startUserId" label="发起人" width="80" />
+        <el-table-column label="发起人" width="100">
+          <template #default="{ row }">
+            {{ resolveUserName(row.startUserId) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="businessKey" label="业务Key" width="120" />
         <el-table-column prop="startTime" label="开始时间" width="170" />
         <el-table-column prop="endTime" label="结束时间" width="170" />
@@ -65,7 +76,7 @@
       <el-descriptions v-if="currentInstance" :column="2" border>
         <el-descriptions-item label="流程名称">{{ currentInstance.processDefinitionName }}</el-descriptions-item>
         <el-descriptions-item label="流程Key">{{ currentInstance.processDefinitionKey }}</el-descriptions-item>
-        <el-descriptions-item label="发起人">{{ currentInstance.startUserId }}</el-descriptions-item>
+        <el-descriptions-item label="发起人">{{ resolveUserName(currentInstance.startUserId) }}</el-descriptions-item>
         <el-descriptions-item label="业务Key">{{ currentInstance.businessKey }}</el-descriptions-item>
         <el-descriptions-item label="开始时间">{{ currentInstance.startTime }}</el-descriptions-item>
         <el-descriptions-item label="结束时间">{{ currentInstance.endTime || '进行中' }}</el-descriptions-item>
@@ -89,6 +100,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getInstancePage, getInstanceById, deleteInstance, getInstanceTimeline } from '../../api/workflow'
+import { getUserPage } from '../../api/user'
 
 const list = ref<any[]>([])
 const total = ref(0)
@@ -98,8 +110,48 @@ const query = reactive({ processDefinitionKey: '', status: undefined as number |
 const timelineMap = ref<Record<string, any[]>>({})
 const detailVisible = ref(false)
 const currentInstance = ref<any>(null)
+// 用户 ID -> {nickname, username} 映射, 用于显示昵称
+const userMap = ref<Record<string, { nickname: string; username: string }>>({})
 
-onMounted(() => fetchData())
+onMounted(async () => {
+  await loadUserMap()
+  await fetchData()
+})
+
+/**
+ * 加载所有用户构造 userId->昵称 映射
+ */
+async function loadUserMap() {
+  try {
+    const res: any = await getUserPage({ pageNum: 1, pageSize: 500, status: 1 })
+    if (res.code === 200) {
+      const map: Record<string, { nickname: string; username: string }> = {}
+      for (const u of (res.data?.records || [])) {
+        map[String(u.id)] = {
+          nickname: u.nickname || u.username || String(u.id),
+          username: u.username || String(u.id)
+        }
+      }
+      userMap.value = map
+    }
+  } catch (e) {
+    console.warn('loadUserMap failed:', e)
+  }
+}
+
+/** 解析单个 userId 显示名 */
+function resolveUserName(userId: string | null | undefined): string {
+  if (!userId) return '-'
+  const u = userMap.value[String(userId)]
+  if (u) return u.nickname
+  return String(userId)
+}
+
+/** 解析候选人列表为可显示的昵称串 */
+function resolveCandidateNames(ids: string[] | null | undefined): string {
+  if (!ids || ids.length === 0) return '无'
+  return ids.map(id => resolveUserName(id)).join('、')
+}
 
 async function fetchData() {
   loading.value = true

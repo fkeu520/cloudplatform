@@ -14,7 +14,6 @@ import org.flowable.engine.TaskService;
 import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.task.api.Task;
 import org.flowable.task.api.TaskInfo;
-import org.flowable.task.api.TaskQuery;
 import org.flowable.task.api.history.HistoricTaskInstance;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -125,8 +124,9 @@ public class WorkflowTaskService {
             List<Task> nextTasks = taskService.createTaskQuery()
                     .processInstanceId(task.getProcessInstanceId()).active().list();
             for (Task next : nextTasks) {
+                List<String> recipients = collectTaskRecipients(next);
                 taskNotifyProducer.sendTaskNotify(new TaskNotifyMessage(
-                        next.getId(), next.getName(), next.getAssignee(),
+                        next.getId(), next.getName(), String.join(",", recipients),
                         next.getProcessInstanceId(), next.getProcessDefinitionId(),
                         null, next.getCreateTime()));
 
@@ -142,7 +142,7 @@ public class WorkflowTaskService {
                 } catch (Exception ignored) {}
 
                 workflowMessageProducer.sendMessage(new WorkflowMessage(
-                        next.getId(), next.getName(), next.getAssignee(),
+                        next.getId(), next.getName(), recipients,
                         next.getProcessInstanceId(), next.getProcessDefinitionId(),
                         processDefName, businessKey,
                         next.getCreateTime() != null ? next.getCreateTime().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null));
@@ -186,6 +186,29 @@ public class WorkflowTaskService {
     @Transactional
     public void unclaim(String taskId) {
         taskService.unclaim(taskId);
+    }
+
+    /**
+     * 收集任务的收件人列表 (直接 assignee + 候选用户)
+     * 用于修复候选人任务 assignee=null 导致 Kafka 消息丢失的问题
+     */
+    private List<String> collectTaskRecipients(Task task) {
+        List<String> recipients = new ArrayList<>();
+        if (task.getAssignee() != null && !task.getAssignee().isBlank()) {
+            recipients.add(task.getAssignee());
+        }
+        try {
+            List<IdentityLink> links = taskService.getIdentityLinksForTask(task.getId());
+            for (IdentityLink link : links) {
+                if ("candidate".equals(link.getType()) && link.getUserId() != null
+                        && !recipients.contains(link.getUserId())) {
+                    recipients.add(link.getUserId());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load identity links for task {}: {}", task.getId(), e.getMessage());
+        }
+        return recipients;
     }
 
     private Map<String, Object> taskToMap(TaskInfo task) {

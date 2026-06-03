@@ -14,6 +14,7 @@ import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
+import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,13 +59,14 @@ public class WorkflowInstanceService {
             List<Task> firstTasks = taskService.createTaskQuery()
                     .processInstanceId(pi.getId()).active().list();
             for (Task t : firstTasks) {
+                List<String> recipients = collectTaskRecipients(t);
                 taskNotifyProducer.sendTaskNotify(new TaskNotifyMessage(
-                        t.getId(), t.getName(), t.getAssignee(),
+                        t.getId(), t.getName(), String.join(",", recipients),
                         t.getProcessInstanceId(), t.getProcessDefinitionId(),
                         null, t.getCreateTime()));
 
                 workflowMessageProducer.sendMessage(new WorkflowMessage(
-                        t.getId(), t.getName(), t.getAssignee(),
+                        t.getId(), t.getName(), recipients,
                         t.getProcessInstanceId(), t.getProcessDefinitionId(),
                         pi.getProcessDefinitionName(), pi.getBusinessKey(),
                         t.getCreateTime() != null ? t.getCreateTime().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null));
@@ -172,7 +174,57 @@ public class WorkflowInstanceService {
             m.put("endTime", a.getEndTime());
             m.put("durationInMillis", a.getDurationInMillis());
             m.put("assignee", a.getAssignee());
+            // 对 userTask 节点, 补充候选人信息 (供前端详情显示)
+            if ("userTask".equals(a.getActivityType())) {
+                try {
+                    List<Task> activeTasks = taskService.createTaskQuery()
+                            .processInstanceId(processInstanceId)
+                            .taskDefinitionKey(a.getActivityId())
+                            .list();
+                    if (!activeTasks.isEmpty()) {
+                        // 正在进行的任务: 返回候选人
+                        m.put("candidateUsers", collectTaskRecipients(activeTasks.get(0)));
+                    } else {
+                        // 已完成的任务: 从 HistoricTaskInstance 取 assignee (即办理人)
+                        var hti = historyService.createHistoricTaskInstanceQuery()
+                                .processInstanceId(processInstanceId)
+                                .taskDefinitionKey(a.getActivityId())
+                                .finished()
+                                .orderByHistoricTaskInstanceEndTime().desc()
+                                .list()
+                                .stream().findFirst().orElse(null);
+                        if (hti != null) {
+                            m.put("assignee", hti.getAssignee());
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
             return m;
         }).toList();
+    }
+
+    /**
+     * 收集任务的收件人列表:
+     *   - 直接 assignee (如有)
+     *   - 候选用户 (从 identityLinks 读取 candidate user)
+     * 用于解决候选人任务 assignee=null 导致 Kafka 消息丢失的问题
+     */
+    protected List<String> collectTaskRecipients(Task task) {
+        List<String> recipients = new ArrayList<>();
+        if (task.getAssignee() != null && !task.getAssignee().isBlank()) {
+            recipients.add(task.getAssignee());
+        }
+        try {
+            List<IdentityLink> links = taskService.getIdentityLinksForTask(task.getId());
+            for (IdentityLink link : links) {
+                if ("candidate".equals(link.getType()) && link.getUserId() != null
+                        && !recipients.contains(link.getUserId())) {
+                    recipients.add(link.getUserId());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load identity links for task {}: {}", task.getId(), e.getMessage());
+        }
+        return recipients;
     }
 }
