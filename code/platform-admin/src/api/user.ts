@@ -8,9 +8,9 @@ export interface User {
   mobile?: string
   email?: string
   gender?: number
-  orgId?: number | null
-  deptId?: number | null
-  postId?: number | null
+  orgId?: string | null
+  deptId?: string | null
+  postId?: string | null
   status?: number
   roleIds?: string[]
 }
@@ -21,9 +21,9 @@ export interface UserPageVO {
   nickname: string
   mobile: string
   email: string
-  orgId: number | null
-  deptId: number | null
-  postId: number | null
+  orgId: string | null
+  deptId: string | null
+  postId: string | null
   orgName: string
   deptName: string
   postName: string

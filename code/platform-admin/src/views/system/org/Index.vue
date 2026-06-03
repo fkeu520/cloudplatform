@@ -619,8 +619,8 @@ async function loadEmployees() {
     } else if (nodeType === 'dept') {
       params.deptId = selectedNodeData.value.id
     } else if (nodeType === 'post') {
-      params.deptId = Number(selectedNodeData.value.deptId)
-      params.postId = Number(selectedNodeData.value.id)
+      params.deptId = selectedNodeData.value.deptId
+      params.postId = selectedNodeData.value.id
     }
     
     const res: any = await getUserPage(params)
@@ -748,9 +748,9 @@ function onEditDeptChange(deptId: number) {
 async function handleEditSubmit() {
   if (!editForm.id) return
   const data: any = {
-    orgId: editForm.orgId ? Number(editForm.orgId) : null,
-    deptId: editForm.deptId ? Number(editForm.deptId) : null,
-    postId: editForm.postId ? Number(editForm.postId) : null
+    orgId: editForm.orgId || null,
+    deptId: editForm.deptId || null,
+    postId: editForm.postId || null
   }
   const res: any = await updateUser(editForm.id, data)
   if (res.code === 200) {

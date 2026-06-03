@@ -279,7 +279,7 @@ function clearListsForCurrent() {
 // 组织/部门/岗位级联
 
 /** 确保某个值存在于选项列表中，若不存在则追加（防止 el-select 显示 ID 而非名称） */
-function ensureInList(list: any[], value: number | null | undefined, label: string | null | undefined) {
+function ensureInList(list: any[], value: string | null | undefined, label: string | null | undefined) {
   if (value != null && label) {
     const exists = list.some((item: any) => item.id === value)
     if (!exists) {
@@ -302,11 +302,11 @@ async function loadOrgTree() {
     }
     const flat: any[] = []
     flatten(res.data || [], flat)
-    orgList.value = flat
+    orgList.value = flat.map((item: any) => ({ ...item, id: String(item.id) }))
   }
 }
 
-async function onOrgChange(orgId: number | null | undefined) {
+async function onOrgChange(orgId: string | null | undefined) {
   formData.deptId = null
   formData.postId = null
   deptList.value = []
@@ -316,7 +316,7 @@ async function onOrgChange(orgId: number | null | undefined) {
   }
 }
 
-async function loadDepts(orgId: number) {
+async function loadDepts(orgId: string) {
   const res: any = await getDeptList(orgId)
   if (res.code === 200) {
     deptList.value = res.data || []
@@ -325,7 +325,7 @@ async function loadDepts(orgId: number) {
   }
 }
 
-async function onDeptChange(deptId: number | null | undefined) {
+async function onDeptChange(deptId: string | null | undefined) {
   formData.postId = null
   postList.value = []
   if (deptId) {
@@ -333,7 +333,7 @@ async function onDeptChange(deptId: number | null | undefined) {
   }
 }
 
-async function loadPosts(deptId: number) {
+async function loadPosts(deptId: string) {
   const res: any = await getPostByDeptId(deptId)
   if (res.code === 200) {
     postList.value = res.data || []
@@ -362,11 +362,11 @@ async function handleEdit(row: UserPageVO) {
     formData.email = user.email
     formData.gender = user.gender
     formData.status = user.status
-    // JSON 中 Long 被 @JsonFormat(Shape.STRING) 序列化为字符串，
-    // el-select 的 :value 是 Number，需要转换类型才能匹配选项
-    formData.orgId = user.orgId ? Number(user.orgId) : null
-    formData.deptId = user.deptId ? Number(user.deptId) : null
-    formData.postId = user.postId ? Number(user.postId) : null
+    // IDs 来自 @JsonFormat(Shape.STRING) 已是字符串，保持 string 类型
+    // 避免 Number() 转换导致 19 位雪花 ID 精度丢失 + el-select === 类型不匹配
+    formData.orgId = user.orgId || null
+    formData.deptId = user.deptId || null
+    formData.postId = user.postId || null
     // 保存显示名称，供 ensureInList 在异步加载后使用
     currentNames.orgName = user.orgName || ''
     currentNames.deptName = user.deptName || ''
