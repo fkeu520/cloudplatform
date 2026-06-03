@@ -1,7 +1,7 @@
-# 进度保存 - 2026-06-02 (v6.8 进行中)
+# 进度保存 - 2026-06-03 (v6.8 进展)
 
 ## 总体状态
-**员工编辑组织/部门/岗位回显bug (未解决)**。后端+前端已做修复 (级联选择器/ensureInList/Name兜底)，镜像已部署，但 `el-select` 仍显示ID而非名称。暂停排查，明天继续。
+**员工编辑回显已解决**。最终根因不是前端代码，而是**数据库脏数据**：之前 `Number(orgId)` 转换丢精度后被写入 `sys_user.org_id`，`toUserVO` 查询时找不到对应组织，`orgName=null`。已修复数据 + 补充测试用例。
 
 ---
 
@@ -18,28 +18,37 @@
 
 **commit**: `2b4ab94 ci(test): 引入自动化测试框架 + pre-push hook 自动测试`
 
-### 2. 员工编辑组织/部门/岗位回显 🔴 未解决
+### 2. 员工编辑组织/部门/岗位回显 ✅ 已解决 (2026-06-03)
 
-**问题**: 点开编辑用户对话框时，组织/部门/岗位 `el-select` 显示 ID 而非名称。
+**最终根因** (与之前怀疑方向都不同): **数据库脏数据**
 
-**已做的修复 (已部署到镜像)**:
+- `sys_user.org_id` 之前是 `2061744146233823200` (丢精度)
+- `sys_organization.id` (云枢科技股份) 真实是 `2061744146233823234`
+- `toUserVO` 查 `organizationMapper.selectById(2061744146233823200)` → null
+- `orgName=null` → 前端 `ensureInList` 跳过 (因为 label 也为 null)
 
-| 修复 | 文件 | 说明 |
-|------|------|------|
-| 后端: 补充deptName/postName | UserVO.java | 新增 deptName/postName 字段 |
-| 后端: toUserVO填充名称 | UserService.java | 查org/dept/post表赋值名称 |
-| 后端: create补deptId/postId | UserService.java | 新增用户时保存部门和岗位 |
-| 前端: 级联选择器 | Index.vue | 组织→部门→岗位三级联动 |
-| 前端: Number()转换 | Index.vue | JSON字符串转Number匹配option |
-| 前端: ensureInList兜底 | Index.vue | 保证当前值存在于选项列表 |
-| 前端: 名称文本兜底 | Index.vue | span显示currentNames.orgName |
+**修复**:
 
-**怀疑方向**:
-1. `el-select` 的 `:value` 类型匹配问题 (Number vs String)
-2. 异步加载时序 (orgList被loadOrgTree覆盖)
-3. Vue 3 + Element Plus 响应式更新问题
+| 操作 | 说明 |
+|------|------|
+| 后端 SQL 修复 | `UPDATE sys_user SET org_id = 2061744146233823234 WHERE org_id = 2061744146233823200` |
+| 端到端验证 | `GET /user/2061743069044281345` → `orgName=云枢科技股份有限公司` ✅ |
 
-**状态**: ⏸️ 暂停，明天继续排查
+**完整修复链路 (3 个 commit + 数据库修复)**:
+
+1. `fbf98d5` - 前端去掉 `Number()` 转换, 保持 string 类型
+2. `e379ddb` - 后端 `/org/tree` 改 `node.put("id", o.getId().toString())`
+3. `f3fb624` - 添加测试套件 (本次 commit)
+
+**新增测试**:
+
+| 测试 | 覆盖 |
+|------|------|
+| `OrganizationServiceTest` | 验证 `tree()` 返回 ID 是 String 类型 (19 位雪花 ID 完整保留) |
+| `UserServiceTest` | 验证 `getById` 正确填充 orgName/deptName/postName, 以及找不到时返回 null |
+| `user-edit-snowflake.test.ts` | 模拟 edit 流程, 验证 Number() 转换会导致 el-select 匹配失败, 字符串比较能正确回显 |
+
+**测试结果**: 后端 6/6 ✅, 前端 11/11 ✅ (含 5 个新增)
 
 ### 3. 其他 ✅
 
