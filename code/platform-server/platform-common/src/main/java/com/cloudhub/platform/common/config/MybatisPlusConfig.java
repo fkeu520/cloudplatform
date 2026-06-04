@@ -66,6 +66,10 @@ public class MybatisPlusConfig implements MetaObjectHandler {
                 return IGNORE_TABLES.contains(tableName);
             }
         }));
+        // M5 P0-2: 数据权限拦截器 (M5 P0-2 实施, 2026-06-04)
+        //   顺序: TenantLine → DataScope → Pagination
+        //   TenantLine 先拼 tenant_id, DataScope 后拼 data_scope 片段, Pagination 最后拼 LIMIT
+        interceptor.addInnerInterceptor(new DataScopeInnerInterceptor());
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }
@@ -83,6 +87,7 @@ public class MybatisPlusConfig implements MetaObjectHandler {
     public MybatisPlusInterceptor mybatisPlusInterceptorDisabled() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         // 仅保留分页拦截器，避免关闭后分页功能异常
+        // 紧急关闭场景: 也跳过 DataScopeInnerInterceptor, 完全旁路 (回到 v3.1 行为)
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }

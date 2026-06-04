@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 );
 
 -- ----------------------------
--- 2. 角色表 (与 V1 一致)
+-- 2. 角色表 (V1 + V22 data_scope + custom_dept_ids)
 -- ----------------------------
 CREATE TABLE IF NOT EXISTS sys_role (
     id BIGINT NOT NULL,
@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS sys_role (
     sort INT DEFAULT 0,
     remark VARCHAR(255),
     tenant_id BIGINT DEFAULT 1,
+    data_scope TINYINT DEFAULT 1 COMMENT '1=全部 2=本部门 3=本部门及下级 4=本人 5=自定义',
+    custom_dept_ids VARCHAR(1000) DEFAULT NULL COMMENT '自定义部门ID列表 (data_scope=5)',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0,
