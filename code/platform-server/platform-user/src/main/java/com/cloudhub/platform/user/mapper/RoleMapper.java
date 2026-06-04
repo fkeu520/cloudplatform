@@ -16,4 +16,14 @@ public interface RoleMapper extends BaseMapper<Role> {
 
     @Select("SELECT menu_id FROM sys_role_menu WHERE role_id = #{roleId}")
     List<Long> selectMenuIdsByRoleId(@Param("roleId") Long roleId);
+
+    /**
+     * 查用户所有角色 (含 data_scope + custom_dept_ids)
+     * 配套: M5 P0-2 data_scope 实施
+     * 决策: 多角色合并策略 - 取最严格 (max data_scope)
+     */
+    @Select("SELECT r.* FROM sys_role r " +
+            "INNER JOIN sys_user_role ur ON r.id = ur.role_id " +
+            "WHERE ur.user_id = #{userId} AND r.deleted = 0")
+    List<Role> selectRolesByUserId(@Param("userId") Long userId);
 }
