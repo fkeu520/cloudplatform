@@ -1,8 +1,9 @@
 # 云枢中台 API 接口规范
 
-**版本：** v1.0  
-**日期：** 2026-05-15  
+**版本：** v3.1
+**日期：** 2026-06-04
 **适用范围：** 所有后端微服务暴露的 RESTful API
+**变更：** v1.0 (2026-05-15) → v3.1 (2026-06-04) - 重大版本不兼容, 新增 §6 中台特性规范 (多租户/数据权限/统一错误码/分页), §7 接口示例同步更新
 
 ---
 
@@ -370,3 +371,198 @@ Response 200:
 | 版本 | 日期 | 变更内容 | 编制人 |
 |------|------|---------|--------|
 | v1.0 | 2026-05-15 | 初始版本 | AI 助手 |
+| v2.0 | (未发布) | 计划中：业务字段扩展 | — |
+| **v3.1** | 2026-06-04 | **重大版本**：新增 §6 中台特性规范（多租户请求头 / 统一错误码 / 分页响应 / 链路追踪 ID）| Sisyphus |
+
+---
+
+## 八、中台特性规范（v3.1 新增）
+
+> **与 [中台建设中长期规划 v1.0](中台建设中长期规划.md) §四 5 层蓝图对齐**。本节定义 v3.1 引入的中台能力所需的接口规范，所有 v3.1+ 服务必须遵循。
+
+### 8.1 多租户请求规范
+
+#### 8.1.1 租户识别（三种方式，按优先级）
+
+```
+1. JWT Token: 优先 (JwtUtil.getTenantId 解析, 写入 ThreadLocal)
+2. Header: X-Tenant-Id: 1 (备选, 仅用于无登录场景如回调/webhook)
+3. 默认值: 1 (兜底, 仅 sys_oper_log / sys_login_log 审计表使用)
+```
+
+#### 8.1.2 请求头规范
+
+| 请求头 | 必填 | 说明 | 示例 |
+|--------|------|------|------|
+| `Authorization` | 是 (登录接口除外) | Bearer Token | `Bearer eyJhbGciOiJIUzI1NiIs...` |
+| `X-Tenant-Id` | 否 | 租户 ID (优先级 2) | `1` |
+| `X-Request-Id` | 强烈建议 | 请求追踪 ID (链路追踪) | `req-20240604-001` |
+| `X-Idempotent-Key` | 写操作必填 | 幂等键 (UUID, 24h 有效) | `550e8400-e29b-41d4-a716-446655440000` |
+
+#### 8.1.3 响应规范（多租户场景）
+
+所有业务响应**不**额外返回 `tenantId` 字段（业务方已通过 Token 隐式持有）；如需跨租户操作，应使用**运营管理后台**专用接口（`/ops/tenant-cross/**`）。
+
+#### 8.1.4 数据库约束
+
+- 业务表（用户/角色/字典/配置）**必须**含 `tenant_id BIGINT NOT NULL DEFAULT 1` 字段
+- 唯一键**必须**含 `tenant_id` 维度：`UNIQUE KEY (code, tenant_id, deleted)`
+- 索引**建议**含 `tenant_id`：`KEY idx_tenant_id (tenant_id)`
+
+> 详见 [P0-1-M4-完成度审计.md](P0-1-M4-完成度审计.md) §四 IGNORE_TABLES 清单。
+
+#### 8.1.5 拦截器行为（MyBatis-Plus TenantLineInnerInterceptor）
+
+| 行为 | 触发条件 | 期望结果 |
+|------|---------|---------|
+| 自动追加 `tenant_id = ?` | 业务表 + 上下文有租户 | ✅ 强制隔离 |
+| 不过滤 | 19 个 IGNORE_TABLES 之一 | ✅ 平台表/审计表 |
+| 紧急关闭 | `PLATFORM_TENANT_INTERCEPTOR_ENABLED=false` | ⚠️ 越权风险, 仅止血 |
+
+> 详见 [P0-1-回滚开关设计.md](P0-1-回滚开关设计.md) 方案 A。
+
+---
+
+### 8.2 统一错误码规范
+
+#### 8.2.1 错误码格式（v3.1 重构）
+
+```
+{MODULE}_{ERROR_CATEGORY}_{SPECIFIC}
+
+示例:
+USER_NOT_FOUND              # 用户不存在 (200 业务错误)
+USER_ALREADY_EXISTS         # 用户已存在
+USER_PASSWORD_ERROR         # 密码错误
+ORDER_STATUS_INVALID        # 订单状态不合法
+TENANT_CROSS_ACCESS_DENIED  # 跨租户访问被拒 (新)
+TENANT_CONTEXT_MISSING      # 租户上下文缺失 (新)
+```
+
+#### 8.2.2 模块前缀
+
+| 前缀 | 模块 |
+|------|------|
+| `AUTH_` | 认证授权 |
+| `USER_` | 用户中心 |
+| `ROLE_` | 角色管理 |
+| `MENU_` | 菜单权限 |
+| `ORG_` | 组织架构 |
+| `DICT_` | 字典管理 |
+| `CONFIG_` | 参数配置 |
+| `WORKFLOW_` | 流程引擎 |
+| `MESSAGE_` | 消息中心 |
+| `TENANT_` | 多租户 (新) |
+| `STORAGE_` | 存储管理 |
+| `GATEWAY_` | 网关路由 |
+| `OPS_` | 运营管理 |
+| `SYSTEM_` | 系统通用 |
+
+#### 8.2.3 错误类别（中间段）
+
+| 类别 | 含义 | HTTP 状态 |
+|------|------|----------|
+| `NOT_FOUND` | 资源不存在 | 404 |
+| `ALREADY_EXISTS` | 资源已存在 | 409 |
+| `INVALID` | 状态/参数不合法 | 400 |
+| `ERROR` | 操作失败 | 400 |
+| `FORBIDDEN` | 无权限 | 403 |
+| `EXPIRED` | 已过期 | 410 |
+| `CROSS_` | 跨域/跨租户违规 | 403 |
+
+#### 8.2.4 错误响应体
+
+```json
+{
+  "code": "TENANT_CROSS_ACCESS_DENIED",
+  "message": "跨租户访问被拒: 当前租户 1 无权访问租户 2 数据",
+  "data": null,
+  "timestamp": 1717500000000,
+  "requestId": "req-20240604-001",
+  "trace": {
+    "tenantId": 1,
+    "userId": 100,
+    "path": "/api/v1/users/200"
+  }
+}
+```
+
+---
+
+### 8.3 分页响应规范
+
+#### 8.3.1 请求参数
+
+```
+GET /api/v1/users?pageNum=1&pageSize=20&sort=-createTime&keyword=zhang
+
+参数:
+- pageNum: 当前页码 (从 1 开始, 默认 1)
+- pageSize: 每页条数 (默认 20, 最大 200)
+- sort: 排序字段, "-" 前缀表示降序, 多个用逗号分隔 (例: "-createTime,+id")
+- keyword: 模糊搜索 (具体字段由各接口定义)
+```
+
+#### 8.3.2 响应体
+
+```json
+{
+  "code": "SUCCESS",
+  "message": "success",
+  "data": {
+    "list": [...],
+    "pagination": {
+      "pageNum": 1,
+      "pageSize": 20,
+      "total": 150,
+      "pages": 8,
+      "hasNext": true,
+      "hasPrevious": false
+    }
+  },
+  "timestamp": 1717500000000
+}
+```
+
+#### 8.3.3 MyBatis-Plus 集成
+
+- 使用 `PaginationInnerInterceptor` (已配置, 见 [P0-1-M4-完成度审计.md](P0-1-M4-完成度审计.md))
+- 多租户 + 分页: 拦截器**同时**生效, SQL 自动 `WHERE tenant_id = ? LIMIT ?, ?`
+
+---
+
+### 8.4 链路追踪 ID 规范（M6 引入，先定义规范）
+
+> **P1-1** 链路追踪 (Zipkin) 计划 M6 启动, 本节为**预定义**规范。
+
+| 字段 | 位置 | 来源 | 传递 |
+|------|------|------|------|
+| `X-Request-Id` | HTTP Header | 网关生成 (UUID) | 全链路透传 |
+| `X-User-Id` | HTTP Header | 网关从 JWT 解析 | 业务服务日志 |
+| `X-Tenant-Id` | HTTP Header | 网关从 JWT 解析 | 业务服务日志 |
+| `traceId` | MDC (日志) | 网关/Sleuth 生成 | Logback 集成 |
+| `spanId` | MDC (日志) | Sleuth 生成 | Logback 集成 |
+
+> ELK 已支持 `traceId` 字段 (Logstash Grok 解析), 见 [环境搭建指引 §4.3](环境搭建指引.md)。
+
+---
+
+### 8.5 决策日志
+
+#### 8.5.1 为什么 v1.0 → v3.1 跳号?
+
+- v1.0 (2026-05-15) 初版
+- v2.0 计划"业务字段扩展"但**未实施**, 跳过
+- v3.1 (2026-06-04) 引入中台特性 (多租户/数据权限/错误码), 是不兼容变更, 跳到 v3.x
+
+#### 8.5.2 多租户识别为什么 JWT 优先?
+
+- JWT 一次性解析, 性能最优
+- Header 备选用于 webhook / 跨服务回调 (无 Token)
+- 默认值 1 仅用于 sys_oper_log 等审计表 (无业务上下文)
+
+#### 8.5.3 错误码为什么不用 HTTP 状态码直接表达?
+
+- HTTP 状态码粒度粗 (如 400 不能区分参数错误 vs 业务错误)
+- 业务错误码 (e.g. `USER_NOT_FOUND`) 在前端 i18n 友好
+- HTTP 状态码保留给网关层 (502/504 网关错误)
