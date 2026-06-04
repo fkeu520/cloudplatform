@@ -64,7 +64,7 @@ public class DictService {
         t.setDictType(dictType);
         t.setStatus(params.get("status") != null ? ((Number) params.get("status")).intValue() : 1);
         t.setRemark((String) params.get("remark"));
-        t.setTenantId(1);
+        t.setTenantId(1L);
         dictTypeMapper.insert(t);
     }
 

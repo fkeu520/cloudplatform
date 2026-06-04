@@ -14,5 +14,5 @@ public class Config extends BaseEntity {
     private String configValue;
     private Integer configType;
     private String remark;
-    private Integer tenantId;
+    private Long tenantId;
 }

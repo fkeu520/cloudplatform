@@ -290,7 +290,7 @@ public class UserService {
         user.setDeptId(toLong(params.get("deptId")));
         user.setPostId(toLong(params.get("postId")));
         user.setStatus(params.get("status") != null ? toInt(params.get("status")) : 1);
-        user.setTenantId(params.get("tenantId") != null ? toInt(params.get("tenantId")) : 1);
+        user.setTenantId(params.get("tenantId") != null ? toLong(params.get("tenantId")) : 1L);
         user.setUserType(params.get("userType") != null ? toInt(params.get("userType")) : 0);
         userMapper.insert(user);
 
