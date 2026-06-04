@@ -118,3 +118,13 @@ logging:
   level:
     org.springframework.cloud.gateway: DEBUG
     com.cloudhub.platform: DEBUG
+
+# ============ 多租户拦截器开关 (P0-1 回滚开关) ============
+# 配套文档: doc/P0-1-回滚开关设计.md 方案 A
+# 默认 true (拦截器加载, 当前行为)
+# 紧急回滚: 设置环境变量 PLATFORM_TENANT_INTERCEPTOR_ENABLED=false 后重启
+# 关闭后所有 SQL 不再自动拼接 tenant_id 条件, 业务回到 v3.1 之前行为
+platform:
+  tenant:
+    interceptor:
+      enabled: ${PLATFORM_TENANT_INTERCEPTOR_ENABLED:true}
