@@ -1,5 +1,6 @@
 package com.cloudhub.platform.ops.controller;
 
+import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +42,7 @@ public class TenantController {
         return Result.ok(tenantService.getById(id));
     }
 
+    @Log(title = "租户管理", businessType = 1)
     @Operation(summary = "新增租户")
     @PostMapping
     public Result<Void> create(@RequestBody Map<String, Object> params) {
@@ -48,6 +50,7 @@ public class TenantController {
         return Result.ok();
     }
 
+    @Log(title = "租户管理", businessType = 2)
     @Operation(summary = "更新租户")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody Map<String, Object> params) {
@@ -55,6 +58,7 @@ public class TenantController {
         return Result.ok();
     }
 
+    @Log(title = "租户管理", businessType = 3)
     @Operation(summary = "删除租户")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
@@ -62,8 +66,9 @@ public class TenantController {
         return Result.ok();
     }
 
+    @Log(title = "租户管理", businessType = 2)
     @Operation(summary = "切换租户状态（启用/禁用）")
-    @PostMapping("/{id}/toggle-status")
+    @PutMapping("/{id}/status")
     public Result<Void> toggleStatus(@PathVariable Long id) {
         tenantService.toggleStatus(id);
         return Result.ok();
@@ -97,6 +102,7 @@ public class TenantController {
         return Result.ok(tenantService.listAdmins(id, pageNum, pageSize));
     }
 
+    @Log(title = "租户管理", businessType = 1)
     @Operation(summary = "新增租户管理员")
     @PostMapping("/{id}/admin")
     public Result<Void> createAdmin(@PathVariable Long id, @RequestBody Map<String, Object> params) {
@@ -104,6 +110,7 @@ public class TenantController {
         return Result.ok();
     }
 
+    @Log(title = "租户管理", businessType = 3)
     @Operation(summary = "删除租户管理员")
     @DeleteMapping("/{id}/admin/{userId}")
     public Result<Void> deleteAdmin(@PathVariable Long id, @PathVariable Long userId) {
