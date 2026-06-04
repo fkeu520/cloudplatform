@@ -31,7 +31,7 @@
 | 阶段 | 时间 | 状态 |
 |------|------|------|
 | **Phase 1-2** (Phase 1A/B/C + Sprint 1-2) | 2026-05-15 ~ 2026-05-28 | ✅ 已完成 |
-| **M4 P0-1** MyBatis-Plus 多租户拦截器 | 2026-07 | 🔵 待启动 |
+| **M4 P0-1** MyBatis-Plus 多租户拦截器 | 2026-07 | 🟡 代码已实施 (待 TC + 回滚开关) |
 | **M5 P0-2** 数据权限 data_scope | 2026-08 | 🔵 待启动 |
 | **M6 P1-1 + L2 调优 + 网关韧性 + 业务指标** | 2026-09 | 🔵 待启动 |
 | **M7-M9** SSO / 可观测 / 开放 / 韧性 / 业务中台 | 2026 Q4 - 2027 Q1 | 🔵 待启动 |
@@ -177,7 +177,7 @@ npm run dev
 | 数据权限 (data_scope) | platform-user | - | 🟡 **M5 实施** |
 | 字典/参数配置 | platform-user | platform-admin | ✅ |
 | 操作日志/登录日志 | platform-user | platform-admin | ✅ |
-| 多租户 (DB 层) | platform-common | - | 🟡 **拦截器 M4 实施** |
+| 多租户 (拦截器) | platform-common | - | ✅ **代码已实施** (待集成测试 + 灰度开关) |
 | 流程定义/设计器/部署 | platform-workflow | platform-admin | ✅ |
 | 请假申请/审批/驳回/转办 | platform-workflow | platform-admin | ✅ |
 | 候选人配置 (人员/岗位) | platform-workflow | platform-admin | ✅ |
