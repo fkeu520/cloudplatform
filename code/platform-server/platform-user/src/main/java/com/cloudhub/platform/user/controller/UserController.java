@@ -1,6 +1,7 @@
 package com.cloudhub.platform.user.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.user.domain.entity.User;
@@ -68,14 +69,26 @@ public class UserController {
         if (username == null || password == null) {
             throw new BizException("用户名和密码不能为空");
         }
-        UserVO vo = userService.validatePassword(username, password);
-        return Result.ok(vo);
+        // 内部接口: auth 服务调用时无 JWT, 预先设置默认租户上下文
+        // 否则 P0-1 TenantLineInnerInterceptor 会使用 9999 导致查不到 admin(tenant_id=1)
+        TenantContextHolder.setTenantId(1L);
+        try {
+            UserVO vo = userService.validatePassword(username, password);
+            return Result.ok(vo);
+        } finally {
+            TenantContextHolder.clear();
+        }
     }
 
     @Operation(summary = "内部按用户名查找用户（供 auth 服务调用）")
     @GetMapping("/internal/by-username/{username}")
     public Result<UserVO> getByUsername(@PathVariable String username) {
-        return Result.ok(userService.getByUsername(username));
+        TenantContextHolder.setTenantId(1L);
+        try {
+            return Result.ok(userService.getByUsername(username));
+        } finally {
+            TenantContextHolder.clear();
+        }
     }
 
     // ========== 用户管理 ==========
