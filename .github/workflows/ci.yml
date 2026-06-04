@@ -167,3 +167,29 @@ jobs:
             docker build -t $img "./code/$fe"
             docker push $img
           done
+
+  # =============================================
+  # 多租户拦截器回滚开关验证 (P0-1 实施)
+  # =============================================
+  # 配套: doc/P0-1-回滚开关设计.md 方案 A
+  # 作用: 验证 MybatisPlusConfig + 6 个 application.yml 已正确实施
+  #       ConditionalOnProperty 开关, 紧急时可秒级关闭
+  # 触发: 所有 push 和 PR
+  # =============================================
+  tenant-interceptor-toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run toggle verification script
+        run: bash scripts/ci/check-tenant-interceptor-toggle.sh
+
+      - name: Annotate results
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ P0-1 多租户拦截器回滚开关验证通过"
+          else
+            echo "❌ P0-1 多租户拦截器回滚开关验证失败 - 见上方日志"
+            exit 1
+          fi
