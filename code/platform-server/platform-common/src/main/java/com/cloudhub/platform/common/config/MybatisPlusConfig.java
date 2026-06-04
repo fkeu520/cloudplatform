@@ -49,20 +49,18 @@ public class MybatisPlusConfig implements MetaObjectHandler {
             @Override
             public Expression getTenantId() {
                 Long tenantId = TenantContextHolder.getTenantId();
-                // 决策 2026-06-04: 无租户上下文时使用 9999 (主规划 §5.1.4 思路)
-                //   优点: 后台任务/消息消费者无需显式设租户, SQL 不会"裸奔"
-                //   约束: sys_user 等业务表不应有 tenant_id=9999 的数据 (见 TC-08)
-                //   配套: TC-08 启动期自检: SELECT 1 FROM sys_user WHERE tenant_id = 9999 → 0 行
-                return tenantId != null ? new LongValue(tenantId) : new LongValue(9999L);
+                // 无租户上下文时, ignoreTable 会返回 true (跳过过滤)
+                // 此处返回 0 仅作占位 (实际不会使用)
+                return tenantId != null ? new LongValue(tenantId) : new LongValue(0);
             }
 
             @Override
             public boolean ignoreTable(String tableName) {
-                // 决策 2026-06-04 (方案 C): 不再区分 tenantId 是否为 null
-                //   原因: 旧逻辑 null 时 return true 会旁路整个拦截器 (业务表 9999 也不过滤), 与主规划 §5.1.4 冲突
-                //   新逻辑: 一律按 IGNORE_TABLES 判断
-                //     - 业务表 (不在 IGNORE_TABLES): 永远被过滤 (有上下文用 tenantId, 无上下文用 9999)
-                //     - 平台/审计表 (在 IGNORE_TABLES): 永远不过滤
+                Long tenantId = TenantContextHolder.getTenantId();
+                // 决策 2026-06-04 (用户修正): 无租户上下文时跳过所有过滤
+                //   适用于: admin(tenant_id=NULL 运营管理员)、内部接口调用、后台任务
+                //   安全: 正常请求会经过 TenantFilter 设置租户上下文
+                if (tenantId == null) return true;
                 return IGNORE_TABLES.contains(tableName);
             }
         }));

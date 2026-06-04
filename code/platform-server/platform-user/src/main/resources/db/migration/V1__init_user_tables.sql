@@ -119,7 +119,7 @@ INSERT IGNORE INTO `sys_organization` (`id`, `parent_id`, `name`, `code`, `type`
 
 -- 初始管理员
 INSERT IGNORE INTO `sys_user` (`id`, `username`, `password`, `nickname`, `mobile`, `email`, `status`, `tenant_id`) VALUES
-(1, 'admin', 'e10adc3949ba59abbe56e057f20f883e', '系统管理员', '13800138000', 'admin@cloudhub.com', 1, 1);
+(1, 'admin', 'e10adc3949ba59abbe56e057f20f883e', '系统管理员', '13800138000', 'admin@cloudhub.com', 1, NULL);
 
 -- 基础角色
 INSERT IGNORE INTO `sys_role` (`id`, `code`, `name`, `sort`, `remark`, `tenant_id`) VALUES
