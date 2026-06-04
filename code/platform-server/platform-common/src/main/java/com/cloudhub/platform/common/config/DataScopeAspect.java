@@ -127,8 +127,12 @@ public class DataScopeAspect {
                     return buildSelfFragment(alias, userId, annotation);
                 }
                 return String.format("(%s%s = %d)", alias, annotation.deptAlias(), ctx.getUserDeptId());
-            case 3: // 本部门及下级 (TODO: CTE 子部门)
-                log.debug("DataScope scope=3 (本部门及下级) 需 CTE 查询, 当前简化退化为 scope=2");
+            case 3: // 本部门及下级 (决策 2: 应用层递归 / MySQL CTE)
+                if (ctx.getChildDeptIds() != null && !ctx.getChildDeptIds().isEmpty()) {
+                    return String.format("(%s%s IN (%s))", alias, annotation.deptAlias(), ctx.getChildDeptIds());
+                }
+                // childDeptIds 为空: 退化为 scope=2 (本部门)
+                log.debug("DataScope scope=3 but childDeptIds is empty, fallback to scope=2");
                 if (ctx.getUserDeptId() == null) {
                     return buildSelfFragment(alias, userId, annotation);
                 }

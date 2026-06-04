@@ -46,6 +46,15 @@ public class DataScopeContext {
     private final String customDeptIds;
 
     /**
+     * 子部门 ID 列表 (scope=3 必填)
+     * 含 userDeptId + 所有下级子部门 (逗号分隔, 如 "100,101,102")
+     * null 或空时 scope=3 退化为 scope=2 (本部门)
+     * <p>
+     * 实现: DataScopeProvider 通过应用层递归或 MySQL CTE 收集
+     */
+    private final String childDeptIds;
+
+    /**
      * 静态工厂: 无限制 (空 context)
      */
     public static DataScopeContext none() {
