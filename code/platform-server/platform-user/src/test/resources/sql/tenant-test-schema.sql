@@ -2,12 +2,29 @@
 -- P0-1 多租户集成测试 Schema
 -- 配套: doc/P0-1-集成测试checklist.md
 -- 数据库: H2 MySQL 模式 (MODE=MySQL)
+--
+-- 注意: 每个 @Test 前都会跑 (BEFORE_TEST_METHOD)
+--       H2 内存 DB schema 跨测试累积, 用 DROP + CREATE 强制重建
+--       避免 IF NOT EXISTS 跳过导致 schema 大小写不一致
 -- ============================================
+
+-- 强制清理 (H2 CASCADE 删除外键依赖)
+DROP TABLE IF EXISTS sys_user CASCADE;
+DROP TABLE IF EXISTS sys_role CASCADE;
+DROP TABLE IF EXISTS sys_organization CASCADE;
+DROP TABLE IF EXISTS sys_dict_type CASCADE;
+DROP TABLE IF EXISTS sys_config CASCADE;
+DROP TABLE IF EXISTS sys_menu CASCADE;
+DROP TABLE IF EXISTS sys_role_menu CASCADE;
+DROP TABLE IF EXISTS sys_user_menu CASCADE;
+DROP TABLE IF EXISTS sys_user_role CASCADE;
+DROP TABLE IF EXISTS sys_dept CASCADE;
+DROP TABLE IF EXISTS sys_post CASCADE;
 
 -- ----------------------------
 -- 1. 用户表 (与 V1 一致, 含 tenant_id)
 -- ----------------------------
-CREATE TABLE IF NOT EXISTS sys_user (
+CREATE TABLE sys_user (
     id BIGINT NOT NULL,
     username VARCHAR(50) NOT NULL,
     password VARCHAR(100),
@@ -33,7 +50,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
 -- ----------------------------
 -- 2. 角色表 (V1 + V22 data_scope + custom_dept_ids)
 -- ----------------------------
-CREATE TABLE IF NOT EXISTS sys_role (
+CREATE TABLE sys_role (
     id BIGINT NOT NULL,
     code VARCHAR(50) NOT NULL,
     name VARCHAR(50) NOT NULL,
@@ -52,7 +69,7 @@ CREATE TABLE IF NOT EXISTS sys_role (
 -- ----------------------------
 -- 3. 组织表 (与 V1+V4+V6 一致, 含全部字段)
 -- ----------------------------
-CREATE TABLE IF NOT EXISTS sys_organization (
+CREATE TABLE sys_organization (
     id BIGINT NOT NULL,
     parent_id BIGINT DEFAULT 0,
     name VARCHAR(100) NOT NULL,
@@ -77,7 +94,7 @@ CREATE TABLE IF NOT EXISTS sys_organization (
 -- ----------------------------
 -- 4. 字典类型表 (与 V2 一致)
 -- ----------------------------
-CREATE TABLE IF NOT EXISTS sys_dict_type (
+CREATE TABLE sys_dict_type (
     id BIGINT NOT NULL,
     dict_name VARCHAR(100) NOT NULL,
     dict_type VARCHAR(100) NOT NULL,
@@ -93,7 +110,7 @@ CREATE TABLE IF NOT EXISTS sys_dict_type (
 -- ----------------------------
 -- 5. 参数配置表 (与 V2 一致)
 -- ----------------------------
-CREATE TABLE IF NOT EXISTS sys_config (
+CREATE TABLE sys_config (
     id BIGINT NOT NULL,
     config_name VARCHAR(100) NOT NULL,
     config_key VARCHAR(100) NOT NULL,
@@ -110,7 +127,7 @@ CREATE TABLE IF NOT EXISTS sys_config (
 -- ----------------------------
 -- 6. 菜单表 (IGNORE_TABLES 之一, 含 app_id 等 V20 字段)
 -- ----------------------------
-CREATE TABLE IF NOT EXISTS sys_menu (
+CREATE TABLE sys_menu (
     id BIGINT NOT NULL,
     parent_id BIGINT DEFAULT 0,
     name VARCHAR(50) NOT NULL,
@@ -126,4 +143,22 @@ CREATE TABLE IF NOT EXISTS sys_menu (
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0,
     PRIMARY KEY (id)
+);
+
+-- ----------------------------
+-- 7. 角色-菜单关联表 (V1 schema, MenuMapper 需要)
+-- ----------------------------
+CREATE TABLE sys_role_menu (
+    role_id BIGINT NOT NULL,
+    menu_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, menu_id)
+);
+
+-- ----------------------------
+-- 8. 用户-菜单关联表 (V1 schema)
+-- ----------------------------
+CREATE TABLE sys_user_menu (
+    user_id BIGINT NOT NULL,
+    menu_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, menu_id)
 );

@@ -102,6 +102,17 @@ public class DataScopeAspect {
 
     /**
      * 根据 DataScopeContext 拼 SQL 片段
+     *
+     * 格式约定 (2026-06-04 修正):
+     *   - 表达式**不带 "AND" 前导** (jsqlparser 解析需求)
+     *   - 表达式**用括号包装** (e.g. "(id = 5)" 或 "(dept_id IN (1,2,3))")
+     *   - 由 DataScopeInnerInterceptor 决定 WHERE 拼接方式
+     *
+     * 示例:
+     *   scope=1 → ""            (空, 拦截器不改 SQL)
+     *   scope=2 → "(dept_id = 100)"
+     *   scope=4 → "(id = 5)"
+     *   scope=5 → "(dept_id IN (1,2,3))"
      */
     private String buildFragment(DataScopeContext ctx, Long userId, DataScope annotation) {
         String alias = annotation.alias().isEmpty() ? "" : annotation.alias() + ".";
@@ -115,13 +126,13 @@ public class DataScopeAspect {
                     log.debug("DataScope scope=2 but userDeptId is null, fallback to scope=4 (本人)");
                     return buildSelfFragment(alias, userId, annotation);
                 }
-                return String.format(" AND %s%s = %d", alias, annotation.deptAlias(), ctx.getUserDeptId());
+                return String.format("(%s%s = %d)", alias, annotation.deptAlias(), ctx.getUserDeptId());
             case 3: // 本部门及下级 (TODO: CTE 子部门)
                 log.debug("DataScope scope=3 (本部门及下级) 需 CTE 查询, 当前简化退化为 scope=2");
                 if (ctx.getUserDeptId() == null) {
                     return buildSelfFragment(alias, userId, annotation);
                 }
-                return String.format(" AND %s%s = %d", alias, annotation.deptAlias(), ctx.getUserDeptId());
+                return String.format("(%s%s = %d)", alias, annotation.deptAlias(), ctx.getUserDeptId());
             case 4: // 本人
                 return buildSelfFragment(alias, userId, annotation);
             case 5: // 自定义
@@ -129,7 +140,7 @@ public class DataScopeAspect {
                     log.debug("DataScope scope=5 but customDeptIds is empty, fallback to scope=4 (本人)");
                     return buildSelfFragment(alias, userId, annotation);
                 }
-                return String.format(" AND %s%s IN (%s)", alias, annotation.deptAlias(), ctx.getCustomDeptIds());
+                return String.format("(%s%s IN (%s))", alias, annotation.deptAlias(), ctx.getCustomDeptIds());
             default: // 未知 scope, 退化
                 log.warn("Unknown data_scope: {}, fallback to no-scope", scope);
                 return "";
@@ -137,6 +148,6 @@ public class DataScopeAspect {
     }
 
     private String buildSelfFragment(String alias, Long userId, DataScope annotation) {
-        return String.format(" AND %s%s = %d", alias, annotation.userAlias(), userId);
+        return String.format("(%s%s = %d)", alias, annotation.userAlias(), userId);
     }
 }
