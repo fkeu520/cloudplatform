@@ -244,7 +244,6 @@ services:
       - "8081:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_FLYWAY_ENABLED=false
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
@@ -275,7 +274,6 @@ services:
     ports:
       - "8085:8085"
     environment:
-      - SPRING_FLYWAY_ENABLED=false
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
@@ -336,7 +334,6 @@ services:
       - "8084:8084"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SPRING_FLYWAY_ENABLED=false
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
@@ -394,7 +391,6 @@ services:
     ports:
       - "8087:8087"
     environment:
-      - SPRING_FLYWAY_ENABLED=false
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
