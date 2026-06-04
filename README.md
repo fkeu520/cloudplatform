@@ -31,8 +31,8 @@
 | 阶段 | 时间 | 状态 |
 |------|------|------|
 | **Phase 1-2** (Phase 1A/B/C + Sprint 1-2) | 2026-05-15 ~ 2026-05-28 | ✅ 已完成 |
-| **M4 P0-1** MyBatis-Plus 多租户拦截器 | 2026-07 | 🟡 代码已实施 (待 TC + 回滚开关) |
-| **M5 P0-2** 数据权限 data_scope | 2026-08 | 🔵 待启动 |
+| **M4 P0-1** MyBatis-Plus 多租户拦截器 | 2026-07 | ✅ 已完成 (8 TC + 灰度开关 + null 模式) |
+| **M5 P0-2** 数据权限 data_scope | 2026-08 | 🟡 基础版可用 (3+5 TC, 复杂场景入 M5+) |
 | **M6 P1-1 + L2 调优 + 网关韧性 + 业务指标** | 2026-09 | 🔵 待启动 |
 | **M7-M9** SSO / 可观测 / 开放 / 韧性 / 业务中台 | 2026 Q4 - 2027 Q1 | 🔵 待启动 |
 
@@ -174,10 +174,10 @@ npm run dev
 | 模块 | 后端 | 前端 | 状态 |
 |------|------|------|------|
 | 用户/角色/菜单/组织 RBAC | platform-user | platform-admin | ✅ |
-| 数据权限 (data_scope) | platform-user | - | 🟡 **M5 实施** |
+| 数据权限 (data_scope) | platform-user | - | 🟡 **M5 基础版** (3+5 TC, 跨服务集成入 M5+) |
 | 字典/参数配置 | platform-user | platform-admin | ✅ |
 | 操作日志/登录日志 | platform-user | platform-admin | ✅ |
-| 多租户 (拦截器) | platform-common | - | ✅ **代码已实施** (待集成测试 + 灰度开关) |
+| 多租户 (拦截器) | platform-common | - | ✅ **M4 已完成** (8 TC + 灰度开关 + null 模式) |
 | 流程定义/设计器/部署 | platform-workflow | platform-admin | ✅ |
 | 请假申请/审批/驳回/转办 | platform-workflow | platform-admin | ✅ |
 | 候选人配置 (人员/岗位) | platform-workflow | platform-admin | ✅ |

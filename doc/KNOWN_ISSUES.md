@@ -17,11 +17,11 @@
 | 5 | 🟢 已解决 | 数据库 | tenant_id 字段类型 Integer/BIGINT 不统一 (V21 migration) | 2026-06-04 |
 | 6 | 🟢 已解决 | CI/CD | check-tenant-interceptor-toggle.sh 的 yml pattern 匹不到 (# P0-1 灰度开关) | 2026-06-04 |
 | 7 | 🟢 已解决 | 操作日志 | ops 模块缺 OperLogAspect，"授权租户应用"等写操作不入 sys_oper_log | 2026-06-04 |
-| 8 | 🟡 待跟进 | 文档 | 4 份 backlog 文档更新后未在 README 路线图状态同步反映 (M4/M5 状态变化) | 2026-06-04 |
-| 9 | 🟡 待跟进 | 测试 | M5 data_scope 业务注解只跑了单服务 TC，未跑跨服务集成 | 2026-06-04 |
+| 8 | 🟢 已解决 | 文档 | 4 份 backlog 文档更新后未在 README 路线图状态同步反映 (M4/M5 状态变化) | 2026-06-04 |
+| 9 | 🟡 待跟进 (已确认暂不修) | 测试 | M5 data_scope 业务注解只跑了单服务 TC，未跑跨服务集成 (用户决策: 进 M5+ backlog) | 2026-06-04 |
 | 10 | 🟢 已解决 | 数据库/部署 | platform-message 报 "Access denied to platform_message" (init.sql 缺 GRANT + Flyway=false 表未建) | 2026-06-04 |
 | 11 | 🟡 待跟进 | 数据库 | docker-compose 配 `SPRING_FLYWAY_ENABLED=false`，设计意图未明 (Flyway 自动 vs 手动 init.sql) | 2026-06-04 |
-| 12 | 🟡 待跟进 | 监控 | xxl-job-admin 显示 unhealthy，未查根因 | 2026-06-04 |
+| 12 | 🟡 待跟进 (已确认先忽略) | 监控 | xxl-job-admin 显示 unhealthy (用户决策: 暂不排查, 业务可调) | 2026-06-04 |
 | 13 | 🟡 待跟进 | Git/部署 | `.gitignore` 第 33 行排除 `docker/mysql/` 整目录, 导致 init.sql 修复**无法进 git**, 新部署必复发 #10 | 2026-06-04 |
 
 **状态图例**:
@@ -304,7 +304,7 @@ CI 跑通。
 
 ---
 
-## #8 🟡 README 路线图状态与实际不符 (2026-06-04)
+## #8 🟢 README 路线图状态与实际不符 (2026-06-04)
 
 ### 现象
 
@@ -331,7 +331,7 @@ README.md 路线图显示:
 
 ---
 
-## #9 🟡 M5 data_scope 业务注解只跑单服务 TC (2026-06-04)
+## #9 🟡 M5 data_scope 业务注解只跑单服务 TC (2026-06-04) [已确认暂不修]
 
 ### 现象
 
@@ -357,7 +357,11 @@ ops / workflow / message 等**其他服务**的 `@DataScope` 注解未跑集成�
 
 ---
 
-## #12 🟡 xxl-job-admin 显示 unhealthy (2026-06-04)
+## #12 🟡 xxl-job-admin 显示 unhealthy (2026-06-04) [已确认先忽略]
+
+### 用户决策 (2026-06-04)
+
+**先忽略**, 业务接口可调, 暂不投入时间排查。后续若出现 xxl-job 调度失效 (无任务触发) 再回头查 healthcheck 配置。
 
 ### 现象
 

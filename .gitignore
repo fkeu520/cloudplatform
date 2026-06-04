@@ -30,9 +30,10 @@ Thumbs.db
 *.local
 
 # Docker
-docker/mysql/
-docker/redis/
-docker/minio/
+# 2026-06-04 修复: 不要整个目录排除, 允许 .sql/.cnf/.conf 等配置进 git
+# 只忽略未来的 data 目录 (docker volume 挂载点) / minio 数据卷
+docker/mysql/data/
+docker/minio/data/
 
 # Build
 *.class
