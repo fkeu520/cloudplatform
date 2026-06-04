@@ -57,7 +57,7 @@ echo "=== 2. 6 个 application.yml 配置检查 ==="
 for svc in user auth gateway message ops workflow; do
     YML="code/platform-server/platform-$svc/src/main/resources/application.yml"
     check "platform-$svc.yml 含 platform.tenant.interceptor.enabled" \
-          "platform.tenant.interceptor.enabled" "$YML"
+          "enabled:.*PLATFORM_TENANT_INTERCEPTOR_ENABLED" "$YML"
     check "platform-$svc.yml 从环境变量 PLATFORM_TENANT_INTERCEPTOR_ENABLED 读" \
           "PLATFORM_TENANT_INTERCEPTOR_ENABLED" "$YML"
 done
