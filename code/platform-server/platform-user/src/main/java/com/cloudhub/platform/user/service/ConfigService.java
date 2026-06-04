@@ -63,7 +63,7 @@ public class ConfigService {
         c.setConfigValue(configValue);
         c.setConfigType(params.get("configType") != null ? ((Number) params.get("configType")).intValue() : 0);
         c.setRemark((String) params.get("remark"));
-        c.setTenantId(1);
+        c.setTenantId(1L);
         configMapper.insert(c);
     }
 

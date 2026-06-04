@@ -85,7 +85,7 @@ class TenantIsolationTest {
         TenantContextHolder.setTenantId(1L);
         List<User> users = userMapper.selectList(null);
         assertEquals(2, users.size(), "租户 1 应只看到 2 个用户");
-        assertTrue(users.stream().allMatch(u -> u.getTenantId().intValue() == 1),
+        assertTrue(users.stream().allMatch(u -> u.getTenantId().longValue() == 1L),
                 "所有用户 tenantId 应为 1");
     }
 
@@ -96,7 +96,7 @@ class TenantIsolationTest {
         TenantContextHolder.setTenantId(1L);
         List<User> users = userMapper.selectList(null);
         // 断言: 看不到任何 tenant_id=2 的数据
-        assertTrue(users.stream().noneMatch(u -> u.getTenantId().intValue() == 2),
+        assertTrue(users.stream().noneMatch(u -> u.getTenantId().longValue() == 2L),
                 "不应看到租户 2 的用户");
         // 断言: 看不到 id=201 或 202
         assertTrue(users.stream().noneMatch(u -> u.getId() == 201L || u.getId() == 202L),
@@ -133,7 +133,7 @@ class TenantIsolationTest {
     void tc05_crossTenantDictInvisible() {
         TenantContextHolder.setTenantId(1L);
         List<DictType> dicts = dictTypeMapper.selectList(null);
-        assertTrue(dicts.stream().noneMatch(d -> d.getTenantId() != null && d.getTenantId().intValue() == 2),
+        assertTrue(dicts.stream().noneMatch(d -> d.getTenantId() != null && d.getTenantId().longValue() == 2L),
                 "不应看到租户 2 的字典");
         assertEquals(1, dicts.size(), "租户 1 应只看到 1 个字典");
     }
@@ -144,7 +144,7 @@ class TenantIsolationTest {
     void tc06_crossTenantConfigInvisible() {
         TenantContextHolder.setTenantId(1L);
         List<Config> configs = configMapper.selectList(null);
-        assertTrue(configs.stream().noneMatch(c -> c.getTenantId() != null && c.getTenantId().intValue() == 2),
+        assertTrue(configs.stream().noneMatch(c -> c.getTenantId() != null && c.getTenantId().longValue() == 2L),
                 "不应看到租户 2 的配置");
         assertEquals(1, configs.size(), "租户 1 应只看到 1 个配置");
     }

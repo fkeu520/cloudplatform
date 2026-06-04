@@ -13,5 +13,5 @@ public class DictType extends BaseEntity {
     private String dictType;
     private Integer status;
     private String remark;
-    private Integer tenantId;
+    private Long tenantId;
 }
