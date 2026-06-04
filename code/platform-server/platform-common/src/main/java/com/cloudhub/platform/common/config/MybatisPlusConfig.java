@@ -12,6 +12,7 @@ import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.LongValue;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -32,7 +33,16 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         "sys_oper_log", "sys_login_log"
     );
 
+    /**
+     * 多租户拦截器 Bean · 启用版本（默认行为）<br>
+     * 通过 {@code platform.tenant.interceptor.enabled=true} 控制，缺失时默认 {@code true}。<br>
+     * 关闭时回落到 {@link #mybatisPlusInterceptorDisabled()}（仅保留分页拦截器）。<br>
+     * 决策依据: 见 {@code doc/P0-1-回滚开关设计.md} 方案 A。
+     *
+     * @since 2026-06-04
+     */
     @Bean
+    @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "true", matchIfMissing = true)
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new TenantLineHandler() {
@@ -49,6 +59,23 @@ public class MybatisPlusConfig implements MetaObjectHandler {
                 return IGNORE_TABLES.contains(tableName);
             }
         }));
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        return interceptor;
+    }
+
+    /**
+     * 多租户拦截器 Bean · 禁用版本（紧急回滚）<br>
+     * 当 {@code platform.tenant.interceptor.enabled=false} 时激活。<br>
+     * 仅保留分页拦截器，多租户过滤被旁路，业务回到 v3.1 之前行为。<br>
+     * <b>警告</b>: 此 Bean 激活时无任何租户隔离，存在越权风险，仅用于紧急止血。
+     *
+     * @since 2026-06-04
+     */
+    @Bean
+    @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "false")
+    public MybatisPlusInterceptor mybatisPlusInterceptorDisabled() {
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        // 仅保留分页拦截器，避免关闭后分页功能异常
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }
