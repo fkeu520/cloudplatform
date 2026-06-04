@@ -171,8 +171,9 @@ public class UserService {
     }
 
     /**
-     * 分页查询用户
+     * 分页查询用户 (M5 P0-2: 加 @DataScope 自动按角色 data_scope 过滤)
      */
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public PageResult<UserPageVO> page(String keyword, Long orgId, String orgIds, Long deptId, Long postId, Integer tenantId, Integer status, Integer userType, int pageNum, int pageSize) {
         LambdaQueryWrapper<User> wrapper = buildQueryWrapper(keyword, orgId, orgIds, deptId, postId, tenantId, status, userType);
 
@@ -187,8 +188,9 @@ public class UserService {
     }
 
     /**
-     * 查询所有用户列表
+     * 查询所有用户列表 (M5 P0-2: 加 @DataScope 自动按角色 data_scope 过滤)
      */
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public List<UserVO> list(String keyword, Long orgId, Integer status) {
         LambdaQueryWrapper<User> wrapper = buildQueryWrapper(keyword, orgId, null, null, null, null, status, null);
         List<User> users = userMapper.selectList(wrapper);

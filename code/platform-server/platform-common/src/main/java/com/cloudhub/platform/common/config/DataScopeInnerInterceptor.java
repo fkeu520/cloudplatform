@@ -74,6 +74,8 @@ public class DataScopeInnerInterceptor implements InnerInterceptor {
             // 解析失败: 记 WARN, 放行原 SQL (安全降级)
             log.warn("DataScope SQL parse failed, original SQL kept. fragment=[{}] sql=[{}]",
                     fragment, originalSql, e);
+            // 仍 clear, 防止同一 fragment 被反复用于其他 SQL
+            DataScopeContextHolder.clear();
             return;
         }
 
@@ -84,6 +86,13 @@ public class DataScopeInnerInterceptor implements InnerInterceptor {
         // 4. 反射设置新 SQL 到 BoundSql
         MetaObject metaObject = SystemMetaObject.forObject(boundSql);
         metaObject.setValue("sql", newSql);
+
+        // 5. 关键: 改写后立即 clear, 防止业务方法内的"子查询"被错误改写
+        // 业务方法 (如 UserService.list) 可能先调 userMapper.selectList, 然后 toUserVO 内部
+        // 再调 menuMapper.selectByUserId。后者表无 id 列, 改写会失败。
+        // 策略: Aspect 设 fragment, 第一个 mapper 改写后立即清空, 后续 mapper 不再被改写。
+        // 局限: 业务方法只对**第一个** mapper 生效 (主业务 mapper 通常就是第一个)。
+        DataScopeContextHolder.clear();
     }
 
     /**
