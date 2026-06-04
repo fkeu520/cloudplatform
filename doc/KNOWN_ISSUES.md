@@ -20,9 +20,10 @@
 | 8 | 🟢 已解决 | 文档 | 4 份 backlog 文档更新后未在 README 路线图状态同步反映 (M4/M5 状态变化) | 2026-06-04 |
 | 9 | 🟡 待跟进 (已确认暂不修) | 测试 | M5 data_scope 业务注解只跑了单服务 TC，未跑跨服务集成 (用户决策: 进 M5+ backlog) | 2026-06-04 |
 | 10 | 🟢 已解决 | 数据库/部署 | platform-message 报 "Access denied to platform_message" (init.sql 缺 GRANT + Flyway=false 表未建) | 2026-06-04 |
-| 11 | 🟡 待跟进 | 数据库 | docker-compose 配 `SPRING_FLYWAY_ENABLED=false`，设计意图未明 (Flyway 自动 vs 手动 init.sql) | 2026-06-04 |
+| 11 | 🟡 待跟进 (代码已 push) | 数据库 | Flyway=true 改完, 需 drop 库让 Flyway 重建, **明天执行** | 2026-06-04 |
 | 12 | 🟡 待跟进 (已确认先忽略) | 监控 | xxl-job-admin 显示 unhealthy (用户决策: 暂不排查, 业务可调) | 2026-06-04 |
-| 13 | 🟡 待跟进 | Git/部署 | `.gitignore` 第 33 行排除 `docker/mysql/` 整目录, 导致 init.sql 修复**无法进 git**, 新部署必复发 #10 | 2026-06-04 |
+| 13 | 🟢 已解决 | Git/部署 | `.gitignore` 精确排除 + init.sql 进 git + Flyway 改 true | 2026-06-04 |
+| 14 | 🟡 待跟进 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -528,7 +529,7 @@ $ git check-ignore -v docker/mysql/init.sql
 
 ---
 
-## #13 🟡 `.gitignore` 排除 `docker/mysql/` 整目录, init.sql 修复无法持久化 (2026-06-04)
+## #13 🟢 `.gitignore` 精确排除 + init.sql 进 git + Flyway 改 true (2026-06-04)
 
 ### 现象
 
@@ -595,3 +596,91 @@ docker exec platform-mysql mysql -uroot -proot123456 platform_message -e "SHOW T
 2. **"我改了文件, git status 没显示"** 应当立刻 `git check-ignore -v <file>` 排查 — 这是 5 秒能查清的事, 不要花 30 分钟怀疑自己写错了
 3. **docker 持久化 vs git 追踪** — 数据 volume (mysql-data / redis-data) 该忽略, **配置** (init.sql / my.cnf / redis.conf) **必须**追踪, 不要一刀切
 4. **本地修复 vs 团队修复** — 个人开发机修复 = 临时; 团队都能修复 = 持久化; **持续集成** = 自动化; 三者**不要混淆**
+
+---
+
+## #14 🟡 明日执行: drop platform_message + 拉新镜像 + Flyway 重建 (2026-06-05)
+
+### 背景
+
+2026-06-04 已完成 (本次会话):
+- ✅ `.gitignore` 改精确排除 (`docker/mysql/data/` / `docker/minio/data/`)
+- ✅ `docker/mysql/{init.sql, my.cnf}` 进 git
+- ✅ `docker-compose.yml` 删 4 处 `SPRING_FLYWAY_ENABLED=false`
+- ✅ push 到 origin, 触发 CI (镜像构建中)
+- ⚠️ **未执行**: drop 之前临时建的 4 张表, 让 Flyway 自动重建
+
+### 现状
+
+- 当前 `platform_message` 库里有 4 张表 (我 2026-06-04 临时用 SQL 建的):
+  - `sys_message` / `sys_message_channel` / `sys_message_template` / `sys_message_record`
+- `platform_message` 库权限**已修** (init.sql 进 git)
+- CI 在跑, 镜像构建中 (约 5-10 min)
+
+### 明日执行步骤
+
+```powershell
+# === 1. 启动 Docker Desktop (如果还没启动) ===
+# 等待 Docker Desktop 图标变绿
+
+# === 2. 确认 CI 镜像已发布 ===
+# 访问 https://github.com/<owner>/platform/actions 看 build 是否绿
+# (如果没完, 等 5-10 min, 镜像约 200MB/服务)
+
+# === 3. drop 之前手动建的库 (让 Flyway 重建) ===
+docker exec platform-mysql sh -c "mysql -uroot -proot123456 -e 'DROP DATABASE IF EXISTS platform_message;'"
+# 期望: 干净完成, 库没了
+
+# === 4. 拉新镜像 + 重启 ===
+docker compose pull
+docker compose up -d
+
+# === 5. 验证 Flyway 自动建表 ===
+# 5a. 看 message 库现在有什么表
+docker exec platform-mysql mysql -uroot -proot123456 platform_message -e "SHOW TABLES;"
+# 期望: 4 张表 (Flyway 从 V1__init_message_tables.sql 自动建)
+
+# 5b. 看 Flyway 历史表
+docker exec platform-mysql mysql -uroot -proot123456 platform_message -e "SELECT version, description, success FROM flyway_schema_history;"
+# 期望: 1 行, version=1, success=1
+
+# === 6. 业务接口验证 ===
+# 6a. 登录
+$body = '{"username":"admin","password":"123456"}'
+$r = Invoke-WebRequest -Uri "http://localhost:8082/auth/login" -Method POST -UseBasicParsing -ContentType "application/json" -Body $body
+$t = ($r.Content | ConvertFrom-Json).data.token
+
+# 6b. 调用 message 接口
+$r2 = Invoke-WebRequest -Uri "http://localhost:8085/message/site/unread-count?userId=zhangs" -UseBasicParsing -Headers @{"Authorization"="Bearer $t"}
+$r2.Content
+# 期望: {"code":200,"message":"...","data":8}
+
+# === 7. 顺便验证其他服务 Flyway 也工作 ===
+# platform-user / platform-workflow / platform-ops 都已删 Flyway=false
+# 主库 platform 的 flyway_schema_history 表应继续工作
+docker exec platform-mysql mysql -uroot -proot123456 platform -e "SELECT version, description, success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 5;"
+# 期望: 最近 5 个 migration 都 success=1
+```
+
+### 风险
+
+- **V1 重复执行**: Flyway 启动时会检查 `flyway_schema_history` 表, 如果已记录的 migration 不会重跑。所以即使第 5 步 V1 跑成功, 之后重启也不会出错。
+- **数据丢失**: 第 3 步 drop 库会**清掉 10 条 sys_message 种子数据**。这是临时建的, 没价值。如果不希望丢, 先备份:
+  ```powershell
+  docker exec platform-mysql sh -c "mysqldump -uroot -proot123456 platform_message > /tmp/backup.sql"
+  docker cp platform-mysql:/tmp/backup.sql ./backup_20260605.sql
+  ```
+- **回滚**: 如果 Flyway 失败, 可以临时把 docker-compose.yml 加回 `SPRING_FLYWAY_ENABLED=false` (在 image 拉新后), 重启就回退到手动模式。
+
+### 完成后
+
+1. 在 KNOWN_ISSUES.md 标记 #11 + #14 为 🟢 已解决
+2. 在 README 路线图状态补一条: "✅ Flyway 已贯通, platform_message 表由 Flyway 自动管理 (2026-06-05)"
+3. 写入 HANDOFF_2026-06-05.md 交接
+4. (可选) 清理 backup_20260605.sql
+
+### 教训 (本次)
+
+1. **改完代码先 push + 验证执行, 不要停在中途** — 今日缺了最后一步 (drop + 重启验证)
+2. **"明天执行" 必须写明步骤** — 否则明天要从头看对话回忆, 浪费 30 min
+3. **CI 时间和执行时间分开** — push 后 5-10 min CI 跑完, 之后才能 pull, 别着急 pull 拿旧镜像
