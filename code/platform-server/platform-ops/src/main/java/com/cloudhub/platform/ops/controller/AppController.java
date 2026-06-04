@@ -1,5 +1,6 @@
 package com.cloudhub.platform.ops.controller;
 
+import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.AppService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +40,7 @@ public class AppController {
         return Result.ok(appService.getById(id));
     }
 
+    @Log(title = "应用管理", businessType = 1)
     @Operation(summary = "新增应用")
     @PostMapping
     public Result<Void> create(@RequestBody Map<String, Object> params) {
@@ -46,6 +48,7 @@ public class AppController {
         return Result.ok();
     }
 
+    @Log(title = "应用管理", businessType = 2)
     @Operation(summary = "更新应用")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody Map<String, Object> params) {
@@ -53,6 +56,7 @@ public class AppController {
         return Result.ok();
     }
 
+    @Log(title = "应用管理", businessType = 3)
     @Operation(summary = "删除应用")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

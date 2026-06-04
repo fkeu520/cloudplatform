@@ -1,14 +1,12 @@
 package com.cloudhub.platform.ops.controller;
 
+import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
@@ -50,6 +48,7 @@ public class OpsUserController {
         return restTemplate.getForObject(userServiceUrl + "/user/" + id, Map.class);
     }
 
+    @Log(title = "运营管理员", businessType = 1)
     @SuppressWarnings("unchecked")
     @Operation(summary = "新增运营管理员")
     @PostMapping
@@ -58,6 +57,7 @@ public class OpsUserController {
         return restTemplate.postForObject(userServiceUrl + "/user", params, Map.class);
     }
 
+    @Log(title = "运营管理员", businessType = 2)
     @SuppressWarnings("unchecked")
     @Operation(summary = "更新运营管理员")
     @PutMapping("/{id}")
@@ -67,6 +67,7 @@ public class OpsUserController {
         return Map.of("code", 200, "message", "success");
     }
 
+    @Log(title = "运营管理员", businessType = 3)
     @SuppressWarnings("unchecked")
     @Operation(summary = "删除运营管理员")
     @DeleteMapping("/{id}")
@@ -75,6 +76,7 @@ public class OpsUserController {
         return Map.of("code", 200, "message", "success");
     }
 
+    @Log(title = "运营管理员", businessType = 2)
     @SuppressWarnings("unchecked")
     @Operation(summary = "切换状态")
     @PostMapping("/{id}/toggle-status")
@@ -82,6 +84,7 @@ public class OpsUserController {
         return restTemplate.postForObject(userServiceUrl + "/user/" + id + "/toggle-status", null, Map.class);
     }
 
+    @Log(title = "运营管理员", businessType = 2)
     @SuppressWarnings("unchecked")
     @Operation(summary = "重置密码")
     @PostMapping("/{id}/reset-password")
@@ -96,6 +99,7 @@ public class OpsUserController {
         return restTemplate.getForObject(userServiceUrl + "/user/" + id + "/menuIds", Map.class);
     }
 
+    @Log(title = "运营管理员", businessType = 2)
     @SuppressWarnings("unchecked")
     @Operation(summary = "分配用户直接授权菜单")
     @PostMapping("/{id}/menus")

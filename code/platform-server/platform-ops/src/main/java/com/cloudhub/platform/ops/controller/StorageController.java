@@ -1,5 +1,6 @@
 package com.cloudhub.platform.ops.controller;
 
+import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,7 @@ public class StorageController {
         return Result.ok(storageService.getById(id));
     }
 
+    @Log(title = "存储配置", businessType = 1)
     @Operation(summary = "新增存储配置")
     @PostMapping
     public Result<Void> create(@RequestBody Map<String, Object> params) {
@@ -45,6 +47,7 @@ public class StorageController {
         return Result.ok();
     }
 
+    @Log(title = "存储配置", businessType = 2)
     @Operation(summary = "更新存储配置")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody Map<String, Object> params) {
@@ -52,6 +55,7 @@ public class StorageController {
         return Result.ok();
     }
 
+    @Log(title = "存储配置", businessType = 3)
     @Operation(summary = "删除存储配置")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
@@ -71,6 +75,7 @@ public class StorageController {
         return Result.ok(storageService.listBuckets(id));
     }
 
+    @Log(title = "存储配置", businessType = 1)
     @Operation(summary = "创建Bucket")
     @PostMapping("/{id}/buckets")
     public Result<Void> createBucket(@PathVariable Long id, @RequestParam String bucketName) {

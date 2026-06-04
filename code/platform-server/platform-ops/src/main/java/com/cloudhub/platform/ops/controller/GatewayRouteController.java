@@ -1,5 +1,6 @@
 package com.cloudhub.platform.ops.controller;
 
+import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.GatewayRouteService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +40,7 @@ public class GatewayRouteController {
         return Result.ok(gatewayRouteService.getById(id));
     }
 
+    @Log(title = "网关路由", businessType = 1)
     @Operation(summary = "新增路由")
     @PostMapping
     public Result<Void> create(@RequestBody Map<String, Object> params) {
@@ -46,6 +48,7 @@ public class GatewayRouteController {
         return Result.ok();
     }
 
+    @Log(title = "网关路由", businessType = 2)
     @Operation(summary = "更新路由")
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody Map<String, Object> params) {
@@ -53,6 +56,7 @@ public class GatewayRouteController {
         return Result.ok();
     }
 
+    @Log(title = "网关路由", businessType = 3)
     @Operation(summary = "删除路由")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
@@ -60,6 +64,7 @@ public class GatewayRouteController {
         return Result.ok();
     }
 
+    @Log(title = "网关路由", businessType = 2)
     @Operation(summary = "切换路由状态")
     @PostMapping("/{id}/toggle-status")
     public Result<Void> toggleStatus(@PathVariable Long id) {
