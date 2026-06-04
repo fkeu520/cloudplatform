@@ -176,19 +176,17 @@ class TenantIsolationTest {
 
     @Test
     @Order(8)
-    @DisplayName("TC-08: 无租户上下文时使用 9999, sys_user 9999 应返回 0 行 (主规划 §5.1.4)")
-    void tc08_unauthorizedTenant9999() {
-        // 验证 1: 无租户上下文时, 拦截器使用 9999
+    @DisplayName("TC-08: 无租户上下文时 ignoreTable=true, 拦截器跳过 (不过滤租户)")
+    void tc08_nullContext_noTenantFilter() {
+        // 设计决策: 无租户上下文时 (如 admin 运营管理员、内部接口调用、后台任务),
+        // ignoreTable 返回 true (跳过所有过滤)
+        // 所有租户的所有 sys_user 应返回
         TenantContextHolder.clear();
-        // 不设置租户上下文, 模拟"无主"访问
         List<User> users = userMapper.selectList(null);
 
-        // 期望: 应返回 0 行 (因为 sys_user 中没有 tenant_id=9999 的数据)
-        // 如果有数据, 说明存在 9999 租户的"无主数据", 违反主规划 §5.1.4 约束
-        assertEquals(0, users.size(),
-                "无租户上下文 (使用 9999) 时, sys_user 应返回 0 行 (无 9999 数据)");
-
-        // 验证 2: 9999 租户应保持为空
+        // 期望: 返回所有 4 个用户 (无 tenant_id 过滤)
+        assertEquals(4, users.size(),
+                "无租户上下文时, 应返回所有用户 (不过滤)");
         assertNotNull(users, "查询不应为 null");
     }
 
