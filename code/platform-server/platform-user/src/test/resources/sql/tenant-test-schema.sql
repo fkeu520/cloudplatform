@@ -162,3 +162,39 @@ CREATE TABLE sys_user_menu (
     menu_id BIGINT NOT NULL,
     PRIMARY KEY (user_id, menu_id)
 );
+
+-- ----------------------------
+-- 9. 部门表 (PR2 集成测试用, 简化版)
+-- ----------------------------
+CREATE TABLE sys_dept (
+    id BIGINT NOT NULL,
+    org_id BIGINT,
+    parent_id BIGINT DEFAULT 0,
+    name VARCHAR(100),
+    code VARCHAR(50),
+    manager VARCHAR(50),
+    phone VARCHAR(20),
+    sort INT DEFAULT 0,
+    status TINYINT DEFAULT 1,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
+);
+
+-- ----------------------------
+-- 10. 岗位表 (PR2 集成测试用, 简化版)
+-- ----------------------------
+CREATE TABLE sys_post (
+    id BIGINT NOT NULL,
+    org_id BIGINT,
+    dept_id BIGINT,
+    name VARCHAR(100),
+    code VARCHAR(50),
+    sort INT DEFAULT 0,
+    status TINYINT DEFAULT 1,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
+);
