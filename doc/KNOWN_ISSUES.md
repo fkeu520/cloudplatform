@@ -24,6 +24,11 @@
 | 12 | 🟡 待跟进 (已确认先忽略) | 监控 | xxl-job-admin 显示 unhealthy (用户决策: 暂不排查, 业务可调) | 2026-06-04 |
 | 13 | 🟢 已解决 | Git/部署 | `.gitignore` 精确排除 + init.sql 进 git + Flyway 改 true | 2026-06-04 |
 | 14 | 🟡 待跟进 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
+| 15 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
+| 16 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | SQL 解析失败静默越权 (UNION/子查询/CTE 降级放行原 SQL) | 2026-06-05 |
+| 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
+| 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
+| 19 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | scope=3 dept 树无租户过滤 (`deptMapper.selectList(null)` 全表), 跨租户 dept_id 泄漏到 SQL IN 子句 | 2026-06-05 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -684,3 +689,456 @@ docker exec platform-mysql mysql -uroot -proot123456 platform -e "SELECT version
 1. **改完代码先 push + 验证执行, 不要停在中途** — 今日缺了最后一步 (drop + 重启验证)
 2. **"明天执行" 必须写明步骤** — 否则明天要从头看对话回忆, 浪费 30 min
 3. **CI 时间和执行时间分开** — push 后 5-10 min CI 跑完, 之后才能 pull, 别着急 pull 拿旧镜像
+
+---
+
+## #15 🔴 UPDATE/DELETE 写操作零 data_scope 防护 (2026-06-05) [P0 必修]
+
+### 现象
+
+- 销售员 (role.data_scope=4 本人) 登录 → 调用 `PUT /user/{他人id}` → **修改成功** ❌
+- 同理 `DELETE /user/{他人id}` → **删除成功** ❌
+- `DataScopeInnerInterceptor` **仅拦截 SELECT**, 写操作零防护
+- 数据权限形同虚设, 任何登录用户都能改/删他人数据 (前提是接口权限放开)
+
+### 根因
+
+`code/platform-server/platform-common/src/main/java/com/cloudhub/platform/common/config/DataScopeInnerInterceptor.java` line 53-96:
+```java
+public class DataScopeInnerInterceptor implements InnerInterceptor {
+    @Override
+    public void beforePrepare(StatementHandler sh, Connection conn, Integer txTimeout) {
+        // 1. 取 SQL 片段
+        String fragment = DataScopeContextHolder.get();
+        if (fragment == null || fragment.isEmpty()) return;
+        // 2. 取原 SQL + 改写
+        BoundSql boundSql = sh.getBoundSql();
+        String originalSql = boundSql.getSql();  // SELECT/UPDATE/DELETE 都进这里
+        // ...
+    }
+}
+```
+
+**MyBatis-Plus 的 InnerInterceptor 拦截所有 Statement (SELECT/UPDATE/DELETE/INSERT)**,
+但当前实现**只支持** `Statement` → `Select` → `PlainSelect` (line 105-108 强制 instanceof 检查),
+UPDATE/DELETE 走 `Update` / `Delete` 类型, 走 `return originalSql;` 直接放行 (line 107)。
+
+### 修复方案
+
+**D+6~D+10 (1 周)**: 扩展 `DataScopeInnerInterceptor.beforePrepare()` 支持 UPDATE/DELETE 改写
+
+```java
+Statement stmt = CCJSqlParserUtil.parse(originalSql);
+
+// SELECT 走原逻辑 (PlainSelect)
+if (stmt instanceof Select) { ... }
+
+// UPDATE 新增
+if (stmt instanceof Update) {
+    Update update = (Update) stmt;
+    Expression where = update.getWhere();
+    if (where == null) {
+        update.setWhere(fragmentExpr);
+    } else {
+        update.setWhere(new AndExpression(where, fragmentExpr));
+    }
+    return update.toString();
+}
+
+// DELETE 新增
+if (stmt instanceof Delete) {
+    Delete delete = (Delete) stmt;
+    Expression where = delete.getWhere();
+    if (where == null) {
+        delete.setWhere(fragmentExpr);
+    } else {
+        delete.setWhere(new AndExpression(where, fragmentExpr));
+    }
+    return delete.toString();
+}
+```
+
+**scope 行为差异** (与 SELECT 略有不同):
+- SELECT scope=4: `AND id = 5` → 看到自己的行
+- UPDATE scope=4: `WHERE id = 5` → **只能改自己**
+- DELETE scope=4: `WHERE id = 5` → **只能删自己**
+- 但 SELECT 还能"看" (list 渲染), UPDATE/DELETE 还能"改" (单条 byId) — 业务接口权限层可能限制, 但**防御纵深**必须有
+
+### 灰度开关 (复用 v7.1 通用开关)
+
+`platform.data-scope.upgrade.enabled` (默认 false) 控制此修复启用。
+false → 走 v7.0 行为 (UPDATE/DELETE 放行, 等同当前 bug)
+true  → 走 v7.1 行为 (UPDATE/DELETE 改写 + scope 防护)
+
+### 验证 (5 个 TC)
+
+| TC | 场景 | 期望 |
+|----|------|------|
+| TC-W-01 | scope=4 销售员 UPDATE 自己 sys_user | ✅ 200, 字段更新成功 |
+| TC-W-02 | scope=4 销售员 UPDATE 他人 sys_user | ❌ 0 行 affected, 返回 0 |
+| TC-W-03 | scope=4 销售员 DELETE 自己 sys_user | ✅ 200, 行删除成功 |
+| TC-W-04 | scope=4 销售员 DELETE 他人 sys_user | ❌ 0 行 affected, 返回 0 |
+| TC-W-05 | scope=1 (全部) 管理员 DELETE 任意 sys_user | ✅ 200, 删成功 (无限制) |
+
+### 风险
+
+- **改写失败时降级** (WARN 放行原 SQL) 与 #16 的 fail-closed 冲突 → 启动 #1 修复时**先**把 #16 (解析失败 fail-closed) 一起改
+- **批量 UPDATE/DELETE** (无 WHERE) 改写后变成 `WHERE 1=1 AND fragment` — 仍可能命中所有行, 需业务层加 `@DataScope` 同时强制带 WHERE
+- **灰度开关为 false 时**行为退化, **CI 必须** 测两种状态都通过
+
+### 教训
+
+1. **拦截器应当"对称"**: 读权限有拦截, 写权限必须有 — 当前实现只读不写, 是个"半成品"
+2. **MyBatis-Plus InnerInterceptor 不区分 SQL 类型** — 实现时必须自己 instanceof 判断, 不能假设"只处理 SELECT"
+3. **写操作的越权比读更严重**: 读越权 = 信息泄漏, 写越权 = 数据破坏 + 可能的责任问题
+4. **批量操作** (UPDATE/DELETE 无 WHERE) 是高危区, 应在业务层强制 WHERE 条件 + LIMIT, 拦截器层只能加防御
+
+---
+
+## #16 🔴 SQL 解析失败静默越权 (2026-06-05) [P0 必修]
+
+### 现象
+
+- 业务方法调 `userMapper.selectList(UNION 查询)` 触发 jsqlparser 解析失败
+- `DataScopeInnerInterceptor` line 73-80: `JSQLParserException` → `log.warn` → `return originalSql`
+- **原 SQL 一字不改放行** → 任何 UNION/子查询/CTE 触发的复杂 SQL 都**静默丢失 data_scope 过滤**
+- 攻击者/业务开发者可利用: `SELECT * FROM sys_user u WHERE u.tenant_id = 1 UNION SELECT * FROM sys_user` → 跨租户数据全拉
+
+### 根因
+
+`DataScopeInnerInterceptor.java:73-80`:
+```java
+try {
+    newSql = injectFragment(originalSql, fragment);
+} catch (JSQLParserException e) {
+    // 解析失败: 记 WARN, 放行原 SQL (安全降级)
+    log.warn("DataScope SQL parse failed, original SQL kept. fragment=[{}] sql=[{}]",
+            fragment, originalSql, e);
+    // 仍 clear, 防止同一 fragment 被反复用于其他 SQL
+    DataScopeContextHolder.clear();
+    return;
+}
+```
+
+**设计意图**: "避免破坏业务" — 但 fail-open 在安全场景是错的。
+**正确做法**: **fail-closed** — 解析失败时**拒绝执行**, 抛 `BizException("data_scope SQL 改写失败, 已拒绝执行以保护数据安全")`。
+
+### 修复方案
+
+**D+11 (1 天)**: 改 `WARN 放行` → `抛 BizException`
+
+```java
+try {
+    newSql = injectFragment(originalSql, fragment);
+} catch (JSQLParserException e) {
+    // 安全第一: 解析失败 = 无法保证 data_scope = 拒绝执行
+    log.error("DataScope SQL parse failed, reject execution to prevent bypass. fragment=[{}] sql=[{}]",
+            fragment, originalSql, e);
+    DataScopeContextHolder.clear();
+    throw new BizException("DATA_SCOPE_PARSE_FAILED",
+        "复杂 SQL 无法应用 data_scope, 已拒绝执行 (联系管理员简化 SQL 或加白名单)");
+}
+```
+
+**白名单机制 (后续可加)**: 已知复杂 SQL 可注册白名单, 显式 bypass data_scope (需 code review + 文档化理由)。
+
+### 灰度开关
+
+同 #15, 复用 `platform.data-scope.upgrade.enabled`。
+- false → 走 v7.0 行为 (fail-open, 静默越权风险)
+- true  → 走 v7.1 行为 (fail-closed, 复杂 SQL 抛业务异常)
+
+### 验证 (4 个 TC)
+
+| TC | 场景 | 期望 |
+|----|------|------|
+| TC-FC-01 | scope=4 + UNION 查询 | ❌ 抛 BizException, HTTP 500 + 业务错误码 |
+| TC-FC-02 | scope=4 + 子查询 (2 层) | ❌ 抛 BizException |
+| TC-FC-03 | scope=4 + CTE WITH | ❌ 抛 BizException |
+| TC-FC-04 | scope=4 + 简单 SELECT (PlainSelect) | ✅ 正常执行, SQL 改写成功 |
+
+### 风险
+
+- **业务中断风险**: 如果生产有未发现的复杂 SQL 用了 @DataScope, 升级后**全部失败**
+  - 缓解: 灰度开关默认 false, 业务方先在测试环境开 true 验证无异常再上生产
+  - 监控: 升级后 24h 监控 BizException("DATA_SCOPE_PARSE_FAILED") 出现频次
+- **白名单需求**: 有些 SQL (报表 / 跨服务) 必须复杂但又要 data_scope — 这种需要白名单机制 (后续)
+
+### 教训
+
+1. **安全场景默认 fail-closed** — 解析失败 = 不知道是否安全 = 拒绝执行。fail-open 是"业务可用"换"安全漏洞", 不可取
+2. **静默降级 (WARN 放行) 是反模式** — 业务感知不到, 问题被掩盖到事故发生
+3. **WARN 日志必须有监控/告警** — 当前 WARN 写日志就完事, 没有 metric 没有 alert, 等于"看不见的告警"
+4. **复杂 SQL 的 data_scope 是 P2+ 长期项** — 但"无法处理"≠"放行", 必须明确告诉业务"这事我做不了"而不是假装做完了
+
+---
+
+## #17 🔴 业务层 @DataScope 覆盖率仅 2/10 (2026-06-05) [P0 必修]
+
+### 现象
+
+- 实际搜索 `@DataScope` 在生产代码 (`code/platform-server/**/service/`): **仅 2 处**
+  - `UserService.page()` (line 176)
+  - `UserService.list()` (line 193)
+- 应加未加的 8 个核心 list 方法:
+  - `RoleService.list` / `page` → 看全租户所有角色
+  - `DeptService.list` / `page` → 看全租户所有部门
+  - `MenuService.list` → 看全租户所有菜单
+  - `PostService.list` → 看全租户所有岗位
+  - `OrgService.list` → 看全租户所有组织
+  - `DictService.list` → 看全租户所有字典
+  - `OperLogService.page` → 看全租户所有操作日志
+  - `TenantAppService.list` → 看全租户所有应用授权
+- **任何登录用户都能 list 全部, data_scope 仅 user 表生效** — 实际是个"demo"而非"系统"
+
+### 根因
+
+`doc/M5-P0-2-实施子任务.md` §七 明确 TODO: "业务层全量加 @DataScope 注解 (涉及 ~10 个 Mapper)"
+但实施时**只做了 UserService**, 其他 8 个 Service **没人推动**, 既无 PR 也无 backlog。
+
+**M5 起步版 (commit 67cfa5d / 7c4cc31)** 的范围是"基础设施 + 1 个示例", **扩展到全量业务** 是 M5+ backlog 但从未启动。
+
+### 修复方案
+
+**D+2~D+3 (1-2 天)**: 8 个 Service 补 `@DataScope` 注解
+
+```java
+// RoleService 示例
+@DataScope(deptAlias = "dept_id", userAlias = "id")
+public List<RoleVO> list(String keyword) { ... }
+
+@DataScope(deptAlias = "dept_id", userAlias = "id")
+public PageResult<RolePageVO> page(...) { ... }
+
+// 类似: Dept / Menu / Post / Org / Dict / OperLog / TenantApp 全部 list/page 方法
+```
+
+**注意**:
+- 字段名要选对 (`dept_id` / `org_id` / `user_id` 不一定都有)
+- 跨表 JOIN 场景用 `alias` + `deptAlias` 组合
+- 自定义 `userAlias` (如 `create_by`) 用于审计场景
+
+### 灰度开关
+
+复用 `platform.data-scope.upgrade.enabled`:
+- false → @DataScope 注解**不生效** (走 v7.0 行为, 全量 list)
+- true  → @DataScope 注解生效 (受控 list)
+
+### 验证 (8 个 TC, 每 Service 1 个)
+
+| TC | 场景 | 期望 |
+|----|------|------|
+| TC-C-01 | scope=4 销售员 list Role | 仅返回关联自己的 role (或空, 取决于业务) |
+| TC-C-02 | scope=4 销售员 list Dept | 仅返回自己所在 dept |
+| TC-C-03 | scope=4 销售员 list Menu | 仅返回自己可访问的 menu |
+| TC-C-04 | scope=4 销售员 list Post | 仅返回自己所在 post |
+| TC-C-05 | scope=4 销售员 list Org | 仅返回自己所在 org |
+| TC-C-06 | scope=4 销售员 list Dict | 仅返回自己租户 dict (P0-1 多租户已覆盖) |
+| TC-C-07 | scope=4 销售员 page OperLog | 仅返回自己的操作日志 |
+| TC-C-08 | scope=4 销售员 list TenantApp | 仅返回自己租户的应用授权 |
+
+### 风险
+
+- **业务可见性变化**: 升级后业务方会发现"看不到某些数据" — **必须提前通知 + 培训**
+- **scope=1 (全部) 用户不受影响** — 默认管理员/超管是 scope=1, 行为不变
+- **菜单/字典** 等基础表可能**本来就不该受限** — 评估哪些表需要 data_scope, 哪些走租户隔离即可 (P0-1 已覆盖)
+- **批量补注解是机械工作** — 但**字段名要逐个对**, 防止写错 deptAlias 导致 SQL 报错
+
+### 教训
+
+1. **"基础设施 + 1 个示例" 不是"系统完成"** — 起步版要给业务"全量"承诺, 否则技术债会无限累积
+2. **覆盖率应当可视化** — 在 CI 加 grep, `count(@DataScope) >= count(@Service) * N` (例如 80%), 不足则 fail
+3. **P0 业务表** (Role/Dept/Menu/User/Post) 必须先于 P1 (Dict/Config) 实施
+4. **code review checklist** 加一条: "新加 list/page 方法是否加 @DataScope?"
+
+---
+
+## #18 🔴 跨模块 Provider 缺位 (2026-06-05) [P0 必修]
+
+### 现象
+
+- 启动 `platform-ops` 服务, 调 `SysOperLogService.page()` (假设加了 @DataScope)
+- `DataScopeAspect.lookupContext()`: `Optional.ofNullable(dataScopeProvider)` → **Provider 为 null**
+- 退化: `DataScopeContext.none()` → `@DataScope` 注解**形同虚设**, SQL 不改写
+- 运营后台用户能看全租户所有操作日志
+- **跨服务调 user** (Feign) 同样失效: ops → user 拿不到 userId/role 上下文
+
+### 根因
+
+`DataScopeAspect.java:57-58`:
+```java
+@Autowired(required = false)
+private DataScopeProvider dataScopeProvider;
+```
+
+`required = false` 意味着: **Provider 不存在时, 静默退化**。
+
+**当前只有 1 个 Provider**:
+```
+$ grep -l "implements DataScopeProvider" code/platform-server -r
+code/platform-server/platform-user/src/main/java/com/cloudhub/platform/user/tenant/UserDataScopeProviderImpl.java
+```
+
+`platform-ops` / `platform-workflow` / `platform-message` 都没实现 `DataScopeProvider`:
+- 这些模块**不依赖** platform-user (微服务架构隔离)
+- 自己的 `application.yml` 不会触发 user 模块 Bean 扫描
+- `@Autowired(required=false)` 让 Spring 启动不报错, 但功能 0
+
+### 修复方案
+
+**D+4~D+5 (1-2 天)**: 3 个模块各加 `DataScopeProvider` 桩
+
+```java
+// platform-ops 示例
+@Slf4j
+@Service
+public class OpsDataScopeProviderImpl implements DataScopeProvider {
+    @Override
+    public DataScopeContext getContext(Long userId) {
+        // 桩实现: 默认返回 none() (无限制, 等同 v7.0 行为)
+        // 后续可在此扩展 ops 模块专有的 scope 逻辑
+        log.debug("OpsDataScopeProvider: userId={}, returning none() (桩实现)", userId);
+        return DataScopeContext.none();
+    }
+}
+
+// platform-workflow / platform-message 同样
+```
+
+**关键设计**:
+- 桩默认返回 `DataScopeContext.none()` — **等同 v7.0 行为**, 不引入新 bug
+- 后续可逐步实现各模块的"真" Provider
+- 命名规范: `OpsDataScopeProviderImpl` / `WorkflowDataScopeProviderImpl` / `MessageDataScopeProviderImpl`
+
+**Spring 自动注入**:
+- common 模块的 `DataScopeAspect` 用 `@Autowired(required=false)` 注入**所有** Provider 实现
+- Spring 会注入**一个** (有多个会冲突, 需要 `@Primary` 或 List 注入)
+- 后期如果多模块都想"自己负责" → 改 List<Provider> 注入, 业务层选 Provider
+
+### 灰度开关
+
+复用 `platform.data-scope.upgrade.enabled`:
+- false → 桩的 none() 行为生效, 注解不工作
+- true  → 注解工作, 但桩返回 none() 仍是无限制 — 真正的 scope 行为要等模块实现"真"Provider
+
+### 验证 (3 个 TC)
+
+| TC | 场景 | 期望 |
+|----|------|------|
+| TC-P-01 | 启动 platform-ops, 调有 @DataScope 的 list | Provider 不为 null, 返回 none() (无 SQL 改写, 不报错) |
+| TC-P-02 | 启动 platform-workflow, 调有 @DataScope 的 list | 同上 |
+| TC-P-03 | 启动 platform-message, 调有 @DataScope 的 list | 同上 |
+
+### 风险
+
+- **多 Provider 冲突**: 如果 2 个模块都注册 Provider, Spring 启动报 `NoUniqueBeanDefinitionException`
+  - 缓解: 桩实现加 `@ConditionalOnMissingBean(DataScopeProvider.class)`, 只在没其他 Provider 时启用
+- **桩实现长期不替换** → DataScope 形同虚设 → 写 KNOWN_ISSUES 跟踪
+- **跨服务调 user 时** TenantContextHolder 不传, 即使 user 模块有 Provider, 也拿不到 userId → 见 #9 已记录
+
+### 教训
+
+1. **`@Autowired(required=false)` 是双刃剑** — 让启动通过, 但掩盖了"功能缺失"
+2. **微服务架构的 SPI 设计**: common 模块定义接口, 业务模块实现 — 但**必须有强制约束** (如: 没有 Provider 模块的 @DataScope 必须显式报错, 不能静默)
+3. **fail-loud > fail-silent** — 启动时检测"模块加了 @DataScope 但没 Provider" 应该 warn/error, 而不是悄悄退化为无限制
+4. **模块边界的契约** — common 不依赖 user 是对的, 但 common 的"通用能力"必须有**强制 manifest** (YAML/Properties 声明"本模块支持 data_scope: true"), 启动时校验
+
+---
+
+## #19 🔴 scope=3 dept 树无租户过滤 (2026-06-05) [P0 必修]
+
+### 现象
+
+- tenant 1 的用户 u1 (dept_id=100) scope=3, 期望 SQL:
+  ```sql
+  SELECT * FROM sys_user u WHERE u.tenant_id = 1 AND u.dept_id IN (100, 101, 102)  -- 100 的子部门
+  ```
+- 实际 SQL:
+  ```sql
+  SELECT * FROM sys_user u WHERE u.tenant_id = 1 AND u.dept_id IN (100, 101, 200, 300)  -- 200/300 是 tenant 2 的 dept
+  ```
+- 200/300 不在 tenant 1 下, 但 SQL 不报错 (P0-1 多租户只过滤 user, 不过滤 dept)
+- **如果 200/300 恰好是 tenant 1 的 user 关联的 dept** → 跨租户 dept_id 进入 IN 子句
+- 不算"越权读取" (P0-1 的 tenant_id 仍然过滤), 但**生成无意义 IN 子句** + 未来扩展 dept 表非租户隔离时会变成真漏洞
+
+### 根因
+
+`UserDataScopeProviderImpl.collectChildDeptIds()` line 123-164:
+```java
+private String collectChildDeptIds(Long rootDeptId) {
+    try {
+        // 1. 加载所有部门 (数据量 < 1000, 单次查询)
+        List<Dept> allDepts = deptMapper.selectList(null);  // ← 缺 tenant_id 过滤
+        // ...
+    }
+}
+```
+
+`deptMapper.selectList(null)` 是**无 QueryWrapper** 的全表查询, 不分租户, 不分页。
+
+**业务上下文**:
+- P0-1 多租户拦截器 `TenantLineInnerInterceptor` 会给 `sys_dept` 加 `tenant_id` 条件
+- 但 `UserDataScopeProviderImpl` **绕过**了这个拦截器 — 它直接调 `deptMapper.selectList(null)`, **没有**走 user 上下文
+- 实际上 `deptMapper` 是 `DeptMapper`, 属于 platform-user 模块, TenantLine 拦截器在 `MybatisPlusConfig` 中注册
+- 但 `deptMapper.selectList(null)` 是直接的 mapper 调用, **MyBatis-Plus 拦截器链是应用的**, 应当有拦截
+- 验证: 实际 `selectList(null)` **会被** TenantLine 拦截 (Interceptor 在 mapper 链上), 加上 `tenant_id` 条件
+- 但 `TenantContextHolder.getTenantId()` 在 Provider 调用时**未必有值** (内部接口 / 系统调用场景)
+- 即使有值, 拦截后**只返回本租户 dept**, 但 scope=3 的语义是"我 + 我的子部门" — 子部门**应当限定在同租户**, Provider 必须显式传 tenant_id
+
+### 修复方案
+
+**D+1 (0.5 天)**: `collectChildDeptIds` 加 tenant_id 过滤
+
+```java
+private String collectChildDeptIds(Long rootDeptId) {
+    try {
+        // 1. 加载本租户所有部门 (P0-1 拦截器会自动加 tenant_id 条件, 但显式传更安全)
+        Long tenantId = TenantContextHolder.getTenantId();
+        LambdaQueryWrapper<Dept> wrapper = new LambdaQueryWrapper<>();
+        if (tenantId != null) {
+            wrapper.eq(Dept::getTenantId, tenantId);  // ← 显式加
+        }
+        List<Dept> allDepts = deptMapper.selectList(wrapper);
+        // ... 其余 DFS 不变
+    }
+}
+```
+
+**更进一步 (P2)**: 用 MySQL 8 递归 CTE 替代应用层递归 (见决策 2 偏离):
+```sql
+WITH RECURSIVE dept_tree AS (
+    SELECT id FROM sys_dept WHERE id = #{rootDeptId} AND tenant_id = #{tenantId}
+    UNION ALL
+    SELECT d.id FROM sys_dept d
+    INNER JOIN dept_tree dt ON d.parent_id = dt.id
+    WHERE d.tenant_id = #{tenantId}  -- 递归中也带租户
+)
+SELECT id FROM dept_tree;
+```
+
+### 灰度开关
+
+复用 `platform.data-scope.upgrade.enabled`:
+- false → collectChildDeptIds 走 v7.0 行为 (全表查, 不分租户) — 当前 bug
+- true  → collectChildDeptIds 加 tenant_id 过滤
+
+### 验证 (3 个 TC)
+
+| TC | 场景 | 期望 |
+|----|------|------|
+| TC-T-01 | tenant 1 user scope=3, collectChildDeptIds | 仅返回 tenant 1 的 dept 子树 |
+| TC-T-02 | tenant 1 user scope=3, dept 子树包含其他租户 dept_id | 跨租户 dept_id **不**出现在 IN 子句 |
+| TC-T-03 | admin (tenant_id=NULL) scope=3, collectChildDeptIds | 返回所有租户 dept (P0-1 拦截器无 tenant_id 时不过滤) |
+
+### 风险
+
+- **admin (tenant_id=NULL) 行为变化**: admin 之前看全量, 加 tenant_id 过滤后**仍看全量** (因为 tenantId==null 不过滤), 行为不变 ✅
+- **业务可见性变化**: 加租户过滤后, 跨租户的 dept_id **不在 IN 子句** → 业务方"看不到"这些 dept 的 user — 实际是正确行为
+- **性能**: 加 tenant_id 后 dept 表查询更快 (走索引), 但当前 dept 数量小 (< 1000), 影响可忽略
+
+### 教训
+
+1. **`selectList(null)` 是危险模式** — 永远传 QueryWrapper, 即使是"全表"也要显式 `new QueryWrapper<>()`
+2. **跨模块调用要保留租户上下文** — Provider 实现里调 mapper 必须传 tenant_id, 不能依赖隐式拦截
+3. **"全表"+"小数据量"是短视设计** — 现在 < 1000 行没事, 业务增长后 < 1000 变 < 10000 时, 性能问题集中爆发
+4. **递归 CTE 是正解** — 见决策 2: 应用层递归是"为了兼容 H2 测试", 但生产 MySQL 8.0 应换 CTE, 显式 + 高效 + 跟决策一致
