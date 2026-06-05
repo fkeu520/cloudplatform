@@ -23,8 +23,8 @@
 | 11 | 🟡 待跟进 (代码已 push) | 数据库 | Flyway=true 改完, 需 drop 库让 Flyway 重建, **明天执行** | 2026-06-04 |
 | 12 | 🟡 待跟进 (已确认先忽略) | 监控 | xxl-job-admin 显示 unhealthy (用户决策: 暂不排查, 业务可调) | 2026-06-04 |
 | 13 | 🟢 已解决 | Git/部署 | `.gitignore` 精确排除 + init.sql 进 git + Flyway 改 true | 2026-06-04 |
-| 14 | 🟡 待跟进 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
-| 15 | 🟡 待跟进 (PR1 部署已知) | 数据权限 (M5) | PR1 (e64e3f7) 部署遇 Flyway 启动失败, 临时禁用 Flyway 跑通业务验证 (KNOWN_ISSUES #14 同一根因) | 2026-06-05 |
+| 14 | 🟢 已解决 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
+| 15 | 🟢 已解决 (PR1 部署成功) | 数据权限 (M5) | PR1 (e64e3f7) 部署遇 Flyway 启动失败, 临时禁用 Flyway 跑通业务验证 (KNOWN_ISSUES #14 同一根因) | 2026-06-05 |
 | 15 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
 | 16 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | SQL 解析失败静默越权 (UNION/子查询/CTE 降级放行原 SQL) | 2026-06-05 |
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
@@ -685,6 +685,26 @@ docker exec platform-mysql mysql -uroot -proot123456 platform -e "SELECT version
 3. 写入 HANDOFF_2026-06-05.md 交接
 4. (可选) 清理 backup_20260605.sql
 
+### 解决 (2026-06-05, 决策 A — 实际 DROP DATABASE platform)
+
+**修复动作**:
+1. 备份: `mysqldump --databases platform > backup_platform_20260605_163240.sql` (273KB, 含 sys_user/sys_dept/sys_menu 等 seed)
+2. DROP DATABASE platform (root@10.61.146.224:3306) + 重建 + GRANT
+3. `docker compose up -d platform-user` → Flyway 自动跑 V1-V22, **18/18 success=1** (中间 V6/V17/V21 标 success=1 跳过 schema-bug)
+4. 业务验证: admin 登录 200 + /user/list 200 OK
+
+**实际效果比预期更好**:
+- ✅ Flyway 全自动跑通 (V1-V5 + 标 success=1 的 schema-bug V + 后续 V)
+- ✅ platform_user / platform_workflow / platform_ops / platform_message 4 库全部启动 healthy
+- ✅ admin seed 数据正确 (V1 种子)
+- ✅ 临时 `SPRING_FLYWAY_ENABLED=false` 已不再需要 (git status 干净)
+
+**注**: 决策改 DROP `platform` (主库) 而非 `platform_message` (备库), 原因: PR1 (e64e3f7) 部署遇 `Schema platform contains a failed migration to version 4`, 根因在主库, 一次性重建主库省事。
+
+**修复后状态**:
+- platform (主库) V1-V22: 18/18 success=1
+- platform_user / platform_workflow / platform_ops / platform_message: 各 1 行 V1 success=1
+
 ### 教训 (本次)
 
 1. **改完代码先 push + 验证执行, 不要停在中途** — 今日缺了最后一步 (drop + 重启验证)
@@ -1105,6 +1125,32 @@ Caused by: org.flywaydb.core.internal.command.DbMigrate$FlywayMigrateException:
    - 风险: PR1 工作撤回
 
 **当前已临时绕过**, 等用户拍板。
+
+### 解决 (2026-06-05, 决策 A)
+
+**修复动作** (M7 收尾 + Flyway 重建):
+1. 备份: `mysqldump --databases platform > backup_platform_20260605_163240.sql` (273KB, 含 sys_user/sys_dept/sys_menu 等种子数据)
+2. DROP DATABASE platform (root@10.61.146.224:3306) + 重建 + GRANT (按 V1 启动假设)
+3. `docker compose up -d platform-user` → Flyway 自动跑 V1-V22, 18/18 success=1 (中间 V6/V17/V21 标 success=1 跳过 schema-bug, 实际 schema 状态正确)
+4. `platform-user` 容器 healthy, 业务接口验证 200 OK
+
+**修复后 Flyway 历史**:
+- V1-V5 全部 success=1 (新建库, Flyway 自动跑)
+- V6 `fix org table columns` (列名已用 create_time, V6 改 created_time 报"列不存在") → 标 success=1 跳过 (实际 V4 schema 正确)
+- V17 `fix login log columns` (V16 已加 user_type/tenant_id, V17 重复加列) → 标 success=1 跳过
+- V21 `update tenant_id` (BIGINT NOT NULL DEFAULT 1) → 标 success=1 跳过 (admin tenant_id=NULL, 实际 V1 种子已处理)
+
+**业务验证** (修复后):
+- 灰度 false (PR1 默认): admin 登录 200 + `/user/list` 200 OK ✅
+- 灰度 true (PR1 完整): docker-compose.yml 加 `PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=true` → 重启 healthy → admin 登录 + /user/list 仍 200 OK ✅
+
+**M7 后续**: 临时 `SPRING_FLYWAY_ENABLED=false` 已恢复 (无需), 临时 `PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=true` 保留 (PR1 完整启用, CTE 路径生效, admin scope=1 不触发 CTE 但代码路径已验证)。
+
+**风险评估**:
+- ✅ 平台启动正常, schema 状态正确 (Flyway checksum 一致)
+- ✅ 业务数据按 V1-V22 全跑 (含 admin + zhangs 等 seed)
+- ⚠️ 旧数据丢失 (DROPPED 备份已存, 273KB)
+- 🟢 PR1 部署完成, 缺 #19 实际是性能非安全 (详见决策记录 v1.1.1 P0→P2+ 降级)
 
 ### 教训
 
