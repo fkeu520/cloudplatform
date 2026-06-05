@@ -24,6 +24,7 @@
 | 12 | 🟡 待跟进 (已确认先忽略) | 监控 | xxl-job-admin 显示 unhealthy (用户决策: 暂不排查, 业务可调) | 2026-06-04 |
 | 13 | 🟢 已解决 | Git/部署 | `.gitignore` 精确排除 + init.sql 进 git + Flyway 改 true | 2026-06-04 |
 | 14 | 🟡 待跟进 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
+| 15 | 🟡 待跟进 (PR1 部署已知) | 数据权限 (M5) | PR1 (e64e3f7) 部署遇 Flyway 启动失败, 临时禁用 Flyway 跑通业务验证 (KNOWN_ISSUES #14 同一根因) | 2026-06-05 |
 | 15 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
 | 16 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | SQL 解析失败静默越权 (UNION/子查询/CTE 降级放行原 SQL) | 2026-06-05 |
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
@@ -1042,6 +1043,82 @@ public class OpsDataScopeProviderImpl implements DataScopeProvider {
 2. **微服务架构的 SPI 设计**: common 模块定义接口, 业务模块实现 — 但**必须有强制约束** (如: 没有 Provider 模块的 @DataScope 必须显式报错, 不能静默)
 3. **fail-loud > fail-silent** — 启动时检测"模块加了 @DataScope 但没 Provider" 应该 warn/error, 而不是悄悄退化为无限制
 4. **模块边界的契约** — common 不依赖 user 是对的, 但 common 的"通用能力"必须有**强制 manifest** (YAML/Properties 声明"本模块支持 data_scope: true"), 启动时校验
+
+---
+
+## #15 🟡 PR1 部署遇 Flyway 启动失败 (2026-06-05) [#14 同一根因, PR1 临时绕过]
+
+### 现象
+
+PR1 commit `e64e3f7` 推送到 GitHub, CI 构建成功 (`ghcr.io/.../platform-user:latest`), 拉取新镜像重启 `platform-user` 容器, 启动失败:
+
+```
+Caused by: org.flywaydb.core.internal.command.DbMigrate$FlywayMigrateException:
+    Schema `platform` contains a failed migration to version 4 !
+```
+
+日志显示 Flyway 启动时检查 `flyway_schema_history`, 发现 V4 `init org tables` 标记为 `success=0`, 阻止后续 migration。
+
+### 根因 (同 #14)
+
+2026-06-04 下午决策将 4 处 `SPRING_FLYWAY_ENABLED=false` 删除, 改用 Flyway 自动管理 schema 迁移。但**当前生产 MySQL 库** (`platform`) 已有 V4-V15 的 migration 失败标记 (success=0), 原因是:
+
+- 之前 `flyway=false` 期间, 这些 migration 通过**手动 SQL** 在 MySQL 容器中执行
+- Flyway 启用后启动检查 `flyway_schema_history`, 发现"应该有但 success=0" 的 migration
+- 启动失败, 平台启动不了
+
+**具体失败的 migration** (按发现顺序):
+- V4 `init org tables` (列名已用 create_time, 不是 created_time, V6 的 `CHANGE COLUMN created_time` 会失败)
+- V5 `add user dept post` (列已存在, ALTER 失败)
+- V6 `fix org table columns` (V4 表已用 create_time, V6 改 created_time 报"列不存在")
+- V15 `add user type and user menu` (列已存在)
+- V17 `fix login log columns` (后续 fail-closed 链式失败)
+
+### 临时绕过 (2026-06-05 PR1 部署)
+
+为不阻塞 PR1 业务验证, 临时修改 `docker-compose.yml` platform-user section 加 `SPRING_FLYWAY_ENABLED=false` env (本地未 commit), 重启成功。
+
+**业务接口验证 PASS**:
+- 登录 admin: 200 OK, token 获取成功
+- `/user/list?keyword=&orgId=&status=&pageSize=10`: 200 OK, 返回 zhangs 用户
+
+**临时绕过风险**:
+- 平台启动**跳过 schema 验证**, 如果生产 MySQL 状态异常, 不会被发现
+- 灰度开关 `platform.data-scope.upgrade.enabled=false` (默认), 走老 DFS 路径, **PR1 业务代码生效** ✅
+- 临时改动**未 commit**, `git status` 干净
+
+### 持久化修复 (留给用户决策)
+
+按 `doc/KNOWN_ISSUES #14` 步骤, 用户决策 2 选 1:
+
+1. **DROP DATABASE platform + 重建** (Flyway 从 V1 自动跑)
+   - 清掉所有数据 (10 条 sys_message, 5 个 seed dept 等)
+   - 跑 `docker compose up -d`, Flyway 跑 V1-V22 自动建表
+   - 风险: 数据丢失
+
+2. **手动标 V1-V22 全部 success=1** (假设 SQL 之前手动执行过, 实际都成功)
+   - 不丢数据
+   - 风险: 如果某些 V 实际未跑, 标 success=1 会跳过
+
+3. **回滚到 PR1 之前镜像** (ghcr 没有老 tag, 需 git revert)
+   - 平台正常, PR1 不部署
+   - 风险: PR1 工作撤回
+
+**当前已临时绕过**, 等用户拍板。
+
+### 教训
+
+1. **🟡 Flyway 启用决策**应**先在测试环境演练** 完整 V1-V22 自动跑, 验证 success 全部通过再上生产
+2. **🟡 临时禁用 Flyway 风险** - 不应在生产长期使用, 临时绕过仅作紧急止血
+3. **🟡 PR1 部署 checklist** 应包括"Flyway schema 状态"前置检查 (在 K8S/Known-Issues 之前)
+4. **🟢 M8/M9 实施前必先** 修复 #14, 否则所有新 PR 都会遇同样阻碍
+
+### 关联
+
+- 配套: `doc/HANDOFF_2026-06-04.md` (#14 计划 drop platform_message)
+- 主规划: `doc/项目进度.md v7.1` §六 TODO 清单 (PR1 基础版完成待 #14 修复后启用)
+- 决策记录: `doc/M5-P0-2-决策记录.md v1.1.1` (PR1 实施发现 + 缺口 #19 P0→P2+ 降级)
+- 验证脚本: `doc/PR1-m3-cte-verification.sql` (M3 真 MySQL 8 端到端 4 CTE 验证全 PASS)
 
 ---
 
