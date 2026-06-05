@@ -2,6 +2,7 @@ package com.cloudhub.platform.user.tenant;
 
 import com.cloudhub.platform.common.config.DataScopeContext;
 import com.cloudhub.platform.common.config.DataScopeProvider;
+import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.user.domain.entity.Dept;
 import com.cloudhub.platform.user.domain.entity.Role;
 import com.cloudhub.platform.user.domain.entity.User;
@@ -10,6 +11,7 @@ import com.cloudhub.platform.user.mapper.RoleMapper;
 import com.cloudhub.platform.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -50,6 +52,20 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
     private final UserMapper userMapper;
     private final RoleMapper roleMapper;
     private final DeptMapper deptMapper;
+
+    /**
+     * v7.1 数据权限升级灰度开关 (PR1-4 共用, 决策 3 v1.1)
+     * <p>
+     * 默认 false: 走 v7.0 行为 (老 DFS 应用层递归, 无租户过滤)
+     * true: 走 v7.1 行为 (PR1 启用 MySQL 8 CTE + 租户过滤)
+     * <p>
+     * 紧急回滚: yml 设 false + 重启
+     * 配套: doc/项目进度.md v7.1 §7.2
+     *
+     * @since 2026-06-05 (PR1 实施)
+     */
+    @Value("${platform.data-scope.upgrade.enabled:false}")
+    private boolean upgradeEnabled;
 
     @Override
     public DataScopeContext getContext(Long userId) {
@@ -93,15 +109,15 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
                 .findFirst()
                 .orElse(null);
 
-        // 5. 收集子部门 ID 列表 (scope=3, 决策 2: 应用层递归)
-        //    生产环境可替换为 MySQL 8.0 递归 CTE (WITH RECURSIVE)
+        // 5. 收集子部门 ID 列表 (scope=3, 决策 2 v1.1: A 递归 CTE)
+        //    PR1 灰度: upgradeEnabled → CTE; 否则老 DFS (fallback)
         String childDeptIds = null;
         if (maxDataScope == 3 && userDeptId != null) {
             childDeptIds = collectChildDeptIds(userDeptId);
         }
 
-        log.debug("DataScopeProvider: userId={}, maxScope={}, userDeptId={}, customDeptIds={}, childDeptIds={}",
-                userId, maxDataScope, userDeptId, customDeptIds, childDeptIds);
+        log.debug("DataScopeProvider: userId={}, maxScope={}, userDeptId={}, customDeptIds={}, childDeptIds={}, upgradeEnabled={}",
+                userId, maxDataScope, userDeptId, customDeptIds, childDeptIds, upgradeEnabled);
 
         return DataScopeContext.builder()
                 .maxDataScope(maxDataScope)
@@ -113,14 +129,51 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
 
     // ============================================
     // 子部门收集 (scope=3)
-    // 决策 2: A 取最严格 - 应用层递归 (生产可替换 MySQL CTE)
+    // 决策 2 v1.1: A 递归 CTE (PR1 实施, 老 DFS 保留作 fallback)
+    // 灰度: upgradeEnabled=true → CTE; false → 老 DFS
     // ============================================
 
     /**
-     * 从 userDeptId 开始, 递归收集所有子部门 ID (含本部门)
-     * 返回逗号分隔的 ID 字符串, 如 "100,101,102"
+     * 灰度分支: 根据 upgradeEnabled 选择 CTE 或老 DFS
      */
     private String collectChildDeptIds(Long rootDeptId) {
+        if (upgradeEnabled) {
+            return collectChildDeptIdsByCte(rootDeptId);
+        }
+        return collectChildDeptIdsByRecursive(rootDeptId);
+    }
+
+    /**
+     * v7.1 新方法: MySQL 8 递归 CTE
+     *
+     * <p>配套: DeptMapper.selectChildDeptIdsByCte
+     * <p>与决策 2 A 递归 CTE 一致
+     * <p>PR1 实施发现: sys_dept 表无 tenant_id 字段, 故 CTE 不加 tenant 过滤 (P0-1 设计就是跨租户共享)
+     */
+    private String collectChildDeptIdsByCte(Long rootDeptId) {
+        try {
+            List<Long> childIds = deptMapper.selectChildDeptIdsByCte(rootDeptId);
+            if (childIds == null || childIds.isEmpty()) {
+                return String.valueOf(rootDeptId);
+            }
+            return childIds.stream()
+                    .sorted()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+        } catch (Exception e) {
+            log.warn("collectChildDeptIdsByCte failed, fallback to root only. rootDeptId={}",
+                    rootDeptId, e);
+            return String.valueOf(rootDeptId);
+        }
+    }
+
+    /**
+     * v7.0 老方法: 应用层递归 (deptMapper.selectList(null) + 内存 DFS)
+     * <p>PR1 实施后保留作 fallback, 灰度开关 false 时启用
+     * <p>已知问题: 无租户过滤 (KNOWN_ISSUES #19 修复前的临时方案)
+     * <p>后续: PR1 验证稳定后删除 (预计 1-2 周)
+     */
+    private String collectChildDeptIdsByRecursive(Long rootDeptId) {
         try {
             // 1. 加载所有部门 (数据量 < 1000, 单次查询)
             List<Dept> allDepts = deptMapper.selectList(null);
@@ -158,8 +211,9 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
                     .collect(Collectors.joining(","));
 
         } catch (Exception e) {
-            log.warn("collectChildDeptIds failed, fallback to root only. rootDeptId={}", rootDeptId, e);
+            log.warn("collectChildDeptIdsByRecursive failed, fallback to root only. rootDeptId={}", rootDeptId, e);
             return String.valueOf(rootDeptId);
         }
     }
 }
+

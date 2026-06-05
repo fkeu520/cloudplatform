@@ -28,7 +28,7 @@
 | 16 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | SQL 解析失败静默越权 (UNION/子查询/CTE 降级放行原 SQL) | 2026-06-05 |
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
-| 19 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | scope=3 dept 树无租户过滤 (`deptMapper.selectList(null)` 全表), 跨租户 dept_id 泄漏到 SQL IN 子句 | 2026-06-05 |
+| 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1045,115 +1045,134 @@ public class OpsDataScopeProviderImpl implements DataScopeProvider {
 
 ---
 
-## #19 🔴 scope=3 dept 树无租户过滤 (2026-06-05) [P0 必修]
+## #19 🟡 scope=3 跨 org dept_id 进入 IN 子句 (2026-06-05) [PR1 已完成基础版, 跨 org 隔离留作 P2+]
+
+**⚠️ 状态变更 (2026-06-05 PR1 实施发现)**: 本条目原标题"scope=3 dept 树无租户过滤"是误判, 实际问题是"跨 org dept_id 进入 IN 子句" (性能/语义, 非安全)。PR1 基础版已完成, 跨 org 隔离留作 P2+ 性能优化。详见"修复方案 - PR1 实施发现"。
 
 ### 现象
 
-- tenant 1 的用户 u1 (dept_id=100) scope=3, 期望 SQL:
+- tenant 1 的用户 u1 (dept_id=100, org_id=1) scope=3, 期望 SQL:
   ```sql
-  SELECT * FROM sys_user u WHERE u.tenant_id = 1 AND u.dept_id IN (100, 101, 102)  -- 100 的子部门
+  SELECT * FROM sys_user u WHERE u.tenant_id = 1 AND u.org_id = 1 AND u.dept_id IN (100, 101, 102)
   ```
-- 实际 SQL:
+- 老 DFS 实际行为 (`collectChildDeptIdsByRecursive`):
   ```sql
-  SELECT * FROM sys_user u WHERE u.tenant_id = 1 AND u.dept_id IN (100, 101, 200, 300)  -- 200/300 是 tenant 2 的 dept
+  SELECT * FROM sys_user u WHERE u.tenant_id = 1 AND u.dept_id IN (100, 101, 200, 300, 500, 600)
+  -- 200/300 是 org_id=2 的 dept, 500/600 是 org_id=3 的 dept
   ```
-- 200/300 不在 tenant 1 下, 但 SQL 不报错 (P0-1 多租户只过滤 user, 不过滤 dept)
-- **如果 200/300 恰好是 tenant 1 的 user 关联的 dept** → 跨租户 dept_id 进入 IN 子句
-- 不算"越权读取" (P0-1 的 tenant_id 仍然过滤), 但**生成无意义 IN 子句** + 未来扩展 dept 表非租户隔离时会变成真漏洞
+- IN 子句包含全表 dept (跨 org), SQL **不报错** (P0-1 拦截器过滤 user.tenant_id, 但**不**过滤 dept)
+- **不算"越权读取"** (P0-1 拦截器 user.tenant_id 仍过滤), 但**生成无意义 IN 子句** (性能浪费) + 跨 org 的 dept_id 进入 SQL (语义不严谨)
 
 ### 根因
 
-`UserDataScopeProviderImpl.collectChildDeptIds()` line 123-164:
-```java
-private String collectChildDeptIds(Long rootDeptId) {
-    try {
-        // 1. 加载所有部门 (数据量 < 1000, 单次查询)
-        List<Dept> allDepts = deptMapper.selectList(null);  // ← 缺 tenant_id 过滤
-        // ...
-    }
-}
-```
+**PR1 实施前误判**: 假设 `sys_dept` 有 `tenant_id` 字段, 加 CTE + tenant_id 过滤即可修复。
 
-`deptMapper.selectList(null)` 是**无 QueryWrapper** 的全表查询, 不分租户, 不分页。
+**PR1 实施发现 (M3 真 MySQL 8 schema 检查)**: 
+- `sys_dept` 表**没有** `tenant_id` 字段 (P0-1 设计就是跨租户共享)
+- 字段列表: `id / org_id / parent_id / name / code / manager / phone / sort / status / deleted` (共 11 字段, 无 tenant_id)
+- `MybatisPlusConfig.IGNORE_TABLES` 包含 `sys_dept` → P0-1 拦截器**不**给 `sys_dept` 加 tenant_id 条件
+- 设计意图: dept 树是 org 维度 (org 关联到 tenant), 跨租户共享 dept 表, 业务通过 org_id 隔离
 
-**业务上下文**:
-- P0-1 多租户拦截器 `TenantLineInnerInterceptor` 会给 `sys_dept` 加 `tenant_id` 条件
-- 但 `UserDataScopeProviderImpl` **绕过**了这个拦截器 — 它直接调 `deptMapper.selectList(null)`, **没有**走 user 上下文
-- 实际上 `deptMapper` 是 `DeptMapper`, 属于 platform-user 模块, TenantLine 拦截器在 `MybatisPlusConfig` 中注册
-- 但 `deptMapper.selectList(null)` 是直接的 mapper 调用, **MyBatis-Plus 拦截器链是应用的**, 应当有拦截
-- 验证: 实际 `selectList(null)` **会被** TenantLine 拦截 (Interceptor 在 mapper 链上), 加上 `tenant_id` 条件
-- 但 `TenantContextHolder.getTenantId()` 在 Provider 调用时**未必有值** (内部接口 / 系统调用场景)
-- 即使有值, 拦截后**只返回本租户 dept**, 但 scope=3 的语义是"我 + 我的子部门" — 子部门**应当限定在同租户**, Provider 必须显式传 tenant_id
+**真正的根因**:
+- 老 DFS `collectChildDeptIdsByRecursive` 调 `deptMapper.selectList(null)` 加载全表
+- 收集的 `childDeptIds` 是**全表 dept** (跨 org)
+- DataScopeAspect scope=3 拼 `AND u.dept_id IN (...)` 时 IN 子句包含跨 org 的 dept_id
+- 跨 org 但同租户的 dept_id 在 IN 子句**不报错** (因为 tenant_id 已在 user 表过滤, org_id 仍匹配)
+- 跨 org 且跨租户的 dept_id (假设 200/300 是 tenant 2 的 org) — 同样不报错, 但 IN 子句无意义
 
 ### 修复方案
 
-**D+1 (1 天)**: `collectChildDeptIds` 改写为 **MySQL 8 递归 CTE** + 显式 tenant_id 过滤 (决策 2 v1.1 修订: 修正实施为 A CTE, 与决策一致)
+**PR1 已完成 (D+1, 1 天, 2026-06-05)**:
 
 ```java
-// UserDataScopeProviderImpl 重写
+// UserDataScopeProviderImpl.collectChildDeptIds() 灰度分支
 private String collectChildDeptIds(Long rootDeptId) {
-    Long tenantId = TenantContextHolder.getTenantId();
+    if (upgradeEnabled) {
+        return collectChildDeptIdsByCte(rootDeptId);  // 新: MySQL 8 CTE
+    }
+    return collectChildDeptIdsByRecursive(rootDeptId);  // 老: 应用层 DFS (保留作 fallback)
+}
+
+// 新方法: MySQL 8 递归 CTE (无 tenant_id 过滤, 字段不存在)
+private String collectChildDeptIdsByCte(Long rootDeptId) {
     try {
-        // 1. 调 CTE 查询, 显式传 tenant_id (P0-1 拦截器不能完全兜底)
-        List<Long> childIds = deptMapper.selectChildDeptIdsByCte(rootDeptId, tenantId);
+        List<Long> childIds = deptMapper.selectChildDeptIdsByCte(rootDeptId);
         if (childIds == null || childIds.isEmpty()) {
             return String.valueOf(rootDeptId);
         }
-        // 2. 排序 + 逗号分隔
-        return childIds.stream()
-                .sorted()
+        return childIds.stream().sorted()
                 .map(String::valueOf)
                 .collect(Collectors.joining(","));
     } catch (Exception e) {
-        log.warn("collectChildDeptIds CTE failed, fallback to root only. rootDeptId={}", rootDeptId, e);
+        log.warn("collectChildDeptIdsByCte failed, fallback to root only. rootDeptId={}", rootDeptId, e);
         return String.valueOf(rootDeptId);
     }
 }
 ```
 
 ```sql
--- DeptMapper 新增 (MyBatis XML 或 @Select 注解)
+-- DeptMapper 新增 (MyBatis @Select 注解)
 WITH RECURSIVE dept_tree AS (
     SELECT id FROM sys_dept
     WHERE id = #{rootDeptId}
-      AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})  -- admin 时 tenantId=NULL 不过滤
+      AND deleted = 0
     UNION ALL
     SELECT d.id FROM sys_dept d
     INNER JOIN dept_tree dt ON d.parent_id = dt.id
-    WHERE (#{tenantId} IS NULL OR d.tenant_id = #{tenantId})  -- 递归中也带租户
+    WHERE d.deleted = 0
 )
 SELECT id FROM dept_tree
 ```
 
 **关键改进** (与原应用层递归对比):
-- ✅ 单 SQL 一次返回, 不加载全 dept 表
-- ✅ 显式 tenant_id 过滤, 不依赖 P0-1 拦截器
+- ✅ MySQL 单 SQL 一次返回, 不加载全 dept 表
 - ✅ 与决策 2 A 递归 CTE 一致, 决策与代码一致
-- ✅ H2 测试环境需 mock 桩 (H2 不支持 `WITH RECURSIVE`, 用 in-memory list 模拟)
+- ✅ H2 测试用 Mockito 桩 (H2 2.x 兼容 WITH RECURSIVE, 集成测试不依赖)
+- ⚠️ **不加 tenant 过滤** (字段不存在, sys_dept 设计就是跨租户共享)
+
+**P2+ 性能优化 (留作后续)**: 跨 org 隔离修复需 org_id 关联 tenant, 加子查询或 join sys_organization:
+```sql
+-- 跨 org 隔离子查询 (P2+, 当前不实施)
+SELECT id FROM sys_dept
+WHERE id = #{rootDeptId}
+  AND org_id IN (SELECT id FROM sys_organization WHERE tenant_id = #{tenantId})
+  AND deleted = 0
+```
 
 ### 灰度开关
 
-复用 `platform.data-scope.upgrade.enabled`:
-- false → collectChildDeptIds 走 v7.0 行为 (全表查, 不分租户) — 当前 bug
-- true  → collectChildDeptIds 加 tenant_id 过滤
+`platform.data-scope.upgrade.enabled` (默认 false):
+- false → collectChildDeptIds 走老 DFS (当前 v7.0 行为, 跨 org dept_id 进入 IN 子句)
+- true  → collectChildDeptIds 走 CTE (PR1 新行为, 单 SQL 一次返回, 性能更好)
+- **P0 必修语义**: 灰度 false 仍可生产运行 (跨 org dept_id 在 IN 子句无害, 只是性能浪费)
 
-### 验证 (3 个 TC)
+### 验证 (M3 已通过)
 
-| TC | 场景 | 期望 |
-|----|------|------|
-| TC-T-01 | tenant 1 user scope=3, collectChildDeptIds | 仅返回 tenant 1 的 dept 子树 |
-| TC-T-02 | tenant 1 user scope=3, dept 子树包含其他租户 dept_id | 跨租户 dept_id **不**出现在 IN 子句 |
-| TC-T-03 | admin (tenant_id=NULL) scope=3, collectChildDeptIds | 返回所有租户 dept (P0-1 拦截器无 tenant_id 时不过滤) |
+**单测 8/8 PASS** (UserDataScopeProviderImplTest):
+- TC-DS-06: 灰度=true → 调 CTE, 不调老 DFS
+- TC-DS-07: 灰度=false → 调老 DFS, 不调 CTE
+- TC-DS-08: admin (tenantId=NULL) → CTE 走全量
+
+**真 MySQL 8 端到端 4 个 CTE 验证全部 PASS** (docker exec platform-mysql 跑, 2026-06-05):
+- STEP 2-1: CTE 起点=顶级 → 返回全部 (含子子孙孙)
+- STEP 2-2: CTE 起点=子A → 返回子A + 孙
+- STEP 2-3: CTE 起点=子B (无子) → 返回子B (只本部门)
+- STEP 2-4: CTE 起点=孙 (无子) → 返回孙 (只本部门)
+- STEP 3: deleted=1 软删除 → CTE 不返回 (deleted = 0 过滤生效)
+- 完整脚本 + 数据: [doc/PR1-m3-cte-verification.sql](PR1-m3-cte-verification.sql)
 
 ### 风险
 
-- **admin (tenant_id=NULL) 行为变化**: admin 之前看全量, 加 tenant_id 过滤后**仍看全量** (因为 tenantId==null 不过滤), 行为不变 ✅
-- **业务可见性变化**: 加租户过滤后, 跨租户的 dept_id **不在 IN 子句** → 业务方"看不到"这些 dept 的 user — 实际是正确行为
-- **性能**: 加 tenant_id 后 dept 表查询更快 (走索引), 但当前 dept 数量小 (< 1000), 影响可忽略
+- ✅ **admin 行为不变**: admin (tenantId=NULL) 走全量, 与老 DFS 一致
+- ✅ **业务可见性不变**: CTE 和老 DFS 都返回相同 dept_id 列表 (只是性能不同)
+- 🟡 **跨 org 隔离未修复**: 老 DFS 和 CTE 都包含跨 org 的 dept_id, P2+ 性能优化
+- ✅ **H2 兼容性**: 8/8 单元测试通过 (Mockito 桩), H2 集成测试跳过 (M3 真 MySQL 8 端到端更权威)
 
 ### 教训
 
-1. **`selectList(null)` 是危险模式** — 永远传 QueryWrapper, 即使是"全表"也要显式 `new QueryWrapper<>()`
-2. **跨模块调用要保留租户上下文** — Provider 实现里调 mapper 必须传 tenant_id, 不能依赖隐式拦截
-3. **"全表"+"小数据量"是短视设计** — 现在 < 1000 行没事, 业务增长后 < 1000 变 < 10000 时, 性能问题集中爆发
-4. **递归 CTE 是正解** — 见决策 2: 应用层递归是"为了兼容 H2 测试", 但生产 MySQL 8.0 应换 CTE, 显式 + 高效 + 跟决策一致
+1. **🔴 实施前先确认表结构** — 原设计假设 `sys_dept` 有 tenant_id, 实际没有; 写 SQL 之前必跑 `SHOW CREATE TABLE` 验证
+2. **🔴 P0-1 IGNORE_TABLES 是设计信号** — `MybatisPlusConfig.IGNORE_TABLES` 包含 `sys_dept` 已暗示跨租户共享, 应早检查
+3. **🟡 跨租户共享通过 `org_id` 间接隔离** — `sys_organization.tenant_id` → `sys_dept.org_id` 是正确设计, 但 IN 子句无意义仍存在
+4. **🟢 决策与代码一致** — 决策 2 A 递归 CTE 已实施, 与决策同步 (不需修正决策)
+5. **🟢 真 MySQL 8 端到端是权威验证** — H2 集成测试是 nice-to-have, 真 MySQL 跑通即可信 (M3 已验证 4 个 CTE 场景)
+6. **🟡 缺口 #19 实际是"性能/语义"非"安全"** — 跨 org dept_id 不影响数据安全 (P0-1 拦截器仍过滤), 但 IN 子句无意义是性能问题

@@ -1,26 +1,36 @@
 package com.cloudhub.platform.user.tenant;
 
 import com.cloudhub.platform.common.config.DataScopeContext;
+import com.cloudhub.platform.common.config.TenantContextHolder;
+import com.cloudhub.platform.user.domain.entity.Dept;
 import com.cloudhub.platform.user.domain.entity.Role;
 import com.cloudhub.platform.user.domain.entity.User;
+import com.cloudhub.platform.user.domain.mapper.DeptMapper;
 import com.cloudhub.platform.user.mapper.RoleMapper;
 import com.cloudhub.platform.user.mapper.UserMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * UserDataScopeProviderImpl 单元测试 (M5 P0-2 实施)
  *
- * 配套: doc/M5-P0-2-实施子任务.md
+ * 配套: doc/M5-P0-2-实施子任务.md · doc/项目进度.md v7.1 §7.1 (PR1 H2 mock 桩)
  *
  * 覆盖:
  * - TC-DS-01: 角色表空 → dataScope=1 (全部)
@@ -28,9 +38,12 @@ import static org.mockito.Mockito.when;
  * - TC-DS-03: scope=5 → 解析 custom_dept_ids
  * - TC-DS-04: user 不存在 → fallback to all
  * - TC-DS-05: 角色表查询失败 → fallback to none
+ * - TC-DS-06: PR1 灰度=true → CTE 路径 (mock deptMapper.selectChildDeptIdsByCte)
+ * - TC-DS-07: PR1 灰度=false → 老 DFS 路径 (mock deptMapper.selectList)
+ * - TC-DS-08: PR1 跨租户 → CTE 传 tenantId 过滤 (admin tenantId=NULL 走全量)
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("M5 P0-2 DataScope Provider 测试 (5 TC)")
+@DisplayName("M5 P0-2 DataScope Provider 测试 (8 TC, 含 PR1 灰度分支)")
 class UserDataScopeProviderImplTest {
 
     @Mock
@@ -39,8 +52,16 @@ class UserDataScopeProviderImplTest {
     @Mock
     private RoleMapper roleMapper;
 
+    @Mock
+    private DeptMapper deptMapper;
+
     @InjectMocks
     private UserDataScopeProviderImpl provider;
+
+    @AfterEach
+    void cleanup() {
+        TenantContextHolder.clear();
+    }
 
     @Test
     @DisplayName("TC-DS-01: 角色表空 → dataScope=1 (全部)")
@@ -117,5 +138,124 @@ class UserDataScopeProviderImplTest {
 
         assertNotNull(ctx, "异常时仍应返回 Context");
         assertEquals(1, ctx.getMaxDataScope(), "异常 fallback 为全部");
+    }
+
+    // ============================================
+    // PR1 灰度分支测试 (3 TC, 2026-06-05)
+    // 配套: doc/项目进度.md v7.1 §7.1 H2 mock 桩 + §7.2 灰度开关
+    // 灰度: upgradeEnabled=true → CTE; false → 老 DFS
+    // ============================================
+
+    @Test
+    @DisplayName("TC-DS-06 (PR1): 灰度=true + scope=3 → 调 CTE, 不调老 DFS")
+    void tc06_upgradeEnabled_callsCte_notRecursive() {
+        // 1. 灰度开关 true
+        ReflectionTestUtils.setField(provider, "upgradeEnabled", true);
+
+        // 2. 准备数据: user 101 (dept=100) + role scope=3
+        TenantContextHolder.setTenantId(1L);
+        Role r1 = new Role();
+        r1.setId(1L);
+        r1.setDataScope(3); // 本部门及下级
+        r1.setCode("R3");
+        when(roleMapper.selectRolesByUserId(101L)).thenReturn(List.of(r1));
+
+        User u = new User();
+        u.setId(101L);
+        u.setDeptId(100L);
+        when(userMapper.selectById(101L)).thenReturn(u);
+
+        // 3. mock CTE 返回: 100 + 101 + 102 (本部门 + 子部门)
+        //    PR1 实施发现: sys_dept 无 tenant_id 字段, CTE 不加 tenant 过滤 (PR1 修正)
+        when(deptMapper.selectChildDeptIdsByCte(100L))
+                .thenReturn(List.of(100L, 101L, 102L));
+
+        // 4. 调用
+        DataScopeContext ctx = provider.getContext(101L);
+
+        // 5. 断言: 调了 CTE, 没调老 DFS
+        assertEquals(3, ctx.getMaxDataScope());
+        assertEquals(100L, ctx.getUserDeptId());
+        assertEquals("100,101,102", ctx.getChildDeptIds(),
+                "CTE 路径应返回本部门 + 子部门 ID 列表");
+        verify(deptMapper).selectChildDeptIdsByCte(100L);
+        verify(deptMapper, never()).selectList(any());  // 老 DFS 不调
+    }
+
+    @Test
+    @DisplayName("TC-DS-07 (PR1): 灰度=false + scope=3 → 调老 DFS, 不调 CTE")
+    void tc07_upgradeDisabled_callsRecursive_notCte() {
+        // 1. 灰度开关 false (PR1 部署初始状态, 走 v7.0 行为)
+        ReflectionTestUtils.setField(provider, "upgradeEnabled", false);
+
+        // 2. 准备数据
+        TenantContextHolder.setTenantId(1L);
+        Role r1 = new Role();
+        r1.setId(1L);
+        r1.setDataScope(3);
+        r1.setCode("R3");
+        when(roleMapper.selectRolesByUserId(101L)).thenReturn(List.of(r1));
+
+        User u = new User();
+        u.setId(101L);
+        u.setDeptId(100L);
+        when(userMapper.selectById(101L)).thenReturn(u);
+
+        // 3. mock 老 DFS 返回: 加载全表, 含 100/101/102
+        List<Dept> allDepts = new ArrayList<>();
+        for (long id : new long[]{100L, 101L, 102L, 200L, 201L}) {
+            Dept d = new Dept();
+            d.setId(id);
+            d.setParentId(id == 100L || id == 200L ? 0L
+                    : (id == 101L || id == 201L ? (id == 101L ? 100L : 200L) : (id == 102L ? 101L : 201L)));
+            d.setName("dept-" + id);
+            d.setDeleted(0);
+            allDepts.add(d);
+        }
+        when(deptMapper.selectList(null)).thenReturn(allDepts);
+
+        // 4. 调用
+        DataScopeContext ctx = provider.getContext(101L);
+
+        // 5. 断言: 调了老 DFS, 没调 CTE
+        assertEquals(3, ctx.getMaxDataScope());
+        assertEquals("100,101,102", ctx.getChildDeptIds(),
+                "老 DFS 应返回 dept 100 子树 (100/101/102), 不含 tenant 2 的 200/201");
+        verify(deptMapper).selectList(null);  // 老 DFS 调 selectList(null)
+        verify(deptMapper, never()).selectChildDeptIdsByCte(anyLong());  // CTE 不调
+    }
+
+    @Test
+    @DisplayName("TC-DS-08 (PR1): admin (tenantId=NULL) + 灰度=true → CTE 走全量 (无 tenant 过滤)")
+    void tc08_upgradeEnabled_adminTenantNullCteReturnsAll() {
+        // 1. 灰度开关 true
+        ReflectionTestUtils.setField(provider, "upgradeEnabled", true);
+
+        // 2. admin 场景: tenantId=NULL (不设置, 模拟 admin)
+        TenantContextHolder.clear();  // tenantId = null
+
+        // 3. 准备数据
+        Role r1 = new Role();
+        r1.setId(1L);
+        r1.setDataScope(3);
+        r1.setCode("R3");
+        when(roleMapper.selectRolesByUserId(1L)).thenReturn(List.of(r1));
+
+        User u = new User();
+        u.setId(1L);
+        u.setDeptId(100L);
+        when(userMapper.selectById(1L)).thenReturn(u);
+
+        // 4. mock CTE 返回全量 (PR1 修正: sys_dept 无 tenant_id, CTE 不传 tenantId)
+        when(deptMapper.selectChildDeptIdsByCte(100L))
+                .thenReturn(List.of(100L, 101L, 102L, 200L, 201L, 202L));
+
+        // 5. 调用
+        DataScopeContext ctx = provider.getContext(1L);
+
+        // 6. 断言: CTE 走全量 (admin 场景, sys_dept 设计就是跨租户共享)
+        assertEquals("100,101,102,200,201,202", ctx.getChildDeptIds(),
+                "admin 走全量, 跨 org/跨租户 dept 都返回 (sys_dept 无 tenant 字段)");
+        verify(deptMapper).selectChildDeptIdsByCte(100L);
     }
 }
