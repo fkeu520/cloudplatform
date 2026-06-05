@@ -52,7 +52,15 @@ logging:
 # 默认 true (拦截器加载, 当前行为)
 # 紧急回滚: 设置环境变量 PLATFORM_TENANT_INTERCEPTOR_ENABLED=false 后重启
 # 关闭后所有 SQL 不再自动拼接 tenant_id 条件, 业务回到 v3.1 之前行为
+# ============ 数据权限升级开关 (v7.1 PR1-4 共用, 决策 3 v1.1) ============
+# 配套文档: doc/项目进度.md v7.1 §7.2
+# 默认 false (走 v7.0 行为), 验证流程通过后用户拍板改 true
+# 紧急回滚: 设置环境变量 PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=false 后重启
+# 关闭后走 v7.0 行为 (老 DFS 应用层递归, 无租户过滤)
 platform:
   tenant:
     interceptor:
       enabled: ${PLATFORM_TENANT_INTERCEPTOR_ENABLED:true}
+  data-scope:
+    upgrade:
+      enabled: ${PLATFORM_DATA_SCOPE_UPGRADE_ENABLED:false}
