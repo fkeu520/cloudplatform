@@ -1087,34 +1087,49 @@ private String collectChildDeptIds(Long rootDeptId) {
 
 ### 修复方案
 
-**D+1 (0.5 天)**: `collectChildDeptIds` 加 tenant_id 过滤
+**D+1 (1 天)**: `collectChildDeptIds` 改写为 **MySQL 8 递归 CTE** + 显式 tenant_id 过滤 (决策 2 v1.1 修订: 修正实施为 A CTE, 与决策一致)
 
 ```java
+// UserDataScopeProviderImpl 重写
 private String collectChildDeptIds(Long rootDeptId) {
+    Long tenantId = TenantContextHolder.getTenantId();
     try {
-        // 1. 加载本租户所有部门 (P0-1 拦截器会自动加 tenant_id 条件, 但显式传更安全)
-        Long tenantId = TenantContextHolder.getTenantId();
-        LambdaQueryWrapper<Dept> wrapper = new LambdaQueryWrapper<>();
-        if (tenantId != null) {
-            wrapper.eq(Dept::getTenantId, tenantId);  // ← 显式加
+        // 1. 调 CTE 查询, 显式传 tenant_id (P0-1 拦截器不能完全兜底)
+        List<Long> childIds = deptMapper.selectChildDeptIdsByCte(rootDeptId, tenantId);
+        if (childIds == null || childIds.isEmpty()) {
+            return String.valueOf(rootDeptId);
         }
-        List<Dept> allDepts = deptMapper.selectList(wrapper);
-        // ... 其余 DFS 不变
+        // 2. 排序 + 逗号分隔
+        return childIds.stream()
+                .sorted()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    } catch (Exception e) {
+        log.warn("collectChildDeptIds CTE failed, fallback to root only. rootDeptId={}", rootDeptId, e);
+        return String.valueOf(rootDeptId);
     }
 }
 ```
 
-**更进一步 (P2)**: 用 MySQL 8 递归 CTE 替代应用层递归 (见决策 2 偏离):
 ```sql
+-- DeptMapper 新增 (MyBatis XML 或 @Select 注解)
 WITH RECURSIVE dept_tree AS (
-    SELECT id FROM sys_dept WHERE id = #{rootDeptId} AND tenant_id = #{tenantId}
+    SELECT id FROM sys_dept
+    WHERE id = #{rootDeptId}
+      AND (#{tenantId} IS NULL OR tenant_id = #{tenantId})  -- admin 时 tenantId=NULL 不过滤
     UNION ALL
     SELECT d.id FROM sys_dept d
     INNER JOIN dept_tree dt ON d.parent_id = dt.id
-    WHERE d.tenant_id = #{tenantId}  -- 递归中也带租户
+    WHERE (#{tenantId} IS NULL OR d.tenant_id = #{tenantId})  -- 递归中也带租户
 )
-SELECT id FROM dept_tree;
+SELECT id FROM dept_tree
 ```
+
+**关键改进** (与原应用层递归对比):
+- ✅ 单 SQL 一次返回, 不加载全 dept 表
+- ✅ 显式 tenant_id 过滤, 不依赖 P0-1 拦截器
+- ✅ 与决策 2 A 递归 CTE 一致, 决策与代码一致
+- ✅ H2 测试环境需 mock 桩 (H2 不支持 `WITH RECURSIVE`, 用 in-memory list 模拟)
 
 ### 灰度开关
 
