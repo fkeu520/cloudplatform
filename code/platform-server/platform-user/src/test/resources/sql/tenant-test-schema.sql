@@ -198,3 +198,32 @@ CREATE TABLE sys_post (
     deleted TINYINT DEFAULT 0,
     PRIMARY KEY (id)
 );
+
+-- ----------------------------
+-- 11. ������־ (M5 PR4 OperLog ����Ȩ�޲���)
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS sys_oper_log (
+    id BIGINT NOT NULL,
+    title VARCHAR(200),
+    business_type INT,
+    method VARCHAR(500),
+    request_method VARCHAR(10),
+    operator_type INT,
+    oper_name VARCHAR(64),
+    dept_name VARCHAR(100),
+    dept_id BIGINT,
+    oper_url VARCHAR(500),
+    oper_ip VARCHAR(64),
+    oper_location VARCHAR(100),
+    oper_param TEXT,
+    json_result TEXT,
+    status INT DEFAULT 0,
+    error_msg TEXT,
+    oper_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    cost_time BIGINT,
+    tenant_id BIGINT,
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    PRIMARY KEY (id)
+);

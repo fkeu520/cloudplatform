@@ -71,7 +71,8 @@ public class OperLogController {
         query.orderByDesc("oper_time");
 
         Page<OperLog> page = new Page<>(pageNum, pageSize);
-        IPage<OperLog> result = operLogService.page(page, query);
+        // M5 P0-2 PR4: 走 pageList (有 @DataScope 注解) 而非直接 page() 触发按部门过滤
+        IPage<OperLog> result = operLogService.pageList(page, query);
         return Result.ok(result);
     }
 

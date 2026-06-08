@@ -4,7 +4,9 @@ import com.alibaba.fastjson2.JSON;
 import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.util.JwtUtil;
 import com.cloudhub.platform.user.domain.entity.OperLog;
+import com.cloudhub.platform.user.domain.vo.UserVO;
 import com.cloudhub.platform.user.service.OperLogService;
+import com.cloudhub.platform.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ import java.util.Arrays;
 public class LogAspect {
 
     private final OperLogService operLogService;
+    private final UserService userService;
 
     // 记录开始时间
     private final ThreadLocal<Long> startTime = new ThreadLocal<>();
@@ -93,6 +96,20 @@ public class LogAspect {
                 operLog.setOperName(username);
                 Long tenantId = JwtUtil.getTenantId(token);
                 operLog.setTenantId(tenantId != null ? tenantId : 0L);
+
+                // M5 P0-2 PR4: 查 sys_user 拿当前操作人的 dept_id, 用于按部门审计
+                // 注: sys_user.dept_id 是当前部门, 若用户调岗则历史记录反映的是操作发生时的部门
+                //     (生产环境通常操作和调岗是同一人, 此简化可接受; 严格场景需 sys_user_dept_history 表)
+                if (username != null && !username.isBlank()) {
+                    try {
+                        UserVO userVO = userService.getByUsername(username);
+                        if (userVO != null && userVO.getDeptId() != null) {
+                            operLog.setDeptId(userVO.getDeptId());
+                        }
+                    } catch (Exception userEx) {
+                        log.debug("获取用户deptId失败 (不影响日志记录): username={}, err={}", username, userEx.getMessage());
+                    }
+                }
             } catch (Exception ex) {
                 log.warn("获取用户信息失败", ex);
             }
