@@ -894,9 +894,22 @@ try {
 
 ---
 
-## #17 🔴 业务层 @DataScope 覆盖率仅 2/10 (2026-06-05) [P0 必修]
+## #17 🟢 业务层 @DataScope 覆盖率仅 2/10 (2026-06-05) [P0 必修] - **已解决 PR2 2026-06-08**
 
-### 现象
+### 状态 (2026-06-08)
+
+- **PR2 (`feat/m5-p0-2-pr2-datascope-services`)** 实施 2 Service + 3 方法:
+  - `PostServiceImpl.listByOrgId` 加 `@DataScope(deptAlias="dept_id")`
+  - `DeptServiceImpl.listByOrgId` 加 `@DataScope(deptAlias="id")` (sys_dept 无 dept_id 列, 用主键)
+  - `DeptServiceImpl.listTreeByOrgId` 加 `@DataScope(deptAlias="id")`
+- **测试**: 3/3 DataScopeServiceTest (TC-DS-09/10/11) + 36/36 全套 platform-user 测试 PASS
+- **业务验证**: `/dept/org/1` `/post/org/1` `/dept/tree` 全部 200
+- **关键发现**: `@DataScope` 必须加 **Impl 类**方法 (CGLIB 代理), 不能加接口方法 (JDK 代理扫描不到)
+- **范围缩窄原因**: 6 个 Service (Role/Org/OperLog 等) 实体无 deptId 列, 强行加会 SQL 报错 → 入 **M5.5 数据模型扩展** backlog
+- **覆盖率**: 2/10 → 5/10 (新增 3 个 @DataScope 方法)
+- **相关 commit**: `da86a3a` PR2 代码 + `b8f535e` PR3 桩 + `7c1d6b6` 文档
+
+### 现象 (历史)
 
 - 实际搜索 `@DataScope` 在生产代码 (`code/platform-server/**/service/`): **仅 2 处**
   - `UserService.page()` (line 176)
@@ -974,9 +987,22 @@ public PageResult<RolePageVO> page(...) { ... }
 
 ---
 
-## #18 🔴 跨模块 Provider 缺位 (2026-06-05) [P0 必修]
+## #18 🟢 跨模块 Provider 缺位 (2026-06-05) [P0 必修] - **已解决 PR3 2026-06-08**
 
-### 现象
+### 状态 (2026-06-08)
+
+- **PR3 (`feat/m5-p0-2-pr2-datascope-services`)** 实施 3 个 Provider 桩:
+  - `OpsDataScopeProviderImpl` (platform-ops 模块)
+  - `WorkflowDataScopeProviderImpl` (platform-workflow 模块)
+  - `MessageDataScopeProviderImpl` (platform-message 模块)
+- **关键设计**: `@ConditionalOnMissingBean(DataScopeProvider.class)` 防止多 Provider 冲突 → 只有 user 模块没注册 Provider 时, 桩才生效
+- **桩默认行为**: `DataScopeContext.none()` — 等同 v7.0 行为, 不引入新 bug
+- **测试**: 3/3 PASS (TC-DS-14/15/16, 纯单元测试)
+- **业务验证**: ops/workflow/message 服务启动 + 业务接口 200, 桩未冲突
+- **相关 commit**: `b8f535e` PR3 桩
+- **后续工作**: 各模块"真" Provider 实现 (结合本模块用户上下文) 入 **M5.5+** backlog
+
+### 现象 (历史)
 
 - 启动 `platform-ops` 服务, 调 `SysOperLogService.page()` (假设加了 @DataScope)
 - `DataScopeAspect.lookupContext()`: `Optional.ofNullable(dataScopeProvider)` → **Provider 为 null**
