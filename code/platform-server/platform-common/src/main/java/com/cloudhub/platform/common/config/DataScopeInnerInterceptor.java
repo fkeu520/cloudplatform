@@ -138,8 +138,11 @@ public class DataScopeInnerInterceptor implements InnerInterceptor {
         MetaObject metaObject = SystemMetaObject.forObject(boundSql);
         metaObject.setValue("sql", newSql);
 
-        // 6. 关键: 改写后立即 clear, 防止业务方法内的"子查询"被错误改写
-        DataScopeContextHolder.clear();
+        // 6. (M5 PR4 修正) 不在拦截器内 clear, 留给 DataScopeAspect.doAfter (@After) 清理
+        //    原因: MyBatis-Plus 分页会触发 2 条 SQL (COUNT + SELECT), 在拦截器内 clear 会让
+        //    第二条 SELECT 拿不到 fragment, 导致分页查询 records 列表未过滤 (total 正确, records 错)
+        //    BUG-2026-06-08: B5 验证发现分页查询 total=1 records=2 不一致, 定位此原因
+        //    原"防止子查询被错误改写"的设计顾虑, 由 Aspect @After 的 ThreadLocal 清理覆盖即可
     }
 
     /**
