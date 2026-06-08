@@ -74,6 +74,7 @@
 
 <script setup lang="ts">
 import CrudPage from '@/components/CrudPage.vue'
+import { reactive } from 'vue'
 import { useCrud } from '@/composables/useCrud'
 import {
   getConfigPage,
@@ -82,7 +83,7 @@ import {
   deleteConfig
 } from '@/api/config'
 
-const crud = useCrud(
+const crud = reactive(useCrud(
   {
     page: getConfigPage,
     create: createConfig,
@@ -93,5 +94,5 @@ const crud = useCrud(
     defaultSearch: { keyword: '' },
     defaultForm: { configName: '', configKey: '', configValue: '', configType: 0, remark: '' }
   }
-)
+))
 </script>
