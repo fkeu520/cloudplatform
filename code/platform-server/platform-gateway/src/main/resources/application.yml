@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8083
   servlet:
     encoding:
@@ -30,19 +30,19 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
-        # 启动时允许 Nacos gRPC 客户端未就绪,避免 Docker Desktop 重启时 Nacos 还在 STARTING
-        # 导致 "Failed to start bean 'webServerStartStop'" 网关无法启动
+        # 鍚姩鏃跺厑璁?Nacos gRPC 瀹㈡埛绔湭灏辩华,閬垮厤 Docker Desktop 閲嶅惎鏃?Nacos 杩樺湪 STARTING
+        # 瀵艰嚧 "Failed to start bean 'webServerStartStop'" 缃戝叧鏃犳硶鍚姩
         fail-fast: false
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
         enabled: false
 
     gateway:
-      # 使用 Apache HTTP Client（避免 Netty Connection refused 问题）
+      # 浣跨敤 Apache HTTP Client锛堥伩鍏?Netty Connection refused 闂锛?
       httpclient:
         type: apache
 
-      # 全局 CORS 配置
+      # 鍏ㄥ眬 CORS 閰嶇疆
       globalcors:
         add-to-simple-url-handler-mapping: true
         cors-configurations:
@@ -53,9 +53,9 @@ spring:
             allow-credentials: false
             max-age: 3600
 
-      # 路由配置（通过 Nacos 服务发现 lb:// 方式，适用于 Docker 和本地开发）
+      # 璺敱閰嶇疆锛堥€氳繃 Nacos 鏈嶅姟鍙戠幇 lb:// 鏂瑰紡锛岄€傜敤浜?Docker 鍜屾湰鍦板紑鍙戯級
       routes:
-        # 用户中心
+        # 鐢ㄦ埛涓績
         - id: platform-user
           uri: lb://platform-user
           predicates:
@@ -66,37 +66,37 @@ spring:
                 retries: 3
                 statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
 
-        # 认证中心
+        # 璁よ瘉涓績
         - id: platform-auth
           uri: lb://platform-auth
           predicates:
             - Path=/auth/**
 
-        # 运营管理服务
+        # 杩愯惀绠＄悊鏈嶅姟
         - id: platform-ops
           uri: lb://platform-ops
           predicates:
             - Path=/tenant/**, /storage/**, /gateway-route/**, /audit/**, /app/**, /tenant-app/**, /ops/**, /ops-user/**
 
-        # 流程中心
+        # 娴佺▼涓績
         - id: platform-workflow
           uri: lb://platform-workflow
           predicates:
             - Path=/workflow/**
 
-        # 消息中心
+        # 娑堟伅涓績
         - id: platform-message
           uri: lb://platform-message
           predicates:
             - Path=/message/**
 
-        # 网关自身管理接口
+        # 缃戝叧鑷韩绠＄悊鎺ュ彛
         - id: platform-gateway-self
           uri: lb://platform-gateway
           predicates:
             - Path=/gateway/**
 
-        # Swagger / API 文档
+        # Swagger / API 鏂囨。
         - id: platform-api-docs
           uri: lb://platform-gateway
           predicates:
@@ -119,16 +119,16 @@ logging:
     org.springframework.cloud.gateway: DEBUG
     com.cloudhub.platform: DEBUG
 
-# ============ 多租户拦截器开关 (P0-1 回滚开关) ============
-# 配套文档: doc/P0-1-回滚开关设计.md 方案 A
-# 默认 true (拦截器加载, 当前行为)
-# 紧急回滚: 设置环境变量 PLATFORM_TENANT_INTERCEPTOR_ENABLED=false 后重启
-# 关闭后所有 SQL 不再自动拼接 tenant_id 条件, 业务回到 v3.1 之前行为
-# ============ 数据权限升级开关 (v7.1 PR1-4 共用, 决策 3 v1.1) ============
-# 配套文档: doc/项目进度.md v7.1 §7.2
-# 默认 false (走 v7.0 行为), 验证流程通过后用户拍板改 true
-# 紧急回滚: 设置环境变量 PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=false 后重启
-# 关闭后走 v7.0 行为 (老 DFS 应用层递归, 无租户过滤)
+# ============ 澶氱鎴锋嫤鎴櫒寮€鍏?(P0-1 鍥炴粴寮€鍏? ============
+# 閰嶅鏂囨。: doc/P0-1-鍥炴粴寮€鍏宠璁?md 鏂规 A
+# 榛樿 true (鎷︽埅鍣ㄥ姞杞? 褰撳墠琛屼负)
+# 绱ф€ュ洖婊? 璁剧疆鐜鍙橀噺 PLATFORM_TENANT_INTERCEPTOR_ENABLED=false 鍚庨噸鍚?
+# 鍏抽棴鍚庢墍鏈?SQL 涓嶅啀鑷姩鎷兼帴 tenant_id 鏉′欢, 涓氬姟鍥炲埌 v3.1 涔嬪墠琛屼负
+# ============ 鏁版嵁鏉冮檺鍗囩骇寮€鍏?(v7.1 PR1-4 鍏辩敤, 鍐崇瓥 3 v1.1) ============
+# 閰嶅鏂囨。: doc/椤圭洰杩涘害.md v7.1 搂7.2
+# 榛樿 false (璧?v7.0 琛屼负), 楠岃瘉娴佺▼閫氳繃鍚庣敤鎴锋媿鏉挎敼 true
+# 绱ф€ュ洖婊? 璁剧疆鐜鍙橀噺 PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=false 鍚庨噸鍚?
+# 鍏抽棴鍚庤蛋 v7.0 琛屼负 (鑰?DFS 搴旂敤灞傞€掑綊, 鏃犵鎴疯繃婊?
 platform:
   tenant:
     interceptor:
@@ -136,3 +136,9 @@ platform:
   data-scope:
     upgrade:
       enabled: ${PLATFORM_DATA_SCOPE_UPGRADE_ENABLED:false}
+      # M5 P0-2 PR4: 写严格模式 (默认 false 安全降级, true 时 fail-closed)
+      # false: SQL 解析失败/禁用语法 (FORCE INDEX) 记 WARN 放行, 业务可用但无 data scope
+      # true:  解析失败抛 DataScopeViolationException, 阻止执行 (写操作零越权)
+      # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
+      write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:false}
+

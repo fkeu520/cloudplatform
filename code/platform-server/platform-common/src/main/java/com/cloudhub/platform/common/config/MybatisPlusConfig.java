@@ -43,7 +43,11 @@ public class MybatisPlusConfig implements MetaObjectHandler {
      */
     @Bean
     @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "true", matchIfMissing = true)
-    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    public MybatisPlusInterceptor mybatisPlusInterceptor(
+            // M5 P0-2 PR4: 写严格开关 (默认 false, 安全降级)
+            //   false: SQL 解析失败时记 WARN 放行 (PR1-3 行为)
+            //   true:  SQL 解析失败时抛 DataScopeViolationException (fail-closed)
+            @Value("${platform.data-scope.upgrade.write-strict:false}") boolean writeStrict) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new TenantLineHandler() {
             @Override
@@ -64,10 +68,12 @@ public class MybatisPlusConfig implements MetaObjectHandler {
                 return IGNORE_TABLES.contains(tableName);
             }
         }));
-        // M5 P0-2: 数据权限拦截器 (M5 P0-2 实施, 2026-06-04)
+        // M5 P0-2: 数据权限拦截器 (M5 P0-2 实施, 2026-06-04; PR4 扩展写操作 2026-06-08)
         //   顺序: TenantLine → DataScope → Pagination
         //   TenantLine 先拼 tenant_id, DataScope 后拼 data_scope 片段, Pagination 最后拼 LIMIT
-        interceptor.addInnerInterceptor(new DataScopeInnerInterceptor());
+        DataScopeInnerInterceptor dataScopeInterceptor = new DataScopeInnerInterceptor();
+        dataScopeInterceptor.setWriteStrict(writeStrict);
+        interceptor.addInnerInterceptor(dataScopeInterceptor);
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
         return interceptor;
     }

@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8087
 
 spring:
@@ -33,7 +33,7 @@ spring:
     baseline-on-migrate: true
     baseline-version: 0
     validate-on-migrate: false
-    # 独立 schema_history 表,避免与 platform-user 的 flyway_schema_history 版本号冲突
+    # 鐙珛 schema_history 琛?閬垮厤涓?platform-user 鐨?flyway_schema_history 鐗堟湰鍙峰啿绐?
     table: flyway_schema_history_ops
 
   cloud:
@@ -41,7 +41,7 @@ spring:
       discovery:
         server-addr: localhost:8848
         enabled: true
-        # 启动时容忍 Nacos gRPC 客户端未就绪
+        # 鍚姩鏃跺蹇?Nacos gRPC 瀹㈡埛绔湭灏辩华
         fail-fast: false
       config:
         server-addr: localhost:8848
@@ -62,7 +62,7 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
-  # 雪花 ID 显式配置 (避免 MP 3.5.5 默认 (0,0) 导致多服务同集群碰撞)
+  # 闆姳 ID 鏄惧紡閰嶇疆 (閬垮厤 MP 3.5.5 榛樿 (0,0) 瀵艰嚧澶氭湇鍔″悓闆嗙兢纰版挒)
   snowflake:
     worker-id: ${MYBATIS_PLUS_SNOWFLAKE_WORKER_ID:4}
     datacenter-id: ${MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID:1}
@@ -90,16 +90,16 @@ logging:
   level:
     com.cloudhub.platform: DEBUG
 
-# ============ 多租户拦截器开关 (P0-1 回滚开关) ============
-# 配套文档: doc/P0-1-回滚开关设计.md 方案 A
-# 默认 true (拦截器加载, 当前行为)
-# 紧急回滚: 设置环境变量 PLATFORM_TENANT_INTERCEPTOR_ENABLED=false 后重启
-# 关闭后所有 SQL 不再自动拼接 tenant_id 条件, 业务回到 v3.1 之前行为
-# ============ 数据权限升级开关 (v7.1 PR1-4 共用, 决策 3 v1.1) ============
-# 配套文档: doc/项目进度.md v7.1 §7.2
-# 默认 false (走 v7.0 行为), 验证流程通过后用户拍板改 true
-# 紧急回滚: 设置环境变量 PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=false 后重启
-# 关闭后走 v7.0 行为 (老 DFS 应用层递归, 无租户过滤)
+# ============ 澶氱鎴锋嫤鎴櫒寮€鍏?(P0-1 鍥炴粴寮€鍏? ============
+# 閰嶅鏂囨。: doc/P0-1-鍥炴粴寮€鍏宠璁?md 鏂规 A
+# 榛樿 true (鎷︽埅鍣ㄥ姞杞? 褰撳墠琛屼负)
+# 绱ф€ュ洖婊? 璁剧疆鐜鍙橀噺 PLATFORM_TENANT_INTERCEPTOR_ENABLED=false 鍚庨噸鍚?
+# 鍏抽棴鍚庢墍鏈?SQL 涓嶅啀鑷姩鎷兼帴 tenant_id 鏉′欢, 涓氬姟鍥炲埌 v3.1 涔嬪墠琛屼负
+# ============ 鏁版嵁鏉冮檺鍗囩骇寮€鍏?(v7.1 PR1-4 鍏辩敤, 鍐崇瓥 3 v1.1) ============
+# 閰嶅鏂囨。: doc/椤圭洰杩涘害.md v7.1 搂7.2
+# 榛樿 false (璧?v7.0 琛屼负), 楠岃瘉娴佺▼閫氳繃鍚庣敤鎴锋媿鏉挎敼 true
+# 绱ф€ュ洖婊? 璁剧疆鐜鍙橀噺 PLATFORM_DATA_SCOPE_UPGRADE_ENABLED=false 鍚庨噸鍚?
+# 鍏抽棴鍚庤蛋 v7.0 琛屼负 (鑰?DFS 搴旂敤灞傞€掑綊, 鏃犵鎴疯繃婊?
 platform:
   tenant:
     interceptor:
@@ -107,3 +107,9 @@ platform:
   data-scope:
     upgrade:
       enabled: ${PLATFORM_DATA_SCOPE_UPGRADE_ENABLED:false}
+      # M5 P0-2 PR4: 写严格模式 (默认 false 安全降级, true 时 fail-closed)
+      # false: SQL 解析失败/禁用语法 (FORCE INDEX) 记 WARN 放行, 业务可用但无 data scope
+      # true:  解析失败抛 DataScopeViolationException, 阻止执行 (写操作零越权)
+      # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
+      write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:false}
+
