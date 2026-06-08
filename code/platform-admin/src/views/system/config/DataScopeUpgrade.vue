@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import CrudPage from '@/components/CrudPage.vue'
+import { reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useCrud } from '@/composables/useCrud'
 import {
@@ -93,7 +94,7 @@ import {
   type Config
 } from '@/api/config'
 
-const crud = useCrud(
+const crud = reactive(useCrud(
   {
     page: getConfigPage,
     create: createConfig,
@@ -105,7 +106,7 @@ const crud = useCrud(
     defaultSearch: { keyword: '' },
     defaultForm: { configName: '', configKey: '', configValue: '', configType: 0, remark: '' }
   }
-)
+))
 
 /** 预定义的数据权限相关默认配置 */
 const DEFAULT_CONFIGS: Config[] = [
