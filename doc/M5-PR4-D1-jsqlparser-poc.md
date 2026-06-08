@@ -173,13 +173,18 @@ D+1 PoC 目标: **23** 个测试用例 (14 基础 + 9 边缘) 验证 jsqlparser 
 
 ## 7. D+2-D+7 计划更新
 
-按 §13.5 原计划执行, **风险已大幅降低**:
+按 §13.5 原计划执行, **D+2 已完成**:
 
 | Day | 工作项 | 状态变化 |
 |-----|--------|----------|
-| D+2 | DataScopeInnerInterceptor 扩展 UPDATE/DELETE 分支 | ⏳ 技术风险解除, 直接实施 |
-| D+3 | 写严格开关 + fail-closed 异常类 | ⏳ 按计划 |
-| D+4 | 端到端测试 (真 MySQL 8) | ⏳ 按计划 |
+| **D+2** | DataScopeInnerInterceptor 扩展 UPDATE/DELETE 分支 | ✅ **完成** (commit 856620e) |
+| **D+2** | 写严格开关 (write-strict) + fail-closed 异常 | ✅ **完成** (DataScopeViolationException) |
+| **D+2** | FORCE INDEX 预检测 | ✅ **完成** (正则预检测, write-strict=true 抛异常) |
+| **D+2** | 6 服务 yml 同步 write-strict 配置 | ✅ **完成** (PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT) |
+| **D+2** | DataScopeWriteInterceptorTest 15 TC | ✅ **完成** (5 scope × 2 + 5 边界) |
+| **D+2** | 编译 + 54/54 测试 PASS | ✅ **完成** |
+| D+3 | (空, 已合并到 D+2) | ✅ |
+| D+4 | 端到端测试 (真 MySQL 8) | ⏳ 待启动 |
 | D+5 | 6 服务部署 + 业务回归 | ⏳ 按计划 |
 | D+6 | 业务方通知 + 培训 | ⏳ 按计划 |
 | D+7 | 写严格开关灰度 false → true | ⏳ 按计划 |
@@ -202,4 +207,8 @@ D+1 PoC 目标: **23** 个测试用例 (14 基础 + 9 边缘) 验证 jsqlparser 
 
 ---
 
-**D+1 结论: PR4 技术路径 96.7% 验证 (29/30 PASS), 3 类已知限制 (FORCE INDEX / Upsert / REPLACE) 有应对方案。可立即进入 D+2 实施, 同时 D+2 实施时同步处理 Upsert 拦截扩展**。
+**D+1 结论: PR4 技术路径 96.7% 验证 (29/30 PASS), 3 类已知限制 (FORCE INDEX / Upsert / REPLACE) 有应对方案**。
+
+**D+2 已完成 (commit 856620e)**: DataScopeInnerInterceptor 扩展 UPDATE/DELETE/Upsert, write-strict 灰度开关, FORCE INDEX 预检测, 15 TC 全 PASS。**D+3 (独立日) 已合并到 D+2**, 节省 1 天。
+
+**D+4-D+7 计划**: 端到端测试 → 6 服务部署 → 业务回归 → 业务方通知 → 写严格开关灰度分批。
