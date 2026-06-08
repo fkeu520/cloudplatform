@@ -58,6 +58,9 @@ test-inject.js
 logs_user.json
 backup_platform_*.sql
 
+# Docs (WIP restructuring, temporarily ignored)
+doc/
+
 # Codegraph / tool artifacts
 .codegraph/
 .playwright-mcp/
