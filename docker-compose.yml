@@ -254,6 +254,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=true
     depends_on:
       mysql:
         condition: service_healthy
@@ -282,6 +283,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=2
+      - PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=true
     depends_on:
       mysql:
         condition: service_healthy
