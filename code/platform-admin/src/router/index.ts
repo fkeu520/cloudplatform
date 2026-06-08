@@ -69,6 +69,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '参数配置', icon: 'fas fa-cog', parent: 'system' }
       },
       {
+        path: 'system/config/data-scope',
+        name: 'DataScopeUpgrade',
+        component: () => import('@/views/system/config/DataScopeUpgrade.vue'),
+        meta: { title: '数据权限配置', icon: 'fas fa-shield-alt', parent: 'system' }
+      },
+      {
         path: 'system/log',
         name: 'OperLog',
         component: () => import('@/views/system/log/Index.vue'),
