@@ -1,6 +1,13 @@
 <template>
   <CrudPage
-    v-bind="crud"
+    :loading="crud.loading"
+    :table-data="crud.tableData"
+    :total="crud.total"
+    :page-num="crud.pageNum"
+    :page-size="crud.pageSize"
+    :dialog-visible="crud.dialogVisible"
+    :dialog-title="crud.dialogTitle"
+    :form-data="crud.formData"
     v-model:dialog-visible="crud.dialogVisible"
     @search="crud.handleSearch"
     @reset="crud.handleReset"
@@ -8,7 +15,6 @@
     @page-change="crud.handlePageChange"
     @submit="crud.handleSubmit"
   >
-    <!-- 搜索区：含防抖自动搜索 -->
     <template #search>
       <el-form-item label="关键字">
         <el-input
@@ -21,12 +27,10 @@
       </el-form-item>
     </template>
 
-    <!-- 工具栏 -->
     <template #toolbar>
       <el-button type="success" @click="crud.handleAdd()" v-permission="'system:config:add'">新增参数</el-button>
     </template>
 
-    <!-- 表格列 -->
     <template #columns>
       <el-table-column prop="configName" label="名称" width="160" />
       <el-table-column prop="configKey" label="键名" width="200" />
@@ -40,13 +44,11 @@
       </el-table-column>
     </template>
 
-    <!-- 操作列 -->
     <template #actions="{ row }">
       <el-button type="primary" size="small" @click="crud.handleEdit(row)" v-permission="'system:config:edit'">编辑</el-button>
       <el-button type="danger" size="small" @click="crud.handleDelete(row)" v-permission="'system:config:del'">删除</el-button>
     </template>
 
-    <!-- 弹窗表单 -->
     <template #form>
       <el-form-item label="名称">
         <el-input v-model="crud.formData.configName" />
