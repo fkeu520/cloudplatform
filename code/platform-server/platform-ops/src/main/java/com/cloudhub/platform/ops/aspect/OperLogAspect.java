@@ -13,11 +13,14 @@ import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.AfterThrowing;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 运营管理操作日志切面
@@ -32,6 +35,10 @@ import java.time.LocalDateTime;
 public class OperLogAspect {
 
     private final OperLogMapper operLogMapper;
+    private final RestTemplate restTemplate;
+
+    @Value("${user.service.url:http://platform-user:8081}")
+    private String userServiceUrl;
 
     private final ThreadLocal<Long> startTime = new ThreadLocal<>();
 
@@ -81,6 +88,27 @@ public class OperLogAspect {
                 }
                 String username = JwtUtil.getUsername(token);
                 operLog.setOperName(username);
+
+                // M5 P0-2 PR4: 调 user 服务拿 deptId, 用于按部门审计
+                // 注: 这是同步阻塞调用, ops 日志写入路径, 失败时 deptId=null 不影响日志主流程
+                if (username != null && !username.isBlank()) {
+                    try {
+                        String url = userServiceUrl + "/user/internal/by-username/" + username;
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> resp = restTemplate.getForObject(url, Map.class);
+                        if (resp != null) {
+                            Object data = resp.get("data");
+                            if (data instanceof Map) {
+                                Object deptId = ((Map<String, Object>) data).get("deptId");
+                                if (deptId != null) {
+                                    operLog.setDeptId(Long.valueOf(deptId.toString()));
+                                }
+                            }
+                        }
+                    } catch (Exception userEx) {
+                        log.debug("[ops] 获取用户deptId失败 (不影响日志记录): username={}, err={}", username, userEx.getMessage());
+                    }
+                }
             } catch (Exception ex) {
                 log.warn("获取用户信息失败", ex);
             }
