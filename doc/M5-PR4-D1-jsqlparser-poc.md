@@ -27,7 +27,9 @@ D+1 PoC 目标: **23** 个测试用例 (14 基础 + 9 边缘) 验证 jsqlparser 
 | JDK | 17.0.19 | Eclipse Adoptium |
 | 测试 SQL | 14 种 | MyBatis-Plus 真实生成模式 + 业务边界 |
 
-## 3. 测试用例 + 结果 (23/23 PASS)
+## 3. 测试用例 + 结果 (29/30 PASS, 1 FAIL — 已知限制)
+
+
 
 ### 3.1 基础形态 (TC-1 ~ TC-5)
 
@@ -72,28 +74,53 @@ D+1 PoC 目标: **23** 个测试用例 (14 基础 + 9 边缘) 验证 jsqlparser 
 | TC-22 | 多租户 OR 混合: `id=? AND dept_id=? AND (tenant_id=? OR tenant_id=0)` | 嵌套括号 + OR 完整保留 | ✅ |
 | TC-23 | JSON 函数: `JSON_EXTRACT(extra, '$.role') = 'admin'` | 函数调用 + 字符串字面量完整保留 | ✅ |
 
-## 4. 关键发现
+### 3.5 MySQL 特有 / 负样本 (TC-24 ~ TC-30) — D+1.6 补充
 
-### 4.1 jsqlparser 4.6 完全够用 ✅
+| TC | 场景 | 解析类型 | 拦截行为 | 结果 |
+|----|------|----------|----------|------|
+| TC-24 | UPDATE ... ORDER BY + LIMIT (MySQL 8) | `Update` | ✅ 拦截, fragment 注入 WHERE 末尾, ORDER/LIMIT 保留 | ✅ |
+| TC-25 | UPDATE LOW_PRIORITY (MySQL 修饰符) | `Update` | ✅ 拦截, LOW_PRIORITY 保留 | ✅ |
+| TC-26 | UPDATE IGNORE (MySQL 修饰符) | `Update` | ✅ 拦截, IGNORE 保留 | ✅ |
+| TC-27 | **UPDATE FORCE INDEX (MySQL 优化提示)** | **❌ parse FAIL** | 解析失败: `Encountered unexpected token: "FORCE"` | ❌ |
+| TC-28 | **INSERT ... ON DUPLICATE KEY UPDATE (Upsert)** | `Insert` | ⚠️ 拦截器跳过 (instanceof Update 不匹配 Insert) | 🟡 需特殊处理 |
+| TC-29 | **REPLACE INTO** | `Upsert` | ⚠️ 拦截器跳过 (REPLACE 实际是 DELETE+INSERT, 但 jsqlparser 合并为 Upsert) | 🟡 需特殊处理 |
+| TC-30 | **TRUNCATE TABLE** | `Truncate` | ✅ 拦截器跳过 (DDL, 不应被 data scope 限制) | ✅ |
 
-- **解析能力**: 23/23 用例全部成功解析, 无语法错误
-- **注入能力**: AndExpression + 单 fragment, 拼接到 WHERE 末尾, 格式正确
-- **保留性**: 原 WHERE 条件完整保留 (AND/OR/子查询/CTE/别名/函数调用/LIMIT)
+**TC-27 ~ TC-30 关键发现**:
 
-### 4.2 边界行为 (扩展观察)
+1. **TC-27 FORCE INDEX 解析失败** — jsqlparser 4.6 不识别 UPDATE/DELETE 中的 MySQL 优化提示
+   - **影响**: 业务代码若用 `FORCE INDEX` 提示, 拦截器解析失败
+   - **write-strict=true** → 拒绝执行 (业务不可用)
+   - **write-strict=false** → 记 WARN 放行 (业务可用, 但**无 data_scope 防护**!)
+   - **建议**: 编码规范禁用 FORCE INDEX; 或拦截器预检测 `FORCE INDEX`/`USE INDEX`/`IGNORE INDEX` 提示词, 提前拒绝
 
-| 边界 | 行为 | 评估 |
+2. **TC-28 INSERT ... ON DUPLICATE KEY UPDATE 是 Insert 类型** — 拦截器 if (Update) 不匹配
+   - **影响**: Upsert 的 UPDATE 部分**无 data_scope 防护**
+   - **建议**: D+2 实施时检查 `Insert` 类型, 如有 `useDuplicate()` 取出 duplicate 部分单独拦截
+   - **简化方案**: 业务规范禁用 upsert 模式, 改用 SELECT + UPDATE/INSERT 显式两步
+
+3. **TC-29 REPLACE INTO 是 Upsert 类型** — 同 TC-28 问题
+   - REPLACE 实际是 DELETE + INSERT 原子操作
+   - jsqlparser 把整个合并为 `Upsert` 节点
+   - **建议**: 同 TC-28, 业务规范禁用 REPLACE INTO
+
+4. **TC-30 TRUNCATE 是 Truncate 类型** — **正确跳过**, 符合设计
+   - TRUNCATE 是 DDL 语义, 本就不应被 data_scope 过滤
+   - 管理员/超管才能用, 隐含 scope=1
+
+### 4.1 jsqlparser 4.6 大部分场景完全够用 ✅
+
+- **解析能力**: 29/30 用例成功解析 (96.7%)
+- **注入能力**: 26 个 UPDATE/DELETE 全部正确注入 fragment
+- **保留性**: 原 WHERE/SET/ORDER/LIMIT/子查询/CTE/别名/函数 完整保留
+
+### 4.2 已知限制 (3 类)
+
+| 限制 | 类型 | 应对 |
 |------|------|------|
-| 无 WHERE 的 UPDATE | 注入新 WHERE, 阻断全表更新 | ✅ 符合安全预期 |
-| 多表 JOIN UPDATE | 解析正常, fragment 追加到末尾 | ✅ MyBatis-Plus 不会生成此类 SQL, 但拦截器应支持 |
-| CTE + UPDATE | 解析正常, fragment 在 WHERE 后 | ✅ PR1 已使用 CTE, 复用兼容 |
-| 表别名 | 解析正常, fragment 用裸列名 `dept_id` | ⚠️ 需注意: `deptAlias` 配置必须用**裸列名**, 别名前缀由 SQL 自然处理 |
-| SET CASE WHEN | 完整保留, 不破坏表达式 | ✅ |
-| SET 计算 (`salary*1.1`) | 完整保留 | ✅ |
-| MySQL 多表 UPDATE (`UPDATE t1, t2`) | 解析正常, 多表 WHERE 拼接 | ✅ 非 MyBatis-Plus 场景, 但拦截器应支持 |
-| DELETE LIMIT (MySQL) | LIMIT 保留在 WHERE 之后 | ✅ |
-| JSON 函数 (MySQL 8) | 函数调用完整保留 | ✅ |
-| 字符串字面量 (单引号) | 完整保留 | ✅ |
+| FORCE INDEX 提示 | jsqlparser 不支持 | 编码规范禁用 / 拦截器预检测 |
+| INSERT ... ON DUPLICATE KEY UPDATE | 解析为 Insert, 拦截器跳过 | 业务规范禁用 upsert / 实施时特殊处理 |
+| REPLACE INTO | 解析为 Upsert, 拦截器跳过 | 业务规范禁用 / 同上 |
 
 ### 4.3 输出格式特点
 
@@ -128,9 +155,21 @@ D+1 PoC 目标: **23** 个测试用例 (14 基础 + 9 边缘) 验证 jsqlparser 
 
 ### 6.2 剩余风险 (D+2-D+7 关注)
 
-1. **MyBatis-Plus 自定义 SQL (`@Update` 注解)**: 业务代码可能手写 SQL, 拦截器仍会拦截, 但 SQL 形态需保证 jsqlparser 可解析
-2. **JDBC 批处理 (Statement.addBatch)**: 拦截器在 StatementHandler 层, 应自动覆盖
-3. **连接池 / 事务回滚**: 拦截器抛异常时, Spring 事务会回滚, 写操作零副作用
+1. **FORCE INDEX 解析失败 (TC-27)**: 
+   - **方案 A**: 业务规范禁用, code review 拦截
+   - **方案 B**: 拦截器预检测 `FORCE INDEX`/`USE INDEX`/`IGNORE INDEX` 关键词, 提前拒绝
+   - **方案 C**: 升级 jsqlparser 到 4.9+ (待验证是否支持)
+
+2. **INSERT ... ON DUPLICATE KEY UPDATE (TC-28)**: 
+   - **方案 A**: 业务规范禁用 upsert
+   - **方案 B**: D+2 实施时, 拦截器扩展处理 Insert 类型, 提取 useDuplicate 部分单独应用 data scope
+   - **简化**: Upsert 在 MyBatis-Plus 业务中较少见, 可先按 A 方案处理
+
+3. **REPLACE INTO (TC-29)**: 同 TC-28, 业务规范禁用或特殊处理
+
+4. **MyBatis-Plus 自定义 SQL (`@Update` 注解)**: 业务代码可能手写 SQL, 拦截器仍会拦截, 但 SQL 形态需保证 jsqlparser 可解析
+5. **JDBC 批处理 (Statement.addBatch)**: 拦截器在 StatementHandler 层, 应自动覆盖
+6. **连接池 / 事务回滚**: 拦截器抛异常时, Spring 事务会回滚, 写操作零副作用
 
 ## 7. D+2-D+7 计划更新
 
@@ -163,4 +202,4 @@ D+1 PoC 目标: **23** 个测试用例 (14 基础 + 9 边缘) 验证 jsqlparser 
 
 ---
 
-**D+1 结论: PR4 技术路径已完全验证 (23/23 PASS, 覆盖基础+边界+高级+边缘), 可立即进入 D+2 实施阶段**。
+**D+1 结论: PR4 技术路径 96.7% 验证 (29/30 PASS), 3 类已知限制 (FORCE INDEX / Upsert / REPLACE) 有应对方案。可立即进入 D+2 实施, 同时 D+2 实施时同步处理 Upsert 拦截扩展**。
