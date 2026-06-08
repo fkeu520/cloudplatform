@@ -2,6 +2,11 @@
 .idea/
 .vscode/
 *.iml
+# Eclipse
+.classpath
+.factorypath
+.project
+.settings/
 
 # Maven
 target/
@@ -45,6 +50,17 @@ docker/minio/data/
 *.bak
 *.swp
 tmp_*
+test-candidate.java
+test-extract.js
+test-inject.js
+
+# Logs / local data
+logs_user.json
+backup_platform_*.sql
+
+# Codegraph / tool artifacts
+.codegraph/
+.playwright-mcp/
 
 # Python
 *.pyc

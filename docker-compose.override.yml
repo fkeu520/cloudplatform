@@ -1,0 +1,42 @@
+# 临时 override：禁用 GELF 日志驱动，解决首次启动的循环依赖
+# 启动完成后可删除此文件
+services:
+  elasticsearch:
+    logging:
+      driver: json-file
+  logstash:
+    logging:
+      driver: json-file
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:9600/_node/stats || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+  kibana:
+    logging:
+      driver: json-file
+  platform-user:
+    logging:
+      driver: json-file
+  platform-auth:
+    logging:
+      driver: json-file
+  platform-gateway:
+    logging:
+      driver: json-file
+  platform-workflow:
+    logging:
+      driver: json-file
+  platform-message:
+    logging:
+      driver: json-file
+  platform-ops:
+    logging:
+      driver: json-file
+  platform-ops-admin:
+    logging:
+      driver: json-file
+  platform-admin:
+    logging:
+      driver: json-file
