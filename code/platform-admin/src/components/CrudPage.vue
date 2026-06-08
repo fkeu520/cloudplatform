@@ -2,7 +2,7 @@
   <div class="page-container">
     <!-- 搜索区域 -->
     <el-card class="search-card">
-      <el-form :inline="true" :model="searchForm">
+      <el-form :inline="true">
         <slot name="search" />
         <el-form-item>
           <el-button type="primary" @click="onSearch" :loading="loading">查询</el-button>
@@ -37,7 +37,7 @@
 
     <!-- 表单弹窗 -->
     <el-dialog :model-value="dialogVisible" @update:model-value="onDialogVisibleChange" :title="dialogTitle" width="500px">
-      <el-form :model="formData" label-width="80px" ref="formRef">
+      <el-form :model="formData" label-width="80px">
         <slot name="form" />
       </el-form>
       <template #footer>
@@ -57,14 +57,12 @@ interface Props {
   total: number
   pageNum: number
   pageSize: number
-  searchForm: Record<string, any>
   dialogVisible: boolean
   dialogTitle: string
   formData: Record<string, any>
-  formRef?: any
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 const emit = defineEmits<{
   search: []
   reset: []
