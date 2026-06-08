@@ -145,9 +145,12 @@ public class AuthService {
         if (userData != null && userData.get("userType") instanceof Number) {
             userType = ((Number) userData.get("userType")).intValue();
         }
-        String token = JwtUtil.generate(userId, TOKEN_EXPIRE_SECONDS);
+        // 从 userData 中获取 username, 用于 token 中携带
+        String username = (userData != null && userData.get("username") instanceof String)
+            ? (String) userData.get("username") : null;
+        String token = JwtUtil.generate(userId, username, TOKEN_EXPIRE_SECONDS);
         if (tenantId != null && tenantId > 0) {
-            token = JwtUtil.generate(userId, "", tenantId, userType, TOKEN_EXPIRE_SECONDS);
+            token = JwtUtil.generate(userId, username, tenantId, userType, TOKEN_EXPIRE_SECONDS);
         }
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
         AuthVO vo = new AuthVO();
