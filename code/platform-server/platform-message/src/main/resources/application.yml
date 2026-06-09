@@ -72,6 +72,10 @@ spring:
         server-addr: localhost:8848
         enabled: false
 
+  # L2 Phase B: 邮件发送默认关闭（EmailSender 程序化创建 MailSender, 不影响功能）
+  mail:
+    enabled: ${PLATFORM_MAIL_ENABLED:false}
+
   flyway:
     enabled: true
     locations: classpath:db/migration
