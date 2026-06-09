@@ -38,6 +38,12 @@
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
+        <!-- CircuitBreaker (M6 P3-6 网关韧性) -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+        </dependency>
+
         <!-- Redis（限流/黑名单） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

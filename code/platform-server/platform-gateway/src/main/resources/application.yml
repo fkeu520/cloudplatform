@@ -62,6 +62,11 @@ spring:
       # 浣跨敤 Apache HTTP Client锛堥伩鍏?Netty Connection refused 闂锛?
       httpclient:
         type: apache
+        connect-timeout: 5000
+        response-timeout: 5s
+        pool:
+          type: elastic
+          max-idle-time: 60s
 
       # 鍏ㄥ眬 CORS 閰嶇疆
       globalcors:
@@ -82,6 +87,10 @@ spring:
           predicates:
             - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**
           filters:
+            - name: CircuitBreaker
+              args:
+                name: platform-user-cb
+                fallbackUri: forward:/fallback/user
             - name: Retry
               args:
                 retries: 3
@@ -92,30 +101,55 @@ spring:
           uri: lb://platform-auth
           predicates:
             - Path=/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: platform-auth-cb
+                fallbackUri: forward:/fallback/auth
 
         # 杩愯惀绠＄悊鏈嶅姟
         - id: platform-ops
           uri: lb://platform-ops
           predicates:
             - Path=/tenant/**, /storage/**, /gateway-route/**, /audit/**, /app/**, /tenant-app/**, /ops/**, /ops-user/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: platform-ops-cb
+                fallbackUri: forward:/fallback/ops
 
         # 娴佺▼涓績
         - id: platform-workflow
           uri: lb://platform-workflow
           predicates:
             - Path=/workflow/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: platform-workflow-cb
+                fallbackUri: forward:/fallback/workflow
 
         # 娑堟伅涓績
         - id: platform-message
           uri: lb://platform-message
           predicates:
             - Path=/message/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: platform-message-cb
+                fallbackUri: forward:/fallback/message
 
         # 缃戝叧鑷韩绠＄悊鎺ュ彛
         - id: platform-gateway-self
           uri: lb://platform-gateway
           predicates:
             - Path=/gateway/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: platform-gateway-self-cb
+                fallbackUri: forward:/fallback/gateway
 
         # Swagger / API 鏂囨。
         - id: platform-api-docs
@@ -181,4 +215,26 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+# ============ M6 P3-6: 网关韧性 (熔断/限流/超时) ============
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        sliding-window-type: COUNT_BASED
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.cloud.gateway.support.TimeoutException
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
 
