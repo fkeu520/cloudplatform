@@ -138,6 +138,13 @@ management:
   zipkin:
     tracing:
       endpoint: http://zipkin:9411/api/v2/spans
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 # ============ L2 Phase A: 性能调优 (Tomcat/连接池/压缩) ============
 
