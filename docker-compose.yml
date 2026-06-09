@@ -254,6 +254,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -282,6 +283,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=2
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -311,6 +313,7 @@ services:
       - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
       - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
       - USER_SERVICE_URL=http://platform-user:8081
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -344,6 +347,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=2
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx1024m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -372,6 +376,7 @@ services:
       - REDIS_HOST=redis
       - CORS_ORIGINS=http://localhost:8080,http://localhost:8090
       - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       nacos:
         condition: service_healthy
@@ -402,6 +407,7 @@ services:
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=4
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy

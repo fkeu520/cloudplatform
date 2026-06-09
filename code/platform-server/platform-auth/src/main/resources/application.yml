@@ -1,6 +1,18 @@
 ﻿server:
   port: 8082
   address: 0.0.0.0
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:80}
+      min-spare: ${TOMCAT_THREADS_MIN:10}
+    accept-count: 100
+    max-connections: 2000
+    connection-timeout: 20s
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 spring:
   main:
@@ -17,6 +29,13 @@ spring:
     url: jdbc:mysql://localhost:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: platform
     password: platform123
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:5}
+      minimum-idle: 2
+      connection-timeout: 20000
+      max-lifetime: 1800000
+      idle-timeout: 600000
+      pool-name: ${spring.application.name}-pool
 
   data:
     redis:
@@ -24,6 +43,12 @@ spring:
       port: 6379
       database: 0
       timeout: 10s
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX:16}
+          max-idle: ${REDIS_POOL_MAX:16}
+          min-idle: 2
+          max-wait: 2s
 
   # Nacos 閰嶇疆
   config:
@@ -38,6 +63,8 @@ spring:
       config:
         server-addr: localhost:8848
         enabled: false
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 springdoc:
   api-docs:

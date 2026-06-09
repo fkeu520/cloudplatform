@@ -1,5 +1,17 @@
 ﻿server:
   port: 8087
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:80}
+      min-spare: ${TOMCAT_THREADS_MIN:10}
+    accept-count: 100
+    max-connections: 2000
+    connection-timeout: 20s
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 spring:
   application:
@@ -10,6 +22,8 @@ spring:
     url: jdbc:mysql://localhost:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: platform
     password: platform123
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:15}
 
   data:
     redis:
@@ -19,7 +33,7 @@ spring:
       timeout: 10s
       lettuce:
         pool:
-          max-active: 8
+          max-active: ${REDIS_POOL_MAX:8}
           max-idle: 8
           min-idle: 0
 
@@ -49,6 +63,9 @@ spring:
 
   elasticsearch:
     uris: http://localhost:9200
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -121,4 +138,7 @@ management:
   zipkin:
     tracing:
       endpoint: http://zipkin:9411/api/v2/spans
+
+# ============ L2 Phase A: 性能调优 (Tomcat/连接池/压缩) ============
+
 

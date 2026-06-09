@@ -1,5 +1,17 @@
 ﻿server:
   port: 8084
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:80}
+      min-spare: ${TOMCAT_THREADS_MIN:10}
+    accept-count: 100
+    max-connections: 2000
+    connection-timeout: 20s
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 spring:
   application:
@@ -20,6 +32,8 @@ spring:
     url: jdbc:mysql://localhost:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: platform
     password: platform123
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:30}
 
   data:
     redis:
@@ -27,17 +41,28 @@ spring:
       port: 6379
       database: 0
       timeout: 10s
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX:12}
+          max-idle: 8
+          min-idle: 0
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
     producer:
+      acks: all
+      retries: 3
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
         spring.json.type.mapping: taskNotify:com.cloudhub.platform.workflow.notify.TaskNotifyMessage
         max.block.ms: 3000
         request.timeout.ms: 3000
     consumer:
+      concurrency: ${KAFKA_CONSUMER_CONCURRENCY:1}
+      max-poll-records: ${KAFKA_MAX_POLL:50}
       group-id: workflow-task-notify
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -55,6 +80,9 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: false
     table: flyway_schema_history_workflow
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 flowable:
   database-schema-update: true
@@ -109,4 +137,6 @@ management:
   zipkin:
     tracing:
       endpoint: http://zipkin:9411/api/v2/spans
+
+# ============ L2 Phase A: 性能调优 (Tomcat/连接池/压缩) ============
 

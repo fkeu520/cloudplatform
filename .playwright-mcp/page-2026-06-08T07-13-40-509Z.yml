@@ -1,0 +1,63 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]: 云枢中台
+    - menubar
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]: 参数配置
+      - generic [ref=e9]:
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e15]
+        - button "管理员" [ref=e20] [cursor=pointer]:
+          - img [ref=e22]
+          - generic [ref=e23]: 管理员
+    - main [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]: 关键字
+            - textbox "关键字" [ref=e34]:
+              - /placeholder: 参数名称/键名
+          - generic [ref=e37]:
+            - button "查询" [disabled]:
+              - generic:
+                - img
+              - generic: 查询
+            - button "重置" [ref=e38] [cursor=pointer]:
+              - generic [ref=e39]: 重置
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - generic [ref=e43]:
+              - table [ref=e45]:
+                - rowgroup [ref=e52]:
+                  - row "名称 键名 键值 系统内置 操作" [ref=e53]:
+                    - columnheader "名称" [ref=e54]:
+                      - generic [ref=e55]: 名称
+                    - columnheader "键名" [ref=e56]:
+                      - generic [ref=e57]: 键名
+                    - columnheader "键值" [ref=e58]:
+                      - generic [ref=e59]: 键值
+                    - columnheader "系统内置" [ref=e60]:
+                      - generic [ref=e61]: 系统内置
+                    - columnheader "操作" [ref=e62]:
+                      - generic [ref=e63]: 操作
+              - generic [ref=e67]:
+                - table:
+                  - rowgroup
+                - generic [ref=e69]: No Data
+            - img [ref=e73]
+          - generic [ref=e76]:
+            - generic [ref=e77]: Total 0
+            - generic [ref=e80] [cursor=pointer]:
+              - generic:
+                - combobox [ref=e82]
+                - generic [ref=e83]: 10/page
+              - img [ref=e86]
+            - button "Go to previous page" [disabled] [ref=e88]:
+              - generic:
+                - img
+            - list [ref=e89]:
+              - listitem "page 1" [ref=e90]: "1"
+            - button "Go to next page" [disabled] [ref=e91]:
+              - generic:
+                - img
