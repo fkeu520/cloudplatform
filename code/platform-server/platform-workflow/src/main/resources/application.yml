@@ -101,3 +101,12 @@ platform:
       # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
       write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true}
 
+# ============ 链路追踪 (M6 P1-1) ============
+management:
+  tracing:
+    sampling:
+      probability: 0.1
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+
