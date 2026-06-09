@@ -8,10 +8,10 @@
 
 # 共享日志配置: GELF UDP → Logstash → Elasticsearch (1 天 ILM 保留)
 x-logging: &default-logging
-  driver: gelf
+  driver: json-file
   options:
-    gelf-address: "udp://logstash:12201"
-    tag: "{{.Name}}"
+    max-size: "10m"
+    max-file: "3"
 
 services:
   # ============ MySQL 8.0 ============
@@ -446,6 +446,15 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     depends_on:
       - kafka
+
+  # ============ Zipkin 链路追踪 (M6 P1-1) ============
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: platform-zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
+    logging: *default-logging
 
   # ============ 前端服务 ============
   platform-admin:
