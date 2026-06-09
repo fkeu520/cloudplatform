@@ -47,8 +47,8 @@ import java.util.regex.Pattern;
  *
  * <h2>灰度开关 (D+2.5)</h2>
  * <ul>
- *   <li>{@code writeStrict} 默认 false: 解析失败时记 WARN 放行 (PR1-3 行为, 安全降级)</li>
- *   <li>{@code writeStrict=true}: 解析失败时抛 {@link DataScopeViolationException} (fail-closed)</li>
+ *   <li>{@code writeStrict} 默认 true: 解析失败时抛 {@link DataScopeViolationException} (fail-closed)</li>
+ *   <li>{@code writeStrict=false}: 记 WARN 放行原 SQL (安全降级)</li>
  * </ul>
  *
  * <h2>限制 (PoC 验证结果, doc/M5-PR4-D1-jsqlparser-poc.md)</h2>
@@ -85,7 +85,7 @@ public class DataScopeInnerInterceptor implements InnerInterceptor {
      * <p>false: 解析失败时记 WARN 放行 (安全降级)<br>
      * true: 解析失败时抛 DataScopeViolationException (fail-closed)</p>
      */
-    private boolean writeStrict = false;
+    private boolean writeStrict = true;
 
     public void setWriteStrict(boolean writeStrict) {
         this.writeStrict = writeStrict;
