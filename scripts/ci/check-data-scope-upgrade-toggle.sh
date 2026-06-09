@@ -102,13 +102,33 @@ else
 fi
 
 echo ""
-echo "=== 汇总 ==="
+echo "=== 5. PR4 D+7 write-strict 灰度 (M5 P0-2 全量上线) ==="
+for svc in user auth gateway message ops workflow; do
+    YML="code/platform-server/platform-$svc/src/main/resources/application.yml"
+    check "platform-$svc.yml 有 write-strict 配置" \
+          "write-strict:.*PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT" "$YML"
+    check "platform-$svc.yml write-strict 默认 true (M5 PR4 全量上线后)" \
+          "write-strict:.*PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true" "$YML"
+done
+
+echo ""
+echo "=== 6. docker-compose.yml 不应再有 write-strict env var 覆盖 (全量上线后) ==="
+if grep -qE "PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT" docker-compose.yml 2>/dev/null; then
+    echo -e "  ${RED}X${NC} docker-compose.yml 仍有 write-strict env var 覆盖 (应已移除)"
+    FAIL=$((FAIL+1))
+else
+    echo -e "  ${GREEN}PASS${NC} docker-compose.yml 已移除 write-strict env var (全量生效)"
+    PASS=$((PASS+1))
+fi
+
+echo ""
+echo "=== ????==="
 TOTAL=$((PASS+FAIL))
-echo -e "  通过: ${GREEN}${PASS}${NC} / ${TOTAL}"
+echo -e "  ???: ${GREEN}${PASS}${NC} / ${TOTAL}"
 if [ $FAIL -eq 0 ]; then
-    echo -e "  ${GREEN}✅ 全部通过: v7.1 数据权限升级灰度开关已正确实施${NC}"
+    echo -e "  ${GREEN}????????: v7.1 + M5 PR4 write-strict 全量上线 验证通过${NC}"
     exit 0
 else
-    echo -e "  ${RED}❌ ${FAIL} 项不通过, 请修复后重试${NC}"
+    echo -e "  ${RED}??${FAIL} ??????, ?????????${NC}"
     exit 1
 fi
