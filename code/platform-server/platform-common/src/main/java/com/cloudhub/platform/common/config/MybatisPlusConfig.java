@@ -44,10 +44,10 @@ public class MybatisPlusConfig implements MetaObjectHandler {
     @Bean
     @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "true", matchIfMissing = true)
     public MybatisPlusInterceptor mybatisPlusInterceptor(
-            // M5 P0-2 PR4: 写严格开关 (默认 false, 安全降级)
-            //   false: SQL 解析失败时记 WARN 放行 (PR1-3 行为)
+            // M5 P0-2 PR4: 写严格开关 (默认 true, fail-closed)
+            //   false: SQL 解析失败时记 WARN 放行 (PR1-3 行为, 安全降级)
             //   true:  SQL 解析失败时抛 DataScopeViolationException (fail-closed)
-            @Value("${platform.data-scope.upgrade.write-strict:false}") boolean writeStrict) {
+            @Value("${platform.data-scope.upgrade.write-strict:true}") boolean writeStrict) {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new TenantLineHandler() {
             @Override
