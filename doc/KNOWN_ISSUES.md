@@ -26,7 +26,7 @@
 | 14 | 🟢 已解决 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
 | 15 | 🟢 已解决 (PR1 部署成功) | 数据权限 (M5) | PR1 (e64e3f7) 部署遇 Flyway 启动失败, 临时禁用 Flyway 跑通业务验证 (KNOWN_ISSUES #14 同一根因) | 2026-06-05 |
 | 15 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
-| 16 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | SQL 解析失败静默越权 (UNION/子查询/CTE 降级放行原 SQL) | 2026-06-05 |
+| 16 | 🟢 已解决 | 数据权限 (M5) | write-strict 默认 true (fail-closed): DataScopeInnerInterceptor 解析失败抛 DataScopeViolationException | 2026-06-05 |
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
 | 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
@@ -816,7 +816,7 @@ true  → 走 v7.1 行为 (UPDATE/DELETE 改写 + scope 防护)
 
 ---
 
-## #16 🔴 SQL 解析失败静默越权 (2026-06-05) [P0 必修]
+## #16 🟢 SQL 解析失败静默越权 (2026-06-05) [P0 必修] — 已解决 2026-06-09
 
 ### 现象
 
@@ -891,6 +891,22 @@ try {
 2. **静默降级 (WARN 放行) 是反模式** — 业务感知不到, 问题被掩盖到事故发生
 3. **WARN 日志必须有监控/告警** — 当前 WARN 写日志就完事, 没有 metric 没有 alert, 等于"看不见的告警"
 4. **复杂 SQL 的 data_scope 是 P2+ 长期项** — 但"无法处理"≠"放行", 必须明确告诉业务"这事我做不了"而不是假装做完了
+
+### 修复 (2026-06-09)
+
+**变更**:
+1. `DataScopeInnerInterceptor.java` 字段默认值 `false` → `true`
+2. `MybatisPlusConfig.java` `@Value` 默认值 `:false` → `:true`
+3. 6 服务 `application.yml` `${...:false}` → `${...:true}` (M5 PR4 全量上线)
+
+**效果**: `writeStrict` 全链路默认 `true`:
+- SQL 解析失败 / FORCE INDEX 检测命中 → 抛 `DataScopeViolationException` (fail-closed)
+- 降级方式: 设置环境变量 `PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false` 回车安全降级
+
+**验证**:
+- `check-data-scope-upgrade-toggle.sh` §5: 6/6 yml 确认 write-strict=true
+- `docker inspect`: 8 platform 容器无 DATA_SCOPE env var, 全部从 yml 默认读取
+- D+5 业务回归 27/27 PASS, 0 DataScopeViolation
 
 ---
 

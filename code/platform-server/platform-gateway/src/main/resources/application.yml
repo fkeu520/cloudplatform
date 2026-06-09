@@ -140,5 +140,5 @@ platform:
       # false: SQL 解析失败/禁用语法 (FORCE INDEX) 记 WARN 放行, 业务可用但无 data scope
       # true:  解析失败抛 DataScopeViolationException, 阻止执行 (写操作零越权)
       # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
-      write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:false}
+      write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true}
 
