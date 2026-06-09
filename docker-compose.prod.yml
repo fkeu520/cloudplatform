@@ -64,15 +64,28 @@
 #   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
 
 # ==============================================================================
-# 2. 后端服务 · 4C8G 默认配置
+# 2. 后端服务 · 8C16G 默认配置（单机部署）
 # ==============================================================================
 # JVM 配置：
-#   -Xms 与 -Xmx 同值（避免堆抖动）
-#   MaxRAMPercentage=70 (允许容器使用 70% 内存作为堆，剩余给元空间/线程/直接内存)
+#   MaxRAMPercentage=70 (容器内存的 70% 作为堆，剩余给元空间/线程/直接内存)
 #   UseContainerSupport (JDK 11+ 自动识别 cgroup 限制, 关键!)
 #   G1GC + ParallelRefProcEnabled (低延迟, 适合 Web 场景)
+#   +UseStringDeduplication (L2 Phase A: 去重字符串节省堆)
+#   +HeapDumpOnOutOfMemoryError (OOM 时自动 dump)
 #
-# 注意：JAVA_TOOL_OPTIONS 比 JVM_XMS/XMX 优先级低，但能被 Spring Boot 识别
+# 内存预算（8C16G）：
+#   OS:                  ~1.5 GB
+#   MySQL:               3.0 GB
+#   Redis:               0.5 GB
+#   Kafka:               1.0 GB
+#   Nacos:               1.0 GB
+#   Elasticsearch:       2.0 GB
+#   Logstash:            1.0 GB
+#   Kibana + 工具:       1.0 GB
+#   6 个后端 (各 ~0.8G): 4.8 GB
+#   缓冲:                ~0.2 GB
+#   --------------------
+#   合计:                ~16.0 GB ✅
 # ==============================================================================
 
 services:
@@ -80,81 +93,81 @@ services:
 
   platform-user:
     environment:
-      # === 4C8G: 384MB 堆, 容器限 512MB ===
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -Djava.security.egd=file:/dev/./urandom
+      # 8C16G: 512MB 堆, 容器限 1G
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/./urandom
     deploy:
       resources:
         limits:
-          cpus: '0.75'
-          memory: 512M
+          cpus: '1.50'
+          memory: 1G
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.50'
+          memory: 512M
     restart: always
 
   platform-auth:
     environment:
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -Djava.security.egd=file:/dev/./urandom
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/./urandom
     deploy:
       resources:
         limits:
-          cpus: '0.75'
-          memory: 512M
+          cpus: '1.00'
+          memory: 768M
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.50'
+          memory: 384M
     restart: always
 
   platform-gateway:
     environment:
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -Djava.security.egd=file:/dev/./urandom
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/./urandom
     deploy:
       resources:
         limits:
+          cpus: '2.00'
+          memory: 1.5G
+        reservations:
           cpus: '1.00'
           memory: 768M
-        reservations:
-          cpus: '0.50'
-          memory: 384M
     restart: always
 
   platform-workflow:
     environment:
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -Djava.security.egd=file:/dev/./urandom
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/./urandom
     deploy:
       resources:
         limits:
+          cpus: '2.00'
+          memory: 1.5G
+        reservations:
           cpus: '1.00'
           memory: 768M
-        reservations:
-          cpus: '0.50'
-          memory: 384M
     restart: always
 
   platform-message:
     environment:
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -Djava.security.egd=file:/dev/./urandom
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/./urandom
     deploy:
       resources:
         limits:
-          cpus: '0.75'
-          memory: 512M
+          cpus: '1.00'
+          memory: 1G
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.50'
+          memory: 512M
     restart: always
 
   platform-ops:
     environment:
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -Djava.security.egd=file:/dev/./urandom
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseContainerSupport -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof -Djava.security.egd=file:/dev/./urandom
     deploy:
       resources:
         limits:
-          cpus: '0.75'
-          memory: 512M
+          cpus: '1.50'
+          memory: 1G
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.50'
+          memory: 512M
     restart: always
 
   # ============ 中间件服务 ============
@@ -166,11 +179,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.00'
-          memory: 1536M
+          cpus: '2.00'
+          memory: 3G
         reservations:
-          cpus: '0.50'
-          memory: 1024M
+          cpus: '1.00'
+          memory: 2G
     restart: always
 
   redis:
@@ -186,24 +199,24 @@ services:
 
   kafka:
     environment:
-      # 4C8G 调小堆（默认 KAFKA_HEAP_OPTS 可能 -Xmx1G）
-      - KAFKA_HEAP_OPTS=-Xms256M -Xmx512M
-      - KAFKA_NUM_PARTITIONS=3
+      # 8C16G: KAFKA 堆放大到 1G
+      - KAFKA_HEAP_OPTS=-Xms512M -Xmx1G
+      - KAFKA_NUM_PARTITIONS=6
       - KAFKA_DEFAULT_REPLICATION_FACTOR=1
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 768M
+          cpus: '1.00'
+          memory: 1.5G
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '0.50'
+          memory: 1G
     restart: always
 
   nacos:
     environment:
-      - JVM_XMS=256m
-      - JVM_XMX=512m
+      - JVM_XMS=512m
+      - JVM_XMX=1G
       - NACOS_AUTH_ENABLE=true
       - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:?NACOS_AUTH_TOKEN 必须设置}
       - NACOS_AUTH_IDENTITY_KEY=cloudhub
@@ -211,26 +224,26 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 768M
+          cpus: '1.00'
+          memory: 1.5G
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '0.50'
+          memory: 1G
     restart: always
 
   elasticsearch:
     environment:
-      - ES_JAVA_OPTS=-Xms512m -Xmx1g
+      - ES_JAVA_OPTS=-Xms1g -Xmx2g
       - bootstrap.memory_lock=false
       - "ES_JVM_OPTIONS_DOCKER_DISABLE_PREFLIGHT_CHECKS=true"
     deploy:
       resources:
         limits:
-          cpus: '1.00'
-          memory: 1536M
+          cpus: '2.00'
+          memory: 3G
         reservations:
-          cpus: '0.50'
-          memory: 1024M
+          cpus: '1.00'
+          memory: 2G
     restart: always
 
   kibana:
@@ -246,15 +259,15 @@ services:
 
   logstash:
     environment:
-      - LS_JAVA_OPTS=-Xms256m -Xmx512m
+      - LS_JAVA_OPTS=-Xms512m -Xmx1G
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 768M
+          cpus: '1.00'
+          memory: 1.5G
         reservations:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '0.50'
+          memory: 1G
     restart: always
 
   minio:
@@ -319,31 +332,7 @@ services:
 
 
 # ==============================================================================
-# 3. 8C16G 配置（备选，取消下方注释并替换上方 services 块即可）
-# ==============================================================================
-# 差异点：
-#   - 后端服务 memory: 512/768M → 1G/1.5G
-#   - 后端服务 cpus: 0.75/1.0 → 1.5/2.0
-#   - MySQL memory: 1536M → 3G
-#   - ES memory: 1536M → 3G
-#   - Logstash memory: 768M → 1.5G
-#   - Kafka memory: 768M → 1.5G
-#   - Nacos memory: 768M → 1.5G
-#
-# 替换方法（推荐用 sed 脚本化）：
-#   cp docker-compose.prod.yml docker-compose.prod.yml.bak
-#   sed -i "s/memory: 512M/memory: 1G/g" docker-compose.prod.yml
-#   sed -i "s/memory: 768M/memory: 1.5G/g" docker-compose.prod.yml
-#   sed -i "s/memory: 1536M/memory: 3G/g" docker-compose.prod.yml
-#   sed -i "s/cpus: '0.75'/cpus: '1.50'/g" docker-compose.prod.yml
-#   sed -i "s/cpus: '1.00'/cpus: '2.00'/g" docker-compose.prod.yml
-#
-# (注意: sed 是粗糙替换, 实际应写两份独立 yml 供选择)
-# ==============================================================================
-
-
-# ==============================================================================
-# 4. 生产环境强烈建议（但不在本 override 范围）
+# 3. 生产环境强烈建议（但不在本 override 范围）
 # ==============================================================================
 # A. 关闭 GELF 调试日志（开发用）
 #    在 docker-compose.yml 中, 各服务 logging: *default-logging 行注释掉
