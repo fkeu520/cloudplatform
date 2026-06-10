@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 8083
   servlet:
     encoding:
@@ -73,7 +73,7 @@ spring:
         add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
-            allowed-origins: ${CORS_ORIGINS:http://localhost:8080,http://localhost:8090}
+            allowed-origins: ${CORS_ORIGINS:*}
             allowed-methods: '*'
             allowed-headers: '*'
             allow-credentials: false
