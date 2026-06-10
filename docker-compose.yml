@@ -84,9 +84,9 @@ services:
       timeout: 10s
       retries: 5
 
-  # ============ Nacos 2.1 (JDK 8 版本, 兼容 cgroup v2) ============
+  # ============ Nacos 2.2.3 + MySQL (禁用 cgroup v2 容器支持) ============
   nacos:
-    image: nacos/nacos-server:v2.1.2
+    image: nacos/nacos-server:v2.2.3
     container_name: platform-nacos
     restart: unless-stopped
     environment:
@@ -95,11 +95,23 @@ services:
       NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-cGxhY2Vob2xkZXItc2VjcmV0LWtleQo=}
       JVM_XMS: 512m
       JVM_XMX: 512m
+      # 修复 cgroup v2 + JDK17 + Micrometer NullPointerException
+      JAVA_OPTS: -XX:-UseContainerSupport
+      # 使用 MySQL 持久化（单机部署推荐）
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: platform_nacos
+      MYSQL_SERVICE_USER: platform
+      MYSQL_SERVICE_PASSWORD: platform123
     ports:
       - "8848:8848"
       - "9848:9848"
     volumes:
       - nacos-logs:/home/nacos/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8848/nacos/v1/console/health/readiness"]
       interval: 15s
