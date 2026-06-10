@@ -222,10 +222,8 @@ services:
     environment:
       - JVM_XMS=512m
       - JVM_XMX=1G
-      - NACOS_AUTH_ENABLE=true
-      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:?NACOS_AUTH_TOKEN 必须设置}
-      - NACOS_AUTH_IDENTITY_KEY=cloudhub
-      - NACOS_AUTH_IDENTITY_VALUE=${NACOS_AUTH_IDENTITY_VALUE:?NACOS_AUTH_IDENTITY_VALUE 必须设置}
+      - NACOS_AUTH_ENABLE=false
+      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-cGxhY2Vob2xkZXItc2VjcmV0LWtleQo=}
     deploy:
       resources:
         limits:
