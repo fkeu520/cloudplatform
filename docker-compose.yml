@@ -84,9 +84,9 @@ services:
       timeout: 10s
       retries: 5
 
-  # ============ Nacos 2.2.3 + MySQL (禁用 cgroup v2 容器支持) ============
+  # ============ Nacos 2.5.2 + MySQL (避 cgroup v2 + JDK 17 NPE) =============
   nacos:
-    image: nacos/nacos-server:v2.2.3
+    image: nacos/nacos-server:v2.5.2
     container_name: platform-nacos
     restart: unless-stopped
     environment:
@@ -95,8 +95,6 @@ services:
       NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-cGxhY2Vob2xkZXItc2VjcmV0LWtleQo=}
       JVM_XMS: 512m
       JVM_XMX: 512m
-      # 修复 cgroup v2 + JDK17 + Micrometer NullPointerException
-      JAVA_OPTS: -XX:-UseContainerSupport
       # 使用 MySQL 持久化（单机部署推荐）
       SPRING_DATASOURCE_PLATFORM: mysql
       MYSQL_SERVICE_HOST: mysql
@@ -117,7 +115,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 60s
+      start_period: 90s
 
   # ============ MinIO ============
   minio:
@@ -370,7 +368,7 @@ services:
     environment:
       - NACOS_SERVER_ADDR=nacos:8848
       - REDIS_HOST=redis
-      - CORS_ORIGINS=http://localhost:8080,http://localhost:8090
+      - CORS_ORIGINS=*
       - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
       - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
