@@ -486,7 +486,7 @@ services:
   # ============ cAdvisor (容器级资源监控) ============
   # ~50 MB 内存, < 1% CPU, 无持久化; 暴露每个容器的 CPU/内存/网络/磁盘指标
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: googlecontainers/cadvisor:latest
     container_name: platform-cadvisor
     restart: unless-stopped
     ports:
