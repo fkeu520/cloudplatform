@@ -1,0 +1,334 @@
+﻿rtk : [rtk] /!\ No hook installed 鈥?run `rtk init -g` for automatic token savings
+所在位置 行:1 字符: 473
++ ... \bin;' + $env:PATH; rtk docker inspect platform-logstash 2>&1 | Out-F ...
++                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([rtk] /!\ No ho...c token savings:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[
+    {
+        "Id": "e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a",
+        "Created": "2026-06-04T04:48:55.275373486Z",
+        "Path": "/usr/local/bin/docker-entrypoint",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 600676,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-06-09T08:15:18.235857644Z",
+            "FinishedAt": "2026-06-09T08:15:17.771022204Z",
+            "Health": {
+                "Status": "starting",
+                "FailingStreak": 0,
+                "Log": [
+                    {
+                        "Start": "2026-06-09T08:15:10.617683475Z",
+                        "End": "2026-06-09T08:15:10.826481547Z",
+                        "ExitCode": 1,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-06-09T08:15:15.82868431Z",
+                        "End": "2026-06-09T08:15:16.282229161Z",
+                        "ExitCode": 0,
+                        "Output": "{\"host\":\"e732fa9000e5\",\"version\":\"8.12.0\",\"http_address\":\"0.0.0.0:9600\",\"id\":\"7b08207d-c923-4bd4-8dd3-6ddd338d0bab\",\"name\":\"e732fa9000e5\",\"ephemeral_id\":\"d730f780-21e8-41e9-9768-f56ba93716b0\",\"status\":\"green\",\"snapshot\":false,\"pipeline\":{\"workers\":4,\"batch_size\":125,\"batch_delay\":50},\"jvm\":{\"threads\":{\"count\":9,\"peak_count\":9},\"mem\":{\"heap_used_percent\":50,\"heap_committed_in_bytes\":536870912,\"heap_max_in_bytes\":536870910,\"heap_used_in_bytes\":268833280,\"non_heap_used_in_bytes\":133533304,\"non_heap_committed_in_bytes\":141688832,\"pools\":{\"young\":{\"peak_used_in_bytes\":213909504,\"used_in_bytes\":145752064,\"max_in_bytes\":-1,\"committed_in_bytes\":281018368,\"peak_max_in_bytes\":-1},\"old\":{\"peak_used_in_bytes\":106828288,\"used_in_bytes\":106828288,\"max_in_bytes\":536870912,\"committed_in_bytes\":239075328,\"peak_max_in_bytes\":536870912},\"survivor\":{\"peak_used_in_bytes\":28311552,\"used_in_bytes\":16252928,\"max_in_bytes\":-1,\"committed_in_bytes\":16777216,\"peak_max_in_bytes\":-1}}},\"gc\":{\"collectors\":{\"young\":{\"collection_count\":12,\"collection_time_in_millis\":581},\"old\":{\"collection_count\":0,\"collection_time_in_millis\":0}}},\"uptime_in_millis\":46922},\"process\":{\"open_file_descriptors\":68,\"peak_open_file_descriptors\":68,\"max_file_descriptors\":1048576,\"mem\":{\"total_virtual_in_bytes\":4081582080},\"cpu\":{\"total_in_millis\":97170,\"percent\":0,\"load_average\":{\"1m\":7.09,\"5m\":5.88,\"15m\":6.68}}},\"events\":{\"in\":0,\"filtered\":0,\"out\":0,\"duration_in_millis\":0,\"queue_push_duration_in_millis\":0},\"flow\":{\"input_throughput\":{\"current\":0.0,\"lifetime\":0.0},\"filter_throughput\":{\"current\":0.0,\"lifetime\":0.0},\"output_throughput\":{\"current\":0.0,\"lifetime\":0.0},\"queue_backpressure\":{\"current\":0.0,\"lifetime\":0.0},\"worker_concurrency\":{\"current\":0.0,\"lifetime\":0.0}},\"pipelines\":{\".monitoring-logstash\":{\"events\":{\"filtered\":0,\"queue_push_duration_in_millis\":0,\"out\":0,\"in\":0,\"duration_in_millis\":0},\"flow\":{\"worker_concurrency\":{\"current\":0.0,\"lifetime\":0.0},\"output_throughput\":{\"current\":0.0,\"lifetime\":0.0},\"input_throughput\":{\"current\":0.0,\"lifetime\":0.0},\"filter_throughput\":{\"current\":0.0,\"lifetime\":0.0},\"queue_backpressure\":{\"current\":0.0,\"lifetime\":0.0}},\"plugins\":{\"inputs\":[{\"id\":\"9a9bed30135e19c8047fe6aa0588b70b15280fb9161fea8ed8e7368e1fb1e6d3\",\"flow\":{\"throughput\":{\"current\":0.0,\"lifetime\":0.0}},\"events\":{\"out\":0}}],\"codecs\":[],\"filters\":[],\"outputs\":[{\"id\":\"e7aab1e17ec42d6573f3be4b8fce17c5dc69db8473f9505f386b1160434b141b\",\"flow\":{\"worker_millis_per_event\":{},\"worker_utilization\":{\"current\":0.0,\"lifetime\":0.0}},\"events\":{\"in\":0,\"duration_in_millis\":0}}]},\"reloads\":{\"last_success_timestamp\":null,\"last_error\":null,\"successes\":0,\"failures\":0,\"last_failure_timestamp\":null},\"queue\":null},\"main\":{\"events\":null,\"flow\":null,\"plugins\":{\"inputs\":[{\"id\":\"c45dc2610630b7c75f6e9ef1c32accaa3238f90453c9471eca92424b08cb4c4b\",\"name\":\"gelf\"},{\"id\":\"99e4aea44a6ad7d5d188dffc22c67a856905c5cadf9a5ffd5e85f2d1d27faf75\",\"name\":\"tcp\"}],\"codecs\":[{\"id\":\"plain_06a805e6-f092-46e4-b3c4-193193c9ceb0\",\"name\":\"plain\",\"encode\":{\"writes_in\":0,\"duration_in_millis\":0},\"decode\":{\"writes_in\":0,\"out\":0,\"duration_in_millis\":0}},{\"id\":\"json_lines_a1bbab77-4a94-465d-8dfe-4d33284a226a\",\"name\":\"json_lines\",\"encode\":{\"writes_in\":0,\"duration_in_millis\":0},\"decode\":{\"writes_in\":0,\"out\":0,\"duration_in_millis\":0}}],\"filters\":[{\"id\":\"9de944cd4cb05fdecd552f5aff0a5881437e80159ddab69db0cc354db67f7e67\",\"events\":{\"out\":0,\"in\":0,\"duration_in_millis\":0},\"name\":\"mutate\"},{\"id\":\"6b3eb6714a5a7c7068ef3de5c8ed12a2aa943a3cd53440fe69a802cbf488da4f\",\"events\":{\"out\":0,\"in\":0,\"duration_in_millis\":0},\"name\":\"grok\"},{\"id\":\"57c3df6a59bd2a36e1f671c2197988892b50e9f077df4b0ca586c709eeb64670\",\"events\":{\"out\":0,\"in\":0,\"duration_in_millis\":0},\"name\":\"date\"},{\"id\":\"e3aa48a53869d332eea55b6a6e26171d65df25b8eb3bcb21104ed8b85b72c4b2\",\"events\":{\"out\":0,\"in\":0,\"duration_in_millis\":0},\"name\":\"date\"},{\"id\":\"3c4efb8e4b793df45c5c423b748df94ea070ebe19bb054db2f48933dda2f6b65\",\"events\":{\"out\":0,\"in\":0,\"duration_in_millis\":0},\"name\":\"mutate\"}],\"outputs\":[{\"id\":\"3850a741bf49b231bf2134b1d9a89a766e1ec8d1239db68e9cad8e9dc0075206\",\"events\":{\"out\":0,\"in\":0,\"duration_i..."
+                    },
+                    {
+                        "Start": "2026-06-09T08:15:23.676196083Z",
+                        "End": "2026-06-09T08:15:23.852774994Z",
+                        "ExitCode": 1,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-06-09T08:15:28.855971345Z",
+                        "End": "2026-06-09T08:15:29.002296199Z",
+                        "ExitCode": 1,
+                        "Output": ""
+                    },
+                    {
+                        "Start": "2026-06-09T08:15:34.007384016Z",
+                        "End": "2026-06-09T08:15:34.205145503Z",
+                        "ExitCode": 1,
+                        "Output": ""
+                    }
+                ]
+            }
+        },
+        "Image": "sha256:86b37d87b7ceffcb535eccae63bef85829daddcc79faca0fd0f93ff90266714e",
+        "ResolvConfPath": "/var/lib/docker/containers/e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a/hostname",
+        "HostsPath": "/var/lib/docker/containers/e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a/hosts",
+        "LogPath": "/var/lib/docker/containers/e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a/e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a-json.log",
+        "Name": "/platform-logstash",
+        "RestartCount": 662,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "D:\\work\\AI\\output\\platform\\docker\\logstash\\logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "platform_default",
+            "PortBindings": {
+                "12201/udp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "12201"
+                    }
+                ],
+                "5000/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "5000"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "D:\\work\\AI\\output\\platform\\docker\\logstash\\logstash.conf",
+                "Destination": "/usr/share/logstash/pipeline/logstash.conf",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "e732fa9000e5",
+            "Domainname": "",
+            "User": "1000",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "12201/udp": {},
+                "5000/tcp": {},
+                "5044/tcp": {},
+                "9600/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "TZ=Asia/Shanghai",
+                "LS_JAVA_OPTS=-Xms512m -Xmx512m",
+                "PATH=/usr/share/logstash/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "ELASTIC_CONTAINER=true",
+                "LANG=en_US.UTF-8",
+                "LC_ALL=en_US.UTF-8"
+            ],
+            "Cmd": null,
+            "Healthcheck": {
+                "Test": [
+                    "CMD-SHELL",
+                    "curl -fs http://127.0.0.1:9600/_node/stats || exit 1"
+                ],
+                "Interval": 15000000000,
+                "Timeout": 5000000000,
+                "StartPeriod": 60000000000,
+                "Retries": 3
+            },
+            "Image": "docker.elastic.co/logstash/logstash:8.12.0",
+            "Volumes": null,
+            "WorkingDir": "/usr/share/logstash",
+            "Entrypoint": [
+                "/usr/local/bin/docker-entrypoint"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "58c1b430894642702b01448577c7294ea76be945d94e9a37c35fcf217650518f",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "elasticsearch:service_healthy:false",
+                "com.docker.compose.image": "sha256:86b37d87b7ceffcb535eccae63bef85829daddcc79faca0fd0f93ff90266714e",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "platform",
+                "com.docker.compose.project.config_files": "D:\\work\\AI\\output\\platform\\docker-compose.yml,D:\\work\\AI\\output\\platform\\docker-compose.override.yml",
+                "com.docker.compose.project.working_dir": "D:\\work\\AI\\output\\platform",
+                "com.docker.compose.replace": "platform-logstash",
+                "com.docker.compose.service": "logstash",
+                "com.docker.compose.version": "5.1.4",
+                "org.label-schema.build-date": "2024-01-10T10:26:40+00:00",
+                "org.label-schema.license": "Elastic License",
+                "org.label-schema.name": "logstash",
+                "org.label-schema.schema-version": "1.0",
+                "org.label-schema.url": "https://www.elastic.co/products/logstash",
+                "org.label-schema.vcs-url": "https://github.com/elastic/logstash",
+                "org.label-schema.vendor": "Elastic",
+                "org.label-schema.version": "8.12.0",
+                "org.opencontainers.image.created": "2024-01-10T10:26:40+00:00",
+                "org.opencontainers.image.description": "Logstash is a free and open server-side data processing pipeline that ingests data from a multitude of sources, transforms it, and then sends it to your favorite 'stash.'",
+                "org.opencontainers.image.licenses": "Elastic License",
+                "org.opencontainers.image.ref.name": "ubuntu",
+                "org.opencontainers.image.title": "logstash",
+                "org.opencontainers.image.vendor": "Elastic",
+                "org.opencontainers.image.version": "8.12.0"
+            },
+            "StopTimeout": 1
+        },
+        "NetworkSettings": {
+            "SandboxID": "786c25f3fb42e27accb080d04ab97fa25d9686e5436a5dbd32874e92a9f31cf7",
+            "SandboxKey": "/var/run/docker/netns/786c25f3fb42",
+            "Ports": {
+                "12201/udp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "12201"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "12201"
+                    }
+                ],
+                "5000/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "5000"
+                    },
+                    {
+                        "HostIp": "::",
+                        "HostPort": "5000"
+                    }
+                ]
+            },
+            "Networks": {
+                "platform_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "platform-logstash",
+                        "logstash"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "daff30a67d29f51c348eb8b2c1161f5f176fa54b712426f7d4db30cec522eb03",
+                    "EndpointID": "1274b2edd53bc45d26c2556a1391fbf64e724926c3dc994ca9b5b74083af911e",
+                    "Gateway": "172.18.0.1",
+                    "IPAddress": "172.18.0.2",
+                    "MacAddress": "46:25:ca:cc:d7:27",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "platform-logstash",
+                        "logstash",
+                        "e732fa9000e5"
+                    ]
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "digest": "sha256:aba7c8b902a955e046d5f4ae8041896e702a698b81ea100e1bbb7a050b335853",
+            "size": 2526,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]

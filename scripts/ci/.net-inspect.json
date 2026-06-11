@@ -1,0 +1,127 @@
+﻿rtk : [rtk] /!\ No hook installed 鈥?run `rtk init -g` for automatic token savings
+所在位置 行:1 字符: 473
++ ... + $env:PATH; rtk docker network inspect platform_default 2>&1 | Out-F ...
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([rtk] /!\ No ho...c token savings:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[
+    {
+        "Name": "platform_default",
+        "Id": "daff30a67d29f51c348eb8b2c1161f5f176fa54b712426f7d4db30cec522eb03",
+        "Created": "2026-06-04T03:03:30.565432318Z",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv4": true,
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.18.0.0/16",
+                    "Gateway": "172.18.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Options": {
+            "com.docker.network.enable_ipv4": "true",
+            "com.docker.network.enable_ipv6": "false"
+        },
+        "Labels": {
+            "com.docker.compose.config-hash": "9773eb95fcfbee373f2604489eb5536faccdef29cb51bede15f61d16bb450f17",
+            "com.docker.compose.network": "default",
+            "com.docker.compose.project": "platform",
+            "com.docker.compose.version": "5.1.4"
+        },
+        "Containers": {
+            "40965d003f037f404d6731f6983b0d55f90feca7153c074cf21ed88cfa3e39e2": {
+                "Name": "platform-kibana",
+                "EndpointID": "a2e76f1a63fba337c6c322804c696a57cdc54ab61ff88a082ce4dbfcce972141",
+                "MacAddress": "12:cc:97:3e:64:c1",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            },
+            "4ca934df50776a6ae5244813de2705be2401235fbdba7d3e2d3bb65ae2f3dc63": {
+                "Name": "platform-mysql",
+                "EndpointID": "3506f50e2b40eda241d906b005fca4f3f1392b47584c5c1b04772314020aebbd",
+                "MacAddress": "06:d1:9c:c2:0d:3b",
+                "IPv4Address": "172.18.0.17/16",
+                "IPv6Address": ""
+            },
+            "75a888147657b1cc71c866d91ab226ea996f09b2a0955f20ac441c226fe401cf": {
+                "Name": "platform-nacos",
+                "EndpointID": "8de2bc2e360fe173c107f9388f66f77c62da3e6640aeb274417ee9a64f3835c4",
+                "MacAddress": "16:3b:ce:cd:f8:a6",
+                "IPv4Address": "172.18.0.19/16",
+                "IPv6Address": ""
+            },
+            "78ba7c015b34328409b2ace9a2e85c0c5e31d4c63c4cf7f0d6a8e4ba53251239": {
+                "Name": "platform-minio",
+                "EndpointID": "3bdd77625343cf3773be2f580053b629baf7da328e3e623f17dec4562575b59a",
+                "MacAddress": "46:5c:f0:59:ee:e7",
+                "IPv4Address": "172.18.0.18/16",
+                "IPv6Address": ""
+            },
+            "9935f01f47553e2b25e9f0045f77360ffa8d89b15cfa1cdd8187c8082f4e3b38": {
+                "Name": "platform-kafka",
+                "EndpointID": "ef6d12e9c21dbe4f1a55c1104a0041c82c3e382f3adffbd89e8e983693cd162e",
+                "MacAddress": "3a:7c:74:79:3f:e8",
+                "IPv4Address": "172.18.0.14/16",
+                "IPv6Address": ""
+            },
+            "9ef91da2e3f4b385f1db114e48e087c961e7eb4722a27c3109ae27cba01d4620": {
+                "Name": "platform-kafka-ui",
+                "EndpointID": "c00b36bbc541e30abf0b32764a0e8a671dcf17d5f867ae697ed428a3b4bf71e6",
+                "MacAddress": "42:94:54:6e:6f:38",
+                "IPv4Address": "172.18.0.6/16",
+                "IPv6Address": ""
+            },
+            "9fab8697518a3f6f74e099e833923e878805884d2b6069d4aeeb66c2c4c45324": {
+                "Name": "platform-redis",
+                "EndpointID": "6f30056833dba6cef47ec40d119e54677173a70e3265d05115c8f1214b1979a9",
+                "MacAddress": "a2:9b:94:69:0f:2e",
+                "IPv4Address": "172.18.0.12/16",
+                "IPv6Address": ""
+            },
+            "a6a11f962f517ff0cfdf744badc65ad55354f95987a84f79f49402e6bb3396ae": {
+                "Name": "platform-xxl-job-admin",
+                "EndpointID": "5e2d15fa96f2158876a553ddb9a18f9b5894f8217a3219b1c20421f0757bef1e",
+                "MacAddress": "32:c2:e0:27:a2:bc",
+                "IPv4Address": "172.18.0.11/16",
+                "IPv6Address": ""
+            },
+            "ba71a2d5c612e3d15975b84721cd33bd63a1c81668230b2db1c2fa4fba896441": {
+                "Name": "platform-elasticsearch",
+                "EndpointID": "57f3559d0d7a2ff0d5cba64370409b442fe45107a3ad8a1c1802d3d3d7289d11",
+                "MacAddress": "e6:1c:54:38:28:9f",
+                "IPv4Address": "172.18.0.15/16",
+                "IPv6Address": ""
+            },
+            "e732fa9000e586431f0582cfa8982bd0bc419e670db66c3398ce7cfb1e135e0a": {
+                "Name": "platform-logstash",
+                "EndpointID": "12de00c8b07e3458daf3825375916cc53f2d300cc5bf7448fb30d2a88d8a96c1",
+                "MacAddress": "32:f1:98:ad:b0:5e",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        "Status": {
+            "IPAM": {
+                "Subnets": {
+                    "172.18.0.0/16": {
+                        "IPsInUse": 13,
+                        "DynamicIPsAvailable": 65523
+                    }
+                }
+            }
+        }
+    }
+]

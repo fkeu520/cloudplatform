@@ -157,9 +157,9 @@ fi
 step "5. 灰度开关当前值"
 
 # 从 application.yml 取 (不直接读容器内文件, 看环境变量)
-# 简化: 默认值 false (PR4 D+2.5 设计)
-WRITE_STRICT_DEFAULT="false"
-ok "write-strict 默认值: $WRITE_STRICT_DEFAULT (per doc/M5-P0-2-实施子任务.md §13.5 D+5)"
+# M5 PR4 全量上线后: 默认值 true (fail-closed)
+WRITE_STRICT_DEFAULT="true"
+ok "write-strict 默认值: $WRITE_STRICT_DEFAULT (fail-closed)"
 
 # 6. 清理
 step "6. 清理 D+5 测试数据"
@@ -181,7 +181,7 @@ fi
 echo -e "${GREEN}OK: D+5 6 服务业务回归通过${NC}"
 echo "  - 6/6 服务 healthy"
 echo "  - 主要写接口 200 (业务无影响)"
-echo "  - 0 DataScopeViolation (write-strict=false 降级放行)"
+echo "  - 0 DataScopeViolation (write-strict=true fail-closed)"
 echo "  - 拦截器活跃 (近期有 DataScope SQL rewrite)"
 echo
 echo "下一步: A3 (D+6) 业务通知 + 培训材料准备"

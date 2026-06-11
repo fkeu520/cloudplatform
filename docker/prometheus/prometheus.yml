@@ -1,0 +1,52 @@
+# ==============================================================================
+# Prometheus 抓取配置
+# ==============================================================================
+# 抓取目标:
+#   - prometheus 自身 (用于看 scrape 自身指标)
+#   - node-exporter (宿主机 CPU/内存/磁盘/网络)
+#   - 后续可加: 业务服务 /actuator/prometheus (需先在 yml 启用
+#     management.endpoints.web.exposure.include: health,info,prometheus)
+# ==============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'platform-217'
+    env: 'prod'
+
+scrape_configs:
+  # Prometheus 自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          component: 'monitoring'
+
+  # Node Exporter - 宿主机系统指标 (CPU/内存/磁盘/网络)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          component: 'host'
+          os: 'linux'
+
+  # Container Exporter - 容器级指标 (每个容器的 CPU/内存/网络)
+  - job_name: 'container-exporter'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['container-exporter:9091']
+        labels:
+          component: 'container'
+
+  # 业务服务 JVM 指标 (需先启用 /actuator/prometheus 端点, 当前未启用, 暂注释)
+  # - job_name: 'platform-services'
+  #   metrics_path: '/actuator/prometheus'
+  #   static_configs:
+  #     - targets:
+  #         - 'platform-user:8081'
+  #         - 'platform-gateway:8083'
+  #         - 'platform-auth:8082'
+  #         - 'platform-workflow:8084'
+  #         - 'platform-message:8085'
+  #         - 'platform-ops:8087'

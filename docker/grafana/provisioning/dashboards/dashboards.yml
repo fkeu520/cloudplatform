@@ -1,0 +1,19 @@
+# ==============================================================================
+# Grafana dashboard 加载器
+# ==============================================================================
+# 启动时扫描 /etc/grafana/provisioning/dashboards/ 下的所有 .json 文件,
+# 自动导入为 dashboards。修改 JSON 后 30s 重新加载 (无需重启 grafana)。
+# ==============================================================================
+apiVersion: 1
+
+providers:
+  - name: 'Platform Dashboards'
+    orgId: 1
+    folder: 'Platform'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

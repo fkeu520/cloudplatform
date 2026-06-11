@@ -1,0 +1,81 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]: 云枢中台
+    - menubar
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]: 参数配置
+      - generic [ref=e9]:
+        - button [ref=e12] [cursor=pointer]:
+          - img [ref=e15]
+        - button "管理员" [ref=e20] [cursor=pointer]:
+          - img [ref=e22]
+          - generic [ref=e23]: 管理员
+    - main [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - generic [ref=e30]: 关键字
+            - textbox "关键字" [ref=e34]:
+              - /placeholder: 参数名称/键名
+          - generic [ref=e37]:
+            - button "查询" [disabled]:
+              - generic:
+                - img
+              - generic: 查询
+            - button "重置" [ref=e38] [cursor=pointer]:
+              - generic [ref=e39]: 重置
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - table [ref=e45]:
+              - rowgroup [ref=e52]:
+                - row "名称 键名 键值 系统内置 操作" [ref=e53]:
+                  - columnheader "名称" [ref=e54]:
+                    - generic [ref=e55]: 名称
+                  - columnheader "键名" [ref=e56]:
+                    - generic [ref=e57]: 键名
+                  - columnheader "键值" [ref=e58]:
+                    - generic [ref=e59]: 键值
+                  - columnheader "系统内置" [ref=e60]:
+                    - generic [ref=e61]: 系统内置
+                  - columnheader "操作" [ref=e62]:
+                    - generic [ref=e63]: 操作
+            - generic [ref=e66]:
+              - generic:
+                - table
+          - img [ref=e70]
+        - dialog "[object Object]" [ref=e73]:
+          - generic [active] [ref=e74]:
+            - generic [ref=e75]:
+              - heading [level=2]
+              - button "Close this dialog" [ref=e76] [cursor=pointer]:
+                - img [ref=e78]
+            - generic [ref=e81]:
+              - generic [ref=e82]:
+                - generic [ref=e83]: 名称
+                - textbox "名称" [ref=e87]
+              - generic [ref=e88]:
+                - generic [ref=e89]: 键名
+                - textbox "键名" [disabled] [ref=e93]
+              - generic [ref=e94]:
+                - generic [ref=e95]: 键值
+                - textbox "键值" [ref=e98]
+              - generic [ref=e99]:
+                - generic [ref=e100]: 系统内置
+                - radiogroup "系统内置" [ref=e102]:
+                  - generic [ref=e103] [cursor=pointer]:
+                    - radio "是" [ref=e105]
+                    - generic [ref=e107]: 是
+                  - generic [ref=e108] [cursor=pointer]:
+                    - radio "否" [checked] [ref=e110]
+                    - generic [ref=e112]: 否
+              - generic [ref=e113]:
+                - generic [ref=e114]: 备注
+                - textbox "备注" [ref=e117]
+            - generic [ref=e118]:
+              - button "取消" [ref=e119] [cursor=pointer]:
+                - generic [ref=e120]: 取消
+              - button "确定" [disabled]:
+                - generic:
+                  - img
+                - generic: 确定
