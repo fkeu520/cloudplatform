@@ -31,11 +31,10 @@ scrape_configs:
           component: 'host'
           os: 'linux'
 
-  # Container Exporter - 容器级指标 (每个容器的 CPU/内存/网络)
-  - job_name: 'container-exporter'
-    metrics_path: '/metrics'
+  # cAdvisor - 容器级指标 (每个容器的 CPU/内存/网络/磁盘)
+  - job_name: 'cadvisor'
     static_configs:
-      - targets: ['container-exporter:9091']
+      - targets: ['cadvisor:8080']
         labels:
           component: 'container'
 
