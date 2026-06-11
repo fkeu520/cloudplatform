@@ -76,6 +76,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      # 显式设置 Kafka JVM 堆 (默认 1G, 单机偏大, 减到 512m 足够, 实测 847M 中 400+ 是 off-heap)
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
@@ -146,7 +148,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - TZ=Asia/Shanghai
     ports:
       - "9200:9200"
