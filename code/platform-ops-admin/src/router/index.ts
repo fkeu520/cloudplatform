@@ -54,6 +54,12 @@ const routes: RouteRecordRaw[] = [
         name: 'SystemMonitor',
         component: () => import('../views/monitor/Index.vue'),
         meta: { title: '系统监控', icon: 'fas fa-heartbeat' }
+      },
+      {
+        path: 'ops-entry',
+        name: 'OpsEntry',
+        component: () => import('../views/ops-entry/Index.vue'),
+        meta: { title: '运维管理', icon: 'fas fa-tools' }
       }
     ]
   }
