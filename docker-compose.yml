@@ -483,23 +483,22 @@ services:
     pid: host
     logging: *default-logging
 
-  # ============ cAdvisor (容器级资源监控) ============
-  # ~50 MB 内存, < 1% CPU, 无持久化; 暴露每个容器的 CPU/内存/网络/磁盘指标
-  cadvisor:
-    image: googlecontainers/cadvisor:latest
-    container_name: platform-cadvisor
+  # ============ Container Exporter (容器级资源监控, 替代 cAdvisor) ============
+  # 由于国内网络无法拉取 gcr.io/ghcr.io 上的 cAdvisor, 用轻量 Python 导出器代替。
+  # < 50 MB, < 1% CPU, 无持久化; 暴露每个容器的 CPU/内存/网络指标, 供 Prometheus scrape。
+  container-exporter:
+    image: python:3-slim
+    container_name: platform-container-exporter
     restart: unless-stopped
     ports:
-      - "8098:8080"
+      - "9091:9091"
     volumes:
-      - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    privileged: true
-    devices:
-      - /dev/kmsg
+      - ./scripts/container-exporter/exporter.py:/app/exporter.py:ro
+    command:
+      - /bin/sh
+      - -c
+      - pip install -q prometheus-client && python /app/exporter.py
     logging: *default-logging
 
   # ============ Prometheus (M6 P1-5 指标采集) ============
