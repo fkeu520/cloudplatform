@@ -30,6 +30,7 @@
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
 | 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
+| 20 | 🟢 已解决 | ELK/日志 | Logstash 容器无限重启: `retry_on_failure` / `retry_max_interval` 是 ES output plugin v12.x+ 设置, Logstash 8.12.0 自带 v11.12.0 不识别 | 2026-06-11 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1341,3 +1342,107 @@ WHERE id = #{rootDeptId}
 4. **🟢 决策与代码一致** — 决策 2 A 递归 CTE 已实施, 与决策同步 (不需修正决策)
 5. **🟢 真 MySQL 8 端到端是权威验证** — H2 集成测试是 nice-to-have, 真 MySQL 跑通即可信 (M3 已验证 4 个 CTE 场景)
 6. **🟡 缺口 #19 实际是"性能/语义"非"安全"** — 跨 org dept_id 不影响数据安全 (P0-1 拦截器仍过滤), 但 IN 子句无意义是性能问题
+
+---
+
+## #20 🟢 Logstash 容器无限重启: retry_on_failure / retry_max_interval 设置未知 (2026-06-11)
+
+### 现象
+
+- `docker ps` 显示 `platform-logstash` 状态 `Restarting` 循环
+- `docker logs platform-logstash --tail 50`:
+  ```
+  [ERROR][logstash.outputs.elasticsearch] Unknown setting 'retry_on_failure' for elasticsearch
+  [ERROR][logstash.agent           ] Failed to execute action {:action=>LogStash::PipelineAction::Create/pipeline_id:main, :exception=>"Java::JavaLang::IllegalStateException", :message=>"Unable to configure plugins: (ConfigurationError) Something is wrong with your configuration."}
+  [INFO ][logstash.javapipeline    ][.monitoring-logstash] Pipeline Java execution initialization time {"seconds"=>0.39}
+  ```
+- 容器 `healthcheck` 探活端口 9600 不响应 (pipeline 启动即挂), healthcheck 失败 → 容器退出 → `restart: unless-stopped` 再次拉起 → 同样错误 → 无限循环
+
+### 根因
+
+`docker/logstash/logstash.conf` output 块 (line 71-73) 写了:
+
+```conf
+retry_on_failure => true
+retry_max_interval => 10
+```
+
+**Logstash 8.12.0 自带的 `logstash-output-elasticsearch` 是 v11.12.0**, 这两个设置是 **plugin v12.x+** 才加入的。
+v11.12.0 源码 [lib/logstash/outputs/elasticsearch.rb](https://github.com/logstash-plugins/logstash-output-elasticsearch/blob/v11.12.0/lib/logstash/outputs/elasticsearch.rb) 中所有 `config` 声明:
+
+```ruby
+config :action, :validate => :string
+config :index, :validate => :string
+config :document_type, ...
+config :manage_template, ...
+config :retry_on_conflict, :validate => :number, :default => 1
+config :pipeline, ...
+config :ilm_enabled, ...
+// ... 无 retry_on_failure / retry_max_interval
+```
+
+**Plugin 启动时执行 config schema 校验** (org.logstash.config.ir.CompiledPipeline 初始化), 遇到未知 key 直接抛 `ConfigurationError` → pipeline 终止 → 容器启动失败。
+
+### 默认行为 (无需显式配置)
+
+v11.12.0 源码注释明确:
+
+> The following errors are retried infinitely:
+> - Network errors (inability to connect)
+> - 429 (Too many requests) and
+> - 503 (Service unavailable) errors
+
+**重试已默认开启, 不能关闭**。Plugin 12.x+ 加的 `retry_on_failure => false` 显式关闭能力, 在 11.x 是不存在的。
+
+### 修复
+
+```diff
+   elasticsearch {
+     hosts => ["http://elasticsearch:9200"]
+     # 按天滚动索引，配合 ILM 策略实现 1 天保留
+     index => "platform-logs-%{+YYYY.MM.dd}"
+     data_stream => false
+-    # 失败重试
+-    retry_on_failure => true
+-    retry_max_interval => 10
++    # 失败重试: v11.12.0 (Logstash 8.12 自带) 对 Network errors / 429 / 503 默认无限重试,
++    # `retry_on_failure` / `retry_max_interval` 是 plugin v12.x+ 的设置, 11.x 不识别会导致
++    # pipeline 启动失败 → 容器无限重启。详见 KNOWN_ISSUES #20。
+   }
+```
+
+`retry_on_conflict` (number, default 1) 是另一回事, 控 update 操作重试次数, **保留**不动。
+
+### 验证
+
+```bash
+# 1. Ubuntu 端 pull + 重启
+ssh hugh@192.168.0.217
+cd /opt/platform
+git pull
+docker compose up -d platform-logstash
+
+# 2. 等待 30s, 看 pipeline 启动日志
+docker logs platform-logstash --tail 50 | grep -E "(Pipeline started|ERROR)"
+# 期望: 看到 "Pipeline started" 而不是 "ConfigurationError"
+
+# 3. 触发任意服务写日志 (例如重启 platform-user)
+docker compose restart platform-user
+sleep 30
+
+# 4. 验证 ES 收到新索引
+curl -s "http://localhost:9200/_cat/indices/platform-logs-*?v"
+# 期望: 看到 platform-logs-YYYY.MM.dd 索引, 且 doc count > 0
+
+# 5. Kibana 验证
+open http://192.168.0.217:5601
+# Discover → 选 platform-logs DataView → 应有新文档
+```
+
+### 教训
+
+1. **🔴 写 plugin 配置前先看 plugin 版本** — Logstash 的 elasticsearch output plugin 11.x → 12.x 有大量 setting 重命名/新增/移除, 不可"凭印象"配
+2. **🟡 Config schema 校验是早期防错机制** — plugin 启动期抛 ConfigurationError 是好事, 比运行时静默失败强
+3. **🟡 默认值文档** — v11.12.0 重试默认开启且不可关, 想关只能升级 plugin 或换镜像
+4. **🔴 Logstash 容器重启 = 配置错误信号** — `restart: unless-stopped` + 启动即挂 = 无限循环, 看到这种状态**先** `docker logs` 看根因, **不要**反复 restart
+5. **🟢 bind-mount 配置文件** — 本次 `logstash.conf` 是 bind-mount 进容器, 改文件 + 重启容器即可, **不用**重新构建镜像 (比 #1 的教训改进: 当时以为要 rebuild, 实际 bind-mount 改了就好)
