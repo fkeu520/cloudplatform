@@ -111,3 +111,11 @@ export function assignUserRoles(id: string, roleIds: string[]) {
     data: { roleIds }
   })
 }
+
+export function resetUserPassword(id: string, newPassword: string) {
+  return request({
+    url: `/user/${id}/reset-password`,
+    method: 'post',
+    data: { newPassword }
+  })
+}
