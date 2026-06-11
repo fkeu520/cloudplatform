@@ -30,7 +30,7 @@
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
 | 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
-| 20 | 🟢 已解决 | ELK/日志 | Logstash 容器无限重启: `retry_on_failure` / `retry_max_interval` 是 ES output plugin v12.x+ 设置, Logstash 8.12.0 自带 v11.12.0 不识别 | 2026-06-11 |
+| 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1446,3 +1446,105 @@ open http://192.168.0.217:5601
 3. **🟡 默认值文档** — v11.12.0 重试默认开启且不可关, 想关只能升级 plugin 或换镜像
 4. **🔴 Logstash 容器重启 = 配置错误信号** — `restart: unless-stopped` + 启动即挂 = 无限循环, 看到这种状态**先** `docker logs` 看根因, **不要**反复 restart
 5. **🟢 bind-mount 配置文件** — 本次 `logstash.conf` 是 bind-mount 进容器, 改文件 + 重启容器即可, **不用**重新构建镜像 (比 #1 的教训改进: 当时以为要 rebuild, 实际 bind-mount 改了就好)
+
+---
+
+### 根因 #2 (2026-06-11 当日发现) - 镜像 logstash.yml 同时含 `api.http.host` 和 `http.host` 触发启动校验失败
+
+修复 #1 (删除 retry_on_failure) 后, pipeline 顺利启动, 但容器仍是 `unhealthy`。
+继续排查发现**第二层独立问题**: 健康检查 curl localhost:9600 一直返回 HTTP=000 (拒连)。
+
+#### 现象
+
+- `docker logs platform-logstash --tail 50`:
+  ```
+  [INFO ][logstash.agent] Successfully started Logstash API endpoint {:port=>9600, :ssl_enabled=>false}
+  [INFO ][logstash.javapipeline][main] Pipeline started {"pipeline.id"=>"main"}
+  ```
+  (pipeline 启动了, **但 healthcheck 一直 fail**, 容器永远 `unhealthy`)
+
+- `docker exec platform-logstash curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://127.0.0.1:9600` → `HTTP=000` (拒连)
+- `docker exec platform-logstash curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://[::1]:9600` → `HTTP=000` (也拒连)
+
+#### 根因
+
+镜像 `docker.elastic.co/logstash/logstash:8.12.0` 自带的 `/usr/share/logstash/config/logstash.yml` **同时**含:
+
+```yaml
+api.http.host: 0.0.0.0     # 新名 (v7.6+)
+http.host: 0.0.0.0         # 旧别名 (deprecated)
+```
+
+Logstash 启动校验抛:
+
+```
+Your settings are invalid. Reason: Both `api.http.host` and its deprecated alias
+`http.host` have been set. Please only set `api.http.host`
+```
+
+> 之前 commit `20bb6da` 试图加 `API_HTTP_HOST=0.0.0.0` 环境变量修复, 但环境变量也走 `api.http.host` 路径, 触发同样校验, 失败。该 commit 已被回滚 (commit `789a59e` 走 bind-mount 路线, 见下)。
+
+**奇怪的是, 在没有任何 env var / bind-mount 时, 这个 yml 的双 host 设置**似乎能容忍** (pipeline 启动了, API 监听上了) — 但实际绑定的是 IPv6 `::` (jvm default) 而非 IPv4 0.0.0.0, 且容器内 IPv6 loopback 路由异常, 导致 localhost 拒连。
+
+#### /proc/net/tcp 实证
+
+| IPv4 `/proc/net/tcp` | IPv6 `/proc/net/tcp6` |
+|---|---|
+| 无 9600 LISTEN | `::2580` LISTEN (state 0A) |
+
+JVM 绑 `::` + `IPV6_V6ONLY=1` (Java 默认), 只接 IPv6, 不接 IPv4。
+容器内 /etc/hosts: `localhost → ::1` (优先 IPv6), curl [::1]:9600 在 Alpine 容器**也拒** (IPv6 loopback 内核路由异常), 容器内 curl 127.0.0.1:9600 也拒 (没绑 IPv4)。`/etc/hosts` 看似无关, 实际触发了链路全断。
+
+#### 修复
+
+**bind-mount 自定义 logstash.yml, 只保留新名**:
+
+新增 `docker/logstash/logstash.yml`:
+```yaml
+# 覆盖镜像默认 (默认同时含 api.http.host + http.host 触发校验失败)
+api.http.host: 0.0.0.0
+xpack.monitoring.elasticsearch.hosts:
+  - http://elasticsearch:9200
+```
+
+`docker-compose.yml` 加 volumes 挂载:
+```yaml
+volumes:
+  - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+  - ./docker/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro   # ← 新
+```
+
+**为什么不用环境变量**: `LS_API_HTTP_HOST=0.0.0.0` 或 `API_HTTP_HOST=0.0.0.0` 都会被 logstash 映射到 `api.http.host` 字段, 触发同样的 "Both `api.http.host` and its deprecated alias `http.host` have been set" 校验失败。**只有 bind-mount 整个 yml 文件才能彻底替换镜像默认内容**。
+
+#### 验证
+
+```bash
+# Ubuntu 端
+cd /opt/platform
+git pull
+docker compose up -d --force-recreate --no-deps logstash
+sleep 70
+docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep logstash
+# 期望: platform-logstash    Up X minutes (healthy)
+
+docker exec platform-logstash curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://127.0.0.1:9600
+# 期望: HTTP=200
+
+docker logs platform-logstash --tail 100 | grep -E '(api.http.host|http.host|listening|started)'
+# 期望: Successfully started Logstash API endpoint {:port=>9600}
+# 期望: 无 "Both `api.http.host` and its deprecated alias `http.host`"
+```
+
+最终状态: `Up About a minute (healthy)` ✅, `HTTP=200` ✅。
+
+#### 教训
+
+1. **🔴 镜像 yml 自带坑** — 官方镜像 8.12.0 的 logstash.yml 同时有 `api.http.host` 和 `http.host`, 触发校验失败。这是镜像 bug, 不在文档里说明, 只能 bind-mount 覆盖。**以后**类似配置项 (新/旧别名), 先看镜像默认 yml 是否有冲突
+2. **🟡 bind-mount 整个配置文件 vs 部分覆盖** — 环境变量和部分配置修改不一定能"局部覆盖", 镜像 yml 整体作为默认时, bind-mount 整个 yml 才稳
+3. **🟡 JVM IPv6 默认行为** — Java Netty/JVM `IPV6_V6ONLY=1` 是默认, 绑 `::` 不接受 IPv4 流量。Alpine 容器内 IPv6 loopback 还可能路由异常, 多重坑叠加
+4. **🟢 docker compose up -d vs restart vs force-recreate** —
+   - `up -d`: 配置不变**不重建**容器, 只重启有变化的; 改 yml 不一定会触发重建
+   - `restart`: 重建+重启同一容器
+   - `force-recreate`: 强制丢弃旧容器, 用新配置重建
+   - bind-mount 改了 conf 后, `docker compose restart` 就够; 改了 yml 需 `force-recreate`
+5. **🔴 "重启 = 配置错误" 模式** — 容器状态 `Up X (unhealthy)` 但日志显示一切正常, 这是**反常信号**, 必然是 healthcheck 路径不通 (DNS / 端口 / 协议层)。遇到要先怀疑 healthcheck, 而不是怀疑业务代码
