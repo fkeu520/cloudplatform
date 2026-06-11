@@ -177,7 +177,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, CircleCheck, CircleClose, Loading } from '@element-plus/icons-vue'
-import { deployDefinition, startInstance, getInstancePage, getInstanceById, getInstanceTimeline } from '@/api/workflow'
+import { deployDefinition, startInstance, getInstancePage, getInstanceById, getInstanceTimeline, getDefinitionByKey } from '@/api/workflow'
 import { getUserPage } from '@/api/user'
 
 const LEAVE_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
@@ -279,11 +279,14 @@ function getLeaveTypeLabel(type: string) {
 
 async function ensureDeployed() {
   try {
-    await deployDefinition({ processName: '请假审批流程', bpmnXml: LEAVE_BPMN })
-  } catch (e: any) {
-    if (e?.response?.status === 500 || e?.message?.includes('已存在')) {
-      console.log('Leave BPMN already deployed')
-    } else {
+    // 先检查是否已部署, 避免每次加载都重新部署覆盖用户修改
+    await getDefinitionByKey(DEPLOY_KEY)
+    return
+  } catch {
+    // 未部署, 执行首次部署
+    try {
+      await deployDefinition({ processName: '请假审批流程', bpmnXml: LEAVE_BPMN })
+    } catch (e: any) {
       console.warn('Deploy warning:', e)
     }
   }
