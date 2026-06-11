@@ -36,6 +36,12 @@ public class WorkflowDefinitionController {
         return Result.ok(workflowDefinitionService.getById(definitionId));
     }
 
+    @Operation(summary = "根据Key查询最新版本")
+    @GetMapping("/key/{key}")
+    public Result<?> getByKey(@PathVariable String key) {
+        return Result.ok(workflowDefinitionService.getByKey(key));
+    }
+
     @Operation(summary = "验证BPMN XML")
     @PostMapping("/validate")
     public Result<?> validate(@RequestBody Map<String, String> params) {

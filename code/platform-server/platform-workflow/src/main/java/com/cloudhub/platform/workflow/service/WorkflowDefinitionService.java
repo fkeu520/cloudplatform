@@ -50,6 +50,13 @@ public class WorkflowDefinitionService {
         return toMap(pd);
     }
 
+    public Map<String, Object> getByKey(String key) {
+        ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey(key).latestVersion().singleResult();
+        if (pd == null) throw new BizException("流程定义不存在");
+        return toMap(pd);
+    }
+
     @Transactional
     public Map<String, Object> deploy(String processName, String processKey, String bpmnXml) {
         if (StringUtils.isBlank(bpmnXml)) {

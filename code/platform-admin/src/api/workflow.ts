@@ -30,6 +30,10 @@ export function deleteDefinition(definitionId: string) {
   return request.delete(`/workflow/definition/${definitionId}`)
 }
 
+export function getDefinitionByKey(key: string) {
+  return request.get(`/workflow/definition/key/${key}`)
+}
+
 export function getDefinitionXml(definitionId: string) {
   return request.get(`/workflow/definition/${definitionId}/xml`)
 }
