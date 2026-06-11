@@ -42,9 +42,9 @@
             <i class="fas fa-heartbeat" style="margin-right:6px;width:16px;text-align:center" />
             <span>系统监控</span>
           </el-menu-item>
-          <el-menu-item index="/kafka" @click="openKafkaUI">
-            <i class="fas fa-envelope" style="margin-right:6px;width:16px;text-align:center" />
-            <span>消息队列</span>
+          <el-menu-item index="/ops-entry">
+            <i class="fas fa-tools" style="margin-right:6px;width:16px;text-align:center" />
+            <span>运维管理</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
