@@ -483,6 +483,25 @@ services:
     pid: host
     logging: *default-logging
 
+  # ============ cAdvisor (容器级资源监控) ============
+  # ~50 MB 内存, < 1% CPU, 无持久化; 暴露每个容器的 CPU/内存/网络/磁盘指标
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: platform-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8098:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    logging: *default-logging
+
   # ============ Prometheus (M6 P1-5 指标采集) ============
   prometheus:
     image: prom/prometheus:latest
