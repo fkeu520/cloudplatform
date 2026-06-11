@@ -498,9 +498,14 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+      # cgroup v2 (Ubuntu 26.04 + Linux 7.0) 需要显式挂载, 否则 cAdvisor 报 mountpoint for cpu not found
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
     privileged: true
     devices:
       - /dev/kmsg
+    command:
+      - '--docker_only=true'
+      - '--housekeeping_interval=30s'
     logging: *default-logging
 
   # ============ Prometheus (M6 P1-5 指标采集) ============
