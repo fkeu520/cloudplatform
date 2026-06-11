@@ -486,28 +486,24 @@ services:
   # ============ cAdvisor (容器级资源监控) ============
   # 暴露每个容器的 CPU/内存/网络/磁盘指标, Prometheus scrape 后 Grafana 查各服务占用。
   # 镜像 "google/cadvisor" 是从 Docker Hub 手动拉取的 (国内 gcr.io 不可达)。
-  cadvisor:
-    # 使用 Docker Hub alpine 镜像 + 挂载 cAdvisor v0.49.1 二进制 (支持 cgroup v2),
-    # 因国内 gcr.io 不可达, google/cadvisor 是 v0.32.0 太老不支持 cgroup v2。
-    # 二进制 45 MB, git 管理, 位置: docker/cadvisor/cadvisor-linux-amd64
-    image: alpine:latest
-    container_name: platform-cadvisor
+  # ============ Container Exporter (容器级资源监控) ============
+  # 由于 cAdvisor (google/cadvisor:latest v0.32.0 太老 / 国内 gcr.io 不可达)
+  # 在 Ubuntu 26.04 + cgroup v2 + Docker 29.5.3 上存储驱动兼容问题无法正常工作,
+  # 改用轻量 Python 导出器, 通过 Docker socket 读取容器 stats 暴露 Prometheus 指标。
+  # < 50 MB (python:3-slim), < 1% CPU, Prometheus scrape 后 Grafana 查各服务占用。
+  container-exporter:
+    image: python:3-slim
+    container_name: platform-container-exporter
     restart: unless-stopped
     ports:
-      - "8098:8080"
+      - "9091:9091"
     volumes:
-      - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-      - ./docker/cadvisor/cadvisor-linux-amd64:/opt/cadvisor:ro
-    entrypoint: ["/opt/cadvisor"]
+      - ./scripts/container-exporter/exporter.py:/app/exporter.py:ro
     command:
-      - '--docker_only=true'
-      - '--housekeeping_interval=30s'
-    privileged: true
+      - /bin/sh
+      - -c
+      - pip install -q prometheus-client && python /app/exporter.py
     logging: *default-logging
 
   # ============ Prometheus (M6 P1-5 指标采集) ============
