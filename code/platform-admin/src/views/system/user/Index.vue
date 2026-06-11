@@ -47,6 +47,7 @@
           <template #default="scope">
             <TableActions :buttons="[
               { label: '编辑', props: { type: 'primary' }, handler: () => handleEdit(scope.row), permission: 'system:user:edit' },
+              { label: '重置密码', props: { type: 'warning' }, handler: () => handleResetPwd(scope.row), permission: 'system:user:edit' },
               { label: scope.row.statusDesc === '启用' ? '禁用' : '启用', props: { type: scope.row.statusDesc === '启用' ? 'danger' : 'success' }, handler: () => handleToggleStatus(scope.row), permission: 'system:user:edit' },
               { label: '删除', props: { type: 'danger' }, handler: () => handleDelete(scope.row), permission: 'system:user:del' }
             ]" />
@@ -146,13 +147,28 @@
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="pwdDialogVisible" title="重置密码" width="440px">
+      <el-form :model="pwdForm" label-width="80px">
+        <el-form-item label="账号">
+          <el-input :model-value="pwdTarget?.username" disabled />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="请输入新密码（至少 6 位）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="pwdDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="pwdSubmitting" @click="handlePwdSubmit">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById } from '@/api/user'
+import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById, resetUserPassword } from '@/api/user'
 import { getRoleList } from '@/api/role'
 import { getOrgTree } from '@/api/org'
 import { getDeptList } from '@/api/dept'
@@ -415,6 +431,36 @@ async function handleDelete(row: UserPageVO) {
     }
   } catch {
     // cancelled
+  }
+}
+
+// 重置密码弹窗
+const pwdDialogVisible = ref(false)
+const pwdSubmitting = ref(false)
+const pwdTarget = ref<UserPageVO | null>(null)
+const pwdForm = reactive({ newPassword: '' })
+
+function handleResetPwd(row: UserPageVO) {
+  pwdTarget.value = row
+  pwdForm.newPassword = ''
+  pwdDialogVisible.value = true
+}
+
+async function handlePwdSubmit() {
+  if (!pwdForm.newPassword || pwdForm.newPassword.length < 6) {
+    ElMessage.warning('新密码至少 6 位')
+    return
+  }
+  if (!pwdTarget.value) return
+  pwdSubmitting.value = true
+  try {
+    const res: any = await resetUserPassword(pwdTarget.value.id, pwdForm.newPassword)
+    if (res.code === 200) {
+      ElMessage.success(`用户 [${pwdTarget.value.username}] 密码已重置`)
+      pwdDialogVisible.value = false
+    }
+  } finally {
+    pwdSubmitting.value = false
   }
 }
 

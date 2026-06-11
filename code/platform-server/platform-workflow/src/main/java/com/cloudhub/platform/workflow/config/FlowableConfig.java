@@ -13,6 +13,22 @@ import javax.sql.DataSource;
 @Configuration
 public class FlowableConfig {
 
+    /**
+     * Flowable Spring 引擎配置
+     *
+     * 历史背景 (2026-06-11):
+     *   原配置使用了 SpringProcessEngineConfiguration 默认构造的 IdmEngineConfigurator,
+     *   该 configurator 启动后会在部署 userTask 时查 ACT_ID_USER 验证 candidate user
+     *   存在性. 由于本项目用户存于 sys_user (而非 ACT_ID_USER), 导致部署的 BPMN 中
+     *   <flowable:candidateUsers>1</flowable:candidateUsers> 静默失效:
+     *     - 任务创建时 ACT_RU_IDENTITYLINK 无 candidate 行
+     *     - WorkflowTaskService.todoPage 查 candidate taskIds=[] (用户看不到任务)
+     *     - WorkflowMessageProducer 警告 no recipients (Kafka 通知丢失)
+     *
+     *   修复: config.setDisableIdmEngine(true) 完全禁用 IDM 引擎初始化.
+     *         Flowable 写 candidate 时不再查 ACT_ID_USER, 直接写入 ACT_RU_IDENTITYLINK.
+     *         本项目通过 UserService 自身管理用户, 不需要 Flowable IDM.
+     */
     @Bean
     public SpringProcessEngineConfiguration springProcessEngineConfiguration(
             DataSource dataSource, Environment env) {
@@ -30,6 +46,9 @@ public class FlowableConfig {
         config.setJdbcMaxActiveConnections(20);
         config.setJdbcMaxIdleConnections(10);
         config.setJdbcMaxCheckoutTime(20000);
+        // 完全禁用 IDM 引擎, 避免查 ACT_ID_USER/ACT_ID_GROUP
+        // (本项目用户存于 sys_user, 不依赖 Flowable IDM)
+        config.setDisableIdmEngine(true);
         return config;
     }
 
