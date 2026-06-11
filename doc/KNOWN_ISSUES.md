@@ -31,6 +31,8 @@
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
 | 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
 | 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
+| 21 | 🟢 已解决 | 监控 | Docker 29.5.3 API 兼容: `memory_stats` 字段名变更 + cAdvisor 镜像 gcr.io 不可达/overlay2 存储驱动路径猜错, 自建 Python exporter 替代 | 2026-06-11 |
+| 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1548,3 +1550,90 @@ docker logs platform-logstash --tail 100 | grep -E '(api.http.host|http.host|lis
    - `force-recreate`: 强制丢弃旧容器, 用新配置重建
    - bind-mount 改了 conf 后, `docker compose restart` 就够; 改了 yml 需 `force-recreate`
 5. **🔴 "重启 = 配置错误" 模式** — 容器状态 `Up X (unhealthy)` 但日志显示一切正常, 这是**反常信号**, 必然是 healthcheck 路径不通 (DNS / 端口 / 协议层)。遇到要先怀疑 healthcheck, 而不是怀疑业务代码
+
+---
+
+## #21 🟢 Docker 29.5.3 API 兼容 — memory_stats / cAdvisor gcr.io 不可达 (2026-06-11)
+
+### 现象
+
+- 容器级监控需求: Grafana 看每个容器的资源占用 (CPU/内存/网络)
+- **cAdvisor 方案**: (1) `gcr.io/cadvisor/cadvisor` 被 GFW 阻断; (2) Docker Hub `google/cadvisor:latest` 是 v0.32.0 (2019), 不支持 cgroup v2 → `mountpoint for cpu not found`; (3) 下载 v0.49.1 二进制后 Docker 29.5.3 的 overlay2 存储驱动路径猜错 (`overlayfs` → `overlay2`)
+- **Python exporter 方案**: 启动后返回的 Prometheus 指标为空 (只有 HELP/TYPE 行, 无数据行)
+
+### 根因
+
+```
+Docker API 1.54 (Docker 29.5.3) 的 stats 响应中, 内存字段是 memory_stats (underscore),
+而非旧版本的 memory (cAdvisor 和旧的 exporter 代码都检查 'memory' in stats_raw)。
+```
+
+**相关调试**:
+```python
+# 正确字段名
+stats_raw['memory_stats']['usage']
+# 错误字段名
+stats_raw['memory']['usage']  # Docker 29.x 不存在
+```
+
+另外, Docker 29.5.3 + Ubuntu 26.04 + Linux 7.0 的 cgroup v2 环境下:
+- cAdvisor v0.32.0 完全不支持 cgroup v2
+- cAdvisor v0.49.1 支持 cgroup v2 但在 overlay2 驱动上路径检测错误 (路径 `overlayfs` 应为 `overlay2`)
+- 不走: gcr.io 被 GFW 阻断, 国内镜像拉取均失败
+
+### 最终方案: Python container-exporter
+
+```yaml
+container-exporter:
+  image: python:3-slim
+  container_name: platform-container-exporter
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - ./scripts/container-exporter/exporter.py:/app/exporter.py:ro
+  command: ["/bin/sh", "-c", "pip install -q prometheus-client && python /app/exporter.py"]
+  ports:
+    - "9091:9091"
+```
+
+**优点**:
+- `python:3-slim` 国内可拉 (Docker Hub)
+- 通过 Docker API (unix socket) 读取实时 stats, 不依赖 cgroup/存储驱动
+- 50 行 Python, 15 MB 容器 (vs cAdvisor 102 MB)
+- 使用 `prometheus_client.start_http_server` 自带多线程, 无 BrokenPipe
+
+**关键实现**:
+```python
+# 1. 走 unix socket 连 Docker daemon (不依赖 cgroup)
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect('/var/run/docker.sock')
+
+# 2. 使用无版本号路径 (Docker 自动协商)
+containers = docker_api('/containers/json?all=false')
+
+# 3. 读 memory_stats 而非 memory
+stats_raw['memory_stats']['usage']
+
+# 4. 周期性采集 + start_http_server (prometheus_client)
+update()
+time.sleep(15)
+```
+
+### 验证
+
+```bash
+# exporter 指标
+curl -s http://localhost:9091/metrics | grep container_memory_working_set_bytes | head -5
+
+# Prometheus scrape
+docker exec platform-prometheus wget -q -O - http://container-exporter:9091/metrics
+
+# Grafana dashboard "平台监控总览" → 容器资源 section 可看到各服务排行
+```
+
+### 教训
+
+1. **🔴 Docker API 版本差异要小心** — 29.x 用 `memory_stats`, 旧版用 `memory`。测试平台 29.5.3, 写 exporter 时直接 **curl Docker unix socket** 看字段名再编码
+2. **🔴 cAdvisor 在国内网络环境下不可用** — gcr.io 被墙, Docker Hub 镜像太旧, GFW 绕道成本高。**直接写 Python exporter 50 行比折腾 cAdvisor 3 小时节省时间**
+3. **🟡 容器化自建工具要精简** — `python:3-slim` 15 MB vs cAdvisor 102 MB, 代码自控不依赖上游
+4. **🟢 Docker socket 是可靠的容器数据源** — 比 cgroup mount / 存储驱动检测稳定, 跨平台
+5. **🔴 `prometheus_client.start_http_server` 优于 `BaseHTTPRequestHandler`** — 自带多线程、`generate_latest` 异步、不爆 BrokenPipe
