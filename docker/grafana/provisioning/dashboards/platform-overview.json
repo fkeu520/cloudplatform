@@ -1,0 +1,151 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "title": "平台监控总览 (宿主机 + 容器)",
+  "uid": "platform-overview",
+  "tags": ["platform", "host", "cpu", "memory", "container"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "panels": [
+    {
+      "id": 1, "type": "row", "title": "宿主机 (CPU + 内存)",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "collapsed": false, "panels": []
+    },
+    {
+      "id": 2, "type": "stat", "title": "CPU 使用率",
+      "gridPos": {"h": 4, "w": 5, "x": 0, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 60}, {"color": "red", "value": 85}] } } },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A", "legendFormat": "CPU"}]
+    },
+    {
+      "id": 3, "type": "stat", "title": "CPU 核心数",
+      "gridPos": {"h": 4, "w": 3, "x": 5, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "none", "thresholds": { "mode": "absolute", "steps": [{"color": "blue", "value": null}] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "count(node_cpu_seconds_total{mode=\"idle\"})", "refId": "A", "legendFormat": "cores"}]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Load Average (1m)",
+      "gridPos": {"h": 4, "w": 3, "x": 8, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 4}, {"color": "red", "value": 8}] } } },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "node_load1", "refId": "A", "legendFormat": "load1"}]
+    },
+    {
+      "id": 5, "type": "stat", "title": "内存使用率",
+      "gridPos": {"h": 4, "w": 5, "x": 11, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 85}] } } },
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100", "refId": "A", "legendFormat": "used %"}]
+    },
+    {
+      "id": 6, "type": "stat", "title": "内存已用 / 总量",
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 1},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "decbytes", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false} },
+      "targets": [
+        {"expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "refId": "A", "legendFormat": "已用"},
+        {"expr": "node_memory_MemTotal_bytes", "refId": "B", "legendFormat": "总量"}
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "CPU 使用率趋势",
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10} } },
+      "options": { "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"} },
+      "targets": [
+        {"expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A", "legendFormat": "used (total)"},
+        {"expr": "avg by (mode) (rate(node_cpu_seconds_total{mode=~\"user|system|iowait|steal|nice|irq|softirq\"}[5m])) * 100", "refId": "B", "legendFormat": "{{mode}}"}
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "内存使用趋势 (bytes)",
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 5},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "decbytes", "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10} } },
+      "options": { "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"} },
+      "targets": [
+        {"expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "refId": "A", "legendFormat": "已用"},
+        {"expr": "node_memory_MemAvailable_bytes", "refId": "B", "legendFormat": "可用"},
+        {"expr": "node_memory_MemTotal_bytes", "refId": "C", "legendFormat": "总量"}
+      ]
+    },
+    {
+      "id": 9, "type": "row", "title": "容器资源",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 12},
+      "collapsed": false, "panels": []
+    },
+    {
+      "id": 10, "type": "stat", "title": "容器总数",
+      "gridPos": {"h": 3, "w": 3, "x": 0, "y": 13},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "none", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "count(container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A"}]
+    },
+    {
+      "id": 11, "type": "stat", "title": "内存总使用 (容器)",
+      "gridPos": {"h": 3, "w": 5, "x": 3, "y": 13},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "decbytes" } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "sum(container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "total memory"}]
+    },
+    {
+      "id": 12, "type": "stat", "title": "CPU 总使用 (容器)",
+      "gridPos": {"h": 3, "w": 4, "x": 8, "y": 13},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 2 } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"]} },
+      "targets": [{"expr": "sum(container_cpu_usage{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "CPU cores"}]
+    },
+    {
+      "id": 13, "type": "table", "title": "各服务内存占用排名",
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "decbytes", "custom": {"align": "auto", "displayMode": "auto"}, "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 536870912}, {"color": "red", "value": 1073741824}] } }, "overrides": [{"matcher": {"id": "byName", "options": "服务名"}, "properties": [{"id": "custom.width", "value": 200}]}] },
+      "options": { "sortBy": [{"displayName": "内存 (bytes)", "desc": true}] },
+      "targets": [{"expr": "container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"}", "format": "table", "instant": true, "refId": "A", "legendFormat": "{{name}}"}],
+      "transformations": [{"id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "id": true, "image": true, "interval": true }, "indexByName": {"name": 0, "Value": 1}, "renameByName": {"name": "服务名", "Value": "内存 (bytes)"} }}]
+    },
+    {
+      "id": 14, "type": "table", "title": "各服务 CPU 使用排名",
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 3, "custom": {"align": "auto", "displayMode": "auto"}, "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1}] } } },
+      "options": { "sortBy": [{"displayName": "CPU (cores)", "desc": true}] },
+      "targets": [{"expr": "container_cpu_usage{name=~\"platform-.*\", name!=\"platform-container-exporter\"}", "format": "table", "instant": true, "refId": "A", "legendFormat": "{{name}}"}],
+      "transformations": [{"id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "id": true, "image": true }, "indexByName": {"name": 0, "Value": 1}, "renameByName": {"name": "服务名", "Value": "CPU (cores)"} }}]
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "各容器内存趋势 (Top 8)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "decbytes", "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10} } },
+      "options": { "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"} },
+      "targets": [{"expr": "topk(8, container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "{{name}}"}]
+    },
+    {
+      "id": 16, "type": "timeseries", "title": "各容器 CPU 趋势 (Top 8)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": { "defaults": { "unit": "none", "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10} } },
+      "options": { "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"} },
+      "targets": [{"expr": "topk(8, container_cpu_usage{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "{{name}}"}]
+    }
+  ]
+}
