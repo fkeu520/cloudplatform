@@ -1,0 +1,17 @@
+# ==============================================================================
+# Grafana 自动数据源配置 (启动时自动加载, 无需手动添加)
+# ==============================================================================
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus  # 固定 UID, dashboard 通过 uid 直接引用 (避免 ${DS_PROMETHEUS} 变量解析时序问题)
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: '15s'
+      httpMethod: POST
+    secureJsonData: {}

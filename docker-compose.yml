@@ -458,6 +458,29 @@ services:
       - "9411:9411"
     logging: *default-logging
 
+  # ============ Node Exporter (M6 P1-5 主机指标) ============
+  # 采集宿主机 CPU/内存/磁盘/网络, 需 mount 宿主 /proc /sys / 才能看到完整指标
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: platform-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      # 排除容器自身/虚拟文件系统, 避免 noise
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.filesystem.fs-types-exclude=^(sysfs|procfs|devpts|shm|tmpfs|overlay|aufs|squashfs|nsfs)$'
+      - '--collector.netclass.ignored-devices=^(veth.*|docker.*|br-.*)$'
+    pid: host
+    logging: *default-logging
+
   # ============ Prometheus (M6 P1-5 指标采集) ============
   prometheus:
     image: prom/prometheus:latest
@@ -466,7 +489,8 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - prometheus-data:/etc/prometheus
+      - prometheus-data:/prometheus
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -486,6 +510,9 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_INSTALL_PLUGINS=
+    volumes:
+      # 自动加载数据源 + dashboard provisioning (启动时生效, 修改 .yml/.json 后 30s 重载)
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
     logging: *default-logging
 
   # ============ 前端服务 ============
