@@ -26,10 +26,13 @@
 | 14 | 🟢 已解决 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
 | 15 | 🟢 已解决 (PR1 部署成功) | 数据权限 (M5) | PR1 (e64e3f7) 部署遇 Flyway 启动失败, 临时禁用 Flyway 跑通业务验证 (KNOWN_ISSUES #14 同一根因) | 2026-06-05 |
 | 15 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
-| 16 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | SQL 解析失败静默越权 (UNION/子查询/CTE 降级放行原 SQL) | 2026-06-05 |
+| 16 | 🟢 已解决 | 数据权限 (M5) | write-strict 默认 true (fail-closed): DataScopeInnerInterceptor 解析失败抛 DataScopeViolationException | 2026-06-05 |
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
 | 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
+| 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
+| 21 | 🟢 已解决 | 监控 | Docker 29.5.3 API 兼容: `memory_stats` 字段名变更 + cAdvisor 镜像 gcr.io 不可达/overlay2 存储驱动路径猜错, 自建 Python exporter 替代 | 2026-06-11 |
+| 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -816,7 +819,7 @@ true  → 走 v7.1 行为 (UPDATE/DELETE 改写 + scope 防护)
 
 ---
 
-## #16 🔴 SQL 解析失败静默越权 (2026-06-05) [P0 必修]
+## #16 🟢 SQL 解析失败静默越权 (2026-06-05) [P0 必修] — 已解决 2026-06-09
 
 ### 现象
 
@@ -891,6 +894,22 @@ try {
 2. **静默降级 (WARN 放行) 是反模式** — 业务感知不到, 问题被掩盖到事故发生
 3. **WARN 日志必须有监控/告警** — 当前 WARN 写日志就完事, 没有 metric 没有 alert, 等于"看不见的告警"
 4. **复杂 SQL 的 data_scope 是 P2+ 长期项** — 但"无法处理"≠"放行", 必须明确告诉业务"这事我做不了"而不是假装做完了
+
+### 修复 (2026-06-09)
+
+**变更**:
+1. `DataScopeInnerInterceptor.java` 字段默认值 `false` → `true`
+2. `MybatisPlusConfig.java` `@Value` 默认值 `:false` → `:true`
+3. 6 服务 `application.yml` `${...:false}` → `${...:true}` (M5 PR4 全量上线)
+
+**效果**: `writeStrict` 全链路默认 `true`:
+- SQL 解析失败 / FORCE INDEX 检测命中 → 抛 `DataScopeViolationException` (fail-closed)
+- 降级方式: 设置环境变量 `PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false` 回车安全降级
+
+**验证**:
+- `check-data-scope-upgrade-toggle.sh` §5: 6/6 yml 确认 write-strict=true
+- `docker inspect`: 8 platform 容器无 DATA_SCOPE env var, 全部从 yml 默认读取
+- D+5 业务回归 27/27 PASS, 0 DataScopeViolation
 
 ---
 
@@ -1325,3 +1344,296 @@ WHERE id = #{rootDeptId}
 4. **🟢 决策与代码一致** — 决策 2 A 递归 CTE 已实施, 与决策同步 (不需修正决策)
 5. **🟢 真 MySQL 8 端到端是权威验证** — H2 集成测试是 nice-to-have, 真 MySQL 跑通即可信 (M3 已验证 4 个 CTE 场景)
 6. **🟡 缺口 #19 实际是"性能/语义"非"安全"** — 跨 org dept_id 不影响数据安全 (P0-1 拦截器仍过滤), 但 IN 子句无意义是性能问题
+
+---
+
+## #20 🟢 Logstash 容器无限重启: retry_on_failure / retry_max_interval 设置未知 (2026-06-11)
+
+### 现象
+
+- `docker ps` 显示 `platform-logstash` 状态 `Restarting` 循环
+- `docker logs platform-logstash --tail 50`:
+  ```
+  [ERROR][logstash.outputs.elasticsearch] Unknown setting 'retry_on_failure' for elasticsearch
+  [ERROR][logstash.agent           ] Failed to execute action {:action=>LogStash::PipelineAction::Create/pipeline_id:main, :exception=>"Java::JavaLang::IllegalStateException", :message=>"Unable to configure plugins: (ConfigurationError) Something is wrong with your configuration."}
+  [INFO ][logstash.javapipeline    ][.monitoring-logstash] Pipeline Java execution initialization time {"seconds"=>0.39}
+  ```
+- 容器 `healthcheck` 探活端口 9600 不响应 (pipeline 启动即挂), healthcheck 失败 → 容器退出 → `restart: unless-stopped` 再次拉起 → 同样错误 → 无限循环
+
+### 根因
+
+`docker/logstash/logstash.conf` output 块 (line 71-73) 写了:
+
+```conf
+retry_on_failure => true
+retry_max_interval => 10
+```
+
+**Logstash 8.12.0 自带的 `logstash-output-elasticsearch` 是 v11.12.0**, 这两个设置是 **plugin v12.x+** 才加入的。
+v11.12.0 源码 [lib/logstash/outputs/elasticsearch.rb](https://github.com/logstash-plugins/logstash-output-elasticsearch/blob/v11.12.0/lib/logstash/outputs/elasticsearch.rb) 中所有 `config` 声明:
+
+```ruby
+config :action, :validate => :string
+config :index, :validate => :string
+config :document_type, ...
+config :manage_template, ...
+config :retry_on_conflict, :validate => :number, :default => 1
+config :pipeline, ...
+config :ilm_enabled, ...
+// ... 无 retry_on_failure / retry_max_interval
+```
+
+**Plugin 启动时执行 config schema 校验** (org.logstash.config.ir.CompiledPipeline 初始化), 遇到未知 key 直接抛 `ConfigurationError` → pipeline 终止 → 容器启动失败。
+
+### 默认行为 (无需显式配置)
+
+v11.12.0 源码注释明确:
+
+> The following errors are retried infinitely:
+> - Network errors (inability to connect)
+> - 429 (Too many requests) and
+> - 503 (Service unavailable) errors
+
+**重试已默认开启, 不能关闭**。Plugin 12.x+ 加的 `retry_on_failure => false` 显式关闭能力, 在 11.x 是不存在的。
+
+### 修复
+
+```diff
+   elasticsearch {
+     hosts => ["http://elasticsearch:9200"]
+     # 按天滚动索引，配合 ILM 策略实现 1 天保留
+     index => "platform-logs-%{+YYYY.MM.dd}"
+     data_stream => false
+-    # 失败重试
+-    retry_on_failure => true
+-    retry_max_interval => 10
++    # 失败重试: v11.12.0 (Logstash 8.12 自带) 对 Network errors / 429 / 503 默认无限重试,
++    # `retry_on_failure` / `retry_max_interval` 是 plugin v12.x+ 的设置, 11.x 不识别会导致
++    # pipeline 启动失败 → 容器无限重启。详见 KNOWN_ISSUES #20。
+   }
+```
+
+`retry_on_conflict` (number, default 1) 是另一回事, 控 update 操作重试次数, **保留**不动。
+
+### 验证
+
+```bash
+# 1. Ubuntu 端 pull + 重启
+ssh hugh@192.168.0.217
+cd /opt/platform
+git pull
+docker compose up -d platform-logstash
+
+# 2. 等待 30s, 看 pipeline 启动日志
+docker logs platform-logstash --tail 50 | grep -E "(Pipeline started|ERROR)"
+# 期望: 看到 "Pipeline started" 而不是 "ConfigurationError"
+
+# 3. 触发任意服务写日志 (例如重启 platform-user)
+docker compose restart platform-user
+sleep 30
+
+# 4. 验证 ES 收到新索引
+curl -s "http://localhost:9200/_cat/indices/platform-logs-*?v"
+# 期望: 看到 platform-logs-YYYY.MM.dd 索引, 且 doc count > 0
+
+# 5. Kibana 验证
+open http://192.168.0.217:5601
+# Discover → 选 platform-logs DataView → 应有新文档
+```
+
+### 教训
+
+1. **🔴 写 plugin 配置前先看 plugin 版本** — Logstash 的 elasticsearch output plugin 11.x → 12.x 有大量 setting 重命名/新增/移除, 不可"凭印象"配
+2. **🟡 Config schema 校验是早期防错机制** — plugin 启动期抛 ConfigurationError 是好事, 比运行时静默失败强
+3. **🟡 默认值文档** — v11.12.0 重试默认开启且不可关, 想关只能升级 plugin 或换镜像
+4. **🔴 Logstash 容器重启 = 配置错误信号** — `restart: unless-stopped` + 启动即挂 = 无限循环, 看到这种状态**先** `docker logs` 看根因, **不要**反复 restart
+5. **🟢 bind-mount 配置文件** — 本次 `logstash.conf` 是 bind-mount 进容器, 改文件 + 重启容器即可, **不用**重新构建镜像 (比 #1 的教训改进: 当时以为要 rebuild, 实际 bind-mount 改了就好)
+
+---
+
+### 根因 #2 (2026-06-11 当日发现) - 镜像 logstash.yml 同时含 `api.http.host` 和 `http.host` 触发启动校验失败
+
+修复 #1 (删除 retry_on_failure) 后, pipeline 顺利启动, 但容器仍是 `unhealthy`。
+继续排查发现**第二层独立问题**: 健康检查 curl localhost:9600 一直返回 HTTP=000 (拒连)。
+
+#### 现象
+
+- `docker logs platform-logstash --tail 50`:
+  ```
+  [INFO ][logstash.agent] Successfully started Logstash API endpoint {:port=>9600, :ssl_enabled=>false}
+  [INFO ][logstash.javapipeline][main] Pipeline started {"pipeline.id"=>"main"}
+  ```
+  (pipeline 启动了, **但 healthcheck 一直 fail**, 容器永远 `unhealthy`)
+
+- `docker exec platform-logstash curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://127.0.0.1:9600` → `HTTP=000` (拒连)
+- `docker exec platform-logstash curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://[::1]:9600` → `HTTP=000` (也拒连)
+
+#### 根因
+
+镜像 `docker.elastic.co/logstash/logstash:8.12.0` 自带的 `/usr/share/logstash/config/logstash.yml` **同时**含:
+
+```yaml
+api.http.host: 0.0.0.0     # 新名 (v7.6+)
+http.host: 0.0.0.0         # 旧别名 (deprecated)
+```
+
+Logstash 启动校验抛:
+
+```
+Your settings are invalid. Reason: Both `api.http.host` and its deprecated alias
+`http.host` have been set. Please only set `api.http.host`
+```
+
+> 之前 commit `20bb6da` 试图加 `API_HTTP_HOST=0.0.0.0` 环境变量修复, 但环境变量也走 `api.http.host` 路径, 触发同样校验, 失败。该 commit 已被回滚 (commit `789a59e` 走 bind-mount 路线, 见下)。
+
+**奇怪的是, 在没有任何 env var / bind-mount 时, 这个 yml 的双 host 设置**似乎能容忍** (pipeline 启动了, API 监听上了) — 但实际绑定的是 IPv6 `::` (jvm default) 而非 IPv4 0.0.0.0, 且容器内 IPv6 loopback 路由异常, 导致 localhost 拒连。
+
+#### /proc/net/tcp 实证
+
+| IPv4 `/proc/net/tcp` | IPv6 `/proc/net/tcp6` |
+|---|---|
+| 无 9600 LISTEN | `::2580` LISTEN (state 0A) |
+
+JVM 绑 `::` + `IPV6_V6ONLY=1` (Java 默认), 只接 IPv6, 不接 IPv4。
+容器内 /etc/hosts: `localhost → ::1` (优先 IPv6), curl [::1]:9600 在 Alpine 容器**也拒** (IPv6 loopback 内核路由异常), 容器内 curl 127.0.0.1:9600 也拒 (没绑 IPv4)。`/etc/hosts` 看似无关, 实际触发了链路全断。
+
+#### 修复
+
+**bind-mount 自定义 logstash.yml, 只保留新名**:
+
+新增 `docker/logstash/logstash.yml`:
+```yaml
+# 覆盖镜像默认 (默认同时含 api.http.host + http.host 触发校验失败)
+api.http.host: 0.0.0.0
+xpack.monitoring.elasticsearch.hosts:
+  - http://elasticsearch:9200
+```
+
+`docker-compose.yml` 加 volumes 挂载:
+```yaml
+volumes:
+  - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+  - ./docker/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro   # ← 新
+```
+
+**为什么不用环境变量**: `LS_API_HTTP_HOST=0.0.0.0` 或 `API_HTTP_HOST=0.0.0.0` 都会被 logstash 映射到 `api.http.host` 字段, 触发同样的 "Both `api.http.host` and its deprecated alias `http.host` have been set" 校验失败。**只有 bind-mount 整个 yml 文件才能彻底替换镜像默认内容**。
+
+#### 验证
+
+```bash
+# Ubuntu 端
+cd /opt/platform
+git pull
+docker compose up -d --force-recreate --no-deps logstash
+sleep 70
+docker ps -a --format 'table {{.Names}}\t{{.Status}}' | grep logstash
+# 期望: platform-logstash    Up X minutes (healthy)
+
+docker exec platform-logstash curl -s -o /dev/null -w 'HTTP=%{http_code}\n' http://127.0.0.1:9600
+# 期望: HTTP=200
+
+docker logs platform-logstash --tail 100 | grep -E '(api.http.host|http.host|listening|started)'
+# 期望: Successfully started Logstash API endpoint {:port=>9600}
+# 期望: 无 "Both `api.http.host` and its deprecated alias `http.host`"
+```
+
+最终状态: `Up About a minute (healthy)` ✅, `HTTP=200` ✅。
+
+#### 教训
+
+1. **🔴 镜像 yml 自带坑** — 官方镜像 8.12.0 的 logstash.yml 同时有 `api.http.host` 和 `http.host`, 触发校验失败。这是镜像 bug, 不在文档里说明, 只能 bind-mount 覆盖。**以后**类似配置项 (新/旧别名), 先看镜像默认 yml 是否有冲突
+2. **🟡 bind-mount 整个配置文件 vs 部分覆盖** — 环境变量和部分配置修改不一定能"局部覆盖", 镜像 yml 整体作为默认时, bind-mount 整个 yml 才稳
+3. **🟡 JVM IPv6 默认行为** — Java Netty/JVM `IPV6_V6ONLY=1` 是默认, 绑 `::` 不接受 IPv4 流量。Alpine 容器内 IPv6 loopback 还可能路由异常, 多重坑叠加
+4. **🟢 docker compose up -d vs restart vs force-recreate** —
+   - `up -d`: 配置不变**不重建**容器, 只重启有变化的; 改 yml 不一定会触发重建
+   - `restart`: 重建+重启同一容器
+   - `force-recreate`: 强制丢弃旧容器, 用新配置重建
+   - bind-mount 改了 conf 后, `docker compose restart` 就够; 改了 yml 需 `force-recreate`
+5. **🔴 "重启 = 配置错误" 模式** — 容器状态 `Up X (unhealthy)` 但日志显示一切正常, 这是**反常信号**, 必然是 healthcheck 路径不通 (DNS / 端口 / 协议层)。遇到要先怀疑 healthcheck, 而不是怀疑业务代码
+
+---
+
+## #21 🟢 Docker 29.5.3 API 兼容 — memory_stats / cAdvisor gcr.io 不可达 (2026-06-11)
+
+### 现象
+
+- 容器级监控需求: Grafana 看每个容器的资源占用 (CPU/内存/网络)
+- **cAdvisor 方案**: (1) `gcr.io/cadvisor/cadvisor` 被 GFW 阻断; (2) Docker Hub `google/cadvisor:latest` 是 v0.32.0 (2019), 不支持 cgroup v2 → `mountpoint for cpu not found`; (3) 下载 v0.49.1 二进制后 Docker 29.5.3 的 overlay2 存储驱动路径猜错 (`overlayfs` → `overlay2`)
+- **Python exporter 方案**: 启动后返回的 Prometheus 指标为空 (只有 HELP/TYPE 行, 无数据行)
+
+### 根因
+
+```
+Docker API 1.54 (Docker 29.5.3) 的 stats 响应中, 内存字段是 memory_stats (underscore),
+而非旧版本的 memory (cAdvisor 和旧的 exporter 代码都检查 'memory' in stats_raw)。
+```
+
+**相关调试**:
+```python
+# 正确字段名
+stats_raw['memory_stats']['usage']
+# 错误字段名
+stats_raw['memory']['usage']  # Docker 29.x 不存在
+```
+
+另外, Docker 29.5.3 + Ubuntu 26.04 + Linux 7.0 的 cgroup v2 环境下:
+- cAdvisor v0.32.0 完全不支持 cgroup v2
+- cAdvisor v0.49.1 支持 cgroup v2 但在 overlay2 驱动上路径检测错误 (路径 `overlayfs` 应为 `overlay2`)
+- 不走: gcr.io 被 GFW 阻断, 国内镜像拉取均失败
+
+### 最终方案: Python container-exporter
+
+```yaml
+container-exporter:
+  image: python:3-slim
+  container_name: platform-container-exporter
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - ./scripts/container-exporter/exporter.py:/app/exporter.py:ro
+  command: ["/bin/sh", "-c", "pip install -q prometheus-client && python /app/exporter.py"]
+  ports:
+    - "9091:9091"
+```
+
+**优点**:
+- `python:3-slim` 国内可拉 (Docker Hub)
+- 通过 Docker API (unix socket) 读取实时 stats, 不依赖 cgroup/存储驱动
+- 50 行 Python, 15 MB 容器 (vs cAdvisor 102 MB)
+- 使用 `prometheus_client.start_http_server` 自带多线程, 无 BrokenPipe
+
+**关键实现**:
+```python
+# 1. 走 unix socket 连 Docker daemon (不依赖 cgroup)
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.connect('/var/run/docker.sock')
+
+# 2. 使用无版本号路径 (Docker 自动协商)
+containers = docker_api('/containers/json?all=false')
+
+# 3. 读 memory_stats 而非 memory
+stats_raw['memory_stats']['usage']
+
+# 4. 周期性采集 + start_http_server (prometheus_client)
+update()
+time.sleep(15)
+```
+
+### 验证
+
+```bash
+# exporter 指标
+curl -s http://localhost:9091/metrics | grep container_memory_working_set_bytes | head -5
+
+# Prometheus scrape
+docker exec platform-prometheus wget -q -O - http://container-exporter:9091/metrics
+
+# Grafana dashboard "平台监控总览" → 容器资源 section 可看到各服务排行
+```
+
+### 教训
+
+1. **🔴 Docker API 版本差异要小心** — 29.x 用 `memory_stats`, 旧版用 `memory`。测试平台 29.5.3, 写 exporter 时直接 **curl Docker unix socket** 看字段名再编码
+2. **🔴 cAdvisor 在国内网络环境下不可用** — gcr.io 被墙, Docker Hub 镜像太旧, GFW 绕道成本高。**直接写 Python exporter 50 行比折腾 cAdvisor 3 小时节省时间**
+3. **🟡 容器化自建工具要精简** — `python:3-slim` 15 MB vs cAdvisor 102 MB, 代码自控不依赖上游
+4. **🟢 Docker socket 是可靠的容器数据源** — 比 cgroup mount / 存储驱动检测稳定, 跨平台
+5. **🔴 `prometheus_client.start_http_server` 优于 `BaseHTTPRequestHandler`** — 自带多线程、`generate_latest` 异步、不爆 BrokenPipe
