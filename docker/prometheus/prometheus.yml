@@ -31,6 +31,13 @@ scrape_configs:
           component: 'host'
           os: 'linux'
 
+  # cAdvisor - 容器级指标 (每个容器的 CPU/内存/网络/磁盘)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          component: 'container'
+
   # 业务服务 JVM 指标 (需先启用 /actuator/prometheus 端点, 当前未启用, 暂注释)
   # - job_name: 'platform-services'
   #   metrics_path: '/actuator/prometheus'
