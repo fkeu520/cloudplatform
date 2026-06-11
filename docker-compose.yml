@@ -252,7 +252,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -345,7 +345,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=2
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx1024m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -405,7 +405,7 @@ services:
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=4
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
