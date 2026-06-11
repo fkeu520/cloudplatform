@@ -48,3 +48,7 @@ export function createAdmin(id: number, data: Record<string, any>) {
 export function deleteAdmin(tenantId: number, userId: number) {
   return request.delete(`/tenant/${tenantId}/admin/${userId}`)
 }
+
+export function resetAdminPassword(tenantId: number, userId: number, newPassword: string) {
+  return request.post(`/tenant/${tenantId}/admin/${userId}/reset-password`, { newPassword })
+}

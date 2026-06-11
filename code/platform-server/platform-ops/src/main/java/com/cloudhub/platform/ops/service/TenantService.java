@@ -149,6 +149,24 @@ public class TenantService {
         }
     }
 
+    public void resetAdminPassword(Long tenantId, Long userId, String newPassword) {
+        if (StringUtils.isBlank(newPassword)) {
+            throw new BizException("新密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            throw new BizException("新密码至少 6 位");
+        }
+        try {
+            Map<String, String> body = new HashMap<>();
+            body.put("newPassword", newPassword);
+            restTemplate.postForEntity(
+                    userServiceUrl + "/user/" + userId + "/reset-password", body, String.class);
+            log.info("租户[{}]管理员密码已重置: userId={}", tenantId, userId);
+        } catch (Exception e) {
+            throw new BizException("密码重置失败: " + e.getMessage());
+        }
+    }
+
     public void update(Long id, Map<String, Object> params) {
         Tenant tenant = tenantMapper.selectById(id);
         if (tenant == null) throw new BizException("租户不存在");
