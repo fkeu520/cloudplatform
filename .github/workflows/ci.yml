@@ -3,8 +3,36 @@ name: CI
 on:
   push:
     branches: [develop, master, feature/*]
+    # CI 只在源代码 OR Dockerfile 改动时触发
+    # 配置文件改动 (yml / .md / .gitignore / docker-compose.yml 等) 不需要重新构建
+    # 配置改了直接 restart 容器或 docker compose pull && up -d
+    paths:
+      # 后端 Java 源代码
+      - 'code/platform-server/**.java'
+      - 'code/platform-server/**/**.java'
+      # 前端 TS/Vue 源代码
+      - 'code/platform-admin/src/**'
+      - 'code/platform-ops-admin/src/**'
+      # Docker 镜像配置
+      - 'code/platform-server/Dockerfile'
+      - 'code/platform-server/Dockerfile.*'
+      - 'code/platform-admin/Dockerfile'
+      - 'code/platform-admin/Dockerfile.*'
+      - 'code/platform-ops-admin/Dockerfile'
+      - 'code/platform-ops-admin/Dockerfile.*'
   pull_request:
     branches: [develop, master]
+    paths:
+      - 'code/platform-server/**.java'
+      - 'code/platform-server/**/**.java'
+      - 'code/platform-admin/src/**'
+      - 'code/platform-ops-admin/src/**'
+      - 'code/platform-server/Dockerfile'
+      - 'code/platform-server/Dockerfile.*'
+      - 'code/platform-admin/Dockerfile'
+      - 'code/platform-admin/Dockerfile.*'
+      - 'code/platform-ops-admin/Dockerfile'
+      - 'code/platform-ops-admin/Dockerfile.*'
 
 env:
   MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn

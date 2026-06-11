@@ -1,0 +1,18 @@
+# ==============================================================================
+# Logstash 主配置 (覆盖 /usr/share/logstash/config/logstash.yml)
+# ==============================================================================
+# 修复点: 官方镜像 8.12.0 的 logstash.yml 同时有 `api.http.host: 0.0.0.0` 和
+# `http.host: 0.0.0.0` 两行 (旧/新别名共存), 启动校验报:
+#   "Both `api.http.host` and its deprecated alias `http.host` have been set.
+#    Please only set `api.http.host`"
+# 解决方案: bind-mount 本文件, 只保留新名, 删 http.host。
+# 详见 KNOWN_ISSUES #20。
+# ==============================================================================
+
+# API 监听所有 IPv4 接口 (默认 Alpine 镜像只绑 IPv6 ::, 导致容器内
+# curl localhost:9600 拒连 → healthcheck 永远 unhealthy)
+api.http.host: 0.0.0.0
+
+# .monitoring-logstash 内部 pipeline 把 metrics 发到 ES
+xpack.monitoring.elasticsearch.hosts:
+  - http://elasticsearch:9200

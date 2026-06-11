@@ -8,10 +8,10 @@
 
 # 共享日志配置: GELF UDP → Logstash → Elasticsearch (1 天 ILM 保留)
 x-logging: &default-logging
-  driver: gelf
+  driver: json-file
   options:
-    gelf-address: "udp://logstash:12201"
-    tag: "{{.Name}}"
+    max-size: "10m"
+    max-file: "3"
 
 services:
   # ============ MySQL 8.0 ============
@@ -76,6 +76,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      # 显式设置 Kafka JVM 堆 (默认 1G, 单机偏大, 减到 512m 足够, 实测 847M 中 400+ 是 off-heap)
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
     volumes:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
@@ -84,29 +86,24 @@ services:
       timeout: 10s
       retries: 5
 
-  # ============ Nacos 2.2 ============
+  # ============ Nacos 2.5.2 + MySQL (避 cgroup v2 + JDK 17 NPE) =============
   nacos:
-    image: nacos/nacos-server:v2.2.3
+    image: nacos/nacos-server:v2.5.2
     container_name: platform-nacos
     restart: unless-stopped
     environment:
       MODE: standalone
       NACOS_AUTH_ENABLE: false
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN:-cGxhY2Vob2xkZXItc2VjcmV0LWtleQo=}
       JVM_XMS: 512m
       JVM_XMX: 512m
-      # 使用 MySQL 替代 Derby
+      # 使用 MySQL 持久化（单机部署推荐）
       SPRING_DATASOURCE_PLATFORM: mysql
       MYSQL_SERVICE_HOST: mysql
-      MYSQL_SERVICE_DB_NAME: platform_nacos
       MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: platform_nacos
       MYSQL_SERVICE_USER: platform
       MYSQL_SERVICE_PASSWORD: platform123
-      # Spring Boot 标准数据源配置（Nacos 2.2.3 需要）
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/platform_nacos?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true
-      SPRING_DATASOURCE_USERNAME: platform
-      SPRING_DATASOURCE_PASSWORD: platform123
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
-      SPRING_SQL_INIT_PLATFORM: mysql
     ports:
       - "8848:8848"
       - "9848:9848"
@@ -116,12 +113,11 @@ services:
       mysql:
         condition: service_healthy
     healthcheck:
-      # 同时测试 HTTP (8848) 和 gRPC (9848) 端口,避免 Nacos HTTP 就绪但 gRPC 还在启动导致服务注册失败
-      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8848/nacos/v1/console/health/readiness && (echo > /dev/tcp/127.0.0.1/9848)"]
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:8848/nacos/v1/console/health/readiness"]
       interval: 15s
       timeout: 10s
       retries: 10
-      start_period: 40s
+      start_period: 90s
 
   # ============ MinIO ============
   minio:
@@ -152,7 +148,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
       - TZ=Asia/Shanghai
     ports:
       - "9200:9200"
@@ -206,6 +202,8 @@ services:
       - "12201:12201/udp" # GELF UDP 输入 (Docker logging driver)
     volumes:
       - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      # 覆盖镜像默认 logstash.yml (默认同时含 api.http.host + http.host 触发校验失败)
+      - ./docker/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -255,6 +253,7 @@ services:
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
       - PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=true
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -284,6 +283,7 @@ services:
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=2
       - PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=true
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx768m -Xms384m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -313,6 +313,7 @@ services:
       - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
       - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
       - USER_SERVICE_URL=http://platform-user:8081
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -346,6 +347,7 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=1
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=2
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -372,8 +374,9 @@ services:
     environment:
       - NACOS_SERVER_ADDR=nacos:8848
       - REDIS_HOST=redis
-      - CORS_ORIGINS=http://localhost:8080,http://localhost:8090
+      - CORS_ORIGINS=*
       - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       nacos:
         condition: service_healthy
@@ -404,6 +407,7 @@ services:
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=4
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -449,6 +453,95 @@ services:
     depends_on:
       - kafka
 
+  # ============ Zipkin 链路追踪 (M6 P1-1) ============
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: platform-zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
+    logging: *default-logging
+
+  # ============ Node Exporter (M6 P1-5 主机指标) ============
+  # 采集宿主机 CPU/内存/磁盘/网络, 需 mount 宿主 /proc /sys / 才能看到完整指标
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: platform-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      # 排除容器自身/虚拟文件系统, 避免 noise
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.filesystem.fs-types-exclude=^(sysfs|procfs|devpts|shm|tmpfs|overlay|aufs|squashfs|nsfs)$'
+      - '--collector.netclass.ignored-devices=^(veth.*|docker.*|br-.*)$'
+    pid: host
+    logging: *default-logging
+
+  # ============ cAdvisor (容器级资源监控) ============
+  # 暴露每个容器的 CPU/内存/网络/磁盘指标, Prometheus scrape 后 Grafana 查各服务占用。
+  # 镜像 "google/cadvisor" 是从 Docker Hub 手动拉取的 (国内 gcr.io 不可达)。
+  # ============ Container Exporter (容器级资源监控) ============
+  # 由于 cAdvisor (google/cadvisor:latest v0.32.0 太老 / 国内 gcr.io 不可达)
+  # 在 Ubuntu 26.04 + cgroup v2 + Docker 29.5.3 上存储驱动兼容问题无法正常工作,
+  # 改用轻量 Python 导出器, 通过 Docker socket 读取容器 stats 暴露 Prometheus 指标。
+  # < 50 MB (python:3-slim), < 1% CPU, Prometheus scrape 后 Grafana 查各服务占用。
+  container-exporter:
+    image: python:3-slim
+    container_name: platform-container-exporter
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./scripts/container-exporter/exporter.py:/app/exporter.py:ro
+    command:
+      - /bin/sh
+      - -c
+      - pip install -q prometheus-client && python /app/exporter.py
+    logging: *default-logging
+
+  # ============ Prometheus (M6 P1-5 指标采集) ============
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: platform-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    logging: *default-logging
+
+  # ============ Grafana (M6 P1-5 监控看板) ============
+  grafana:
+    image: grafana/grafana:latest
+    container_name: platform-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=
+    volumes:
+      # 自动加载数据源 + dashboard provisioning (启动时生效, 修改 .yml/.json 后 30s 重载)
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    logging: *default-logging
+
   # ============ 前端服务 ============
   platform-admin:
     image: ghcr.io/fkeu520/cloudplatform/platform-admin:latest
@@ -474,3 +567,4 @@ volumes:
   minio-data:
   es-data:
   xxl-job-data:
+  prometheus-data:

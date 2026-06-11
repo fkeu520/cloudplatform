@@ -1,5 +1,17 @@
 ﻿server:
   port: 8081
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:80}
+      min-spare: ${TOMCAT_THREADS_MIN:10}
+    accept-count: 100
+    max-connections: 2000
+    connection-timeout: 20s
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain
+    min-response-size: 1024
 
 spring:
   application:
@@ -10,6 +22,13 @@ spring:
     url: jdbc:mysql://localhost:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
     username: platform
     password: platform123
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: 2
+      connection-timeout: 20000
+      max-lifetime: 1800000
+      idle-timeout: 600000
+      pool-name: ${spring.application.name}-pool
 
   data:
     redis:
@@ -19,10 +38,10 @@ spring:
       timeout: 10s
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
-          max-wait: -1ms
+          max-active: ${REDIS_POOL_MAX:8}
+          max-idle: ${REDIS_POOL_MAX:8}
+          min-idle: 2
+          max-wait: 2s
 
   config:
     import:
@@ -45,6 +64,8 @@ spring:
       config:
         server-addr: localhost:8848
         enabled: false
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -105,3 +126,19 @@ platform:
       # true:  解析失败抛 DataScopeViolationException, 阻止执行 (写操作零越权)
       # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
       write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true}
+
+# ============ 链路追踪 (M6 P1-1) ============
+management:
+  tracing:
+    sampling:
+      probability: 0.1
+  zipkin:
+    tracing:
+      endpoint: http://zipkin:9411/api/v2/spans
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
