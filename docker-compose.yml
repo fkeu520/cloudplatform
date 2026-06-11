@@ -487,7 +487,10 @@ services:
   # 暴露每个容器的 CPU/内存/网络/磁盘指标, Prometheus scrape 后 Grafana 查各服务占用。
   # 镜像 "google/cadvisor" 是从 Docker Hub 手动拉取的 (国内 gcr.io 不可达)。
   cadvisor:
-    image: google/cadvisor:latest
+    # 使用 Docker Hub alpine 镜像 + 挂载 cAdvisor v0.49.1 二进制 (支持 cgroup v2),
+    # 因国内 gcr.io 不可达, google/cadvisor 是 v0.32.0 太老不支持 cgroup v2。
+    # 二进制 45 MB, git 管理, 位置: docker/cadvisor/cadvisor-linux-amd64
+    image: alpine:latest
     container_name: platform-cadvisor
     restart: unless-stopped
     ports:
@@ -498,14 +501,13 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-      # cgroup v2 (Ubuntu 26.04 + Linux 7.0) 需要显式挂载, 否则 cAdvisor 报 mountpoint for cpu not found
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    privileged: true
-    devices:
-      - /dev/kmsg
+      - ./docker/cadvisor/cadvisor-linux-amd64:/opt/cadvisor:ro
+    entrypoint: ["/opt/cadvisor"]
     command:
       - '--docker_only=true'
       - '--housekeeping_interval=30s'
+    privileged: true
     logging: *default-logging
 
   # ============ Prometheus (M6 P1-5 指标采集) ============
