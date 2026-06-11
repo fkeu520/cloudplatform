@@ -158,7 +158,7 @@
                   <text x="22" y="29" text-anchor="middle" class="action-item-text">+</text>
                   <title>添加并行网关</title>
                 </g>
-                <g class="action-item" @click.stop="addNodeAfter(node, 'condition')" transform="translate(54, 54)">
+                <g class="action-item" v-if="node.type === 'exclusive'" @click.stop="addNodeAfter(node, 'condition')" transform="translate(54, 54)">
                   <rect width="44" height="44" rx="8" class="action-item-bg condition" />
                   <text x="22" y="29" text-anchor="middle" class="action-item-text">条</text>
                   <title>添加条件分支</title>
@@ -278,21 +278,6 @@
                   <el-icon><User /></el-icon> 选择岗位
                 </el-button>
               </div>
-            </div>
-          </div>
-
-          <!-- Submission Config -->
-          <div class="prop-section" v-if="selectedNode.type === 'approval'">
-            <div class="prop-section-header">
-              <el-icon><Operation /></el-icon>
-              <span class="prop-section-title">设置送审配置</span>
-            </div>
-            <div class="prop-field">
-              <label class="prop-label">默认选中审批对象</label>
-              <el-radio-group v-model="selectedNode.defaultTarget" size="small">
-                <el-radio value="first">默认首位</el-radio>
-                <el-radio value="manual">手动选择</el-radio>
-              </el-radio-group>
             </div>
           </div>
 
@@ -625,7 +610,7 @@ const nodes = ref<any[]>([
   { id: 'approval1', type: 'approval', label: '部门审批', x: 400, y: 300,
     description: '', candidateScope: 'company', candidateType: 'personnel',
     personnel: [], position: null,
-    defaultTarget: 'manual', approvalMode: 'single', skipContinuous: false, eSignature: false },
+    approvalMode: 'single', skipContinuous: false, eSignature: false },
   { id: 'end', type: 'end', label: '结束', x: 600, y: 300 }
 ])
 
@@ -936,7 +921,6 @@ function parseBpmnXml(xml: string) {
         candidateScope: el.getAttribute('flowable:candidateScope') || 'company',
         candidateType: 'personnel',
         personnel: [], position: null,
-        defaultTarget: el.getAttribute('flowable:defaultTarget') || 'manual',
         approvalMode: el.getAttribute('flowable:approvalMode') || 'single',
         skipContinuous: el.getAttribute('flowable:skipContinuous') === 'true',
         eSignature: el.getAttribute('flowable:eSignature') === 'true',
@@ -944,6 +928,19 @@ function parseBpmnXml(xml: string) {
       }
 
       if (bpmnType === 'approval') {
+        // 兼容两种格式: attribute (flowable:candidateUsers="1,2") 和 extensionElements
+        const attrUsers = el.getAttribute('flowable:candidateUsers')
+        const attrGroups = el.getAttribute('flowable:candidateGroups')
+        if (attrUsers) {
+          node.personnel = attrUsers.split(',').map((s: string) => s.trim()).filter(Boolean)
+          node.candidateType = 'personnel'
+        }
+        if (attrGroups) {
+          const first = attrGroups.split(',').map((s: string) => s.trim()).filter(Boolean)[0]
+          if (first) node.position = parseInt(first) || null
+          node.candidateType = 'position'
+        }
+
         let extEl: Element | null = null
         for (let ci = 0; ci < el.childNodes.length; ci++) {
           const c = el.childNodes[ci]
@@ -963,9 +960,8 @@ function parseBpmnXml(xml: string) {
             }
             if (tagName === 'candidateGroups') {
               const groupVal = (child.textContent || '').split(',').map((s: string) => s.trim()).filter(Boolean)
-              const posId = groupVal.find((g: string) => g.startsWith('group_'))
-              if (posId) node.position = parseInt(posId.replace('group_', ''))
-              else node.position = parseInt(groupVal[0]) || null
+              const first = groupVal[0]
+              if (first) node.position = parseInt(first) || null
               node.candidateType = 'position'
             }
           }
@@ -1377,7 +1373,6 @@ function onCanvasDrop(e: DragEvent) {
     candidateType: 'personnel',
     personnel: [],
     position: null,
-    defaultTarget: 'manual',
     approvalMode: 'single',
     skipContinuous: false,
     eSignature: false,
@@ -1484,36 +1479,80 @@ function onMouseUp() {
 
 // Add node after selected node
 function addNodeAfter(node: any, type: string) {
+  // "条件分支" 仅允许从互斥网关添加
+  if (type === 'condition' && node.type !== 'exclusive') {
+    ElMessage.warning('条件分支只能从互斥网关添加')
+    return
+  }
+
   saveHistory()
+
+  // "条件分支" 实际是一个普通审批节点，但被插入到互斥网关的分支流中
+  if (type === 'condition') {
+    const existing = connections.value.filter(c => c.from === node.id)
+    const branchOffset = existing.length * 80
+
+    const branchNode = {
+      id: 'node_' + (++nodeIdCounter),
+      type: 'approval',
+      label: `条件分支${existing.length}`,
+      description: '',
+      x: node.x + 150,
+      y: node.y + branchOffset,
+      candidateScope: 'company',
+      candidateType: 'personnel',
+      personnel: [],
+      position: null,
+      approvalMode: 'single',
+      skipContinuous: false,
+      eSignature: false
+    }
+    nodes.value = [...nodes.value, branchNode]
+
+    // 如果当前网关有 1 条出连接(默认路径), 将其终点改为本分支节点, 并把原目标作为本分支的出口
+    // 这样保证: 所有分支最终汇聚到原默认终点, 不出现死端
+    if (existing.length === 1) {
+      const oldConn = existing[0]
+      const originalTarget = oldConn.to
+      const newConns = connections.value.filter(c => c.id !== oldConn.id)
+      // 网关 -> 分支节点 (条件路径, 无 condition 让用户设置)
+      newConns.push({ id: 'conn_' + (++connIdCounter), from: node.id, to: branchNode.id, conditionExpr: '' })
+      // 分支节点 -> 原目标 (无条件, 作为该分支的收尾)
+      newConns.push({ id: 'conn_' + (++connIdCounter), from: branchNode.id, to: originalTarget })
+      connections.value = newConns
+    } else {
+      // 多个出连接或没有: 直接追加一条带条件的连线
+      connections.value = [...connections.value, {
+        id: 'conn_' + (++connIdCounter),
+        from: node.id,
+        to: branchNode.id,
+        conditionExpr: ''
+      }]
+    }
+
+    selectConnection(connections.value[connections.value.length - 1])
+    ElMessage.success('已添加条件分支，请设置连线上的条件表达式')
+    return
+  }
+
+  // 普通节点插入 (审批任务/互斥网关/并行网关/子流程)
   const newNode = {
     id: 'node_' + (++nodeIdCounter),
-    type: type === 'condition' ? 'approval' : type,
-    label: type === 'condition' ? '条件分支' : getNodeTypeLabel(type),
+    type,
+    label: getNodeTypeLabel(type),
     description: '',
     x: node.x + 150,
-    y: node.y + (node.type === 'exclusive' ? connections.value.filter(c => c.from === node.id).length * 80 : 0),
+    y: node.y,
     candidateScope: 'company',
     candidateType: 'personnel',
     personnel: [],
     position: null,
-    defaultTarget: 'manual',
     approvalMode: 'single',
     skipContinuous: false,
-    eSignature: false
+    eSignature: false,
+    calledElement: type === 'callActivity' ? '' : undefined
   }
   nodes.value = [...nodes.value, newNode]
-
-  if (node.type === 'exclusive') {
-    connections.value = [...connections.value, {
-      id: 'conn_' + (++connIdCounter),
-      from: node.id,
-      to: newNode.id,
-      conditionExpr: '${true}'
-    }]
-    selectNode(newNode)
-    ElMessage.success(`已添加条件分支，请在连线属性中设置条件表达式（默认 ${true}）`)
-    return
-  }
 
   const outgoingConns = connections.value.filter(c => c.from === node.id)
 
@@ -1611,7 +1650,6 @@ function generateBpmnXml(): string {
     } else if (node.type === 'approval') {
       let attrs = `id="${node.id}" name="${node.label}"`
       if (node.candidateScope) attrs += ` flowable:candidateScope="${node.candidateScope}"`
-      if (node.defaultTarget) attrs += ` flowable:defaultTarget="${node.defaultTarget}"`
       if (node.approvalMode) attrs += ` flowable:approvalMode="${node.approvalMode}"`
       if (node.skipContinuous) attrs += ` flowable:skipContinuous="true"`
       if (node.eSignature) attrs += ` flowable:eSignature="true"`
@@ -1623,7 +1661,7 @@ function generateBpmnXml(): string {
           lines.push(`        <flowable:candidateUsers>${node.personnel.join(',')}</flowable:candidateUsers>`)
         }
         if (node.position) {
-          lines.push(`        <flowable:candidateGroups>group_${node.position}</flowable:candidateGroups>`)
+          lines.push(`        <flowable:candidateGroups>${node.position}</flowable:candidateGroups>`)
         }
         lines.push('      </bpmn:extensionElements>')
       }

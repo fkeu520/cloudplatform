@@ -82,17 +82,6 @@
               </el-form-item>
             </div>
 
-            <!-- 设置送审配置 (UserTask) -->
-            <div class="prop-section" v-if="elementType === 'UserTask'">
-              <div class="prop-section-title">设置送审配置</div>
-              <el-form-item label="默认审批对象">
-                <el-radio-group v-model="defaultTarget" @change="saveFlowableData" size="small">
-                  <el-radio value="first">默认首位</el-radio>
-                  <el-radio value="manual">手动选择</el-radio>
-                </el-radio-group>
-              </el-form-item>
-            </div>
-
             <!-- 设置审批规则 (UserTask) -->
             <div class="prop-section" v-if="elementType === 'UserTask'">
               <div class="prop-section-title">设置审批规则</div>
@@ -215,7 +204,6 @@ const candidateScope = ref('company')
 const candidateType = ref('personnel')
 const selectedPersonnelIds = ref<string[]>([])
 const selectedPositionId = ref<any>(null)
-const defaultTarget = ref('manual')
 const approvalMode = ref('single')
 const skipContinuous = ref(false)
 const eSignature = ref(false)
@@ -385,9 +373,8 @@ function saveFlowableData() {
   if (candidateType.value === 'personnel') {
     if (selectedPersonnelIds.value.length > 0) data.candidateUsers = selectedPersonnelIds.value.join(',')
   } else {
-    if (selectedPositionId.value) data.candidateGroups = 'group_' + selectedPositionId.value
+    if (selectedPositionId.value) data.candidateGroups = String(selectedPositionId.value)
   }
-  if (defaultTarget.value) data.defaultTarget = defaultTarget.value
   if (approvalMode.value) data.approvalMode = approvalMode.value
   if (skipContinuous.value) data.skipContinuous = 'true'
   if (eSignature.value) data.eSignature = 'true'
@@ -413,13 +400,11 @@ function saveFlowableData() {
         }
       }
 
-      // 候选人/组 - 仅保存到 flowableData Map，由 injectFlowableProps 写入 XML
-      // Flowable 要求候选人作为 userTask 的直接属性 (flowable:candidateUsers="1,2,3")
-      // 不通过 modeling.updateProperties 写入，因为 bpmn-js 不原生支持 flowable 扩展
+      // 候选人/组 - 仅保存到 flowableData Map，由 injectFlowableProps 写入 XML extensionElements
+      // extensionElement 形式是 BPMN 2.0 标准, Flowable 完全支持, 且两个设计器可互通解析
 
       // flowable 自定义属性直接写入 businessObject (非标准 BPMN，仅用于前端状态保持)
       if (data.candidateScope) bo.candidateScope = data.candidateScope
-      if (data.defaultTarget) bo.defaultTarget = data.defaultTarget
       if (data.approvalMode) bo.approvalMode = data.approvalMode
       if (data.skipContinuous === 'true') bo.skipContinuous = 'true'
       if (data.eSignature === 'true') bo.eSignature = 'true'
@@ -442,8 +427,7 @@ function loadFlowableData(elementId: string) {
   candidateScope.value = data.candidateScope || 'company'
   candidateType.value = data.candidateType || 'personnel'
   selectedPersonnelIds.value = (data.candidateUsers || '').split(',').map(s => s.trim()).filter(Boolean)
-  selectedPositionId.value = data.candidateGroups ? data.candidateGroups.replace('group_', '') : null
-  defaultTarget.value = data.defaultTarget || 'manual'
+  selectedPositionId.value = data.candidateGroups || null
   approvalMode.value = data.approvalMode || 'single'
   skipContinuous.value = data.skipContinuous === 'true'
   eSignature.value = data.eSignature === 'true'
@@ -721,6 +705,13 @@ function updateConditionExpression() {
 
 function injectXmlns(rootEl: Element) { if (!rootEl.hasAttribute('xmlns:flowable')) rootEl.setAttribute('xmlns:flowable', 'http://flowable.org/bpmn') }
 
+function buildExtensionElementsXml(candidateUsers?: string, candidateGroups?: string): string {
+  const inner: string[] = []
+  if (candidateUsers) inner.push(`<flowable:candidateUsers>${candidateUsers}</flowable:candidateUsers>`)
+  if (candidateGroups) inner.push(`<flowable:candidateGroups>${candidateGroups}</flowable:candidateGroups>`)
+  return `<bpmn:extensionElements>${inner.join('')}</bpmn:extensionElements>`
+}
+
 function injectFlowableProps(xml: string): string {
   // 1. 确保根元素有 xmlns:flowable 声明
   if (!/xmlns:flowable\s*=/.test(xml)) {
@@ -737,26 +728,23 @@ function injectFlowableProps(xml: string): string {
     )
   }
 
-  // 3. 为每个 userTask 注入 flowable 属性 (使用字符串替换，绕过 DOM 命名空间问题)
+  // 3. 为每个 userTask 注入 flowable 属性 + 候选人到 extensionElements
   flowableData.forEach((data, elementId) => {
-    // 匹配 <bpmn:userTask ... id="elementId" ... /> 或 <bpmn:userTask ... id="elementId" ...>...</bpmn:userTask>
-    // 使用 [\s\S] 匹配换行，[^>]* 不会跨过 ">"
-    // 注意：attrs 捕获组已包含 <bpmn:userTask 标签名
+    // 先处理 userTask 标签上的简单 flowable 属性
     const taskRegex = new RegExp(
       `(<bpmn:userTask\\b[^>]*?\\bid="${elementId}"[^>]*?)(\\s*/?>)`,
       'g'
     )
     xml = xml.replace(taskRegex, (_match, attrs, close) => {
-      // attrs 已经包含 <bpmn:userTask 标签名，只处理属性部分
       let newAttrs = attrs
-      // 移除已存在的 flowable 属性 (避免重复)
-      newAttrs = newAttrs.replace(/\s+flowable:[a-zA-Z]+="[^"]*"/g, '')
-      // 注入候选人/组 (Flowable 要求作为 userTask 直接属性)
+      // 移除已存在的简单 flowable 属性 (避免重复)
+      newAttrs = newAttrs.replace(/\s+flowable:(?:candidateScope|approvalMode|skipContinuous|eSignature)="[^"]*"/g, '')
+      // 移除已存在的 candidateUsers/candidateGroups attribute (旧格式, 现在改用 extensionElements)
+      newAttrs = newAttrs.replace(/\s+flowable:candidateUsers="[^"]*"/g, '')
+      newAttrs = newAttrs.replace(/\s+flowable:candidateGroups="[^"]*"/g, '')
+      // 注入简单属性
       const injectAttrs: string[] = []
-      if (data.candidateUsers) injectAttrs.push(`flowable:candidateUsers="${data.candidateUsers}"`)
-      if (data.candidateGroups) injectAttrs.push(`flowable:candidateGroups="${data.candidateGroups}"`)
       if (data.candidateScope) injectAttrs.push(`flowable:candidateScope="${data.candidateScope}"`)
-      if (data.defaultTarget) injectAttrs.push(`flowable:defaultTarget="${data.defaultTarget}"`)
       if (data.approvalMode) injectAttrs.push(`flowable:approvalMode="${data.approvalMode}"`)
       if (data.skipContinuous === 'true') injectAttrs.push(`flowable:skipContinuous="true"`)
       if (data.eSignature === 'true') injectAttrs.push(`flowable:eSignature="true"`)
@@ -765,6 +753,26 @@ function injectFlowableProps(xml: string): string {
       }
       return newAttrs + close
     })
+
+    // 注入候选人到 extensionElements (统一格式, 与 ProcessDesigner 互通)
+    if (data.candidateUsers || data.candidateGroups) {
+      const extXml = buildExtensionElementsXml(data.candidateUsers, data.candidateGroups)
+      const flowRegex = new RegExp(
+        `(<bpmn:userTask\\b[^>]*?\\bid="${elementId}"[^>]*?)(/?>)([\\s\\S]*?)(</bpmn:userTask>)`,
+        'g'
+      )
+      xml = xml.replace(flowRegex, (match, attrs, close, body) => {
+        // 移除旧 candidateUsers/candidateGroups
+        const cleanedBody = body
+          .replace(/<bpmn:extensionElements>[\s\S]*?<\/bpmn:extensionElements>/g, '')
+        if (close === '/>') {
+          // 自闭合 → 展开为开闭标签 + extensionElements
+          return `<bpmn:userTask${attrs}>${extXml}</bpmn:userTask>`
+        }
+        // 已有子元素, 在 userTask 闭合前插入 extensionElements
+        return `<bpmn:userTask${attrs}${close}${cleanedBody}${extXml}</bpmn:userTask>`
+      })
+    }
 
     // 4. callActivity 的 calledElement
     if (data.calledElement) {
