@@ -195,14 +195,13 @@ services:
     environment:
       - TZ=Asia/Shanghai
       - LS_JAVA_OPTS=-Xms512m -Xmx512m
-      # 强制 Logstash API 监听 IPv4 0.0.0.0 (默认在 Alpine 镜像上只绑 IPv6 ::, 导致
-      # 容器内 curl localhost:9600 拒连 → healthcheck 永远 unhealthy, 详见 KNOWN_ISSUES #20)
-      - API_HTTP_HOST=0.0.0.0
     ports:
       - "5000:5000"      # TCP/JSON 兼容输入
       - "12201:12201/udp" # GELF UDP 输入 (Docker logging driver)
     volumes:
       - ./docker/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      # 覆盖镜像默认 logstash.yml (默认同时含 api.http.host + http.host 触发校验失败)
+      - ./docker/logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
     depends_on:
       elasticsearch:
         condition: service_healthy
