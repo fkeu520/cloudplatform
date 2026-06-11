@@ -110,11 +110,15 @@ public class TenantController {
         return Result.ok();
     }
 
-    @Log(title = "租户管理", businessType = 3)
-    @Operation(summary = "删除租户管理员")
-    @DeleteMapping("/{id}/admin/{userId}")
-    public Result<Void> deleteAdmin(@PathVariable Long id, @PathVariable Long userId) {
-        tenantService.deleteAdmin(id, userId);
+    @Log(title = "租户管理", businessType = 2)
+    @Operation(summary = "重置租户管理员密码")
+    @PostMapping("/{id}/admin/{userId}/reset-password")
+    public Result<Void> resetAdminPassword(
+            @PathVariable Long id,
+            @PathVariable Long userId,
+            @RequestBody Map<String, String> params) {
+        String newPassword = params != null ? params.get("newPassword") : null;
+        tenantService.resetAdminPassword(id, userId, newPassword);
         return Result.ok();
     }
 }

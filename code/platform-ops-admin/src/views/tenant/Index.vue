@@ -117,15 +117,16 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="adminDialogVisible" :title="'管理员管理 - ' + adminTenantName" width="600px">
+    <el-dialog v-model="adminDialogVisible" :title="'管理员管理 - ' + adminTenantName" width="800px">
       <el-button size="small" type="primary" style="margin-bottom:12px" @click="handleAddAdmin">新增管理员</el-button>
       <el-table :data="adminList" v-loading="adminLoading" border stripe>
         <el-table-column prop="username" label="账号" width="120" />
         <el-table-column prop="nickname" label="昵称" width="120" />
         <el-table-column prop="mobile" label="手机号" width="120" />
-        <el-table-column prop="email" label="邮箱" min-width="160" />
-        <el-table-column label="操作" width="80" fixed="right">
+        <el-table-column prop="email" label="邮箱" min-width="200" />
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
+            <el-button type="warning" link @click="handleResetPassword(row)">重置密码</el-button>
             <el-popconfirm title="确定移除该管理员？" @confirm="handleDeleteAdmin(row)">
               <template #reference>
                 <el-button type="danger" link>删除</el-button>
@@ -156,13 +157,31 @@
         <el-button type="primary" :loading="addAdminSubmitting" @click="handleAddAdminSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="resetPwdDialogVisible" title="重置管理员密码" width="440px">
+      <el-form ref="resetPwdFormRef" :model="resetPwdForm" :rules="resetPwdRules" label-width="100px">
+        <el-form-item label="账号">
+          <el-input :model-value="resetPwdTarget?.username" disabled />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="resetPwdForm.newPassword" type="password" show-password placeholder="至少 6 位" />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="resetPwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetPwdDialogVisible=false">取消</el-button>
+        <el-button type="primary" :loading="resetPwdSubmitting" @click="handleResetPasswordSubmit">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { page, create, update, remove, toggleStatus, listOrgs, listAdmins, createAdmin, deleteAdmin } from '../../api/tenant'
+import { page, create, update, remove, toggleStatus, listOrgs, listAdmins, createAdmin, deleteAdmin, resetAdminPassword } from '../../api/tenant'
 import { list as listApps } from '../../api/app'
 import { getAuthorizedAppIds, authorizeApps } from '../../api/tenantApp'
 
@@ -314,5 +333,48 @@ async function handleDeleteAdmin(row: any) {
     ElMessage.success('管理员已删除')
     fetchAdmins()
   } catch { /* ignore */ }
+}
+
+// 重置密码弹窗
+const resetPwdDialogVisible = ref(false)
+const resetPwdSubmitting = ref(false)
+const resetPwdTarget = ref<any>(null)
+const resetPwdFormRef = ref()
+const resetPwdForm = reactive({ newPassword: '', confirmPassword: '' })
+const resetPwdRules = {
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码至少 6 位', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_rule: any, value: string, callback: any) => {
+        if (value !== resetPwdForm.newPassword) callback(new Error('两次输入的密码不一致'))
+        else callback()
+      },
+      trigger: 'blur'
+    }
+  ]
+}
+
+function handleResetPassword(row: any) {
+  resetPwdTarget.value = row
+  Object.assign(resetPwdForm, { newPassword: '', confirmPassword: '' })
+  resetPwdDialogVisible.value = true
+  nextTick(() => resetPwdFormRef.value?.clearValidate())
+}
+
+async function handleResetPasswordSubmit() {
+  const valid = await resetPwdFormRef.value.validate().catch(() => false)
+  if (!valid) return
+  resetPwdSubmitting.value = true
+  try {
+    await resetAdminPassword(adminTenantId.value, resetPwdTarget.value.id, resetPwdForm.newPassword)
+    ElMessage.success(`管理员 [${resetPwdTarget.value.username}] 密码已重置`)
+    resetPwdDialogVisible.value = false
+  } finally {
+    resetPwdSubmitting.value = false
+  }
 }
 </script>
