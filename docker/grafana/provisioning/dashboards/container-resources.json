@@ -30,7 +30,7 @@
         }
       },
       "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false} },
-      "targets": [{"expr": "count(container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A"}]
+      "targets": [{"expr": "count(container_cpu_usage_seconds_total{name=~\"/platform-.*\", name!=\"/platform-cadvisor\"})", "refId": "A"}]
     },
     {
       "id": 3, "type": "stat", "title": "内存总使用 (容器)",
@@ -38,7 +38,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": { "defaults": { "unit": "decbytes" } },
       "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false} },
-      "targets": [{"expr": "sum(container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "total memory"}]
+      "targets": [{"expr": "sum(container_memory_working_set_bytes{name=~\"/platform-.*\", name!=\"/platform-cadvisor\"})", "refId": "A", "legendFormat": "total memory"}]
     },
     {
       "id": 4, "type": "stat", "title": "CPU 总使用 (容器)",
@@ -46,7 +46,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": { "defaults": { "unit": "none", "decimals": 2 } },
       "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false} },
-      "targets": [{"expr": "sum(container_cpu_usage{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "CPU cores"}]
+      "targets": [{"expr": "sum(rate(container_cpu_usage_seconds_total[1m]){name=~\"/platform-.*\", name!=\"/platform-cadvisor\"})", "refId": "A", "legendFormat": "CPU cores"}]
     },
     {
       "id": 5, "type": "table", "title": "各服务内存占用排名 (实时)",
@@ -60,7 +60,7 @@
         "overrides": [{"matcher": {"id": "byName", "options": "服务名"}, "properties": [{"id": "custom.width", "value": 200}]}]
       },
       "options": { "sortBy": [{"displayName": "内存 (bytes)", "desc": true}] },
-      "targets": [{"expr": "container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"}", "format": "table", "instant": true, "refId": "A", "legendFormat": "{{name}}"}],
+      "targets": [{"expr": "container_memory_working_set_bytes{name=~\"/platform-.*\", name!=\"/platform-cadvisor\"}", "format": "table", "instant": true, "refId": "A", "legendFormat": "{{name}}"}],
       "transformations": [{"id": "organize", "options": {
         "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "id": true, "image": true, "interval": true },
         "indexByName": {"name": 0, "Value": 1},
@@ -77,7 +77,7 @@
         }
       },
       "options": { "sortBy": [{"displayName": "CPU (cores)", "desc": true}] },
-      "targets": [{"expr": "container_cpu_usage{name=~\"platform-.*\", name!=\"platform-container-exporter\"}", "format": "table", "instant": true, "refId": "A", "legendFormat": "{{name}}"}],
+      "targets": [{"expr": "rate(container_cpu_usage_seconds_total[1m]){name=~\"/platform-.*\", name!=\"/platform-cadvisor\"}", "format": "table", "instant": true, "refId": "A", "legendFormat": "{{name}}"}],
       "transformations": [{"id": "organize", "options": {
         "excludeByName": { "Time": true, "__name__": true, "instance": true, "job": true, "id": true, "image": true },
         "indexByName": {"name": 0, "Value": 1},
@@ -95,7 +95,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": { "defaults": { "unit": "decbytes", "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10} } },
       "options": { "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"} },
-      "targets": [{"expr": "topk(8, container_memory_working_set_bytes{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "{{name}}"}]
+      "targets": [{"expr": "topk(8, container_memory_working_set_bytes{name=~\"/platform-.*\", name!=\"/platform-cadvisor\"})", "refId": "A", "legendFormat": "{{name}}"}]
     },
     {
       "id": 9, "type": "timeseries", "title": "各容器 CPU 趋势 (Top 8)",
@@ -103,7 +103,7 @@
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": { "defaults": { "unit": "none", "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10} } },
       "options": { "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"]}, "tooltip": {"mode": "multi"} },
-      "targets": [{"expr": "topk(8, container_cpu_usage{name=~\"platform-.*\", name!=\"platform-container-exporter\"})", "refId": "A", "legendFormat": "{{name}}"}]
+      "targets": [{"expr": "topk(8, rate(container_cpu_usage_seconds_total[1m]){name=~\"/platform-.*\", name!=\"/platform-cadvisor\"})", "refId": "A", "legendFormat": "{{name}}"}]
     }
   ]
 }
