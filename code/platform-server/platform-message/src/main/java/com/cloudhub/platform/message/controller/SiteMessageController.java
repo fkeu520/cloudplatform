@@ -1,6 +1,7 @@
 package com.cloudhub.platform.message.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.common.result.Result;
@@ -72,13 +73,16 @@ public class SiteMessageController {
     @PostMapping("/read-all")
     public Result<Void> markAllRead(@RequestBody Map<String, Object> params) {
         String userId = (String) params.getOrDefault("userId", "");
-        QueryWrapper<SysMessage> query = new QueryWrapper<>();
-        query.eq("read_status", 0);
+        // 2026-06-12 修复: 原用 siteMessageService.update(msg, query) 报 500
+        // 根因: entity-to-map 模式生成 SET 子句, BaseEntity 继承的 deleted/updateTime
+        // 字段在 entity 模式下被 MyBatis-Plus 内部处理时与 readStatus 字段冲突
+        // 改用 UpdateWrapper.set 显式指定 SET 列, 绕开 entity 转 map 歧义
+        UpdateWrapper<SysMessage> uw = new UpdateWrapper<>();
+        uw.set("read_status", 1);
+        uw.eq("read_status", 0);
         if (userId != null && !userId.isBlank())
-            query.and(w -> w.eq("receiver_id", userId).or().eq("receiver_name", userId).or().isNull("receiver_id"));
-        SysMessage msg = new SysMessage();
-        msg.setReadStatus(1);
-        siteMessageService.update(msg, query);
+            uw.and(w -> w.eq("receiver_id", userId).or().eq("receiver_name", userId).or().isNull("receiver_id"));
+        siteMessageService.update(uw);
         return Result.ok();
     }
 
