@@ -56,6 +56,9 @@ public class FlowableConfig {
         // 部署时仍会查 ACT_ID_USER, 找不到就静默丢 candidate link)
         // 双保险: 标志 + null, 确保 IDM 引擎完全跳过
         config.setIdmEngineConfigurator(null);
+        // 2026-06-12 不再靠 Flowable 配置, 改在 WorkflowInstanceService.start / WorkflowTaskService.complete
+        // 中调 ensureTaskCandidates: 从已部署的 BPMN 模型解析 <userTask> candidateUsers, 用
+        // taskService.addCandidateUser() 写入 ACT_RU_IDENTITYLINK, 完全跳过 Flowable IDM 校验。
         return config;
     }
 
