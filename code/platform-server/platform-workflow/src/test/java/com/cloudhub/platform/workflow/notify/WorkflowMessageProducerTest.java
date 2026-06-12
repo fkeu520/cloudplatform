@@ -14,6 +14,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.springframework.kafka.support.SendResult;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,7 +48,7 @@ class WorkflowMessageProducerTest {
                 org.mockito.ArgumentMatchers.any(String.class),
                 org.mockito.ArgumentMatchers.any(Object.class),
                 org.mockito.ArgumentMatchers.any(Object.class)))
-            .thenReturn(CompletableFuture.completedFuture(null));
+            .thenReturn(CompletableFuture.completedFuture((SendResult<String, Object>) null));
     }
 
     @Test
