@@ -28,7 +28,7 @@ import java.util.Optional;
  * <ul>
  *   <li>1=全部 → "" (不加条件)</li>
  *   <li>2=本部门 → " AND {alias}.{deptAlias} = {userDeptId}"</li>
- *   <li>3=本部门及下级 → " AND {alias}.{deptAlias} IN ({childDeptIds})" (TODO: CTE)</li>
+ *   <li>3=本部门及下级 → " AND {alias}.{deptAlias} IN ({childDeptIds})" (MySQL 8 递归 CTE, PR1 2026-06-05)</li>
  *   <li>4=本人 → " AND {alias}.{userAlias} = {userId}"</li>
  *   <li>5=自定义 → " AND {alias}.{deptAlias} IN ({customDeptIds})"</li>
  * </ul>
@@ -36,8 +36,9 @@ import java.util.Optional;
  * <h2>多角色合并策略 (决策 1)</h2>
  * 取最严格 (max data_scope), 实现由 DataScopeProvider 完成
  *
- * <h2>dept 子树查询 (决策 2)</h2>
- * scope=3 用 MySQL 8.0 递归 CTE (TODO: 实现 selectChildDeptIds)
+ * <h2>dept 子树查询 (决策 2 v1.1 修订)</h2>
+ * scope=3 子节点由 user 模块 DeptMapper.selectChildDeptIdsByCte 查 (MySQL 8 WITH RECURSIVE),<br>
+ * 灰度开关 {@code platform.data-scope.upgrade.enabled} (PR1) 控制走 CTE (true) 还是应用层 DFS (false)
  *
  * <h2>跨模块依赖</h2>
  * DataScopeProvider 由 user 模块实现, common 模块通过接口注入
@@ -127,7 +128,7 @@ public class DataScopeAspect {
                     return buildSelfFragment(alias, userId, annotation);
                 }
                 return String.format("(%s%s = %d)", alias, annotation.deptAlias(), ctx.getUserDeptId());
-            case 3: // 本部门及下级 (决策 2: 应用层递归 / MySQL CTE)
+            case 3: // 本部门及下级 (决策 2 v1.1: MySQL 8 CTE, 灰度开关切换)
                 if (ctx.getChildDeptIds() != null && !ctx.getChildDeptIds().isEmpty()) {
                     return String.format("(%s%s IN (%s))", alias, annotation.deptAlias(), ctx.getChildDeptIds());
                 }
