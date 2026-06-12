@@ -122,6 +122,16 @@
             <version>7.4</version>
         </dependency>
 
+        <!-- JSQLParser (v4.6, 与 MyBatis-Plus 3.5.5 传递的版本对齐)
+             配套 DataScopeInnerInterceptor / MybatisPlusConfig 大量使用 net.sf.jsqlparser.*
+             之前只靠 mybatis-plus-extension 传递依赖, 防御性显式声明, 避免未来 MyBatis-Plus
+             升级改传递策略后 6 服务同时 ClassNotFoundException -->
+        <dependency>
+            <groupId>com.github.jsqlparser</groupId>
+            <artifactId>jsqlparser</artifactId>
+            <version>4.6</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
