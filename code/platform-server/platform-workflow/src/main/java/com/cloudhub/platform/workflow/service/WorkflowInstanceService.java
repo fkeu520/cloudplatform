@@ -6,8 +6,11 @@ import com.cloudhub.platform.workflow.notify.WorkflowMessageProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.flowable.bpmn.model.FlowElement;
+import org.flowable.bpmn.model.UserTask;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.IdentityService;
+import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.engine.history.HistoricProcessInstance;
@@ -28,6 +31,7 @@ public class WorkflowInstanceService {
     private final HistoryService historyService;
     private final IdentityService identityService;
     private final TaskService taskService;
+    private final RepositoryService repositoryService;
     private final WorkflowMessageProducer workflowMessageProducer;
 
     @Transactional
@@ -56,6 +60,14 @@ public class WorkflowInstanceService {
             List<Task> firstTasks = taskService.createTaskQuery()
                     .processInstanceId(pi.getId()).active().list();
             for (Task t : firstTasks) {
+                // 2026-06-12 修复: 绕过 Flowable IDM 引擎, 从 BPMN 模型读取候选人并直接写入
+                // Flowable 6.8.1 即使 setDisableIdmEngine(true) + setIdmEngineConfigurator(null),
+                // UserTaskActivityBehavior 仍会调 identityService.isUserManaged() 查 ACT_ID_USER,
+                // 找不到就跳过 candidate link 创建 (ACT_ID_USER 为空)。
+                // 这里显式从已部署的 BPMN 模型中解析 <userTask> 的 candidateUsers, 用
+                // taskService.addCandidateUser() 写入 ACT_RU_IDENTITYLINK, 完全跳过 IDM 校验。
+                ensureTaskCandidates(t, pi.getProcessDefinitionId());
+
                 List<String> recipients = collectTaskRecipients(t);
                 workflowMessageProducer.sendMessage(new WorkflowMessage(
                         t.getId(), t.getName(), recipients,
@@ -201,6 +213,51 @@ public class WorkflowInstanceService {
      *   - 候选用户 (从 identityLinks 读取 candidate user)
      * 用于解决候选人任务 assignee=null 导致 Kafka 消息丢失的问题
      */
+    /**
+     * 确保任务的候选人已写入 ACT_RU_IDENTITYLINK
+     * <p>Flowable 6.8.1 在 IDM 禁用后仍不会自动创建 candidate identity link (isUserManaged 查 ACT_ID_USER 返回 0 导致跳过)。
+     * 本方法直接从 BPMN 模型解析 &lt;userTask candidateUsers&gt;, 调 taskService.addCandidateUser 写入,
+     * 完全绕过 IDM 校验。已存在的 link 不会重复写入 (Flowable 内部去重)。</p>
+     */
+    private void ensureTaskCandidates(Task task, String processDefinitionId) {
+        try {
+            // 查现有 identity links, 已有 candidate 时不重复处理
+            List<IdentityLink> links = taskService.getIdentityLinksForTask(task.getId());
+            boolean hasCandidate = links.stream().anyMatch(l -> "candidate".equals(l.getType()));
+            if (hasCandidate) return;
+
+            // 从已部署的 BPMN 模型读 UserTask 定义
+            org.flowable.bpmn.model.BpmnModel bpmnModel = repositoryService
+                    .getBpmnModel(processDefinitionId);
+            if (bpmnModel == null) return;
+
+            // 从主流程 + 子流程所有流程元素中找到当前任务定义 key 对应的 userTask
+            FlowElement fe = bpmnModel.getFlowElement(task.getTaskDefinitionKey());
+            if (!(fe instanceof UserTask userTask)) return;
+
+            // 写入 candidate users
+            if (userTask.getCandidateUsers() != null) {
+                for (String candidateUser : userTask.getCandidateUsers()) {
+                    if (candidateUser != null && !candidateUser.isBlank()) {
+                        taskService.addCandidateUser(task.getId(), candidateUser);
+                        log.debug("Added candidate user {} to task {}", candidateUser, task.getId());
+                    }
+                }
+            }
+            // 写入 candidate groups
+            if (userTask.getCandidateGroups() != null) {
+                for (String candidateGroup : userTask.getCandidateGroups()) {
+                    if (candidateGroup != null && !candidateGroup.isBlank()) {
+                        taskService.addCandidateGroup(task.getId(), candidateGroup);
+                        log.debug("Added candidate group {} to task {}", candidateGroup, task.getId());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to ensure candidates for task {}: {}", task.getId(), e.getMessage());
+        }
+    }
+
     protected List<String> collectTaskRecipients(Task task) {
         List<String> recipients = new ArrayList<>();
         if (task.getAssignee() != null && !task.getAssignee().isBlank()) {

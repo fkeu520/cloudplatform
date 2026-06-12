@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.flowable.engine.HistoryService;
+import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.identitylink.api.IdentityLink;
@@ -27,6 +28,7 @@ public class WorkflowTaskService {
     private final TaskService taskService;
     private final RuntimeService runtimeService;
     private final HistoryService historyService;
+    private final RepositoryService repositoryService;
     private final JdbcTemplate jdbcTemplate;
     private final WorkflowMessageProducer workflowMessageProducer;
 
@@ -139,6 +141,7 @@ public class WorkflowTaskService {
             List<Task> nextTasks = taskService.createTaskQuery()
                     .processInstanceId(task.getProcessInstanceId()).active().list();
             for (Task next : nextTasks) {
+                ensureTaskCandidates(next, next.getProcessDefinitionId());
                 List<String> recipients = collectTaskRecipients(next);
                 String processDefName = null;
                 String businessKey = null;
@@ -202,6 +205,38 @@ public class WorkflowTaskService {
      * 收集任务的收件人列表 (直接 assignee + 候选用户)
      * 用于修复候选人任务 assignee=null 导致 Kafka 消息丢失的问题
      */
+    /**
+     * 确保任务的候选人已写入 ACT_RU_IDENTITYLINK
+     * (同 WorkflowInstanceService.ensureTaskCandidates, 两个 service 都需走相同逻辑)
+     */
+    private void ensureTaskCandidates(Task task, String processDefinitionId) {
+        try {
+            List<IdentityLink> links = taskService.getIdentityLinksForTask(task.getId());
+            boolean hasCandidate = links.stream().anyMatch(l -> "candidate".equals(l.getType()));
+            if (hasCandidate) return;
+            org.flowable.bpmn.model.BpmnModel bpmnModel = repositoryService.getBpmnModel(processDefinitionId);
+            if (bpmnModel == null) return;
+            org.flowable.bpmn.model.FlowElement fe = bpmnModel.getFlowElement(task.getTaskDefinitionKey());
+            if (!(fe instanceof org.flowable.bpmn.model.UserTask userTask)) return;
+            if (userTask.getCandidateUsers() != null) {
+                for (String cu : userTask.getCandidateUsers()) {
+                    if (cu != null && !cu.isBlank()) {
+                        taskService.addCandidateUser(task.getId(), cu);
+                    }
+                }
+            }
+            if (userTask.getCandidateGroups() != null) {
+                for (String cg : userTask.getCandidateGroups()) {
+                    if (cg != null && !cg.isBlank()) {
+                        taskService.addCandidateGroup(task.getId(), cg);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to ensure candidates for task {}: {}", task.getId(), e.getMessage());
+        }
+    }
+
     private List<String> collectTaskRecipients(Task task) {
         List<String> recipients = new ArrayList<>();
         if (task.getAssignee() != null && !task.getAssignee().isBlank()) {
