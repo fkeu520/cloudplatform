@@ -21,6 +21,11 @@ on:
       - 'code/platform-admin/package-lock.json'
       - 'code/platform-ops-admin/package.json'
       - 'code/platform-ops-admin/package-lock.json'
+      # 前端 nginx 配置 (修复 2026-06-12 gateway 容器 IP 变更 502 — 同 154da52 同类漏洞)
+      - 'code/platform-admin/nginx.conf'
+      - 'code/platform-admin/**/nginx.conf'
+      - 'code/platform-ops-admin/nginx.conf'
+      - 'code/platform-ops-admin/**/nginx.conf'
       # Docker 镜像配置
       - 'code/platform-server/Dockerfile'
       - 'code/platform-server/Dockerfile.*'
@@ -41,6 +46,10 @@ on:
       - 'code/platform-admin/package-lock.json'
       - 'code/platform-ops-admin/package.json'
       - 'code/platform-ops-admin/package-lock.json'
+      - 'code/platform-admin/nginx.conf'
+      - 'code/platform-admin/**/nginx.conf'
+      - 'code/platform-ops-admin/nginx.conf'
+      - 'code/platform-ops-admin/**/nginx.conf'
       - 'code/platform-server/Dockerfile'
       - 'code/platform-server/Dockerfile.*'
       - 'code/platform-admin/Dockerfile'
