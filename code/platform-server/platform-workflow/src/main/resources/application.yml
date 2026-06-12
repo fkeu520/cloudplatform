@@ -57,7 +57,6 @@ spring:
       properties:
         enable.idempotence: true
         max.in.flight.requests.per.connection: 1
-        spring.json.type.mapping: taskNotify:com.cloudhub.platform.workflow.notify.TaskNotifyMessage
         max.block.ms: 3000
         request.timeout.ms: 3000
     consumer:
@@ -67,11 +66,9 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.type.mapping: taskNotify:com.cloudhub.platform.workflow.notify.TaskNotifyMessage
-        spring.json.trusted.packages: com.cloudhub.platform.workflow
+        spring.json.trusted.packages: com.cloudhub.platform.common
         max.poll.interval.ms: 5000
     topic:
-      task-notify: task-notify
       workflow-message: workflow-message
 
   flyway:
