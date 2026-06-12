@@ -2,8 +2,6 @@ package com.cloudhub.platform.workflow.service;
 
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.notify.WorkflowMessage;
-import com.cloudhub.platform.workflow.notify.TaskNotifyMessage;
-import com.cloudhub.platform.workflow.notify.TaskNotifyProducer;
 import com.cloudhub.platform.workflow.notify.WorkflowMessageProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +28,6 @@ public class WorkflowTaskService {
     private final RuntimeService runtimeService;
     private final HistoryService historyService;
     private final JdbcTemplate jdbcTemplate;
-    private final TaskNotifyProducer taskNotifyProducer;
     private final WorkflowMessageProducer workflowMessageProducer;
 
     public Map<String, Object> todoPage(String userId, String processName, int pageNum, int pageSize) {
@@ -143,11 +140,6 @@ public class WorkflowTaskService {
                     .processInstanceId(task.getProcessInstanceId()).active().list();
             for (Task next : nextTasks) {
                 List<String> recipients = collectTaskRecipients(next);
-                taskNotifyProducer.sendTaskNotify(new TaskNotifyMessage(
-                        next.getId(), next.getName(), String.join(",", recipients),
-                        next.getProcessInstanceId(), next.getProcessDefinitionId(),
-                        null, next.getCreateTime()));
-
                 String processDefName = null;
                 String businessKey = null;
                 try {

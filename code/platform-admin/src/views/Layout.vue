@@ -118,8 +118,9 @@ import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Bell, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElNotification } from 'element-plus'
 import { getUserMenus, getUserPermissions } from '@/api/menu'
-import { getUnreadNotifies, markNotifyRead, markAllNotifyRead } from '@/api/workflow'
-import { getUnreadSiteMessageCount, getSiteMessagePage } from '@/api/message'
+// 2026-06-12: 删 task-notify 链 (TaskNotifyStore), 通知统一走 sys_message
+// getUnreadNotifies / markNotifyRead / markAllNotifyRead 已删除, 铃铛只读 site message
+import { getUnreadSiteMessageCount, getSiteMessagePage, markSiteMessageRead, markAllSiteMessageRead } from '@/api/message'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -164,22 +165,19 @@ const faIconMap: Record<string, string> = {
 
 async function pollNotifies() {
   try {
-    const [notifyRes, msgCountRes, msgListRes] = await Promise.all([
-      getUnreadNotifies(username),
+    const [msgCountRes, msgListRes] = await Promise.all([
       getUnreadSiteMessageCount(username),
       getSiteMessagePage({ pageNum: 1, pageSize: 5, readStatus: 0, userId: username })
     ]) as any[]
 
-    const notifyData = notifyRes?.data || notifyRes
-    const workflowCount = notifyData?.count || 0
     const messageCount = (msgCountRes?.data ?? msgCountRes) ?? 0
 
-    notifyCount.value = workflowCount + (typeof messageCount === 'number' ? messageCount : 0)
-    notifyList.value = notifyData?.records || []
+    notifyCount.value = typeof messageCount === 'number' ? messageCount : 0
+    notifyList.value = []  // 2026-06-12: 删 task-notify 链, 流程通知也走 sys_message
     const siteData = msgListRes?.data || msgListRes
     siteNotifyList.value = siteData?.records || []
 
-    const currentCount = workflowCount + (typeof messageCount === 'number' ? messageCount : 0)
+    const currentCount = notifyCount.value
     if (currentCount > prevCount && prevCount > 0) {
       const diff = currentCount - prevCount
       ElNotification({
@@ -234,18 +232,20 @@ function formatTime(dt: any): string {
 }
 
 async function gotoTask(n: any) {
-  await markNotifyRead(n.taskId)
+  // 2026-06-12: 流程通知走 sys_message, 标记已读改用 markSiteMessageRead
+  // businessId 存的是 processInstanceId, 详情页可跳转待办
+  await markSiteMessageRead(n.id)
   notifyCount.value = Math.max(0, notifyCount.value - 1)
   notifyVisible.value = false
-  router.push('/workflow/task-todo')
+  router.push(n.businessId ? `/workflow/task-todo?processInstanceId=${n.businessId}` : '/workflow/task-todo')
 }
 
 async function markAllRead() {
-  await markAllNotifyRead(username)
+  await markAllSiteMessageRead(username)
   notifyList.value = []
+  siteNotifyList.value = []
   notifyVisible.value = false
-  const msgRes = await getUnreadSiteMessageCount(username) as any
-  notifyCount.value = (msgRes?.data ?? msgRes) ?? 0
+  notifyCount.value = 0
 }
 
 const loadMenus = async () => {

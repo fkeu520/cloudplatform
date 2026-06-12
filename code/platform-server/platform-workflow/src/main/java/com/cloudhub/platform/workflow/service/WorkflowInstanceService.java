@@ -2,8 +2,6 @@ package com.cloudhub.platform.workflow.service;
 
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.notify.WorkflowMessage;
-import com.cloudhub.platform.workflow.notify.TaskNotifyMessage;
-import com.cloudhub.platform.workflow.notify.TaskNotifyProducer;
 import com.cloudhub.platform.workflow.notify.WorkflowMessageProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +28,6 @@ public class WorkflowInstanceService {
     private final HistoryService historyService;
     private final IdentityService identityService;
     private final TaskService taskService;
-    private final TaskNotifyProducer taskNotifyProducer;
     private final WorkflowMessageProducer workflowMessageProducer;
 
     @Transactional
@@ -60,11 +57,6 @@ public class WorkflowInstanceService {
                     .processInstanceId(pi.getId()).active().list();
             for (Task t : firstTasks) {
                 List<String> recipients = collectTaskRecipients(t);
-                taskNotifyProducer.sendTaskNotify(new TaskNotifyMessage(
-                        t.getId(), t.getName(), String.join(",", recipients),
-                        t.getProcessInstanceId(), t.getProcessDefinitionId(),
-                        null, t.getCreateTime()));
-
                 workflowMessageProducer.sendMessage(new WorkflowMessage(
                         t.getId(), t.getName(), recipients,
                         t.getProcessInstanceId(), t.getProcessDefinitionId(),

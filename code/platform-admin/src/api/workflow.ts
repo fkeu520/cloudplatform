@@ -111,14 +111,7 @@ export function unclaimTask(taskId: string) {
   return request.post(`/workflow/task/${taskId}/unclaim`)
 }
 
-export function getUnreadNotifies(userId: string) {
-  return request.get('/workflow/notify/unread', { params: { userId } })
-}
+// 2026-06-12: 删 task-notify 链后, 以下 3 个 API 端点已删除 (TaskNotifyStore + WorkflowNotifyController)
+// 铃铛通知统一走 /message/site/unread-count + /message/site/page (sys_message 表)
+// 如需历史数据, 旧端点已无, 前端不应再调用
 
-export function markNotifyRead(taskId: string) {
-  return request.post(`/workflow/notify/read/${taskId}`)
-}
-
-export function markAllNotifyRead(userId: string) {
-  return request.post('/workflow/notify/read-all', null, { params: { userId } })
-}
