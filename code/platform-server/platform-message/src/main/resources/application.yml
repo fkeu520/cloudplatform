@@ -55,8 +55,14 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
+        # 2026-06-12 修复: workflow-message 跨服务 DTO 反序列化
+        # 之前只信 com.cloudhub.platform.message, producer 端发 com.cloudhub.platform.workflow.notify.WorkflowMessage
+        # 会被 trusted.packages 拒绝, 消息丢弃。
+        # 修复: WorkflowMessage 移到 com.cloudhub.platform.common.notify (与 consumer 共用), 这里只
+        # 需要把 com.cloudhub.platform.common 加进 trusted.packages 即可, 无需 type.mapping 重映射。
+        # messageSendReq 仍在本服务包, type.mapping 保留。
         spring.json.type.mapping: messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest
-        spring.json.trusted.packages: com.cloudhub.platform.message
+        spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common
     topic:
       message-send: message-send
       workflow-message: workflow-message

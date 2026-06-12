@@ -1,5 +1,6 @@
 package com.cloudhub.platform.workflow.notify;
 
+import com.cloudhub.platform.common.notify.WorkflowMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,13 +33,18 @@ public class WorkflowMessageProducer {
         }
         for (String recipient : recipients) {
             if (recipient == null || recipient.isBlank()) continue;
-            try {
-                kafkaTemplate.send(topic, recipient, message);
-                log.info("Workflow message sent: taskId={}, recipient={}", message.getTaskId(), recipient);
-            } catch (Exception e) {
-                log.warn("Failed to send workflow message: taskId={}, recipient={}, error={}",
-                    message.getTaskId(), recipient, e.getMessage());
-            }
+            // 2026-06-12 修复: 用 whenComplete 回调确认 Kafka ACK, 失败时记 ERROR 不静默
+            // 之前 fire-and-forget, Kafka 慢/挂时 workflow service 不知道, 消息静默丢失
+            kafkaTemplate.send(topic, recipient, message).whenComplete((result, ex) -> {
+                if (ex != null) {
+                    log.error("Failed to send workflow message to Kafka: taskId={}, recipient={}, error={}",
+                        message.getTaskId(), recipient, ex.getMessage(), ex);
+                } else if (log.isDebugEnabled() && result != null) {
+                    log.debug("Workflow message acked: taskId={}, recipient={}, offset={}",
+                        message.getTaskId(), recipient, result.getRecordMetadata().offset());
+                }
+            });
+            log.info("Workflow message dispatched: taskId={}, recipient={}", message.getTaskId(), recipient);
         }
     }
 }
