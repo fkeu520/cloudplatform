@@ -32,7 +32,7 @@
 | 19 | 🟡 P2+ 性能优化 (PR1 基础版已完成) | 数据权限 (M5) | scope=3 跨 org dept_id 进入 SQL IN 子句 (PR1 实施发现: sys_dept 无 tenant_id, 跨 org 隔离留 P2+) | 2026-06-05 |
 | 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
 | 21 | 🟢 已解决 | 监控 | Docker 29.5.3 API 兼容: `memory_stats` 字段名变更 + cAdvisor 镜像 gcr.io 不可达/overlay2 存储驱动路径猜错, 自建 Python exporter 替代 | 2026-06-11 |
-| 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
+| 22 | 🟢 已解决 | 消息中心 | WorkflowMessageConsumer 只写 sys_message_record (审计), 不写 sys_message (站内信), 前端铃铛/未读列表/详情页看不到流程通知 | 2026-06-12 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1637,3 +1637,86 @@ docker exec platform-prometheus wget -q -O - http://container-exporter:9091/metr
 3. **🟡 容器化自建工具要精简** — `python:3-slim` 15 MB vs cAdvisor 102 MB, 代码自控不依赖上游
 4. **🟢 Docker socket 是可靠的容器数据源** — 比 cgroup mount / 存储驱动检测稳定, 跨平台
 5. **🔴 `prometheus_client.start_http_server` 优于 `BaseHTTPRequestHandler`** — 自带多线程、`generate_latest` 异步、不爆 BrokenPipe
+
+---
+
+## #22 🟢 WorkflowMessageConsumer 不写 sys_message (2026-06-12)
+
+### 现象
+
+- 流程申请启动后, ACT_RU_IDENTITYLINK 候选人链接已创建 (JDBC 直写修复 #21 之后生效)
+- 前端铃铛/未读列表/详情页都看不到流程通知
+- 用户报告: sys_message 表 eceiver_id 还是 null
+
+### 根因
+
+**WorkflowMessageConsumer 跳过了 ChannelSender 链路, 只写 sys_message_record (发送审计表) 而不写 sys_message (站内信表)**。
+
+正常消息发送链路:
+1. 调用方 → Kafka message-send topic
+2. MessageSendConsumer 接收 → MessageSendService.processSend()
+3. processSend 查 MessageRecord → ChannelSenderRegistry 找对应 ChannelSender (如 SiteMessageSender)
+4. SiteMessageSender.send(record) 写 sys_message (站内信表) — **这是前端铃铛查的表**
+
+Workflow 链路 (修复前):
+1. workflow 启动 → Kafka workflow-message topic
+2. WorkflowMessageConsumer 接收 → **直接 messageRecordService.save(record) 写 sys_message_record**
+3. 直接 SSE 推送 → 完
+
+WorkflowMessageConsumer **没调用 SiteMessageSender**, 所以 sys_message 永远不会被写入。前端 SiteMessageController 全部查 sys_message, 因此铃铛/未读列表/详情页都看不到。
+
+用户看到的 sys_message 表 eceiver_id = NULL 的行其实是 V1 SQL 种子数据 (V1__init_message_tables.sql 第 81-91 行插入的 10 条演示消息, 比如 "系统上线通知" / "安全提醒" / "功能更新公告" 等)。
+
+### 修复
+
+`diff
+ @Slf4j
+ @Component
+ @RequiredArgsConstructor
+ public class WorkflowMessageConsumer {
+
+     private final MessageRecordService messageRecordService;
+     private final SseService sseService;
++    // 2026-06-12 修复: 必须注入 SiteMessageSender 写 sys_message 表 (站内信),
++    // 之前只写 sys_message_record (发送记录), 前端 SiteMessageController 直接查
++    // sys_message, 导致铃铛/未读列表看不到工作流通知, 消息沉默丢失
++    // 根因: 跳过 MessageSendService.processSend 的 ChannelSender 链路
++    private final SiteMessageSender siteMessageSender;
+     ...
+         for (String recipient : recipients) {
+             try {
+                 ...
+                 record.setSendStatus(2);
+                 messageRecordService.save(record);
++
++                // 2026-06-12 修复: 必须显式调用 SiteMessageSender.send() 写 sys_message 表
++                // 前端铃铛/未读列表/详情页都查 sys_message (SiteMessageController),
++                // 跳过这一行 → record 在 sys_message 找不到, 铃铛/未读看不到
++                // 失败也不影响 record 落库, 走 try-catch 单条隔离
++                try {
++                    siteMessageSender.send(record);
++                } catch (Exception ex) {
++                    log.warn("Failed to save sys_message for workflow notify: taskId={}, recipient={}, error={}",
++                        message.getTaskId(), recipient, ex.getMessage());
++                }
+
+                 sseService.sendToUser(record.getReceiverId(), "workflow-notify", Map.of(...));
+                 ...
+`
+
+### 验证
+
+- mvn -pl platform-workflow test -Dtest=WorkflowMessageProducerTest → 5/5 通过
+- mvn -pl platform-message compile → 编译成功
+- 217 部署后:
+  - 重新发起请假申请
+  - docker exec platform-mysql mysql -uroot -proot123456 -e "SELECT id, title, receiver_id, business_type, create_time FROM platform_message.sys_message WHERE business_type='workflow' ORDER BY create_time DESC LIMIT 5"
+  - 应能看到 eceiver_id = 候选人 userId 的行
+  - 前端铃铛 unread-count 接口应返回 > 0
+
+### 教训
+
+1. **🔴 站内信 (sys_message) 和发送记录 (sys_message_record) 是两张表, 写一张不等于写两张** — ChannelSender 链路 (SiteMessageSender/SmsSender/EmailSender) 是把 record 真正落到渠道表的唯一途径, 绕过它就等于消息丢失
+2. **🟡 Kafka 消费者必须走完完整发送链路** — workflow 之前为了省事直接 save(record), 跳过了 ChannelSenderRegistry 调度, 是典型的"为了少写几行代码引入 P0 bug"
+3. **🟢 修复策略: 注入 SiteMessageSender 单条调用** — 比改走 MessageSendService.processSend 链路简单很多, 不需要创建额外 MessageSendRequest + 二次 Kafka, 适合"单渠道+单收件人"场景
+4. **🔴 调试技巧: 看到"用户说没收到消息"先去查前端查的表, 而不是查 producer/consumer 代码** — SiteMessageController 查 sys_message → 直接 SELECT * FROM sys_message 就能定位问题在 sender 链路被绕过
