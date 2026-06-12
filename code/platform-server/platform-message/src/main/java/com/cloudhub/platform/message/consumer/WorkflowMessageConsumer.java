@@ -1,5 +1,6 @@
 package com.cloudhub.platform.message.consumer;
 
+import com.cloudhub.platform.common.notify.WorkflowMessage;
 import com.cloudhub.platform.message.domain.entity.MessageRecord;
 import com.cloudhub.platform.message.service.MessageRecordService;
 import com.cloudhub.platform.message.service.SseService;

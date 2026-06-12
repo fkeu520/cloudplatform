@@ -1,4 +1,4 @@
-package com.cloudhub.platform.workflow.notify;
+package com.cloudhub.platform.common.notify;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,7 +10,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 流程消息通知
+ * 流程任务通知消息 DTO
+ *
+ * 跨服务 Kafka 消息载体 (platform-workflow 生产 → platform-message 消费)
+ * 之前在 workflow 和 message 各有一份, 字段名靠注释维护, 极易漂移。
+ * 2026-06-12 移到 platform-common, 两服务共用, 字段一致性由编译器保证。
  *
  * recipients: 收件人列表
  *   - 直接指定 assignee 的任务: 含 assignee 单人

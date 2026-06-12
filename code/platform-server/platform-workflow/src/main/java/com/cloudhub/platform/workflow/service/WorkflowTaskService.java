@@ -1,9 +1,9 @@
 package com.cloudhub.platform.workflow.service;
 
 import com.cloudhub.platform.common.exception.BizException;
+import com.cloudhub.platform.common.notify.WorkflowMessage;
 import com.cloudhub.platform.workflow.notify.TaskNotifyMessage;
 import com.cloudhub.platform.workflow.notify.TaskNotifyProducer;
-import com.cloudhub.platform.workflow.notify.WorkflowMessage;
 import com.cloudhub.platform.workflow.notify.WorkflowMessageProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
