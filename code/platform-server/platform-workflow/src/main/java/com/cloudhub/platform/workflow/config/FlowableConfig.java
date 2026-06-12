@@ -49,6 +49,13 @@ public class FlowableConfig {
         // 完全禁用 IDM 引擎, 避免查 ACT_ID_USER/ACT_ID_GROUP
         // (本项目用户存于 sys_user, 不依赖 Flowable IDM)
         config.setDisableIdmEngine(true);
+        // 2026-06-12 补充: 显式置 null 兜底
+        // a13d491 commit message 写的是 setIdmEngineConfigurator(null), 但实际代码只 setDisableIdmEngine(true)
+        // Flowable 6.8.1 单 setDisableIdmEngine(true) 不彻底 (SpringProcessEngineConfiguration
+        // 在构造时已自动 new IdmEngineConfigurator, 后续 disable 标志检查时机晚, BpmnDeployer
+        // 部署时仍会查 ACT_ID_USER, 找不到就静默丢 candidate link)
+        // 双保险: 标志 + null, 确保 IDM 引擎完全跳过
+        config.setIdmEngineConfigurator(null);
         return config;
     }
 
