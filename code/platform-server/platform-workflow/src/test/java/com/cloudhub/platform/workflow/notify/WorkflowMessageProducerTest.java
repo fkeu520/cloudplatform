@@ -13,11 +13,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import org.springframework.kafka.support.SendResult;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -42,13 +39,6 @@ class WorkflowMessageProducerTest {
     void setUp() {
         producer = new WorkflowMessageProducer(kafkaTemplate);
         ReflectionTestUtils.setField(producer, "topic", "workflow-message");
-        // 2026-06-12: producer 现在用 .whenComplete(...) 处理 ACK, mock send 返回 CompletableFuture
-        // 避免 NPE: "Cannot invoke whenComplete because the return value of send is null"
-        org.mockito.Mockito.when(kafkaTemplate.send(
-                org.mockito.ArgumentMatchers.any(String.class),
-                org.mockito.ArgumentMatchers.any(Object.class),
-                org.mockito.ArgumentMatchers.any(Object.class)))
-            .thenReturn(CompletableFuture.completedFuture((SendResult<String, Object>) null));
     }
 
     @Test
