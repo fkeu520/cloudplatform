@@ -111,6 +111,17 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Logstash Logback Encoder (v7.4)
+             配套 logback-spring.xml 的 LOGSTASH / ASYNC_LOGSTASH appender
+             之前 81dbb2e 在 user/workflow/ops/message pom 加了此依赖, 但 platform-auth
+             和 platform-gateway 缺, 启动时 ClassNotFoundException 崩溃 (KNOWN_ISSUES #22)
+             修复: 移到 common (谁定义 logback 配置谁拥有依赖) -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
