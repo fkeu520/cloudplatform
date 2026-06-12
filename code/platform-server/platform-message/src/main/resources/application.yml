@@ -69,6 +69,8 @@ spring:
         # messageSendReq 仍在本服务包, type.mapping 保留。
         # 2026-06-12 二次修复: topic 里仍残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage
         # 旧类已被删除, JsonDeserializer 找不到 class 即崩, 用 type.mapping 把旧类名重定向到新类即可
+        # 2026-06-12 触发 CI: 上面 yml 修复 (1bc8907) 推送时 ci.yml paths 漏了 application.yml, 没触发 docker job
+        # 现 paths 已修复 (50c7cea), 用此 yml 微调触发 CI 重新构建 platform-message:latest
         spring.json.type.mapping: "messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest,com.cloudhub.platform.workflow.notify.WorkflowMessage:com.cloudhub.platform.common.notify.WorkflowMessage"
         spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common,com.cloudhub.platform.workflow,com.cloudhub.platform.workflow.notify
     topic:
