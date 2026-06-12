@@ -1,6 +1,7 @@
 package com.cloudhub.platform.message.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -73,17 +74,45 @@ public class SiteMessageController {
     @PostMapping("/read-all")
     public Result<Void> markAllRead(@RequestBody Map<String, Object> params) {
         String userId = (String) params.getOrDefault("userId", "");
-        // 2026-06-12 修复: 原用 siteMessageService.update(msg, query) 报 500
-        // 根因: entity-to-map 模式生成 SET 子句, BaseEntity 继承的 deleted/updateTime
-        // 字段在 entity 模式下被 MyBatis-Plus 内部处理时与 readStatus 字段冲突
-        // 改用 UpdateWrapper.set 显式指定 SET 列, 绕开 entity 转 map 歧义
+        // 2026-06-12 三次修复: 真根因是 MySQL 8.0 严格模式
+        //   SELECT 路径容忍 BIGINT = 'string' (隐式转 0)
+        //   UPDATE 路径严格: 'zhangs' 转 BIGINT 失败 → "Truncated incorrect DOUBLE value" 500
+        //   修复: userId 转 Long, 数字传 Long, 非数字跳过 receiver_id 只用 receiver_name
+        Long receiverId = tryParseLong(userId);
         UpdateWrapper<SysMessage> uw = new UpdateWrapper<>();
         uw.set("read_status", 1);
         uw.eq("read_status", 0);
-        if (userId != null && !userId.isBlank())
-            uw.and(w -> w.eq("receiver_id", userId).or().eq("receiver_name", userId).or().isNull("receiver_id"));
+        if (userId != null && !userId.isBlank()) {
+            uw.and(w -> buildUserScope(w, receiverId, userId));
+        }
         siteMessageService.update(uw);
         return Result.ok();
+    }
+
+    /**
+     * 构造用户范围条件 (receiver_id / receiver_name / IS NULL)
+     * <p>注意: receiver_id 是 BIGINT, 必须传 Long, 不能传 String,
+     * 否则 MySQL 8.0 严格模式拒绝隐式转数字, UPDATE 报
+     * "Data truncation: Truncated incorrect DOUBLE value" 500。
+     */
+    private void buildUserScope(UpdateWrapper<SysMessage> w, Long receiverId, String userId) {
+        boolean first = true;
+        if (receiverId != null) {
+            w.eq("receiver_id", receiverId);
+            first = false;
+        }
+        if (userId != null && !userId.isBlank()) {
+            if (!first) w.or();
+            w.eq("receiver_name", userId);
+            first = false;
+        }
+        if (!first) w.or();
+        w.isNull("receiver_id");
+    }
+
+    private static Long tryParseLong(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Long.parseLong(s.trim()); } catch (NumberFormatException e) { return null; }
     }
 
     @Operation(summary = "删除站内信")
