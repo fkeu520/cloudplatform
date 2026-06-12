@@ -3,16 +3,24 @@ name: CI
 on:
   push:
     branches: [develop, master, feature/*]
-    # CI 只在源代码 OR Dockerfile 改动时触发
-    # 配置文件改动 (yml / .md / .gitignore / docker-compose.yml 等) 不需要重新构建
-    # 配置改了直接 restart 容器或 docker compose pull && up -d
+    # CI 触发条件: 源代码 OR 构建依赖文件 OR Dockerfile
+    # 关键: pom.xml / package.json 改动必须触发 (依赖修复进不了镜像就是 2026-06-11 翻车重演)
+    # 配置文件改动 (yml / .md / .gitignore / docker-compose.yml 等) 仍走手动 restart
     paths:
       # 后端 Java 源代码
       - 'code/platform-server/**.java'
       - 'code/platform-server/**/**.java'
+      # 后端 Maven 依赖 (修复 a29813b 暴露的 CI paths 漏洞)
+      - 'code/platform-server/**/pom.xml'
+      - 'code/platform-server/pom.xml'
       # 前端 TS/Vue 源代码
       - 'code/platform-admin/src/**'
       - 'code/platform-ops-admin/src/**'
+      # 前端 npm 依赖
+      - 'code/platform-admin/package.json'
+      - 'code/platform-admin/package-lock.json'
+      - 'code/platform-ops-admin/package.json'
+      - 'code/platform-ops-admin/package-lock.json'
       # Docker 镜像配置
       - 'code/platform-server/Dockerfile'
       - 'code/platform-server/Dockerfile.*'
@@ -25,8 +33,14 @@ on:
     paths:
       - 'code/platform-server/**.java'
       - 'code/platform-server/**/**.java'
+      - 'code/platform-server/**/pom.xml'
+      - 'code/platform-server/pom.xml'
       - 'code/platform-admin/src/**'
       - 'code/platform-ops-admin/src/**'
+      - 'code/platform-admin/package.json'
+      - 'code/platform-admin/package-lock.json'
+      - 'code/platform-ops-admin/package.json'
+      - 'code/platform-ops-admin/package-lock.json'
       - 'code/platform-server/Dockerfile'
       - 'code/platform-server/Dockerfile.*'
       - 'code/platform-admin/Dockerfile'
