@@ -13,6 +13,7 @@ import org.flowable.engine.IdentityService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.identitylink.api.IdentityLink;
@@ -32,6 +33,7 @@ public class WorkflowInstanceService {
     private final IdentityService identityService;
     private final TaskService taskService;
     private final RepositoryService repositoryService;
+    private final JdbcTemplate jdbcTemplate;
     private final WorkflowMessageProducer workflowMessageProducer;
 
     @Transactional
@@ -215,9 +217,9 @@ public class WorkflowInstanceService {
      */
     /**
      * 确保任务的候选人已写入 ACT_RU_IDENTITYLINK
-     * <p>Flowable 6.8.1 在 IDM 禁用后仍不会自动创建 candidate identity link (isUserManaged 查 ACT_ID_USER 返回 0 导致跳过)。
-     * 本方法直接从 BPMN 模型解析 &lt;userTask candidateUsers&gt;, 调 taskService.addCandidateUser 写入,
-     * 完全绕过 IDM 校验。已存在的 link 不会重复写入 (Flowable 内部去重)。</p>
+     * <p>靠 Flowable 配置 (setDisableIdmEngine / setIdmEngineConfigurator) 无法彻底绕过 IDM 校验。
+     * taskService.addCandidateUser() 仍会触发 isUserManaged 查 ACT_ID_USER, 找不到就跳过。
+     * 此处直接用 JDBC 写 ACT_RU_IDENTITYLINK, 完全绕开 Flowable API 层的 IDM 拦截。</p>
      */
     private void ensureTaskCandidates(Task task, String processDefinitionId) {
         try {
@@ -231,26 +233,46 @@ public class WorkflowInstanceService {
                     .getBpmnModel(processDefinitionId);
             if (bpmnModel == null) return;
 
-            // 从主流程 + 子流程所有流程元素中找到当前任务定义 key 对应的 userTask
             FlowElement fe = bpmnModel.getFlowElement(task.getTaskDefinitionKey());
             if (!(fe instanceof UserTask userTask)) return;
 
-            // 写入 candidate users
+            // BPMN 设计器通常用 extensionElements 存储候选配置 (而非 userTask 属性)
+            // userTask.getCandidateUsers() / getCandidateGroups() 只读标准属性,
+            // 扩展配置从 extensionElements 取
+            List<String> candidateIds = new ArrayList<>();
             if (userTask.getCandidateUsers() != null) {
-                for (String candidateUser : userTask.getCandidateUsers()) {
-                    if (candidateUser != null && !candidateUser.isBlank()) {
-                        taskService.addCandidateUser(task.getId(), candidateUser);
-                        log.debug("Added candidate user {} to task {}", candidateUser, task.getId());
+                candidateIds.addAll(userTask.getCandidateUsers());
+            }
+            // 从 extensionElements 中解析 candidateUsers (bpmn-js 设计器用扩展元素存储)
+            var extElements = userTask.getExtensionElements();
+            if (extElements != null) {
+                for (Map.Entry<String, List<org.flowable.bpmn.model.ExtensionElement>> entry : extElements.entrySet()) {
+                    if (!"candidateUsers".equals(entry.getKey()) || entry.getValue() == null || entry.getValue().isEmpty()) continue;
+                    String text = entry.getValue().get(0).getElementText();
+                    if (text != null && !text.isBlank()) {
+                        for (String id : text.split("[,， ]+")) {
+                            id = id.trim();
+                            if (!id.isEmpty() && !candidateIds.contains(id)) {
+                                candidateIds.add(id);
+                            }
+                        }
                     }
                 }
             }
-            // 写入 candidate groups
-            if (userTask.getCandidateGroups() != null) {
-                for (String candidateGroup : userTask.getCandidateGroups()) {
-                    if (candidateGroup != null && !candidateGroup.isBlank()) {
-                        taskService.addCandidateGroup(task.getId(), candidateGroup);
-                        log.debug("Added candidate group {} to task {}", candidateGroup, task.getId());
-                    }
+
+            // 直接写 ACT_RU_IDENTITYLINK (绕过 Flowable API)
+            for (String userId : candidateIds) {
+                if (userId == null || userId.isBlank()) continue;
+                try {
+                    jdbcTemplate.update(
+                        "INSERT INTO ACT_RU_IDENTITYLINK (ID_, REV_, TYPE_, USER_ID_, TASK_ID_, PROC_INST_ID_) " +
+                        "VALUES (?, 1, 'candidate', ?, ?, ?)",
+                        java.util.UUID.randomUUID().toString().replace("-", ""),
+                        userId, task.getId(), task.getProcessInstanceId());
+                    log.debug("Inserted candidate identity link: userId={}, taskId={}", userId, task.getId());
+                } catch (Exception ex) {
+                    log.warn("Failed to insert candidate identity link for userId={}, taskId={}: {}",
+                        userId, task.getId(), ex.getMessage());
                 }
             }
         } catch (Exception e) {

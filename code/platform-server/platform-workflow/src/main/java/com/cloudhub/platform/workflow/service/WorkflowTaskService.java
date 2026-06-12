@@ -206,8 +206,7 @@ public class WorkflowTaskService {
      * 用于修复候选人任务 assignee=null 导致 Kafka 消息丢失的问题
      */
     /**
-     * 确保任务的候选人已写入 ACT_RU_IDENTITYLINK
-     * (同 WorkflowInstanceService.ensureTaskCandidates, 两个 service 都需走相同逻辑)
+     * 确保任务的候选人已写入 ACT_RU_IDENTITYLINK (同 WorkflowInstanceService.ensureTaskCandidates, JDBC 直写)
      */
     private void ensureTaskCandidates(Task task, String processDefinitionId) {
         try {
@@ -218,18 +217,37 @@ public class WorkflowTaskService {
             if (bpmnModel == null) return;
             org.flowable.bpmn.model.FlowElement fe = bpmnModel.getFlowElement(task.getTaskDefinitionKey());
             if (!(fe instanceof org.flowable.bpmn.model.UserTask userTask)) return;
+            List<String> candidateIds = new ArrayList<>();
             if (userTask.getCandidateUsers() != null) {
-                for (String cu : userTask.getCandidateUsers()) {
-                    if (cu != null && !cu.isBlank()) {
-                        taskService.addCandidateUser(task.getId(), cu);
+                candidateIds.addAll(userTask.getCandidateUsers());
+            }
+            var extElements = userTask.getExtensionElements();
+            if (extElements != null) {
+                for (Map.Entry<String, List<org.flowable.bpmn.model.ExtensionElement>> entry : extElements.entrySet()) {
+                    if (!"candidateUsers".equals(entry.getKey()) || entry.getValue() == null || entry.getValue().isEmpty()) continue;
+                    String text = entry.getValue().get(0).getElementText();
+                    if (text != null && !text.isBlank()) {
+                        for (String id : text.split("[,， ]+")) {
+                            id = id.trim();
+                            if (!id.isEmpty() && !candidateIds.contains(id)) {
+                                candidateIds.add(id);
+                            }
+                        }
                     }
                 }
             }
-            if (userTask.getCandidateGroups() != null) {
-                for (String cg : userTask.getCandidateGroups()) {
-                    if (cg != null && !cg.isBlank()) {
-                        taskService.addCandidateGroup(task.getId(), cg);
-                    }
+            for (String userId : candidateIds) {
+                if (userId == null || userId.isBlank()) continue;
+                try {
+                    jdbcTemplate.update(
+                        "INSERT INTO ACT_RU_IDENTITYLINK (ID_, REV_, TYPE_, USER_ID_, TASK_ID_, PROC_INST_ID_) " +
+                        "VALUES (?, 1, 'candidate', ?, ?, ?)",
+                        java.util.UUID.randomUUID().toString().replace("-", ""),
+                        userId, task.getId(), task.getProcessInstanceId());
+                    log.debug("Inserted candidate identity link: userId={}, taskId={}", userId, task.getId());
+                } catch (Exception ex) {
+                    log.warn("Failed to insert candidate identity link for userId={}, taskId={}: {}",
+                        userId, task.getId(), ex.getMessage());
                 }
             }
         } catch (Exception e) {
