@@ -126,6 +126,13 @@ public class WorkflowTaskService {
     public void complete(String taskId, Map<String, Object> variables, String comment, String userId) {
         Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
         if (task == null) throw new BizException("任务不存在");
+        // 2026-06-12 修复: 候选人任务 assignee=null, 直接 complete 会 NPE
+        // 前端 handleApprove 没有先 claim, 后端自动补 claim
+        if (task.getAssignee() == null) {
+            taskService.claim(taskId, userId);
+            // claim 后重新查 task 拿到更新后的 assignee
+            task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        }
         if (!task.getAssignee().equals(userId)) {
             throw new BizException("非当前任务处理人");
         }
