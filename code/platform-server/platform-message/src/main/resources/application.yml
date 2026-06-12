@@ -53,16 +53,24 @@ spring:
       max-poll-records: ${KAFKA_MAX_POLL:50}
       group-id: message-send-consumer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      # 2026-06-12 修复: ErrorHandlingDeserializer 包裹 JsonDeserializer
+      # topic workflow-message 残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage
+      # (DTO 已移走, 类找不到), 不包裹会让 consumer 抛 SerializationException → DefaultErrorHandler 不
+      # 能处理, 整个 consumer thread crash, 后续消息都收不到
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        # ErrorHandlingDeserializer 把异常转成 DeserializationException, DefaultErrorHandler 可 seek past
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         # 2026-06-12 修复: workflow-message 跨服务 DTO 反序列化
         # 之前只信 com.cloudhub.platform.message, producer 端发 com.cloudhub.platform.workflow.notify.WorkflowMessage
         # 会被 trusted.packages 拒绝, 消息丢弃。
         # 修复: WorkflowMessage 移到 com.cloudhub.platform.common.notify (与 consumer 共用), 这里只
         # 需要把 com.cloudhub.platform.common 加进 trusted.packages 即可, 无需 type.mapping 重映射。
         # messageSendReq 仍在本服务包, type.mapping 保留。
-        spring.json.type.mapping: messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest
-        spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common
+        # 2026-06-12 二次修复: topic 里仍残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage
+        # 旧类已被删除, JsonDeserializer 找不到 class 即崩, 用 type.mapping 把旧类名重定向到新类即可
+        spring.json.type.mapping: "messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest,com.cloudhub.platform.workflow.notify.WorkflowMessage:com.cloudhub.platform.common.notify.WorkflowMessage"
+        spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common,com.cloudhub.platform.workflow,com.cloudhub.platform.workflow.notify
     topic:
       message-send: message-send
       workflow-message: workflow-message
