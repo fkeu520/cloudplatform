@@ -45,6 +45,13 @@ public class WorkflowInstanceService {
         identityService.setAuthenticatedUserId(userId);
         Map<String, Object> vars = variables != null ? new HashMap<>(variables) : new HashMap<>();
         vars.put("initiator", userId);
+        // 2026-06-15 修复: 业务方启动流程时通常传 leaveDays, 但 conditionExpression
+        // (e.g. ${day >= 3}) 用的是 day. JUEL 找不到 day → 500 "Unknown property used in expression"
+        // 兜底: 若 day 缺失, 从 leaveDays 复制, 避免业务方每次都传双份
+        if (!vars.containsKey("day") && vars.containsKey("leaveDays")) {
+            vars.put("day", vars.get("leaveDays"));
+            log.info("[WF-START] 自动补 day 变量 from leaveDays: day={}", vars.get("day"));
+        }
         ProcessInstance pi;
         if (StringUtils.isNotBlank(businessKey)) {
             pi = runtimeService.startProcessInstanceByKey(processDefinitionKey, businessKey, vars);
