@@ -33,6 +33,7 @@
 | 20 | 🟢 已解决 (双根因) | ELK/日志 | Logstash 容器 unhealthy: (1) `retry_on_failure` 是 v12.x+ 设置, (2) 镜像 yml 同时含 `api.http.host` + `http.host` 触发校验失败 | 2026-06-11 |
 | 21 | 🟢 已解决 | 监控 | Docker 29.5.3 API 兼容: `memory_stats` 字段名变更 + cAdvisor 镜像 gcr.io 不可达/overlay2 存储驱动路径猜错, 自建 Python exporter 替代 | 2026-06-11 |
 | 22 | 🟢 已解决 | 消息中心 | WorkflowMessageConsumer 只写 sys_message_record (审计), 不写 sys_message (站内信), 前端铃铛/未读列表/详情页看不到流程通知 | 2026-06-12 |
+| 23 | 🟢 已解决 | 消息中心/Kafka | topic workflow-message 残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage (DTO 移走), consumer 反序列化崩溃, 整个 consumer thread 死掉 | 2026-06-12 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1720,3 +1721,81 @@ WorkflowMessageConsumer **没调用 SiteMessageSender**, 所以 sys_message 永�
 2. **🟡 Kafka 消费者必须走完完整发送链路** — workflow 之前为了省事直接 save(record), 跳过了 ChannelSenderRegistry 调度, 是典型的"为了少写几行代码引入 P0 bug"
 3. **🟢 修复策略: 注入 SiteMessageSender 单条调用** — 比改走 MessageSendService.processSend 链路简单很多, 不需要创建额外 MessageSendRequest + 二次 Kafka, 适合"单渠道+单收件人"场景
 4. **🔴 调试技巧: 看到"用户说没收到消息"先去查前端查的表, 而不是查 producer/consumer 代码** — SiteMessageController 查 sys_message → 直接 SELECT * FROM sys_message 就能定位问题在 sender 链路被绕过
+
+---
+
+## #23 🟢 Kafka 旧类名反序列化崩溃 (2026-06-12)
+
+### 现象
+
+docker logs platform-message 持续刷错:
+`
+ERROR o.s.k.l.KafkaMessageListenerContainer : Consumer exception
+java.lang.IllegalStateException: This error handler cannot process 'SerializationException's directly;
+  please consider configuring an 'ErrorHandlingDeserializer' in the value and/or key deserializer
+Caused by: org.apache.kafka.common.errors.RecordDeserializationException:
+  Error deserializing key/value for partition workflow-message-3 at offset 0
+`
+
+铃铛还是没有 workflow 通知 (因为 consumer thread 已经 crash, 后续消息都收不到)
+
+### 根因
+
+**DTO 跨包迁移留尾**: 之前 WorkflowMessage 在 com.cloudhub.platform.workflow.notify, 后来移到 com.cloudhub.platform.common.notify (commit c111700), 但 Kafka topic workflow-message 里**残留旧消息**, 每条都带 __TypeId__: com.cloudhub.platform.workflow.notify.WorkflowMessage 头。
+
+新 consumer 配置:
+`yaml
+value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common
+`
+
+JsonDeserializer 收到旧消息:
+1. 看到 __TypeId__: com.cloudhub.platform.workflow.notify.WorkflowMessage
+2. 查 trusted.packages, 不含 com.cloudhub.platform.workflow → 拒绝
+3. 抛 SerializationException (Kafka 客户端底层异常)
+
+而 Spring Kafka 的 DefaultErrorHandler 只能处理 DeserializationException (运行时包装异常), **不能直接处理 Kafka 客户端的 SerializationException**, 所以抛 IllegalStateException, consumer thread 死掉, 整个 partition 后续消息全收不到。
+
+### 修复
+
+platform-message/src/main/resources/application.yml 三处修改:
+
+`diff
+   consumer:
+     group-id: message-send-consumer
+     key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+-    value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
++    # 2026-06-12 修复: ErrorHandlingDeserializer 包裹 JsonDeserializer
++    # 把 Kafka 客户端 SerializationException 转成 Spring 的 DeserializationException
++    # 让 DefaultErrorHandler 可以 seek past 坏消息, 不会整个 consumer thread 崩
++    value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+     properties:
++      # ErrorHandlingDeserializer 的真实 deserializer 在 delegate.class 指定
++      spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+       # 旧 WorkflowMessage 类重定向到新类 (type mapping)
+-      spring.json.type.mapping: messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest
++      spring.json.type.mapping: "messageSendReq:com.cloudhub.platform.message.model.MessageSendRequest,com.cloudhub.platform.workflow.notify.WorkflowMessage:com.cloudhub.platform.common.notify.WorkflowMessage"
+-      spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common
++      spring.json.trusted.packages: com.cloudhub.platform.message,com.cloudhub.platform.common,com.cloudhub.platform.workflow,com.cloudhub.platform.workflow.notify
+`
+
+三件事:
+1. **ErrorHandlingDeserializer 包裹**: 把异常转成 DeserializationException, DefaultErrorHandler 可处理
+2. **	ype.mapping 重定向**: 旧类名 com.cloudhub.platform.workflow.notify.WorkflowMessage → 新类 com.cloudhub.platform.common.notify.WorkflowMessage, 旧消息能正确反序列化
+3. **加 com.cloudhub.platform.workflow 到 trusted.packages**: 兜底, 万一以后还有旧消息能通过包校验
+
+### 验证
+
+- mvn -pl platform-message compile 通过
+- mvn -pl platform-workflow test -Dtest=WorkflowMessageProducerTest → 5/5 通过
+- 217 重启后:
+  - docker logs platform-message | grep "Consumer exception" 应不再出现
+  - 旧消息的 offset 自动 seek past, 新消息正常消费
+  - sys_message 表新增 usiness_type='workflow' 且 eceiver_id 非空的行
+
+### 教训
+
+1. **🔴 Kafka topic 是有状态的, DTO 跨包改名要带 type mapping** — 删旧类之前必须先把 topic 清空 OR 配置 type mapping 重定向, 否则旧消息会永远卡住 consumer
+2. **🔴 Spring Kafka 的 SerializationException 是 kafka-clients 抛的, DefaultErrorHandler 处理不了** — 任何 Kafka 消费者**必须**用 ErrorHandlingDeserializer 包裹, 兜底所有反序列化失败场景
+3. **🟢 type.mapping 是 Spring Kafka 提供的 DTO 迁移工具** — old.fqcn:new.fqcn 语法, 让旧消息能用新类反序列化, 配合 trusted.packages 加白名单, 旧消息平滑过渡
+4. **🟡 跨服务共享 DTO 要慎重选位置** — common 包虽然方便, 但导致 Kafka topic 出现"两个不同 FQCN 的同一个 DTO"的兼容问题, 建议 DTO 改动时同步清 topic 或加 migration
