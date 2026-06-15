@@ -77,13 +77,21 @@ ok "状态记录完成"
 # ============================================
 # Phase 1: 拉取新镜像
 # ============================================
-step "Phase 1: 拉取新镜像 (platform-workflow + platform-container-exporter)"
+step "Phase 1: 拉取新镜像 (platform-workflow + platform-message + container-exporter)"
 
 echo "  拉 platform-workflow ..."
 if $DOCKER_BIN pull ghcr.io/fkeu520/cloudplatform/platform-workflow:latest > /dev/null 2>&1; then
     ok "platform-workflow 镜像拉取成功"
 else
     fail "platform-workflow 镜像拉取失败"
+    exit 1
+fi
+
+echo "  拉 platform-message ..."
+if $DOCKER_BIN pull ghcr.io/fkeu520/cloudplatform/platform-message:latest > /dev/null 2>&1; then
+    ok "platform-message 镜像拉取成功"
+else
+    fail "platform-message 镜像拉取失败"
     exit 1
 fi
 
@@ -175,9 +183,13 @@ admin_token=$(curl -s -X POST http://127.0.0.1:8082/auth/login \
 if [ -z "$admin_token" ]; then
     warn "admin login 失败, 跳过 read-all 验证 (可能 auth 服务未启动)"
 else
+    # Controller 用 @RequestBody Map<String, Object> 接收, 必须 POST JSON body
+    # (不能用 query string ?userId=1, 否则 userId 为空)
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
-        -X POST "http://127.0.0.1:8085/message/site/read-all?userId=1" \
-        -H "Authorization: Bearer $admin_token" 2>/dev/null || echo "000")
+        -X POST "http://127.0.0.1:8085/message/site/read-all" \
+        -H "Authorization: Bearer $admin_token" \
+        -H "Content-Type: application/json" \
+        -d '{"userId":"1"}' 2>/dev/null || echo "000")
     if [ "$http_code" = "200" ]; then
         ok "read-all HTTP 200 (markAllRead 修复有效)"
     else
