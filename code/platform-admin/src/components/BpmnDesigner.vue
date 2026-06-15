@@ -275,6 +275,28 @@ function filterOrgNode(value: string, data: any) {
   return (data.name || '').includes(value)
 }
 
+// XML 字符转义 (修复 conditionExpression 嵌入 BPMN XML 时 < > & " ' 未转义导致 Flowable 解析失败)
+// 关联 KNOWN_ISSUES: 类似问题在 candidateUsers/candidateGroups 也会出现 (line 708-714)
+function xmlEscape(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+// XML 字符反转义 (从 BPMN XML 提取 conditionExpression 时调用, 把 &lt; 转回 <)
+// 否则 UI 上会显示 ${day &lt; 3} 而不是 ${day < 3}, 用户体验差
+function xmlUnescape(s: string): string {
+  return s
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+}
+
 function getUserName(uid: string): string {
   const user = allEmployees.value.find((u: any) => String(u.id) === String(uid))
   return user ? (user.nickname || user.name || user.username) : uid
@@ -460,7 +482,7 @@ function extractFlowableDataFromXml(xml: string) {
       const condMatch = xml.match(
         new RegExp(`<bpmn:sequenceFlow\\b[^>]*?\\bid="${id}"[^>]*>[\\s\\S]*?<bpmn:conditionExpression[^>]*>([\\s\\S]*?)<\\/bpmn:conditionExpression>`)
       )
-      if (condMatch) data.conditionExpression = condMatch[1]
+      if (condMatch) data.conditionExpression = xmlUnescape(condMatch[1])
     }
 
     // 提取 extensionElements 中的 candidateUsers/candidateGroups (兼容旧格式)
@@ -707,8 +729,8 @@ function injectXmlns(rootEl: Element) { if (!rootEl.hasAttribute('xmlns:flowable
 
 function buildExtensionElementsXml(candidateUsers?: string, candidateGroups?: string): string {
   const inner: string[] = []
-  if (candidateUsers) inner.push(`<flowable:candidateUsers>${candidateUsers}</flowable:candidateUsers>`)
-  if (candidateGroups) inner.push(`<flowable:candidateGroups>${candidateGroups}</flowable:candidateGroups>`)
+  if (candidateUsers) inner.push(`<flowable:candidateUsers>${xmlEscape(candidateUsers)}</flowable:candidateUsers>`)
+  if (candidateGroups) inner.push(`<flowable:candidateGroups>${xmlEscape(candidateGroups)}</flowable:candidateGroups>`)
   return `<bpmn:extensionElements>${inner.join('')}</bpmn:extensionElements>`
 }
 
@@ -793,8 +815,10 @@ function injectFlowableProps(xml: string): string {
         `(<bpmn:sequenceFlow\\b[^>]*?\\bid="${elementId}"[^>]*?)(/?>)`,
         'g'
       )
+      // 2026-06-15 修复: XML 转义, 避免 ${day < 3} 里的 < 导致 BPMN 解析失败
+      const escapedExpr = xmlEscape(data.conditionExpression)
       xml = xml.replace(flowRegex, (match, attrs, close) => {
-        const condXml = `<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${data.conditionExpression}</bpmn:conditionExpression>`
+        const condXml = `<bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${escapedExpr}</bpmn:conditionExpression>`
         if (close === '/>') {
           // 自闭合标签 → 改为开闭标签 + 条件子元素
           return `<bpmn:sequenceFlow${attrs}>${condXml}</bpmn:sequenceFlow>`
