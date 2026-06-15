@@ -34,6 +34,7 @@
 | 21 | 🟢 已解决 | 监控 | Docker 29.5.3 API 兼容: `memory_stats` 字段名变更 + cAdvisor 镜像 gcr.io 不可达/overlay2 存储驱动路径猜错, 自建 Python exporter 替代 | 2026-06-11 |
 | 22 | 🟢 已解决 | 消息中心 | WorkflowMessageConsumer 只写 sys_message_record (审计), 不写 sys_message (站内信), 前端铃铛/未读列表/详情页看不到流程通知 | 2026-06-12 |
 | 23 | 🟢 已解决 | 消息中心/Kafka | topic workflow-message 残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage (DTO 移走), consumer 反序列化崩溃, 整个 consumer thread 死掉 | 2026-06-12 |
+| 24 | 🟢 已解决 | 监控 | container-exporter 仍用旧 'memory' 字段 + 固定 API v1.24, Docker 29.5.3 返回空数据, Grafana 容器资源排行无数据 (#21 修复未完整落地) | 2026-06-15 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1799,3 +1800,69 @@ platform-message/src/main/resources/application.yml 三处修改:
 2. **🔴 Spring Kafka 的 SerializationException 是 kafka-clients 抛的, DefaultErrorHandler 处理不了** — 任何 Kafka 消费者**必须**用 ErrorHandlingDeserializer 包裹, 兜底所有反序列化失败场景
 3. **🟢 type.mapping 是 Spring Kafka 提供的 DTO 迁移工具** — old.fqcn:new.fqcn 语法, 让旧消息能用新类反序列化, 配合 trusted.packages 加白名单, 旧消息平滑过渡
 4. **🟡 跨服务共享 DTO 要慎重选位置** — common 包虽然方便, 但导致 Kafka topic 出现"两个不同 FQCN 的同一个 DTO"的兼容问题, 建议 DTO 改动时同步清 topic 或加 migration
+
+---
+
+## #24 🟢 container-exporter 仍用旧字段/API, Grafana 容器资源排行无数据 (2026-06-15)
+
+### 现象
+
+- Grafana "平台监控总览" → "容器资源排行" 面板**空数据**
+- `curl http://localhost:9091/metrics` 返回的 `container_memory_*` 只有 HELP/TYPE 行, 无样本数据行
+- `docker logs platform-container-exporter | grep -i memory`: 无错误日志 (脚本不崩, 只是跳过)
+
+### 根因
+
+KNOWN_ISSUES #21 (2026-06-11) 记录了"应改用 memory_stats + 去掉固定 v1.24 路径", 但**当时描述的是"正确实现", 实际 exporter.py 落地的代码仍是旧版**:
+
+```python
+# scripts/container-exporter/exporter.py (修复前 90 行版本)
+
+# ❌ 固定 API v1.24
+containers = docker_api('/v1.24/containers/json?all=false')
+
+# ❌ 检查旧 'memory' 字段
+if not stats_raw or 'memory' not in stats_raw:
+    continue
+
+# ❌ 读旧字段
+mem_usage = stats_raw.get('memory', {}).get('usage', 0) or 0
+```
+
+Docker 29.5.3 的 stats 响应只有 `memory_stats`, 没有 `memory` 别名 → line 49 永远 continue → 内存指标永远是 0 / 不上报。CPU 和网络因为只看 `cpu_stats` 和 `networks` 字段, 这些字段名没变, 所以 CPU/网络可能正常 (但没人去 Grafana 看 CPU/网络, 因为内存排行面板最先暴露问题)。
+
+### 修复
+
+完整重写 exporter.py (90 → 156 行), 关键改进:
+
+1. **去掉固定 API 版本**: `/containers/json?all=false` (Docker 自动协商)
+2. **memory_stats 字段为主**: `stats_raw.get('memory_stats') or stats_raw.get('memory')` (兼容旧 API)
+3. **start_http_server 多线程**: 替代 BaseHTTPRequestHandler, 避免 scrape 并发 BrokenPipe
+4. **周期性采集 + Gauge**: 15s 间隔后台线程更新, 暴露累计值让 Prometheus `rate()` 转速率
+5. **多指标拆分**: `container_memory_rss_bytes` / `container_memory_usage_bytes` / `container_cpu_usage_nanoseconds_total` / `container_cpu_system_nanoseconds_total` / `container_network_receive_bytes_total` / `container_network_transmit_bytes_total`
+
+新增本地测试 `test_exporter.py` (180 行), 用 mock 数据验证:
+- ✅ Docker 29.x memory_stats 字段读取
+- ✅ 旧 memory 字段 fallback
+- ✅ 非项目容器跳过 (白名单前缀匹配)
+- ✅ Docker API 失败容错
+- ✅ stats 无内存字段时跳过内存更新但不崩
+- ✅ 多网络接口 RX/TX 累加
+- ✅ API 路径无版本前缀
+
+**测试结果**: 7/7 PASS
+
+### 验证
+
+待 217 部署后:
+- `curl -s http://localhost:9091/metrics | grep container_memory` 应看到样本数据行
+- Grafana "容器资源排行" 面板应显示 22 个 platform-* 容器的内存/RSS
+- Prometheus scrape `container-exporter:9091` 应 success
+
+### 教训
+
+1. **🔴 KNOWN_ISSUES 标记"已解决"前必须真的验证线上 work** — #21 当时只验证了"exporter 启动成功", 没验证"返回的指标有数据行", 留下隐患到 #24
+2. **🔴 "README ✅" 不等于"线上 ✅"** — README v7.5 写 "容器监控 ✅", 实际 Grafana 数据为空。**自动验证脚本** (如 curl /metrics | grep container_memory 应该有 N 行) 应加进 CI 或部署后 checklist
+3. **🟢 修复 PR 必须包含测试** — 本次修复同时写 test_exporter.py, 7 个 TC 覆盖字段/API/容错关键路径, 避免再次回归
+4. **🟡 cAdvisor 仍然是国内无法用的方案** — gcr.io 被 GFW 阻断 + Docker Hub google/cadvisor 镜像太老。**自建 Python exporter (15 MB) 是当前唯一可行方案**, 但需要持续维护
+5. **🟢 start_http_server 优于 BaseHTTPRequestHandler** — 自带多线程 + generate_latest 异步, scrape 并发 10 路不爆 BrokenPipe (#21 教训, #24 强化)
