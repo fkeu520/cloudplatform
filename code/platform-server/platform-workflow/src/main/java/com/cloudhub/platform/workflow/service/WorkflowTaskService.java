@@ -142,6 +142,12 @@ public class WorkflowTaskService {
         if (StringUtils.isNotBlank(comment)) {
             taskService.addComment(taskId, task.getProcessInstanceId(), comment);
         }
+        // 2026-06-12 修复: JDBC 直接插入的 ACT_RU_IDENTITYLINK 记录, Flowable 内部删除任务时
+        // 没有正确清理, 导致外键约束 ACT_FK_TSKASS_TASK 失败
+        // 在 complete 前手动删除 JDBC 插入的 candidate identity links
+        jdbcTemplate.update(
+            "DELETE FROM ACT_RU_IDENTITYLINK WHERE TASK_ID_ = ? AND TYPE_ = 'candidate'",
+            taskId);
         taskService.complete(taskId);
 
         try {
