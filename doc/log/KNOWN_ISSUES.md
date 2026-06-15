@@ -35,6 +35,7 @@
 | 22 | 🟢 已解决 | 消息中心 | WorkflowMessageConsumer 只写 sys_message_record (审计), 不写 sys_message (站内信), 前端铃铛/未读列表/详情页看不到流程通知 | 2026-06-12 |
 | 23 | 🟢 已解决 | 消息中心/Kafka | topic workflow-message 残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage (DTO 移走), consumer 反序列化崩溃, 整个 consumer thread 死掉 | 2026-06-12 |
 | 24 | 🟢 已解决 | 监控 | container-exporter 仍用旧 'memory' 字段 + 固定 API v1.24, Docker 29.5.3 返回空数据, Grafana 容器资源排行无数据 (#21 修复未完整落地) | 2026-06-15 |
+| 25 | 🟢 已解决 (待 217 验证) | 工作流 | 全新部署时 ACT_RE_PROCDEF 为空, 业务 (请假) 启动流程失败; 新增 InitBpmnRunner 启动时自动检测 + 部署基础 BPMN 模板 | 2026-06-15 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1866,3 +1867,68 @@ Docker 29.5.3 的 stats 响应只有 `memory_stats`, 没有 `memory` 别名 → 
 3. **🟢 修复 PR 必须包含测试** — 本次修复同时写 test_exporter.py, 7 个 TC 覆盖字段/API/容错关键路径, 避免再次回归
 4. **🟡 cAdvisor 仍然是国内无法用的方案** — gcr.io 被 GFW 阻断 + Docker Hub google/cadvisor 镜像太老。**自建 Python exporter (15 MB) 是当前唯一可行方案**, 但需要持续维护
 5. **🟢 start_http_server 优于 BaseHTTPRequestHandler** — 自带多线程 + generate_latest 异步, scrape 并发 10 路不爆 BrokenPipe (#21 教训, #24 强化)
+
+---
+
+## #25 🟢 全新部署无流程定义, 业务无法启动 (2026-06-15)
+
+### 现象
+
+- 在 Ubuntu 217 全新部署 platform-workflow 后, 调用 POST /api/workflow/definition/deploy 部署请假流程
+- 部署报 500: Caused by: org.xml.sax.SAXParseException: cvc-datatype-valid.1.2.1: '2121212212' is not a valid value for 'NCName'
+- 根因 #1: BpmnDesigner.vue 把用户输入的 ${day < 3} 直接拼到 XML, < 没转义 → Flowable 加载时 SAX 失败
+- 根因 #2: 业务方手动输入 processKey="2121212212" (纯数字), 违反 XML id 规则 (NCName 要求首字符 [A-Za-z_])
+- 根因 #3 (本 issue): 即使前面两个都修好, 全新部署场景下 ACT_RE_PROCDEF 是空的, 业务模块 (请假) 启动流程时找不到 key, 每次都要手动调 deploy 端点
+
+### 修复
+
+新增 InitBpmnRunner (platform-workflow/init/InitBpmnRunner.java) — ApplicationRunner, 启动时:
+
+1. 扫描 classpath:init-bpmn/*.bpmn
+2. 用 DOM parser (JDK 自带, 零新依赖) 提取 <bpmn:process id="...">
+3. NCName 校验 (与 WorkflowDefinitionService 保持一致): 首字符 [A-Za-z_], 后续 [A-Za-z0-9_.\-]
+4. 查询 ACT_RE_PROCDEF 是否已有同 key 流程定义 → 没有则自动 createDeployment().deploy()
+5. 单个 BPMN 失败只 warn, 不阻塞启动 (catch Exception 兜底)
+
+新增 init-bpmn/leave-approval.bpmn (最小可用模板):
+- process id = leave-approval
+- startEvent → userTask → endEvent
+- 无 conditionExpression, 无复杂 gateway (避免和 BpmnDesigner 兼容问题)
+
+### 设计原则
+
+- **幂等**: 同 key 已存在即跳过, 不覆盖业务方已部署的 (避免自动部署把人工调整的流程覆盖掉)
+- **失败不阻塞**: 单个 BPMN 解析/部署失败只 warn, 应用继续启动
+- **NCName 校验**: 与 WorkflowDefinitionService 保持一致, 提前拦截非法 key, 避免运行时 SAX 失败 500
+- **namespace-aware DOM**: DocumentBuilderFactory.setNamespaceAware(true) 必须打开, 否则 getElementsByTagNameNS 找不到 pmn:process
+- **XXE 防护**: disallow-doctype-decl=true + external-*-entities=false, 符合 Flowable 推荐硬编码安全配置
+
+### 测试
+
+新增 InitBpmnRunnerTest 8 TC (平台 workflow 模块全测试 14/14 PASS):
+
+1. TC-01 key 不存在 → 部署 ✓
+2. TC-02 key 已存在 → 跳过 (幂等) ✓
+3. TC-03 缺 <bpmn:process id> → 跳过 ✓
+4. TC-04 非法 NCName (纯数字) → 跳过 ✓
+5. TC-05 多个 BPMN 部分失败 → 其他仍正常处理 ✓
+6. TC-06 initBpmnResources 为空 → 直接返回 ✓
+7. TC-07 NCName 边界 (_ 前缀合法) ✓
+8. TC-08 RepositoryService 抛异常 → 不阻塞启动 ✓
+
+### 教训
+
+1. **🟢 init 数据策略**: 全新部署时业务依赖的基础数据 (流程定义/字典/角色), 应随版本发布, 不依赖人工导入; InitBpmnRunner 是模板, 同理可扩展到 InitDictRunner / InitRoleRunner
+2. **🟢 DOM parser 必开 namespace-aware**: Spring 自带 XmlBeanDefinitionReader 默认 aware, 自己 new DocumentBuilderFactory 容易漏; BPMN XML 强制 namespace (pmn: 前缀)
+3. **🟢 Mockito RETURNS_DEEP_STUBS 在链式 mock + 多次测试下有 stub 串扰**: when(deepStub).thenReturn(x) 在不同测试间可能保留, 即使 @ExtendWith(MockitoExtension). 改用手动 mock chain (@Mock private ProcessDefinitionQuery 单独 mock) + @MockitoSettings(strictness = LENIENT) 才稳定
+4. **🟢 Mock 类型签名严格**: createDeployment() 返回 DeploymentBuilder 不是 Deployment. doReturn(mock(Deployment.class)).when(...).createDeployment() 会在运行时 NPE; 必须用 when(repo.createDeployment().name(...).key(...).deploy()).thenReturn(deployment) 一行链式 stub, 或单独 mock DeploymentBuilder
+5. **🟢 测试不要把"业务方可能的错误配置" 当作 happy path**: TC-04 模拟 processKey="2121212212" 是真实发生过的情况, 必须有 TC 守护
+
+### 验证
+
+待 Ubuntu 217 拉新镜像后:
+- docker logs platform-workflow 2>&1 | grep InitBpmn 应有 [InitBpmn] xxx 部署成功: deploymentId=..., key=leave-approval
+- curl http://192.168.0.217:8080/api/workflow/definition/list 应有 leave-approval (VERSION_1)
+- 业务方 (请假) 启动流程不再 500
+
+Commit: 99564dd feat(workflow): 启动时自动初始化基础流程定义
