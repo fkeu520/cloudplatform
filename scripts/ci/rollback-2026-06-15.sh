@@ -110,7 +110,7 @@ else
     if $DOCKER_BIN images --format '{{.Digest}}' | grep -q "$OLD_EXPORTER_DIGEST"; then
         ok "旧镜像在本地, 直接 tag 即可"
         $DOCKER_BIN tag "$OLD_EXPORTER_DIGEST" ghcr.io/fkeu520/cloudplatform/platform-container-exporter:latest
-        $DOCKER_BIN compose up -d platform-container-exporter
+        $DOCKER_BIN compose up -d container-exporter
         ok "platform-container-exporter 已回滚"
     else
         warn "旧镜像不在本地"
@@ -120,7 +120,7 @@ else
             warn "请手动跑:"
             echo "  docker pull ghcr.io/fkeu520/cloudplatform/platform-container-exporter@$OLD_EXPORTER_DIGEST"
             echo "  docker tag <pushed-image-digest> ghcr.io/fkeu520/cloudplatform/platform-container-exporter:latest"
-            echo "  docker compose up -d platform-container-exporter"
+            echo "  docker compose up -d container-exporter"
         else
             warn "取消 platform-container-exporter 回滚"
         fi

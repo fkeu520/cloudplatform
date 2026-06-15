@@ -94,8 +94,8 @@ fi
 # ============================================
 step "Phase 2: 重启服务 (workflow + container-exporter)"
 
-echo "  docker compose up -d platform-workflow platform-container-exporter ..."
-if $DOCKER_BIN compose up -d platform-workflow platform-container-exporter > /dev/null 2>&1; then
+echo "  docker compose up -d platform-workflow container-exporter ..."
+if $DOCKER_BIN compose up -d platform-workflow container-exporter > /dev/null 2>&1; then
     ok "服务重启命令执行成功"
 else
     fail "docker compose up 失败"
