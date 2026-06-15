@@ -2,6 +2,7 @@ package com.cloudhub.platform.workflow.service;
 
 import com.cloudhub.platform.common.exception.BizException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.repository.Deployment;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.regex.Matcher;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WorkflowDefinitionService {
@@ -64,6 +66,13 @@ public class WorkflowDefinitionService {
         }
         String name = StringUtils.isNotBlank(processName) ? processName : "未命名流程";
         String key = StringUtils.isNotBlank(processKey) ? processKey : null;
+        // 2026-06-15 修复: 校验 processKey 是合法 NCName (XML id 必须以字母/下划线开头)
+        // 根因: 用户输入 "2121212212" 纯数字 processKey, Flowable 解析 BPMN 抛 SAXParseException
+        //       但 Service.deploy 的 try/catch 只 catch FlowableException, SAX 异常未包装
+        //       → 走 GlobalExceptionHandler.handleException → HTTP 500
+        if (key != null && !isValidNCName(key)) {
+            throw new BizException("流程 Key 不合法: '" + key + "' 必须以字母或下划线开头, 后续可包含字母数字下划线连字符");
+        }
         String finalXml = bpmnXml;
         // 如果传入了 processKey，替换 XML 中的 process id 及 BPMNDiagram 引用
         if (key != null) {
@@ -89,27 +98,56 @@ public class WorkflowDefinitionService {
                     "deployTime", deployment.getDeploymentTime(),
                     "processDefinitionId", pd != null ? pd.getId() : null
             );
-        } catch (org.flowable.common.engine.api.FlowableException e) {
+        } catch (Exception e) {
+            // 2026-06-15 修复: 扩展 catch 范围, 不只 catch FlowableException
+            // SAXParseException / IllegalStateException 等都可能不被包装成 FlowableException
+            // 不管哪种异常, 都转 BizException 给前端友好错误 (避免 HTTP 500)
             String msg = e.getMessage();
-            if (msg != null && msg.contains("Errors while parsing")) {
-                // Extract readable validation errors
-                StringBuilder sb = new StringBuilder("流程定义验证失败:\n");
-                for (String line : msg.split("\n")) {
-                    if (line.contains("Problem:") || line.contains("| Problem:")) {
-                        int idx = line.indexOf("| Problem: '");
-                        int end = line.indexOf("'", (idx > 0 ? idx : 0) + 11);
-                        if (idx > 0 && end > idx) {
-                            String problem = line.substring(idx + 11, end);
-                            sb.append("- ").append(problem).append("\n");
-                        }
-                    }
-                }
-                if (sb.length() > 20) {
-                    throw new BizException(sb.toString().trim());
+            String userMsg = extractFlowableError(msg);
+            if (userMsg == null) {
+                userMsg = "流程部署失败: " + (msg != null ? msg : "未知错误 (" + e.getClass().getSimpleName() + ")");
+            }
+            log.warn("流程部署失败, processKey={}, bpmnXml 长度={}, 错误类型={}, msg={}", 
+                key, bpmnXml != null ? bpmnXml.length() : 0, e.getClass().getSimpleName(), msg);
+            throw new BizException(userMsg);
+        }
+    }
+
+    /**
+     * 提取 Flowable 错误信息中的 Problem 描述 (用户友好版本)
+     */
+    private String extractFlowableError(String msg) {
+        if (msg == null) return null;
+        StringBuilder sb = new StringBuilder("流程定义验证失败:\n");
+        for (String line : msg.split("\n")) {
+            if (line.contains("Problem:") || line.contains("| Problem:")) {
+                int idx = line.indexOf("| Problem: '");
+                int end = line.indexOf("'", (idx > 0 ? idx : 0) + 11);
+                if (idx > 0 && end > idx) {
+                    sb.append("- ").append(line.substring(idx + 11, end)).append("\n");
                 }
             }
-            throw new BizException("流程部署失败: " + (msg != null ? msg : "未知错误"));
         }
+        if (sb.length() > 20) return sb.toString().trim();
+        // SAXParseException 等也直接展示 (非 Flowable 格式但有用)
+        if (msg.contains("SAXParseException") || msg.contains("not a valid value for")) {
+            return "BPMN XML 格式错误: " + msg.split("\n")[0];
+        }
+        return null;
+    }
+
+    /**
+     * 校验字符串是否为合法 NCName (XML Name)
+     * 规则: 首字符 [A-Za-z_], 后续 [A-Za-z0-9_.\-]
+     */
+    private boolean isValidNCName(String s) {
+        if (s == null || s.isEmpty()) return false;
+        if (!Character.isLetter(s.charAt(0)) && s.charAt(0) != '_') return false;
+        for (int i = 1; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '_' && c != '-' && c != '.') return false;
+        }
+        return true;
     }
 
     @Transactional
