@@ -10,6 +10,9 @@
 
 set -e
 
+# 自 chmod (git pull 不保留 +x, Windows 上更不可能)
+chmod +x "$0" 2>/dev/null || true
+
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
