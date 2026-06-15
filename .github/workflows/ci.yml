@@ -40,6 +40,10 @@ on:
       - 'code/platform-admin/Dockerfile.*'
       - 'code/platform-ops-admin/Dockerfile'
       - 'code/platform-ops-admin/Dockerfile.*'
+      # 容器资源监控导出器 (2026-06-15 添加: 把 exporter.py 打进镜像, 217 上只 docker compose pull)
+      - 'scripts/container-exporter/**'
+      - 'scripts/container-exporter/Dockerfile'
+      - 'scripts/container-exporter/Dockerfile.*'
   pull_request:
     branches: [develop, master]
     paths:
@@ -65,6 +69,10 @@ on:
       - 'code/platform-admin/Dockerfile.*'
       - 'code/platform-ops-admin/Dockerfile'
       - 'code/platform-ops-admin/Dockerfile.*'
+      # 容器资源监控导出器 (2026-06-15 添加)
+      - 'scripts/container-exporter/**'
+      - 'scripts/container-exporter/Dockerfile'
+      - 'scripts/container-exporter/Dockerfile.*'
 
 env:
   MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
@@ -227,6 +235,12 @@ jobs:
             docker build -t $img "./code/$fe"
             docker push $img
           done
+
+          # 容器资源监控导出器 (2026-06-15 添加: 把 exporter.py 打进镜像, 217 上只 docker compose pull)
+          img="ghcr.io/${{ github.repository }}/platform-container-exporter:latest"
+          echo "Building $img"
+          docker build -t $img "./scripts/container-exporter"
+          docker push $img
 
   # =============================================
   # 多租户拦截器回滚开关验证 (P0-1 实施)
