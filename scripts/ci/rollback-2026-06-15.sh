@@ -13,7 +13,9 @@ set -e
 # 自 chmod (git pull 不保留 +x, Windows 上更不可能)
 chmod +x "$0" 2>/dev/null || true
 
-PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# 解析项目根目录 (用绝对路径避免 $0 是相对路径时 cd 算错)
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+PROJECT_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # Docker 兼容
