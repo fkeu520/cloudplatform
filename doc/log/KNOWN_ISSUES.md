@@ -36,6 +36,7 @@
 | 23 | 🟢 已解决 | 消息中心/Kafka | topic workflow-message 残留旧消息 __TypeId__=com.cloudhub.platform.workflow.notify.WorkflowMessage (DTO 移走), consumer 反序列化崩溃, 整个 consumer thread 死掉 | 2026-06-12 |
 | 24 | 🟢 已解决 | 监控 | container-exporter 仍用旧 'memory' 字段 + 固定 API v1.24, Docker 29.5.3 返回空数据, Grafana 容器资源排行无数据 (#21 修复未完整落地) | 2026-06-15 |
 | 25 | 🟢 已解决 (待 217 验证) | 工作流 | 全新部署时 ACT_RE_PROCDEF 为空, 业务 (请假) 启动流程失败; 新增 InitBpmnRunner 启动时自动检测 + 部署基础 BPMN 模板 | 2026-06-15 |
+| 26 | ⚠️ 长期纪律 | 命名空间 | 后续所有项目推进 (含 csyh 翻译) 必须使用 `com.cloudhub.platform.*` 命名空间, 禁止任何历史私有包残留; 编码规范 §1.1 + §1.7 已加强制规则 + 提交前全量扫描 | 2026-06-15 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -1932,3 +1933,34 @@ Docker 29.5.3 的 stats 响应只有 `memory_stats`, 没有 `memory` 别名 → 
 - 业务方 (请假) 启动流程不再 500
 
 Commit: 99564dd feat(workflow): 启动时自动初始化基础流程定义
+
+---
+
+## #26 ⚠️ 长期纪律: 强制使用 platform 命名空间 (2026-06-15)
+
+### 规则
+
+后续所有项目推进 (含 csyh → 云枢翻译、park-* 实施、新功能开发) **必须**使用 `com.cloudhub.platform.*` 命名空间, 禁止任何第三方/历史私有包残留。
+
+### 实施位置 (已落实)
+
+- **编码规范 §1.1 命名规约**: 加 "禁止命名空间" 行, 强制使用 `com.cloudhub.platform.*`
+- **编码规范 §1.7 提交前自查**: 加 "命名空间已清理" 项
+
+### 检查清单 (每个 PR)
+
+- [ ] 代码中第三方/历史私有包 import 命中数为 0 (使用 grep 全量扫描)
+- [ ] pom.xml 中 groupId 全部为 `com.cloudhub.platform`
+- [ ] 文档/注释中不再出现第三方包名 (除非历史说明)
+- [ ] CI 阶段可考虑加 grep 扫描 fail-fast (后续)
+
+### 违规处理
+
+- 提交前自查发现: **必须清理后重新 commit**
+- 合并后发现: 视为 P1 issue, 立即清理并打 KNOWN_ISSUES
+
+### 教训
+
+1. **🟢 命名空间污染是长期债务**: 历史私有包源码不可访问, 一旦遗留会随业务蔓延, 未来清理付出 10 倍成本
+2. **🟢 规则前置**: 命名空间规则要在翻译/集成**第一天**就落地, 不要等"业务跑通再清理" (永远等不到)
+3. **🟢 自动化检查**: 提交前 grep 是最低成本防线, 后续应在 CI 阶段加 fail-fast

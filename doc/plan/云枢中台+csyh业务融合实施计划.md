@@ -50,60 +50,53 @@
 
 ## 二、Phase -1: 公共层适配与命名空间统一 (5 周) ⭐ 前置
 
-> **为什么必须最先做**: csyh 业务模块 99% 引用 `cn.flyrise.*` 集团公共库（7,557 个 import），源码在集团私有 svn 无法获取。如果不先做公共层适配，**任何业务模块都无法编译运行**。
+> **为什么必须最先做**: csyh 业务模块 99% 引用 csyh 历史私有包（7,557 个 import），源码在 csyh 集团私有仓库无法获取。如果不先做公共层适配，**任何业务模块都无法编译运行**。
 
-### 2.1 cn.flyrise.* 公共库依赖清单
+### 2.1 历史私有包依赖分类
 
-基于 INTEGRATION_ANALYSIS.md 统计（19,510 个 import 中外部依赖）：
+基于 `INTEGRATION_ANALYSIS.md` 统计（19,510 个 import 中外部依赖 7,557 个），按性质分类：
 
-| 包路径 | import 数 | 性质 | 适配复杂度 |
-|--------|-----------|------|------------|
-| `cn.flyrise.common.*` | 5,486 | 通用基础（异常/分页/响应/工具类） | ⭐⭐ |
-| `cn.flyrise.mybatis.*` | 1,114 | MyBatis 增强 (IBaseService, BaseEntity) | ⭐ |
-| `cn.flyrise.security.*` | - | Shiro + 自研安全框架 | ⭐⭐⭐ |
-| `cn.flyrise.business.*` | 713 | 业务通用模块 | ⭐⭐⭐ |
-| `cn.flyrise.system.*` | 244 | 系统工具（用户/权限/字典） | ⭐⭐ |
-| `cn.flyrise.fe.common.*` | - | 前端 VO/DTO | ⭐ (重设计) |
-| `cn.flyrise.mq.*` / `job.*` / `quartz.*` / `oss.*` / `redis.*` | - | 通用中间件 | ⭐-⭐⭐ |
+| 类别 | import 数 | 性质 | 适配复杂度 |
+|------|-----------|------|------------|
+| 通用基础 (异常/分页/响应/工具) | 5,486 | 基础类 | ⭐⭐ |
+| MyBatis 增强 (IBaseService, BaseEntity) | 1,114 | 基础类 | ⭐ |
+| 安全框架 (Shiro + 自研) | - | 适配层 | ⭐⭐⭐ |
+| 业务通用模块 | 713 | 适配层 | ⭐⭐⭐ |
+| 系统工具 (用户/权限/字典) | 244 | 适配层 | ⭐⭐ |
+| 前端 VO/DTO | - | 重设计 | ⭐ |
+| 中间件 (MQ/Job/Quartz/OSS/Redis) | - | 各自动适配 | ⭐-⭐⭐ |
 | **合计外部依赖** | **7,557** | | |
+
+> 具体历史包名与映射关系详见 `D:\work\AI\output\code\csyh\INTEGRATION_ANALYSIS.md` §3.5.1, 本文档不重复罗列 (按编码规范 §1.1 "强制命名空间" 规则, 历史包名仅出现在分析材料中, 不出现在规范/计划类文档)
 
 ### 2.2 公共层适配任务分解
 
 | 周 | 任务 | 输出 |
 |----|------|------|
-| W1 | 扫描所有 cn.flyrise.* import，分类整理 | 公共类清单 + 适配映射表 |
-| W1 | 命名空间统一：`cn.flyrise.*` → `com.cloudhub.platform.park.common.*` | 批量替换脚本 + IDE 重构基线 |
-| W2 | **cn.flyrise.common.* 适配** (Reply, BizException, Page, Result) | `park-common-base` 模块 + 单测 |
-| W2 | **cn.flyrise.mybatis.* 适配** (IBaseService, BaseEntity) | MyBatis-Plus 包装层 + 单测 |
-| W3 | **cn.flyrise.security.* 适配** (Shiro → Spring Security + JWT) | 鉴权适配层 + 双体系用户映射表 |
-| W3 | **cn.flyrise.system.* 适配** (用户/权限/字典抽象) | 抽象接口 + 云枢 platform-user 对接 |
-| W4 | **cn.flyrise.business.* 适配** (业务通用逻辑) | 业务通用层模块 |
-| W4 | cn.flyrise.mq / job / quartz / oss / redis 适配 | 各自独立模块 + 单测 |
-| W5 | 集成验证：抽 1 个 csyh 简单模块编译跑通 | 验证公共层 + 命名空间替换完整 |
+| W1 | 扫描所有历史私有包 import, 分类整理 | 公共类清单 + 适配映射表 |
+| W1 | 命名空间统一: 按编码规范 §1.1 强制规则批量替换 | 批量替换脚本 + IDE 重构基线 |
+| W2 | **通用基础类适配** (Reply → Result, BizException, Page, 分页对象) | `park-common-base` 模块 + 单测 |
+| W2 | **MyBatis 增强适配** (IBaseService → MyBatis-Plus IService) | 包装层 + 单测 |
+| W3 | **安全框架适配** (Shiro → Spring Security + JWT) | 鉴权适配层 + 双体系用户映射表 |
+| W3 | **系统工具适配** (用户/权限/字典抽象) | 抽象接口 + 云枢 platform-user 对接 |
+| W4 | **业务通用层适配** | 业务通用层模块 |
+| W4 | 中间件适配 (MQ / Job / Quartz / OSS / Redis) | 各自独立模块 + 单测 |
+| W5 | 集成验证: 抽 1 个 csyh 简单模块编译跑通 | 验证公共层 + 命名空间替换完整 |
 | W5 | 命名空间全量检查 + 文档更新 | 验收 |
 
 ### 2.3 命名空间统一规则
 
-| 原 csyh | 新云枢 |
-|---------|--------|
-| `cn.flyrise.common.*` | `com.cloudhub.platform.park.common.*` |
-| `cn.flyrise.mybatis.*` | `com.cloudhub.platform.park.common.mybatis.*` |
-| `cn.flyrise.security.*` | `com.cloudhub.platform.park.common.security.*` |
-| `cn.flyrise.system.*` | `com.cloudhub.platform.park.common.system.*` |
-| `cn.flyrise.business.*` | `com.cloudhub.platform.park.common.business.*` |
-| `cn.flyrise.mq.*` | `com.cloudhub.platform.park.common.mq.*` |
-| `cn.flyrise.pai.{module}.*` | `com.cloudhub.platform.park.{module}.*` |
-| `cn.flyrise.fe.common.*` | 重设计 DTO，不强求一致 |
+**遵循编码规范 §1.1 "强制命名空间" 条款**: 所有 park-* 代码使用 `com.cloudhub.platform.*` 命名空间, 不重复罗列具体映射表 (详见 INTEGRATION_ANALYSIS.md 分析材料).
 
 **实施方式**:
-- `sed -i 's/cn\.flyrise\./com.cloudhub.platform.park./g'` 全量替换
-- IDE 重构（IntelliJ）做包路径调整
+- 用 IDE 批量重构 (IntelliJ Shift+F6) 做包路径调整
 - 同步更新 `pom.xml` groupId
 - 统一 groupId = `com.cloudhub.platform`
+- 提交前按编码规范 §1.7 自查项执行全量扫描
 
 ### 2.4 验收标准
 
-- [ ] 所有 cn.flyrise.* import 在 csyh 子模块中**为零**
+- [ ] 所有 csyh 历史私有包 import 在 park-* 子模块中**为零**
 - [ ] 公共层 11 个适配模块全部编译通过 + 单测覆盖 > 80%
 - [ ] 抽 `pai-park-space-csyh` 完整编译运行（虽不含业务逻辑，但证明公共层就绪）
 - [ ] groupId 全部统一为 `com.cloudhub.platform`
@@ -245,7 +238,7 @@
 
 ### 6.4 命名空间统一
 
-- **原 csyh**: `cn.flyrise.*` (集团私有包，无法访问)
+- **原 csyh**: 历史私有包命名空间 (csyh 集团私有，无法访问)
 - **新云枢**: `com.cloudhub.platform.park.*` (项目自有，git 可控)
 - **实施时机**: Phase -1 完成（公共层适配同时完成）
 - **长期收益**: 避免双命名空间长期维护成本，所有代码在自有仓库可控
@@ -256,7 +249,7 @@
 
 | 风险 | 严重度 | 缓解方案 |
 |------|--------|----------|
-| **公共库源码缺失** | 🔴 高 | Phase -1 提前做，先实现 5,486 个 cn.flyrise.common.* 适配 |
+| **公共库源码缺失** | 🔴 高 | Phase -1 提前做，先实现 5,486 个 csyh 通用基础 import 适配 |
 | **业务理解偏差** | 🟡 中 | 逐模块与业务方确认需求，AI 重构后人工 review |
 | **数据库模型冲突** | 🟡 中 | 先建测试库验证，逐步迁移 |
 | **多租户适配遗漏** | 🔴 高 | 强制拦截器 + 自动化测试 |
@@ -271,7 +264,7 @@
 
 | 里程碑 | 周期 | 关键交付 | 验收标准 |
 |--------|------|----------|----------|
-| **M-1: 公共层就绪** | +5 周 | 11 个公共适配模块 + 命名空间统一 | csyh 简单模块编译跑通 + import 0 个 cn.flyrise |
+| **M-1: 公共层就绪** | +5 周 | 11 个公共适配模块 + 命名空间统一 | csyh 简单模块编译跑通 + csyh 历史包 import 为 0 |
 | **M0: 空间中心上线** | +8 周 | park-space 模块 + 房源/楼宇/楼层/工位 CRUD + 平面图 | 6 个表 + API + 前端 + 集成测试通过 |
 | **M1: 合同中心上线** | +11 周 | park-contract + 合同审批流 + 房源关联 | 关联空间中心数据 + Flowable 审批跑通 |
 | **M2: 物业中心上线** | +14 周 | park-property + 巡检/报修/能耗/装修 | 关联楼宇 + 报修工单流转 |
@@ -287,11 +280,11 @@
 
 ### Week 1 立即可做（无需等待）
 
-1. **扫描并整理 cn.flyrise.* import 清单**
+1. **扫描并整理 csyh 历史包 import 清单**
    ```bash
    cd D:\work\AI\output\code\csyh
-   grep -r "import cn.flyrise" --include="*.java" | sort -u > cn-flyrise-imports.txt
-   # 分类整理到 phase_-1-mapping.md
+   # 扫描业务代码中所有非 cloudhub / 标准库的 import, 输出到 phase_-1-mapping.md
+   grep -rE "^import " --include="*.java" . | grep -vE "(com\.cloudhub|^import (java|javax)\.)"
    ```
 
 2. **建立 park-* 6 模块 Maven 骨架**
@@ -337,7 +330,7 @@
 | 业务方法数 | 65,000+ |
 | SQL Migration | 313 个 |
 | Mapper XML | 174 个 |
-| **cn.flyrise.* 外部 import** | **7,557 个 (28%)** |
+| **csyh 历史私有包外部 import** | **7,557 个 (28%)** |
 | **其中 SOURCE_MISSING** | **100%** |
 
 ---
