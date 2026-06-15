@@ -47,6 +47,28 @@ warn()  { echo -e "${YELLOW}  WARN${NC} $1"; WARN=$((WARN+1)); }
 step()  { echo -e "\n${BLUE}== $1 ==${NC}"; }
 
 # ============================================
+# Phase 0: 记录当前镜像 digest (用于 rollback)
+# ============================================
+step "Phase 0: 记录当前镜像 digest (用于 rollback)"
+
+STATE_FILE="/tmp/platform-deploy-2026-06-15.json"
+WORKFLOW_OLD=$($DOCKER_BIN inspect --format='{{index .RepoDigests 0}}' platform-workflow 2>/dev/null || echo "none")
+EXPORTER_OLD=$($DOCKER_BIN inspect --format='{{index .RepoDigests 0}}' platform-container-exporter 2>/dev/null || echo "none")
+
+cat > "$STATE_FILE" << EOF
+{
+  "deploy-date": "$(date -Iseconds 2>/dev/null || date)",
+  "platform-workflow-old-digest": "$WORKFLOW_OLD",
+  "platform-container-exporter-old-digest": "$EXPORTER_OLD"
+}
+EOF
+
+echo "  platform-workflow 旧 digest: $WORKFLOW_OLD"
+echo "  platform-container-exporter 旧 digest: $EXPORTER_OLD"
+echo "  状态文件: $STATE_FILE (rollback 脚本会用)"
+ok "状态记录完成"
+
+# ============================================
 # Phase 1: 拉取新镜像
 # ============================================
 step "Phase 1: 拉取新镜像 (platform-workflow + platform-container-exporter)"
