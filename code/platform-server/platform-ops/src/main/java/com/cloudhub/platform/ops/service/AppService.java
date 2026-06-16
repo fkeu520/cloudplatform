@@ -40,6 +40,23 @@ public class AppService {
         return appMapper.selectById(id);
     }
 
+    /**
+     * 查询当前用户有权限的应用列表 (顶部 tab 数据源)
+     *
+     * <p>W3 阶段新增, 详见 AppMapper.selectUserApps SQL 注释.
+     * 三种 userType 透明处理 (普通用户 / 租户管理员 / 运营管理员).</p>
+     *
+     * @param userId   用户 ID (从 JWT 解析)
+     * @param tenantId 租户 ID (从 TenantContextHolder 取, 可空)
+     * @return 用户有权限的应用列表, 按 sort 排序, 启用状态过滤
+     */
+    public List<App> userApps(Long userId, Long tenantId) {
+        if (userId == null) {
+            return java.util.Collections.emptyList();
+        }
+        return appMapper.selectUserApps(userId, tenantId);
+    }
+
     public void create(Map<String, Object> params) {
         App app = new App();
         app.setAppName((String) params.get("appName"));
