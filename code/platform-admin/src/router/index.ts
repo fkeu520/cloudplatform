@@ -12,19 +12,20 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: Layout,
+    // W3 P1-2: 默认跳工作台 /dashboard (不再跳 system/user)
     redirect: '/dashboard',
     children: [
       {
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/Index.vue'),
-        meta: { title: '数据看板', icon: 'fas fa-chart-bar' }
+        meta: { title: '工作台', icon: 'fas fa-home', appCode: '*' /* 工作台属于全局 */ }
       },
       {
         path: 'system/user',
         name: 'UserMgmt',
         component: () => import('@/views/system/user/Index.vue'),
-        meta: { title: '用户管理', icon: 'fas fa-users', parent: 'system' }
+        meta: { title: '用户管理', icon: 'fas fa-users', parent: 'system', appCode: 'system' }
       },
       {
         path: 'system/role',
