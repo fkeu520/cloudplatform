@@ -114,20 +114,18 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- KNOWN_ISSUES #28: platform-common 把 jjwt-impl/jackson 标 runtime scope
-             (传递不到 test), 但 AppControllerTest 需要真实 JwtUtil.generate()
-             构造 JWT 替换 MockedStatic, 所以直接 test scope 引入. -->
+        <!-- KNOWN_ISSUES #28: platform-common 的 jjwt-impl/jackson
+             即使标 compile scope, spring-boot repackage 在多模块构建时
+             仍可能不传递进 fat jar. 直接 compile scope 声明确保存在. -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
             <version>0.12.3</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
             <version>0.12.3</version>
-            <scope>test</scope>
         </dependency>
 
         <!-- XXL-JOB -->
