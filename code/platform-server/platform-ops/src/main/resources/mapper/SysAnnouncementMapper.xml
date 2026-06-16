@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cloudhub.platform.ops.domain.mapper.SysAnnouncementMapper">
+
+    <!--
+        W3 阶段新增: 工作台公告卡片数据源
+
+        过滤条件:
+        - status=0 启用
+        - deleted=0 (逻辑删除)
+        - publish_time 已到 (NULL OR <= NOW())
+        - expire_time 未过期 (NULL OR > NOW())
+        - app_code 匹配: NULL 全局 OR 传入
+        - tenant_id 匹配: NULL 全租户 OR 传入
+
+        排序: priority DESC, publish_time DESC
+        限制: LIMIT N (调用方传入, 默认 3)
+    -->
+    <select id="selectRecent" resultType="com.cloudhub.platform.ops.domain.entity.SysAnnouncement">
+        SELECT * FROM sys_announcement
+        <where>
+            status = 0 AND deleted = 0
+            AND (publish_time IS NULL OR publish_time &lt;= NOW())
+            AND (expire_time IS NULL OR expire_time &gt; NOW())
+            <if test="appCode != null and appCode != ''">
+                AND (app_code IS NULL OR app_code = #{appCode})
+            </if>
+            <if test="appCode == null or appCode == ''">
+                AND app_code IS NULL
+            </if>
+            <if test="tenantId != null">
+                AND (tenant_id IS NULL OR tenant_id = #{tenantId})
+            </if>
+        </where>
+        ORDER BY priority DESC, publish_time DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>
