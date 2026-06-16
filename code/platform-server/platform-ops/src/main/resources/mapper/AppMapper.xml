@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cloudhub.platform.ops.domain.mapper.AppMapper">
+
+    <!--
+        W3 阶段新增: 查询当前用户有权限的应用列表 (顶部 tab 数据源)
+
+        三种 userType 透明处理:
+        - userType=0 (普通用户): sys_user_role 关联的 menu.app_id
+        - userType=1 (租户管理员): tenantId 必传, 按 sys_tenant_app 过滤
+        - userType=2 (运营管理员): sys_user_role 通常空, 返回空 (符合预期)
+
+        性能: userId + tenantId 双键, sys_app.sort + status 索引覆盖
+    -->
+    <select id="selectUserApps" resultType="com.cloudhub.platform.ops.domain.entity.App">
+        SELECT DISTINCT a.* FROM sys_app a
+        INNER JOIN sys_menu m ON m.app_id = a.id
+        LEFT JOIN sys_role_menu rm ON rm.menu_id = m.id
+        LEFT JOIN sys_user_role ur ON ur.role_id = rm.role_id
+        LEFT JOIN sys_user_menu um ON um.menu_id = m.id
+        <where>
+            a.status = 1 AND a.deleted = 0
+            AND m.deleted = 0 AND m.status = 1
+            AND m.app_id IS NOT NULL
+            AND (ur.user_id = #{userId} OR um.user_id = #{userId})
+            <if test="tenantId != null">
+                AND a.id IN (
+                    SELECT app_id FROM sys_tenant_app
+                    WHERE tenant_id = #{tenantId} AND status = 1
+                )
+            </if>
+        </where>
+        ORDER BY a.sort ASC
+    </select>
+
+</mapper>
