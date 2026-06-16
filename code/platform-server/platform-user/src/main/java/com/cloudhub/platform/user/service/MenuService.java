@@ -59,8 +59,51 @@ public class MenuService {
      * - 租户管理员(userType=1)：返回该租户已授权应用的启用菜单
      * - 普通用户(userType=0)：通过角色+直接授权获取，再过滤租户已授权应用
      * - 运营管理员(userType=2)：返回空（只能登录运营后台）
+     *
+     * <p>W3 阶段新增重载方法 {@link #getUserMenus(Long, Long)} 支持按 appId 过滤,
+     * 用于 Layout.vue 切换顶部 tab 时加载对应左侧菜单. 本方法保留向后兼容.</p>
      */
     public List<Map<String, Object>> getUserMenus(Long userId) {
+        return getUserMenus(userId, null);
+    }
+
+    /**
+     * 根据用户ID + appId 获取菜单树 (W3 P0-5 新增)
+     *
+     * <p>逻辑:
+     * <ol>
+     *   <li>首先按 {@link #getUserMenus(Long)} 拿用户全量菜单</li>
+     *   <li>如果传入 appId, 在结果上过滤 m.appId == appId (含 appId IS NULL 公共菜单)</li>
+     *   <li>空 appId / null 与旧方法行为一致 (返回所有菜单)</li>
+     * </ol>
+     * </p>
+     *
+     * @param userId 用户ID (从 JWT 解析)
+     * @param appId  应用ID (可选; null = 返回所有, 具体值 = 只返回该 app 下菜单)
+     * @return 菜单树 (按 parentId=0 起始的树形结构)
+     */
+    public List<Map<String, Object>> getUserMenus(Long userId, Long appId) {
+        // 复用旧方法拿到全量菜单 (含 userType + 租户过滤)
+        List<Map<String, Object>> allMenus = getUserMenusInternal(userId);
+        if (appId == null) {
+            return allMenus;
+        }
+        // 按 appId 过滤: 包含指定 app 的菜单 + appId IS NULL 的公共菜单
+        return allMenus.stream()
+                .filter(node -> {
+                    Object nodeAppId = node.get("appId");
+                    return nodeAppId == null || appId.equals(((Number) nodeAppId).longValue());
+                })
+                .map(node -> filterTreeByAppId(node, appId))
+                .filter(node -> node != null)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 内部方法: 拿用户全量菜单树 (无 appId 过滤)
+     * 拆出来为了 getUserMenus(Long, Long) 复用 + 单测可独立验证
+     */
+    private List<Map<String, Object>> getUserMenusInternal(Long userId) {
         // 查询用户类型
         User user = userMapper.selectById(userId);
         if (user == null) {
@@ -98,6 +141,32 @@ public class MenuService {
             }
             return buildTree(menus, 0L);
         }
+    }
+
+    /**
+     * 递归过滤子树, 仅保留 appId 匹配或 appId IS NULL 的节点
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> filterTreeByAppId(Map<String, Object> node, Long appId) {
+        Object nodeAppId = node.get("appId");
+        boolean selfMatch = (nodeAppId == null) || appId.equals(((Number) nodeAppId).longValue());
+        List<Map<String, Object>> children = (List<Map<String, Object>>) node.get("children");
+        if (children != null && !children.isEmpty()) {
+            List<Map<String, Object>> filteredChildren = children.stream()
+                    .map(c -> filterTreeByAppId(c, appId))
+                    .filter(c -> c != null)
+                    .collect(Collectors.toList());
+            if (!filteredChildren.isEmpty()) {
+                node.put("children", filteredChildren);
+            } else {
+                node.remove("children");
+            }
+        }
+        // 自身匹配 OR 有任何子节点匹配 → 保留
+        if (selfMatch || (node.get("children") != null)) {
+            return node;
+        }
+        return null;
     }
 
     /**
@@ -214,6 +283,7 @@ public class MenuService {
                     node.put("icon", m.getIcon());
                     node.put("perms", m.getPerms());
                     node.put("sort", m.getSort());
+                    node.put("appId", m.getAppId()); // W3 P0-5: 把 appId 放进 node, 前端按 appId 过滤时可用
                     List<Map<String, Object>> children = buildTree(menus, m.getId());
                     if (!children.isEmpty()) {
                         node.put("children", children);

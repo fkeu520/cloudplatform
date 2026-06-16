@@ -34,16 +34,30 @@ public class MenuController {
         return Result.ok(menuService.navTree());
     }
 
-    @Operation(summary = "获取当前用户菜单树")
+    /**
+     * 获取当前用户菜单树 (W3 P0-5 新增 appId 参数支持)
+     *
+     * <p>逻辑:
+     * <ul>
+     *   <li>不带 appId 参数: 返回用户全量菜单 (向后兼容)</li>
+     *   <li>带 appId=X: 只返回该 app 下的菜单 + appId IS NULL 的公共菜单</li>
+     * </ul>
+     * </p>
+     *
+     * <p>W3 用途: Layout.vue 切换顶部 tab 时, 调用此端点获取该 app 下的左侧菜单树.</p>
+     */
+    @Operation(summary = "获取当前用户菜单树（支持 appId 过滤，W3 顶部 tab 切换用）")
     @GetMapping("/user")
-    public Result<List<Map<String, Object>>> getUserMenus(HttpServletRequest request) {
+    public Result<List<Map<String, Object>>> getUserMenus(
+            HttpServletRequest request,
+            @RequestParam(required = false) Long appId) {
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
             try {
                 String userId = JwtUtil.getUserId(token);
                 if (userId != null && !userId.isBlank()) {
-                    return Result.ok(menuService.getUserMenus(Long.parseLong(userId)));
+                    return Result.ok(menuService.getUserMenus(Long.parseLong(userId), appId));
                 }
             } catch (Exception e) {
                 log.warn("JWT解析失败: {}", e.getMessage());
