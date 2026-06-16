@@ -20,6 +20,7 @@
         <module>platform-ops</module>
         <module>platform-workflow</module>
         <module>platform-message</module>
+        <module>park-common</module>
     </modules>
 
     <properties>
