@@ -5,10 +5,13 @@
 -- ============================================
 
 -- sys_user_role 关联表 (V1 schema 未含, M5 需查 user 的 role)
+-- W3 修复: 增加 id 列, 否则 UserRoleMapper.selectList() 查 SELECT id 报 Column "id" not found
 CREATE TABLE sys_user_role (
+    id BIGINT NOT NULL AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
     role_id BIGINT NOT NULL,
-    PRIMARY KEY (user_id, role_id)
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_role (user_id, role_id)
 );
 
 -- ============================================
