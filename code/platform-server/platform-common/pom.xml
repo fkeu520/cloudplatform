@@ -102,13 +102,16 @@
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
             <version>0.12.3</version>
-            <scope>runtime</scope>
+            <!-- 2026-06-16 W3 修: 取消 runtime → compile (删除 `<scope>` 行)
+                 根因: 多模块 mvn package 时 spring-boot repackage 可能漏掉
+                 transitive runtime 依赖, 导致 Docker fat jar 缺 jjwt-impl/jackson
+                 JwtUtil.<clinit> 在 Keys.hmacShaKeyFor() 处抛 ExceptionInInitializerError
+                 (KNOWN_ISSUES #28, 2026-06-16 修复补丁) -->
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
             <version>0.12.3</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Logstash Logback Encoder (v7.4)
