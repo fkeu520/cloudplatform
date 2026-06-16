@@ -102,7 +102,9 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <argLine>-Dfile.encoding=UTF-8</argLine>
+                    <!-- 2026-06-16 W3 修复: 加 -XX:+EnableDynamicAgentLoading 解决 Mockito MockedStatic 在 Java 17 的 class redefinition failed
+                         (KNOWN_ISSUES #28 - Java 17 + Mockito 5.x 兼容) -->
+                    <argLine>-Dfile.encoding=UTF-8 -XX:+EnableDynamicAgentLoading</argLine>
                     <includes>
                         <include>**/*Test.java</include>
                         <include>**/*Tests.java</include>
