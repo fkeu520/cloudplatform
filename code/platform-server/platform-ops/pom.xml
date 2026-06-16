@@ -114,6 +114,22 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- KNOWN_ISSUES #28: platform-common 把 jjwt-impl/jackson 标 runtime scope
+             (传递不到 test), 但 AppControllerTest 需要真实 JwtUtil.generate()
+             构造 JWT 替换 MockedStatic, 所以直接 test scope 引入. -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.3</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- XXL-JOB -->
         <dependency>
             <groupId>com.xuxueli</groupId>
