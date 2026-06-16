@@ -58,8 +58,14 @@ test-inject.js
 logs_user.json
 backup_platform_*.sql
 
-# Docs (WIP restructuring, temporarily ignored)
-doc/
+# Docs (WIP restructuring, 2026-06-16 重新设计)
+# 重组原则: doc/log / doc/decision / doc/handoff 进 git (项目状态/决策/会话交接)
+#           doc/ops / doc/plan / doc/spec / doc/sql 不进 git (运维手册/中期规划/规范/SQL 是参考文档)
+# 注: phase_-1-*.md 是 csyh 融合 W1 产出物, 默认进 doc/log/, 无需额外放行
+doc/ops/
+doc/plan/
+doc/spec/
+doc/sql/
 
 # Codegraph / tool artifacts
 .codegraph/
