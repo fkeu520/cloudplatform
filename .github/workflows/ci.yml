@@ -20,6 +20,10 @@ on:
       - 'code/platform-server/**/**/application.yml'
       - 'code/platform-server/**/application.yaml'
       - 'code/platform-server/**/**/application.yaml'
+      # 后端 Flyway 迁移 (sql 是 resource 打进 jar, V25/V27 修复 sys_tenant_app seed bug
+      # 没触发 CI 是 2026-06-17 翻车: .sql 改动没 rebuild 镜像, 217 仍是旧 jar)
+      - 'code/platform-server/**/db/migration/**.sql'
+      - 'code/platform-server/**/**/db/migration/**.sql'
       # 前端 TS/Vue 源代码
       - 'code/platform-admin/src/**'
       - 'code/platform-ops-admin/src/**'
@@ -53,6 +57,8 @@ on:
       - 'code/platform-server/pom.xml'
       - 'code/platform-server/**/application.yml'
       - 'code/platform-server/**/**/application.yml'
+      - 'code/platform-server/**/db/migration/**.sql'
+      - 'code/platform-server/**/**/db/migration/**.sql'
       - 'code/platform-admin/src/**'
       - 'code/platform-ops-admin/src/**'
       - 'code/platform-admin/package.json'
