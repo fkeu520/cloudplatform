@@ -89,17 +89,19 @@
             <artifactId>jjwt-api</artifactId>
             <version>0.12.3</version>
         </dependency>
+        <!-- 2026-06-16 W3 修: 取消 runtime → compile
+             根因: spring-boot repackage 在多模块构建时可能漏掉 transitive runtime
+             platform-user 的 JwtAuthFilter / TenantFilter / DashboardController
+             都用 JwtUtil.*, 缺 impl 会抛 ExceptionInInitializerError. -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
             <version>0.12.3</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
             <version>0.12.3</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Lombok -->
