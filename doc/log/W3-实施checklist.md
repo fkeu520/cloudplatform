@@ -214,6 +214,27 @@ paths:
   - ...
 ```
 
+**🟢 2026-06-17 教训**: 任何打到 jar 里的 resource 都必须在 paths 覆盖, 包括:
+- `**/*.sql` (Flyway migration, KNOWN_ISSUES #29)
+- `**/*.xml` (MyBatis mapper)
+- `**/*.yml` / `**/*.properties` (应用配置)
+- `**/*.json` (i18n / 配置)
+- `**/*.html` (模板)
+
+**审计命令**:
+```bash
+# 查 src/main/resources 下所有文件类型
+find code/platform-server/*/src/main/resources -type f | sed 's/.*\.//' | sort -u
+# 对照 ci.yml paths 列表, 缺的扩展名要补
+```
+
+如果改了 ci.yml paths 漏的文件类型 → 必须:
+1. 修 ci.yml 加 path
+2. push 一个 trigger commit 命中新 path
+3. 看 GitHub Actions 变绿, 镜像 rebuild
+4. 217 拉新镜像后, Flyway/Mapper/Config 才生效
+```
+
 **确认 commit 改的文件至少匹配一个 path**, 否则 CI 不跑, 镜像不更新 (2026-06-12 翻车点)。
 
 ### 5.2 等 CI 完成 (5-15 分钟):
