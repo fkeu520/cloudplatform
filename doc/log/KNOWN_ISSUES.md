@@ -2017,3 +2017,61 @@ Mockito 5.x 默认走 **byte-buddy inline mock maker**, 在 Java 17 严格封装
 2. **🟡 runtime scope 是双刃剑**: 减小生产包体积, 但让测试拿不到实现类, 后续跨模块测试要额外配置
 3. **🟢 pre-push hook 暴露问题**: 这正是 hook 的价值 — 阻止带 broken test 的 commit 推到远端; 但要配合快速修复通道 (`--no-verify` + KNOWN_ISSUES 登记), 否则阻塞主线
 4. **🟢 "测试通过 ≠ 设计良好"**: AppController 用静态调用 `JwtUtil.getUserId`, 单测要 mock 静态, 本质是耦合了具体实现; 长远应改为接口注入
+
+---
+
+## #29 - CI `paths` 触发器漏 `**/db/migration/**.sql` (2026-06-17 翻车)
+
+### 现象
+
+W3 阶段 V25 / V26 / V27 改了 `code/platform-server/**/db/migration/*.sql`, 但 GitHub Actions CI 没触发, 217 镜像没 rebuild。用户报告 "Flyway没跑V25 + V27" — 因为 jar 里就没这些 SQL。
+
+### 根因
+
+`.github/workflows/ci.yml` 的 `push.paths` 只覆盖:
+- `code/platform-server/**.java` (后端 Java 源码)
+- `code/platform-server/**/pom.xml` (Maven 依赖)
+- `code/platform-server/**/application.yml` (应用配置)
+- 前端相关 (略)
+
+**没有** `code/platform-server/**/db/migration/**.sql`!
+Flyway migration 是 `src/main/resources/db/migration/V*.sql`, 这些是 resource 目录, 跟 Java 一样被打进 jar。所以改了 SQL 跟改了 Java 一样需要 rebuild 镜像, 但 CI paths 漏了。
+
+### 修复 (commit 08cce34)
+
+```yaml
+# ci.yml paths 新增:
+- 'code/platform-server/**/db/migration/**.sql'
+- 'code/platform-server/**/**/db/migration/**.sql'
+```
+
+同样加到 `pull_request.paths`。
+
+### 后续 217 触发的 commit (162fee1)
+
+V25/V26/V27 已推但 CI 没跑。手动改 V27 触发重建:
+```sql
+-- 改一个文件 (V27 头部注释), 命中新 paths, 触发 backend 重建
+```
+
+CI 重 build platform-user:latest, jar 内含 V25+V27+V27, 217 拉新镜像后 Flyway 看到这些 migration, 自动跑。
+
+### 教训
+
+1. **🟢 任何打到 jar 的 resource 都要在 CI paths**: 包括 `.sql`, `.yml`, `.properties`, `.xml` (MyBatis mapper), `.html` (Thymeleaf 模板), `.json` (i18n) 等。Audit 现有 paths 覆盖率:
+   ```bash
+   # 查 src/main/resources 下所有文件类型
+   find code/platform-server/*/src/main/resources -type f | sed 's/.*\.//' | sort -u
+   ```
+2. **🟢 CI 触发后必须看 GitHub Actions 列表确认绿色**: 不要假设 push 完就 build 完。Watch 5-10 分钟, 看 workflow run 状态。
+3. **🟢 翻车 217 修复要"前看镜像时间"**:
+   ```bash
+   docker inspect IMAGE --format '{{.Created}}'
+   ```
+   时间早于最新 commit = CI 还没 build 该 commit。
+4. **🟢 文档化"CI 路径审计 checklist"**: W3 阶段后期应该跑一遍 `git diff` 看改了哪些文件, 对照 `ci.yml` paths 看是否全覆盖, 否则手动加新文件 → 加新 path → 跑 build 验证 → 才 push。
+
+### 配套工具
+
+- `scripts/diag/verify-tenant-menu.sh`: 217 一站式验证 (拉镜像 + 重启 + Flyway 日志 + DB 数据 + API 端到端)
+- W3 checklist (`doc/log/W3-实施checklist.md`) Section 5.1: 已加 "确认 commit 改的文件至少匹配一个 CI path"
