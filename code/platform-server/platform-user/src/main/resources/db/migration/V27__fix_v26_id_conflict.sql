@@ -9,6 +9,10 @@
 --   - V26 跑了部分成功: V27 的 DELETE 清掉部分成功的那 1 行, V27 的 INSERT 重新插
 --   - V26 没跑: V26 的 V (V27) 比 V26 大, V26 仍要跑 (会失败), V27 兜底
 --     为此 V27 是独立补丁, V26 失败也不影响 V27
+--
+-- 2026-06-17 触发重建: 之前 .sql 改动未触发 CI (ci.yml paths 漏洞),
+--   镜像没带 V25+V27, 217 上 Flyway 看不到这两个 migration
+--   本次 commit 触发 backend 重建
 
 -- 1) 清掉 tenant 1 全部 (V26 可能部分成功留 1 行)
 DELETE FROM `sys_tenant_app` WHERE `tenant_id` = 1;
