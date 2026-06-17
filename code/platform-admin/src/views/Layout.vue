@@ -214,14 +214,10 @@ async function loadMenu(appCode: string) {
     return
   }
   try {
-    // W3 P0-5: MenuController 支持 ?appId=X (注: 传 appCode 不行, 这里用 appId)
-    // 由于 menu 树节点里包含 appId 字段, 我们先用全量, 然后前端按 appCode 过滤
-    // (简化方案: 直接传 appCode 给后端, 后端 W3+ 会扩展支持 appCode 过滤)
-    const res: any = await getUserMenus()
-    const allMenus = res.data || []
-    // 当前 W3 阶段 appId 才是后端支持维度, 这里用前端按 appId 过滤 (因为 appList 里没有 appId 字段, 需要从后端 app/user 返回)
-    // 临时方案: 显示所有菜单 (W3+ 阶段 app/user 加 appId 字段后, 这里加过滤)
-    menuList.value = processMenus(allMenus)
+    // 找到当前 app 的 id, 传给后端过滤
+    const currentApp = appList.value.find(a => a.appCode === appCode)
+    const res: any = await getUserMenus(currentApp?.id)
+    menuList.value = processMenus(res.data || [])
     localStorage.setItem('activeApp', appCode)
   } catch (e) {
     ElMessage.error('加载菜单失败')
@@ -428,7 +424,6 @@ onBeforeUnmount(() => {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 24px;
   flex: 1;
   min-width: 0;
 }
@@ -437,6 +432,9 @@ onBeforeUnmount(() => {
   font-weight: bold;
   color: #303133;
   white-space: nowrap;
+  width: 204px;
+  text-align: center;
+  flex-shrink: 0;
 }
 .app-tabs {
   flex: 1;

@@ -27,10 +27,11 @@ export function getMenuNav() {
   })
 }
 
-export function getUserMenus() {
+export function getUserMenus(appId?: number) {
   return request({
     url: '/menu/user',
-    method: 'get'
+    method: 'get',
+    params: { appId }
   })
 }
 
