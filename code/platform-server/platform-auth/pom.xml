@@ -48,17 +48,18 @@
             <artifactId>jjwt-api</artifactId>
             <version>0.12.3</version>
         </dependency>
+        <!-- 2026-06-16 W3 修: 取消 runtime → compile
+             根因: 同 platform-common/ops/gateway, 缺 impl 会抛 ExceptionInInitializerError
+             platform-auth 负责 login / token 签发, 是 JwtUtil 重度用户. -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
             <version>0.12.3</version>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
             <version>0.12.3</version>
-            <scope>runtime</scope>
         </dependency>
 
         <!-- Lombok -->
