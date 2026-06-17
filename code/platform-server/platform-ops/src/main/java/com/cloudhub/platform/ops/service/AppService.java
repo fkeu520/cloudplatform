@@ -48,11 +48,19 @@ public class AppService {
      *
      * @param userId   用户 ID (从 JWT 解析)
      * @param tenantId 租户 ID (从 TenantContextHolder 取, 可空)
+     * @param userType 用户类型 (0=普通用户 1=租户管理员 2=运营管理员)
      * @return 用户有权限的应用列表, 按 sort 排序, 启用状态过滤
      */
-    public List<App> userApps(Long userId, Long tenantId) {
+    public List<App> userApps(Long userId, Long tenantId, Integer userType) {
         if (userId == null) {
             return java.util.Collections.emptyList();
+        }
+        if (userType != null && userType == 1) {
+            // 租户管理员: 跳过角色关联, 直接查 sys_tenant_app
+            if (tenantId == null) {
+                return java.util.Collections.emptyList();
+            }
+            return appMapper.selectTenantAdminApps(tenantId);
         }
         return appMapper.selectUserApps(userId, tenantId);
     }

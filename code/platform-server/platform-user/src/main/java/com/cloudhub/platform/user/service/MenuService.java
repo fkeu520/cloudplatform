@@ -171,18 +171,41 @@ public class MenuService {
 
     /**
      * 根据用户ID获取权限列表（已过滤租户未授权应用的权限）
+     *
+     * <p>用户类型处理:
+     * <ul>
+     *   <li>userType=0 (普通用户): 通过角色+直接授权获取, 再过滤租户已授权应用</li>
+     *   <li>userType=1 (租户管理员): 跳过角色关联, 直接拿租户已授权应用的全部权限</li>
+     *   <li>userType=2 (运营管理员): 无菜单权限, 返回空</li>
+     * </ul>
+     * </p>
      */
     public List<String> getUserPermissions(Long userId) {
-        List<Menu> menus = menuMapper.selectByUserId(userId);
+        User user = userMapper.selectById(userId);
+        Integer userType = user != null && user.getUserType() != null ? user.getUserType() : 0;
         Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId != null) {
+
+        List<Menu> menus;
+        if (userType == 1 && tenantId != null) {
+            // 租户管理员: 跳过角色关联, 拿该租户已授权应用的全部权限
             List<Long> appIds = menuMapper.selectAuthorizedAppIds(tenantId);
-            if (!appIds.isEmpty()) {
-                menus = menus.stream()
-                        .filter(m -> m.getAppId() == null || appIds.contains(m.getAppId()))
-                        .collect(Collectors.toList());
+            if (appIds.isEmpty()) {
+                return new ArrayList<>();
+            }
+            menus = menuMapper.selectEnabledByAppIds(appIds);
+        } else {
+            // 普通用户 / 运营管理员: 通过角色+直接授权获取
+            menus = menuMapper.selectByUserId(userId);
+            if (tenantId != null) {
+                List<Long> appIds = menuMapper.selectAuthorizedAppIds(tenantId);
+                if (!appIds.isEmpty()) {
+                    menus = menus.stream()
+                            .filter(m -> m.getAppId() == null || appIds.contains(m.getAppId()))
+                            .collect(Collectors.toList());
+                }
             }
         }
+
         return menus.stream()
                 .filter(m -> m.getPerms() != null && !m.getPerms().isEmpty())
                 .map(Menu::getPerms)

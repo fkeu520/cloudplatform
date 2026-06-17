@@ -78,7 +78,7 @@ class AppControllerTest {
         TenantContextHolder.setTenantId(1L);
         String t = token("10", 1L, 0);
         when(request.getHeader("Authorization")).thenReturn("Bearer " + t);
-        when(appService.userApps(eq(10L), eq(1L))).thenReturn(Collections.singletonList(app(1L, "system", "系统管理")));
+        when(appService.userApps(eq(10L), eq(1L), eq(0))).thenReturn(Collections.singletonList(app(1L, "system", "系统管理")));
 
         var r = appController.getUserApps(request);
 
@@ -86,7 +86,7 @@ class AppControllerTest {
         assertEquals(200, r.getCode());
         assertEquals(1, r.getData().size());
         assertEquals("system", r.getData().get(0).getAppCode());
-        verify(appService).userApps(10L, 1L);
+        verify(appService).userApps(10L, 1L, 0);
     }
 
     @Test
@@ -127,7 +127,7 @@ class AppControllerTest {
         TenantContextHolder.setTenantId(null);
         String t = token("10", null, 0);
         when(request.getHeader("Authorization")).thenReturn("Bearer " + t);
-        when(appService.userApps(eq(10L), isNull())).thenReturn(List.of(app(1L, "system", "系统管理"), app(3L, "workflow", "流程中心")));
+        when(appService.userApps(eq(10L), isNull(), eq(0))).thenReturn(List.of(app(1L, "system", "系统管理"), app(3L, "workflow", "流程中心")));
 
         var r = appController.getUserApps(request);
 

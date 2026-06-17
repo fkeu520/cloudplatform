@@ -61,17 +61,17 @@ class AppServiceTest {
 
     @Test
     void testUserApps_nullUserId_returnsEmpty() {
-        List<App> result = appService.userApps(null, null);
+        List<App> result = appService.userApps(null, null, null);
         assertTrue(result.isEmpty());
         verifyNoInteractions(appMapper);
     }
 
     @Test
     void testUserApps_normalUser_withRoles() {
-        // 普通用户 userId=10, tenantId=null (无租户上下文, 比如跨租户管理员)
+        // 普通用户 userId=10, userType=0, tenantId=null
         when(appMapper.selectUserApps(eq(10L), isNull())).thenReturn(Arrays.asList(systemApp, workflowApp));
 
-        List<App> result = appService.userApps(10L, null);
+        List<App> result = appService.userApps(10L, null, 0);
 
         assertEquals(2, result.size());
         assertEquals("system", result.get(0).getAppCode());
@@ -80,32 +80,31 @@ class AppServiceTest {
 
     @Test
     void testUserApps_tenantAdmin_withTenantGrant() {
-        // 租户管理员 userId=5, tenantId=2
-        when(appMapper.selectUserApps(eq(5L), eq(2L))).thenReturn(Collections.singletonList(systemApp));
+        // 租户管理员 userId=5, userType=1, tenantId=2 → 走 selectTenantAdminApps
+        when(appMapper.selectTenantAdminApps(eq(2L))).thenReturn(Collections.singletonList(systemApp));
 
-        List<App> result = appService.userApps(5L, 2L);
+        List<App> result = appService.userApps(5L, 2L, 1);
 
         assertEquals(1, result.size());
         assertEquals("system", result.get(0).getAppCode());
-        verify(appMapper).selectUserApps(5L, 2L);
+        verify(appMapper).selectTenantAdminApps(2L);
     }
 
     @Test
     void testUserApps_opsAdmin_noRoles_returnsEmpty() {
-        // 运营管理员 userId=1 (admin), 无 sys_user_role → SQL 返回空
+        // 运营管理员 userId=1, userType=2 → 走 selectUserApps (同普通用户逻辑)
         when(appMapper.selectUserApps(eq(1L), isNull())).thenReturn(Collections.emptyList());
 
-        List<App> result = appService.userApps(1L, null);
+        List<App> result = appService.userApps(1L, null, 2);
 
         assertTrue(result.isEmpty());
     }
 
     @Test
     void testUserApps_userIdBlankString_invalid() {
-        // userId=0 (理论上不应存在, 但 Long 类型允许)
-        // 这里测试 mapper 抛异常时 service 不应崩溃
+        // userId=0 + userType=null → 走 else 分支调用 mapper
         when(appMapper.selectUserApps(eq(0L), isNull())).thenThrow(new RuntimeException("DB error"));
 
-        assertThrows(RuntimeException.class, () -> appService.userApps(0L, null));
+        assertThrows(RuntimeException.class, () -> appService.userApps(0L, null, null));
     }
 }
