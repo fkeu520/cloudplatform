@@ -34,4 +34,16 @@
         ORDER BY a.sort ASC
     </select>
 
+    <!--
+        租户管理员(userType=1)专用: 跳过 sys_user_role / sys_user_menu 角色关联,
+        直接通过 sys_tenant_app 查询该租户已授权的应用列表.
+        调用方: AppService.userApps()
+    -->
+    <select id="selectTenantAdminApps" resultType="com.cloudhub.platform.ops.domain.entity.App">
+        SELECT DISTINCT a.* FROM sys_app a
+        INNER JOIN sys_tenant_app ta ON ta.app_id = a.id AND ta.tenant_id = #{tenantId} AND ta.status = 1
+        WHERE a.status = 1 AND a.deleted = 0
+        ORDER BY a.sort ASC
+    </select>
+
 </mapper>

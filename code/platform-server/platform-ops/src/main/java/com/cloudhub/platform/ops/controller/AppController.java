@@ -46,9 +46,9 @@ public class AppController {
      *
      * <p>逻辑:
      * <ol>
-     *   <li>从 JWT 解析 userId (Header: Authorization: Bearer xxx)</li>
+     *   <li>从 JWT 解析 userId + userType (Header: Authorization: Bearer xxx)</li>
      *   <li>从 TenantContextHolder 取 tenantId (TenantFilter 已注入)</li>
-     *   <li>调 AppService.userApps(userId, tenantId) 返回 List&lt;App&gt;</li>
+     *   <li>调 AppService.userApps(userId, tenantId, userType) 返回 List&lt;App&gt;</li>
      * </ol>
      * </p>
      *
@@ -71,7 +71,8 @@ public class AppController {
                 if (userIdStr != null && !userIdStr.isBlank()) {
                     Long userId = Long.parseLong(userIdStr);
                     Long tenantId = TenantContextHolder.getTenantId();
-                    return Result.ok(appService.userApps(userId, tenantId));
+                    Integer userType = JwtUtil.getUserType(token);
+                    return Result.ok(appService.userApps(userId, tenantId, userType));
                 }
             } catch (Exception e) {
                 log.warn("JWT 解析失败 /app/user: {}", e.getMessage());

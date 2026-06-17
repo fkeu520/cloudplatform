@@ -41,4 +41,7 @@ public interface AppMapper extends BaseMapper<App> {
      * @return 用户有权限的应用列表 (按 sort 排序)
      */
     List<App> selectUserApps(@Param("userId") Long userId, @Param("tenantId") Long tenantId);
+
+    /** 租户管理员专用: 跳过角色关联, 直接通过 sys_tenant_app 查已授权应用 */
+    List<App> selectTenantAdminApps(@Param("tenantId") Long tenantId);
 }
