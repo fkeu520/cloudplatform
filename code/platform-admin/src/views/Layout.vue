@@ -3,7 +3,7 @@
     <!-- 顶部: logo + 应用 tabs + 用户区 -->
     <el-header class="layout-header">
       <div class="header-left">
-        <div class="logo">云枢中台</div>
+        <div class="logo" @click="router.push('/dashboard')">云枢中台</div>
         <el-tabs v-model="activeApp" class="app-tabs" @tab-change="onAppChange">
           <el-tab-pane
             v-for="app in appList"
@@ -435,6 +435,7 @@ onBeforeUnmount(() => {
   width: 204px;
   text-align: center;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .app-tabs {
   flex: 1;
