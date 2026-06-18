@@ -57,16 +57,18 @@ public class DeptServiceImpl implements DeptService {
         deptMapper.insert(dept);
         return dept;
     }
-    
+
     @Override
     @Transactional
+    @DataScope(deptAlias = "id")
     public Dept update(Dept dept) {
         deptMapper.updateById(dept);
         return dept;
     }
-    
+
     @Override
     @Transactional
+    @DataScope(deptAlias = "id")
     public void delete(Long id) {
         deptMapper.deleteById(id);
     }

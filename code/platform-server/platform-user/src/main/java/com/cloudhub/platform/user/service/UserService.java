@@ -306,6 +306,7 @@ public class UserService {
      * 更新用户
      */
     @Transactional
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void update(Map<String, Object> params) {
         Long id = ((Number) params.get("id")).longValue();
         User exist = userMapper.selectById(id);
@@ -335,6 +336,7 @@ public class UserService {
      * 删除用户
      */
     @Transactional
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void delete(Long id) {
         User user = userMapper.selectById(id);
         if (user == null) {
@@ -350,6 +352,7 @@ public class UserService {
     /**
      * 修改密码
      */
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         User user = userMapper.selectById(userId);
         if (user == null) {
@@ -365,6 +368,7 @@ public class UserService {
     /**
      * 重置密码
      */
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void resetPassword(Long userId, String newPassword) {
         User user = userMapper.selectById(userId);
         if (user == null) {
@@ -377,6 +381,7 @@ public class UserService {
     /**
      * 切换状态
      */
+    @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void toggleStatus(Long id) {
         User user = userMapper.selectById(id);
         if (user == null) {

@@ -191,6 +191,7 @@ CREATE TABLE sys_post (
     dept_id BIGINT,
     name VARCHAR(100),
     code VARCHAR(50),
+    level VARCHAR(20),
     sort INT DEFAULT 0,
     status TINYINT DEFAULT 1,
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
