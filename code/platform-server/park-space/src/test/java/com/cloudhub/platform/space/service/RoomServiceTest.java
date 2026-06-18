@@ -35,7 +35,6 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link RoomService} + {@link RoomStatus} 单元测试
- *
  * <p>W3.1 阶段验证:
  * <ul>
  *   <li>分页查询 (W3 hello world 已覆盖)</li>
@@ -44,9 +43,6 @@ import static org.mockito.Mockito.when;
  *   <li>软删除 (RENTED 状态保护)</li>
  *   <li>状态机 (5 状态 + 4 允许转换 + 1 终态)</li>
  * </ul>
- *
- * @author csyh fusion W3.1
- * @since 2026-06-18
  */
 @ExtendWith(MockitoExtension.class)
 class RoomServiceTest {

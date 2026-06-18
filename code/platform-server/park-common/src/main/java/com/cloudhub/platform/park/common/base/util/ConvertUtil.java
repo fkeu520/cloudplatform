@@ -9,11 +9,9 @@ import java.util.Map;
 
 /**
  * 类型转换工具 (csyh cn.flyrise.common.core.utils.ConvertUtil 翻译)
- *
  * <p>csyh 出现 277 次, 提供 object → 指定类型 的安全转换, 失败返回默认值.
  * 翻译策略: 用 commons-lang3 (云枢已依赖) + Java 反射, 不引入 hutool 减体积.
  * 与 {@link CastUtils} 的差异: ConvertUtil 偏"字符串/Map"场景, CastUtils 偏"基本类型"场景.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * String s = ConvertUtil.toStr(obj, "");
@@ -21,9 +19,6 @@ import java.util.Map;
  * boolean b = ConvertUtil.toBool(obj, false);
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  * @see com.cloudhub.platform.park.common.base.util.CastUtils 基础类型转换 (本类超集)
  */
 public final class ConvertUtil {

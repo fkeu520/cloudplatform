@@ -13,9 +13,7 @@ import java.util.Optional;
 
 /**
  * 数据权限 AOP 切面 (M5 P0-2 实施, 2026-06-04 完整化)
- *
  * 配套: doc/M5-P0-2-实施子任务.md + doc/M5-P0-2-决策记录.md
- *
  * <h2>职责</h2>
  * <ol>
  *   <li>读取当前用户 (TenantContextHolder.getUserId())</li>
@@ -23,7 +21,6 @@ import java.util.Optional;
  *   <li>根据 maxDataScope 拼 SQL 片段</li>
  *   <li>写入 DataScopeContextHolder (供 MyBatis 拦截器读取)</li>
  * </ol>
- *
  * <h2>5 种 data_scope SQL 片段生成</h2>
  * <ul>
  *   <li>1=全部 → "" (不加条件)</li>
@@ -32,19 +29,14 @@ import java.util.Optional;
  *   <li>4=本人 → " AND {alias}.{userAlias} = {userId}"</li>
  *   <li>5=自定义 → " AND {alias}.{deptAlias} IN ({customDeptIds})"</li>
  * </ul>
- *
  * <h2>多角色合并策略 (决策 1)</h2>
  * 取最严格 (max data_scope), 实现由 DataScopeProvider 完成
- *
  * <h2>dept 子树查询 (决策 2 v1.1 修订)</h2>
  * scope=3 子节点由 user 模块 DeptMapper.selectChildDeptIdsByCte 查 (MySQL 8 WITH RECURSIVE),<br>
  * 灰度开关 {@code platform.data-scope.upgrade.enabled} (PR1) 控制走 CTE (true) 还是应用层 DFS (false)
- *
  * <h2>跨模块依赖</h2>
  * DataScopeProvider 由 user 模块实现, common 模块通过接口注入
  * 测试场景 (无 user 模块启动) 时, Provider 为 null, 退化为无 data_scope
- *
- * @since 2026-06-04
  */
 @Slf4j
 @Aspect
@@ -103,12 +95,10 @@ public class DataScopeAspect {
 
     /**
      * 根据 DataScopeContext 拼 SQL 片段
-     *
      * 格式约定 (2026-06-04 修正):
      *   - 表达式**不带 "AND" 前导** (jsqlparser 解析需求)
      *   - 表达式**用括号包装** (e.g. "(id = 5)" 或 "(dept_id IN (1,2,3))")
      *   - 由 DataScopeInnerInterceptor 决定 WHERE 拼接方式
-     *
      * 示例:
      *   scope=1 → ""            (空, 拦截器不改 SQL)
      *   scope=2 → "(dept_id = 100)"

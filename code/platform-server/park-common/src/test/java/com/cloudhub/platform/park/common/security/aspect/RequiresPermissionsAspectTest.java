@@ -20,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link RequiresPermissionsAspect} AOP 单元测试
- *
  * <p>使用 Spring AOP {@link AspectJProxyFactory} 手动创建代理, 验证:
  * <ul>
  *   <li>无 LoginUser → 抛 403</li>
@@ -29,16 +28,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>Logical.AND / Logical.OR 行为</li>
  *   <li>类级 + 方法级注解组合</li>
  * </ul>
- *
  * <p>使用 {@code AspectJProxyFactory} 而非 {@code @SpringBootTest}, 因为:
  * <ol>
  *   <li>park-common 是 library 模块, 没有主启动类</li>
  *   <li>不依赖 Spring Boot 上下文, 单元测试更轻量</li>
  *   <li>AOP 织入逻辑通过 ProxyFactory 即可验证</li>
  * </ol>
- *
- * @author csyh fusion W2.3
- * @since 2026-06-18
  */
 class RequiresPermissionsAspectTest {
 

@@ -22,7 +22,6 @@ import java.util.Map;
 
 /**
  * 园区房屋 Controller (park-space 业务)
- *
  * <p>W3.1 阶段: 完整 CRUD + 状态机端点.
  * <ul>
  *   <li>{@code GET    /room/page}        分页查询</li>
@@ -32,11 +31,7 @@ import java.util.Map;
  *   <li>{@code DELETE /room/{id}}        软删除</li>
  *   <li>{@code PATCH  /room/{id}/status} 状态变更 (状态机校验)</li>
  * </ul>
- *
  * <p>路由: 走 platform-gateway /room/** 规则.</p>
- *
- * @author csyh fusion W3.1
- * @since 2026-06-18
  */
 @Tag(name = "园区房屋", description = "park-space 业务 - 房源管理")
 @RequiredArgsConstructor

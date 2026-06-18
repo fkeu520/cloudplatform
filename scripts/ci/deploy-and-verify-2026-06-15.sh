@@ -222,5 +222,5 @@ if [ $FAIL -gt 0 ]; then
 fi
 
 echo -e "\n${GREEN}部署验证全部通过 (PASS=$PASS, WARN=$WARN)${NC}"
-echo "Grafana 容器资源排行: http://192.168.0.217:3000 (admin / admin)"
+echo "Grafana 容器资源排行: http://192.168.0.217:3000 (admin / 13040936a)"
 exit 0

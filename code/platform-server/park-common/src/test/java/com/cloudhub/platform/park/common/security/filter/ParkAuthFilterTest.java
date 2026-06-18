@@ -22,7 +22,6 @@ import static org.mockito.Mockito.verify;
 
 /**
  * {@link ParkAuthFilter} 单元测试
- *
  * <p>使用 Spring Mock 体系 (MockHttpServletRequest/Response/FilterChain) 验证:
  * <ul>
  *   <li>有 X-User-Id → 写入 LoginContextHolder</li>
@@ -31,9 +30,6 @@ import static org.mockito.Mockito.verify;
  *   <li>请求结束后 → LoginContextHolder.clear() 被调用</li>
  *   <li>所有 Header 字段 (username/tenantId/userType) 正确解析</li>
  * </ul>
- *
- * @author csyh fusion W3
- * @since 2026-06-18
  */
 class ParkAuthFilterTest {
 

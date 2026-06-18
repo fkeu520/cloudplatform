@@ -24,12 +24,9 @@ import java.util.regex.Pattern;
 
 /**
  * 数据权限 MyBatis-Plus 拦截器 (M5 P0-2 实施, M5 PR4 扩展写操作)
- *
  * 配套: doc/M5-P0-2-实施子任务.md §十三 + doc/M5-PR4-D1-jsqlparser-poc.md
- *
  * <h2>职责</h2>
  * 读取 {@link DataScopeContextHolder} 中的 SQL 片段, 拼接到原 SQL 的 WHERE 子句末尾
- *
  * <h2>支持的语句类型 (PR4 扩展后)</h2>
  * <ul>
  *   <li><b>SELECT</b>: 改写 WHERE (PR1-3 已实现)</li>
@@ -39,18 +36,15 @@ import java.util.regex.Pattern;
  *   <li><b>REPLACE INTO</b>: 跳过 (解析为 Upsert, jsqlparser 不分离 DELETE+INSERT) (PR4 D+2.2 已知限制)</li>
  *   <li><b>TRUNCATE</b>: 跳过 (DDL, 不应受 data scope 限制) (PR4 D+2.1)</li>
  * </ul>
- *
  * <h2>FORCE INDEX 预检测 (PR4 D+2.3)</h2>
  * <p>jsqlparser 4.6 不支持 UPDATE/DELETE 中的 MySQL FORCE/USE/IGNORE INDEX 提示。
  * 业务代码若使用这些提示, SQL 解析会失败。</p>
  * <p>本拦截器在解析前预检测这些关键词, 提前 fail-loud, 避免运行时才报错。</p>
- *
  * <h2>灰度开关 (D+2.5)</h2>
  * <ul>
  *   <li>{@code writeStrict} 默认 true: 解析失败时抛 {@link DataScopeViolationException} (fail-closed)</li>
  *   <li>{@code writeStrict=false}: 记 WARN 放行原 SQL (安全降级)</li>
  * </ul>
- *
  * <h2>限制 (PoC 验证结果, doc/M5-PR4-D1-jsqlparser-poc.md)</h2>
  * <ul>
  *   <li>jsqlparser 4.6 解析能力: 30 用例 29 PASS, 1 FAIL (FORCE INDEX)</li>
@@ -58,15 +52,12 @@ import java.util.regex.Pattern;
  *   <li>REPLACE INTO → 跳过 (Upsert 节点无法分离)</li>
  *   <li>业务规范建议: 禁用 FORCE/USE/IGNORE INDEX, REPLACE INTO; 用 SELECT+UPDATE/INSERT 替代</li>
  * </ul>
- *
  * <h2>拦截器顺序 (重要!)</h2>
  * <pre>
  *   1. TenantLineInnerInterceptor  (P0-1: 拼 tenant_id)
  *   2. DataScopeInnerInterceptor   (M5:   拼 data_scope 片段)  ← 本类
  *   3. PaginationInnerInterceptor  (拼 LIMIT/OFFSET)
  * }</pre>
- *
- * @since 2026-06-04 (PR1-3), 2026-06-08 (PR4 扩展)
  */
 @Slf4j
 public class DataScopeInnerInterceptor implements InnerInterceptor {

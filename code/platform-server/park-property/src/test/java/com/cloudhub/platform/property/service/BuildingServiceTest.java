@@ -33,11 +33,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link BuildingService} 单元测试
- *
  * <p>W3.2 阶段验证: 完整 CRUD + 业务约束.</p>
- *
- * @author csyh fusion W3.2
- * @since 2026-06-18
  */
 @ExtendWith(MockitoExtension.class)
 class BuildingServiceTest {

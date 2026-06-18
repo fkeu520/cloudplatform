@@ -19,10 +19,8 @@ import java.util.Set;
 
 /**
  * {@link RequiresPermissions} 切面 (W2.3 阶段完整实现)
- *
  * <p>从 {@link LoginContextHolder} 读取当前 LoginUser, 校验 {@code @RequiresPermissions}
  * 声明的权限是否被当前用户持有, 否则抛 {@link AccessDeniedException}.</p>
- *
  * <p><b>W2.3 阶段策略</b>:
  * <ol>
  *   <li>读 LoginContextHolder 当前 LoginUser</li>
@@ -31,17 +29,14 @@ import java.util.Set;
  *   <li>不满足 → 抛 403 AccessDeniedException</li>
  *   <li>满足 → pjp.proceed() 继续</li>
  * </ol>
- *
  * <p><b>类级 + 方法级注解</b>: 支持 {@code @RequiresPermissions} 加在类上 (默认权限) + 方法上 (额外权限).
  * 方法级权限会与类级权限合并 (AND), 业务方按需选择.</p>
- *
  * <p><b>W3 阶段计划</b>:
  * <ol>
  *   <li>在 platform-auth 增加 JwtAuthFilter, 解析 JWT → 写 LoginContextHolder</li>
  *   <li>本切面不动, 仅依赖 holder 即可工作</li>
  *   <li>可选: 引入 spring-security, 用 {@code @PreAuthorize("hasAuthority('X')")} 替换本注解</li>
  * </ol>
- *
  * <p>使用示例:
  * <pre>{@code
  * // 类级: 该类所有方法都需要 user:view
@@ -49,7 +44,6 @@ import java.util.Set;
  * {@code @RequestMapping("/api/user")}
  * {@code @RequiresPermissions("user:view")}
  * public class UserController {
- *
  *     // 方法级: 额外需要 user:add
  *     {@code @PostMapping}
  *     {@code @RequiresPermissions("user:add")}
@@ -57,9 +51,6 @@ import java.util.Set;
  * }
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.3
- * @since 2026-06-16 (升级 2026-06-18)
  * @see org.apache.shiro.authz.annotation.RequiresPermissions (源类)
  * @see com.cloudhub.platform.park.common.security.context.LoginContextHolder
  */

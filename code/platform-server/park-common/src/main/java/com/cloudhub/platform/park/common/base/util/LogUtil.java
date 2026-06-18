@@ -5,22 +5,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 日志工具 (csyh cn.flyrise.pai.fe.common.util.LogUtil 翻译)
- *
  * <p>csyh 出现 76 次, 提供统一的 info/warn/error 接口 (内部封装 slf4j).
  * 翻译策略: 委托 slf4j, 增加"业务上下文"占位 (W3 阶段接入 LoginContextHolder 后
  * 自动附加 username/tenantId 等).</p>
- *
  * <p>W2 阶段: 仅基础方法. W3 阶段接入 Logback MDC 自动注入 tenantId.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * LogUtil.info("业务模块", "用户 {} 创建了房间 {}", userId, roomId);
  * LogUtil.error("业务模块", "保存失败", e);
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-16
  */
 public final class LogUtil {
 

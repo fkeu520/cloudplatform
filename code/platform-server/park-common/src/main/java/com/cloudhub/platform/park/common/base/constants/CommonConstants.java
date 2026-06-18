@@ -2,18 +2,13 @@ package com.cloudhub.platform.park.common.base.constants;
 
 /**
  * 通用常量 (csyh cn.flyrise.pai.fe.common.constants.CommonConstants 翻译)
- *
  * <p>W2 阶段: 仅枚举 csyh 强引用的 yes/no 常量 + 状态码. 业务模块如有更多常量,
  * 在各自模块的 {@code constants} 包下扩展.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * if (CommonConstants.YES.equals(entity.getEnabled())) { ... }
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-16
  */
 public final class CommonConstants {
 

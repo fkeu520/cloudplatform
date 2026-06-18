@@ -9,19 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * M5 P0-2 PR3 OpsDataScopeProvider 桩单元测试 (2026-06-05)
- *
  * <p>配套: doc/M5-P0-2-实施子任务.md §十 (PR3 启动准备)
- *
  * <h2>覆盖</h2>
  * <ul>
  *   <li>TC-DS-14: OpsDataScopeProviderImpl.getContext(userId) 返回 DataScopeContext.none() (maxDataScope=1)</li>
  * </ul>
- *
  * <h2>设计</h2>
  * <p>纯单元测试 (不启动 Spring), 验证桩实现正确返回 none().
  * <p>Spring 上下文集成由 application 启动 + 业务接口验证覆盖.
- *
- * @since 2026-06-05 (PR3 实施)
  */
 @DisplayName("M5 P0-2 PR3 OpsDataScopeProvider 桩测试 (TC-DS-14)")
 class OpsDataScopeProviderImplTest {

@@ -8,10 +8,8 @@ import java.time.format.DateTimeParseException;
 
 /**
  * 日期工具 (csyh cn.flyrise.common.utils.DateUtils 翻译)
- *
  * <p>csyh 出现 70 次, 提供 LocalDateTime / LocalDate / 时间戳 互转.
  * 翻译策略: 委托 java.time (Java 8+, 云枢默认), 常用 pattern 常量化.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * LocalDateTime now = DateUtils.now();
@@ -20,9 +18,6 @@ import java.time.format.DateTimeParseException;
  * LocalDateTime t = DateUtils.parse("2026-06-18 10:00:00");
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  */
 public final class DateUtils {
 

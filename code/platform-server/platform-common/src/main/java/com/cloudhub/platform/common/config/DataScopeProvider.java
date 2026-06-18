@@ -2,12 +2,9 @@ package com.cloudhub.platform.common.config;
 
 /**
  * 数据权限 Provider 接口 (M5 P0-2 实施)
- *
  * 配套: doc/M5-P0-2-实施子任务.md
- *
  * 设计目的: common 模块的 DataScopeAspect 不能直接 import user 模块的 Mapper
  *          通过此接口, 由 user 模块 (或其他业务模块) 实现
- *
  * 实现示例 (user 模块):
  *   {@code
  *   @Service
@@ -41,14 +38,11 @@ package com.cloudhub.platform.common.config;
  *       }
  *   }
  *   }
- *
- * @since 2026-06-04
  */
 public interface DataScopeProvider {
 
     /**
      * 查 user 的 data_scope 上下文
-     *
      * @param userId 当前用户 ID
      * @return DataScopeContext, 永远非 null (返回 DataScopeContext.none() 表示无限制)
      */

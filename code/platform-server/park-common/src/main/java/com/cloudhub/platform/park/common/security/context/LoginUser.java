@@ -12,10 +12,8 @@ import java.util.Set;
 
 /**
  * 当前登录用户上下文 (csyh Shiro Subject.getPrincipal() 翻译)
- *
  * <p>替代 Shiro 的 {@code Subject} 概念, 用 ThreadLocal 传递当前用户信息.
  * 业务代码通过 {@link LoginContextHolder#get()} 获取当前 ParkUser (简化版).</p>
- *
  * <p>字段说明:
  * <ul>
  *   <li>userId: 用户 ID (雪花)</li>
@@ -24,12 +22,8 @@ import java.util.Set;
  *   <li>roles: 角色编码列表 (e.g. ["admin", "manager"])</li>
  *   <li>permissions: 权限字符串列表 (e.g. ["user:add", "user:edit"])</li>
  * </ul>
- *
  * <p>W2 阶段: 由 Filter/Interceptor 写入 (W3 接入 JwtAuthFilter 后, 自动从 JWT 解析)
  * <br>W3 阶段: 提供 {@code current()} 静态便捷方法, 业务代码无需关心 ThreadLocal.</p>
- *
- * @author csyh fusion W2.3
- * @since 2026-06-18
  */
 @Data
 @Builder

@@ -9,12 +9,8 @@ import java.math.BigDecimal;
 
 /**
  * 园区楼宇 (park-property 第一张业务表)
- *
  * <p>csyh 业务融合 W3.2 阶段 - 物业管理 park-property 的核心实体.
  * 与 park-space (Room) 是 1:N 关系 (1 栋楼有 N 个房间), 后续 W3+ 阶段会通过 sys_room.building_id 外键关联.</p>
- *
- * @author csyh fusion W3.2
- * @since 2026-06-18
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
