@@ -100,7 +100,7 @@ spring:
         - id: park-space
           uri: lb://park-space
           predicates:
-            - Path=/room/**
+            - Path=/room/**, /park/**
           filters:
             - name: CircuitBreaker
               args:
