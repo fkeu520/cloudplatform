@@ -96,6 +96,18 @@ public class RoleService {
         role.setSort((Integer) params.getOrDefault("sort", 0));
         role.setRemark((String) params.get("remark"));
         role.setTenantId(1L);
+        // M5 P0-2: dataScope 字段 (1=全部 2=本部门 3=本部门及下级 4=本人 5=自定义)
+        Integer dataScope = params.get("dataScope") == null ? 1 : toInt(params.get("dataScope"));
+        if (dataScope < 1 || dataScope > 5) {
+            throw new BizException("dataScope 取值范围 1-5, 当前: " + dataScope);
+        }
+        role.setDataScope(dataScope);
+        // dataScope=5 时必填 customDeptIds
+        String customDeptIds = (String) params.get("customDeptIds");
+        if (dataScope == 5 && !StringUtils.hasText(customDeptIds)) {
+            throw new BizException("dataScope=5 (自定义) 时, customDeptIds 必填");
+        }
+        role.setCustomDeptIds(customDeptIds);
         roleMapper.insert(role);
     }
 
@@ -121,6 +133,21 @@ public class RoleService {
         }
         if (params.containsKey("status")) {
             exist.setStatus((Integer) params.get("status"));
+        }
+        // M5 P0-2: dataScope 字段
+        if (params.containsKey("dataScope")) {
+            Integer dataScope = toInt(params.get("dataScope"));
+            if (dataScope < 1 || dataScope > 5) {
+                throw new BizException("dataScope 取值范围 1-5, 当前: " + dataScope);
+            }
+            exist.setDataScope(dataScope);
+        }
+        if (params.containsKey("customDeptIds")) {
+            exist.setCustomDeptIds((String) params.get("customDeptIds"));
+        }
+        // dataScope=5 时必填 customDeptIds
+        if (Integer.valueOf(5).equals(exist.getDataScope()) && !StringUtils.hasText(exist.getCustomDeptIds())) {
+            throw new BizException("dataScope=5 (自定义) 时, customDeptIds 必填");
         }
         roleMapper.updateById(exist);
     }
@@ -166,5 +193,12 @@ public class RoleService {
                 roleMenuMapper.insert(rm);
             }
         }
+    }
+
+    private Integer toInt(Object val) {
+        if (val == null) return null;
+        if (val instanceof Number) return ((Number) val).intValue();
+        if (val instanceof String) return Integer.parseInt((String) val);
+        throw new BizException("无法转换Integer类型: " + val.getClass().getName());
     }
 }
