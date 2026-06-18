@@ -85,7 +85,7 @@ spring:
         - id: platform-user
           uri: lb://platform-user
           predicates:
-            - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**, /dashboard/**, /room/**
+            - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**, /dashboard/**, /room/**, /building/**
           filters:
             - name: CircuitBreaker
               args:
