@@ -1,6 +1,7 @@
 package com.cloudhub.platform.user.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.config.DataScopeContext;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.user.domain.entity.User;
@@ -8,6 +9,7 @@ import com.cloudhub.platform.user.domain.vo.LoginVO;
 import com.cloudhub.platform.user.domain.vo.UserPageVO;
 import com.cloudhub.platform.user.domain.vo.UserVO;
 import com.cloudhub.platform.user.service.UserService;
+import com.cloudhub.platform.user.tenant.UserDataScopeProviderImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +19,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "用户管理", description = "用户CRUD/登录/角色分配/密码管理")
+@Tag(name = "�û�����", description = "�û�CRUD/��¼/��ɫ����/�������")
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/user")
 public class UserController {
 
     private final UserService userService;
+    /**
+     * M5+ 数据权限 Provider 远程调用入口
+     * 供 platform-workflow / platform-message / platform-ops 模块调用
+     * 返回 user 的 max data_scope + userDeptId + customDeptIds + childDeptIds
+     */
+    private final UserDataScopeProviderImpl userDataScopeProvider;
 
     // ========== 认证相关 ==========
 
@@ -76,6 +84,18 @@ public class UserController {
     @GetMapping("/internal/by-username/{username}")
     public Result<UserVO> getByUsername(@PathVariable String username) {
         return Result.ok(userService.getByUsername(username));
+    }
+
+    /**
+     * M5+ 跨服务 data_scope 查询 (供 workflow/message/ops 调用)
+     * <p>配套: M5+ Provider 真实现 (commit 2026-06-18)
+     * <p>非 user 模块的 DataScopeProvider 通过此端点获取 user 的 data_scope 上下文,
+     * 避免每个模块重复实现 user/role 查询逻辑</p>
+     */
+    @Operation(summary = "查询用户的 data_scope 上下文 (M5+ 跨服务 Provider 入口)")
+    @GetMapping("/internal/data-scope/{userId}")
+    public Result<DataScopeContext> getDataScopeContext(@PathVariable Long userId) {
+        return Result.ok(userDataScopeProvider.getContext(userId));
     }
 
     // ========== 用户管理 ==========
