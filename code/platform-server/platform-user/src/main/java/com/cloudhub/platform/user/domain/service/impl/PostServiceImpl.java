@@ -51,16 +51,18 @@ public class PostServiceImpl implements PostService {
         postMapper.insert(post);
         return post;
     }
-    
+
     @Override
     @Transactional
+    @DataScope(deptAlias = "dept_id")
     public Post update(Post post) {
         postMapper.updateById(post);
         return post;
     }
-    
+
     @Override
     @Transactional
+    @DataScope(deptAlias = "dept_id")
     public void delete(Long id) {
         postMapper.deleteById(id);
     }
