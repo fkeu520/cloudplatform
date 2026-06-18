@@ -15,9 +15,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * IdUtils / DateUtils / ConvertUtil / I18nUtil 单元测试
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  */
 class UtilTest {
 

@@ -6,9 +6,6 @@ import org.apache.ibatis.annotations.Mapper;
 
 /**
  * 园区楼宇 Mapper (park-property 业务)
- *
- * @author csyh fusion W3.2
- * @since 2026-06-18
  */
 @Mapper
 public interface BuildingMapper extends BaseMapper<Building> {

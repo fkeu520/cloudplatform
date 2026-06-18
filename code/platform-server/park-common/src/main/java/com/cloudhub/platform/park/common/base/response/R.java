@@ -4,13 +4,11 @@ import com.cloudhub.platform.common.result.Result;
 
 /**
  * 园区统一响应工厂 (csyh cn.flyrise.common.core.domain.Reply 翻译)
- *
  * <p>csyh 出现 583 次, 是最常用的响应包装类. 翻译策略:
  * 提供静态方法委托 {@link Result} (云枢), 业务代码改 import 即可.
  * 为什么不继承 Result? —— Java 静态方法不参与多态, 继承的 static 方法返回父类实例而非子类,
  * 强制继承会破坏调用方预期 ({@code R.ok()} 必须返回 R 实例). 改为 final + 静态方法转发,
  * 是 csyh 业务代码迁移代价最小且类型安全的方案.</p>
- *
  * <p>csyh 风格兼容示例:
  * <pre>{@code
  * Result<UserVO> r = R.ok(userVo);
@@ -18,9 +16,6 @@ import com.cloudhub.platform.common.result.Result;
  * Result<Void> r = R.error("操作失败");
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  * @see com.cloudhub.platform.common.result.Result 云枢统一响应
  */
 public final class R {

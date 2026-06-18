@@ -6,11 +6,9 @@ import java.util.List;
 
 /**
  * 分页响应包装 (csyh cn.flyrise.common.core.page.TableDataInfo 翻译)
- *
  * <p>csyh 出现 92 次, 是 EasyUI / LayUI 等老前端框架约定的分页字段格式:
  * {@code { total, rows, code, msg }}. 翻译策略:
  * 继承 {@link PageResult} (云枢), 字段保持兼容 (rows = records).</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * TableDataInfo<RoomVO> t = new TableDataInfo<>();
@@ -21,16 +19,12 @@ import java.util.List;
  * return t;
  * }</pre>
  * </p>
- *
  * <p><b>字段差异</b>:
  * <ul>
  *   <li>云枢 PageResult: {@code records} (标准命名)</li>
  *   <li>csyh TableDataInfo: {@code rows} (前端框架约定)</li>
  * </ul>
  * 业务代码可同时使用 {@code getRows()} / {@code getRecords()}, 返回同一引用.</p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  * @see com.cloudhub.platform.common.result.PageResult 云枢分页响应 (父类)
  */
 public class TableDataInfo<T> extends PageResult<T> {

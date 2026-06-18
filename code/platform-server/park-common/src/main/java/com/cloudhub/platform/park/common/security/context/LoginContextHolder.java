@@ -6,10 +6,8 @@ import java.util.Set;
 
 /**
  * 当前登录用户上下文 (csyh SecurityUtils.getSubject() 翻译)
- *
  * <p>用 ThreadLocal 传递当前 LoginUser, 业务代码通过 {@link #get()} 获取.
  * 替代 Shiro 的 {@code SecurityUtils.getSubject()}, 不依赖 spring-security.</p>
- *
  * <p><b>使用示例</b>:
  * <pre>{@code
  * // Filter/Interceptor 写入 (W3 由 JwtAuthFilter 自动完成)
@@ -17,17 +15,14 @@ import java.util.Set;
  *     .userId(1L).username("admin").tenantId(1L)
  *     .permissions(Set.of("user:add", "user:edit"))
  *     .build());
- *
  * // 业务代码读取
  * LoginUser current = LoginContextHolder.get();
  * if (current != null && current.getPermissions().contains("user:add")) {
  *     // 有权限
  * }
- *
  * // 请求结束时清除 (Filter 末尾调用, 避免线程复用泄露)
  * LoginContextHolder.clear();
  * }</pre>
- *
  * <p><b>W2 阶段</b>: 使用 {@link ThreadLocal} (JDK 内置, 零依赖).
  * <br><b>W3 阶段</b>:
  * <ol>
@@ -35,9 +30,6 @@ import java.util.Set;
  *       (解决 {@code @Async} / 线程池场景下上下文丢失问题)</li>
  *   <li>在 platform-auth 增加 JwtAuthFilter, 解析 JWT → 写入本 Holder</li>
  * </ol>
- *
- * @author csyh fusion W2.3
- * @since 2026-06-18
  */
 public final class LoginContextHolder {
 
@@ -57,7 +49,6 @@ public final class LoginContextHolder {
 
     /**
      * 获取当前登录用户
-     *
      * @return 当前 LoginUser, 未登录返回 null
      */
     public static LoginUser get() {

@@ -2,12 +2,8 @@ package com.cloudhub.platform.park.common.base.constants;
 
 /**
  * 安全 / JWT 相关常量 (csyh cn.flyrise.common.core.constant.SecurityConstants 翻译)
- *
  * <p>csyh 出现 271 次, 包含 token 头 / 来源 / 用户名 等常量. 翻译策略:
  * 保留 csyh 常量名, 值与云枢保持兼容.</p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-16
  */
 public final class SecurityConstants {
 

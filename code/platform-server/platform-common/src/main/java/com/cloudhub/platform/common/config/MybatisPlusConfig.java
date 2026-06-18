@@ -38,8 +38,6 @@ public class MybatisPlusConfig implements MetaObjectHandler {
      * 通过 {@code platform.tenant.interceptor.enabled=true} 控制，缺失时默认 {@code true}。<br>
      * 关闭时回落到 {@link #mybatisPlusInterceptorDisabled()}（仅保留分页拦截器）。<br>
      * 决策依据: 见 {@code doc/P0-1-回滚开关设计.md} 方案 A。
-     *
-     * @since 2026-06-04
      */
     @Bean
     @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "true", matchIfMissing = true)
@@ -83,8 +81,6 @@ public class MybatisPlusConfig implements MetaObjectHandler {
      * 当 {@code platform.tenant.interceptor.enabled=false} 时激活。<br>
      * 仅保留分页拦截器，多租户过滤被旁路，业务回到 v3.1 之前行为。<br>
      * <b>警告</b>: 此 Bean 激活时无任何租户隔离，存在越权风险，仅用于紧急止血。
-     *
-     * @since 2026-06-04
      */
     @Bean
     @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "false")

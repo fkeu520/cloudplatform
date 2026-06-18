@@ -23,33 +23,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * M5 P0-2 PR2 DataScope 业务层集成测试 (2026-06-05)
- *
  * <p>配套: doc/M5-P0-2-实施子任务.md §九 (PR2 启动准备)
- *
  * <h2>覆盖</h2>
  * <ul>
  *   <li>TC-DS-09: PostService.listByOrgId scope=4 (本人) 时, SQL 自动加 AND id = userId (deptAlias 走默认 userAlias="id")</li>
  *   <li>TC-DS-10: DeptService.listByOrgId scope=4 (本人) 时, SQL 自动加 AND id = userId (deptAlias="id")</li>
  *   <li>TC-DS-11: DeptService.listTreeByOrgId scope=4 (本人) 时, SQL 改写 + buildTree 正确</li>
  * </ul>
- *
  * <h2>注解语义</h2>
  * <ul>
  *   <li>PostService.listByOrgId: {@code @DataScope(deptAlias="dept_id")} 默认 userAlias="id"</li>
  *   <li>DeptService.listByOrgId / listTreeByOrgId: {@code @DataScope(deptAlias="id")} (sys_dept 无 dept_id 列)</li>
  * </ul>
- *
  * <h2>scope=4 SQL 片段格式</h2>
  * <pre>{@code
  *   scope=4 → "(id = {userId})"  (走 buildSelfFragment, userAlias="id")
  *   拦截器拼: SELECT * FROM sys_post WHERE org_id=1 AND status=1 AND deleted=0 AND id = 101
  * }</pre>
- *
  * <h2>deptAlias 行为端到端验证</h2>
  * <p>scope=3/5 的 deptAlias 字段名验证 (Post=dept_id, Dept=id) 由真 MySQL 8 端到端覆盖
  * ({@code doc/PR2-mysql-test.sql}), H2 集成测试只验证 scope=4 拦截器改写工作流。
- *
- * @since 2026-06-05 (PR2 实施)
  */
 @SpringBootTest
 @ActiveProfiles("test")

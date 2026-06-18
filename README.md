@@ -163,7 +163,7 @@ docker stats --no-stream
 |------|------|------|
 | 管理后台 | http://192.168.0.217:8080 | admin / 123456 |
 | 运营后台 | http://192.168.0.217:8090 | admin / 123456 |
-| Grafana (监控) | http://192.168.0.217:3000 | admin / admin |
+| Grafana (监控) | http://192.168.0.217:3000 | admin / 13040936a |
 | Prometheus | http://192.168.0.217:9090 | - |
 | Zipkin (链路) | http://192.168.0.217:9411 | - |
 | Kibana (日志) | http://192.168.0.217:5601 | - |
@@ -221,7 +221,7 @@ docker stats --no-stream
 | **JVM (规划)** | Micrometer + /actuator/prometheus | 各微服务 | (需启用 prometheus 端点) |
 | **告警 (规划)** | Alertmanager | Prometheus | (需部署) |
 
-Grafana 访问: http://192.168.0.217:3000 (admin / admin)
+Grafana 访问: http://192.168.0.217:3000 (admin / 13040936a)
 
 ---
 

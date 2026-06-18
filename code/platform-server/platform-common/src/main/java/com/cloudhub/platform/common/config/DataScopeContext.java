@@ -5,18 +5,13 @@ import lombok.Data;
 
 /**
  * 数据权限上下文 (M5 P0-2 实施)
- *
  * 配套: doc/M5-P0-2-实施子任务.md + doc/M5-P0-2-决策记录.md
- *
  * 设计目的: DataScopeAspect 在 common 模块, 不能直接 import user 模块的 Mapper
  *          通过 DataScopeProvider 接口 + DataScopeContext 数据传输, 实现依赖倒置
- *
  * 使用流程:
  *   1. DataScopeProvider (user 模块实现) 查 DB 返回 DataScopeContext
  *   2. DataScopeAspect 根据 context.maxDataScope 决定 SQL 片段
  *   3. DataScopeInnerInterceptor 拼 SQL 片段到原 SQL
- *
- * @since 2026-06-04
  */
 @Data
 @Builder

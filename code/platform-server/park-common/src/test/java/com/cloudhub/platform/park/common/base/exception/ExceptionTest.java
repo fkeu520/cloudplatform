@@ -10,12 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 异常适配层单元测试
- *
  * <p>验证 CommonException / BusinessException 正确继承 BizException (云枢),
  * 字段与方法完全兼容.</p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  */
 class ExceptionTest {
 

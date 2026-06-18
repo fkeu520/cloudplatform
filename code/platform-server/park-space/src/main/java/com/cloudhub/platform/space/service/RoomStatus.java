@@ -5,18 +5,13 @@ import java.util.Set;
 
 /**
  * 房源状态枚举 (park-space 业务)
- *
  * <p>5 状态机, 4 允许的转换 + 1 终态.</p>
- *
  * <p>设计原则:
  * <ul>
  *   <li>代码与 sys_room.status 字段一一对应 (0/1/2/3)</li>
  *   <li>状态转换由 {@link #canTransitionTo(RoomStatus)} 严格校验, 防止非法跳转</li>
  *   <li>{@link #DISABLED} 是终态, 不可逆转 (如需启用, 创建新房源)</li>
  * </ul>
- *
- * @author csyh fusion W3.1
- * @since 2026-06-18
  */
 public enum RoomStatus {
 
@@ -54,7 +49,6 @@ public enum RoomStatus {
 
     /**
      * 判断当前状态是否可转换到目标状态
-     *
      * <p>状态转换图:
      * <pre>
      *   VACANT ─┬─→ RENTED      (租)

@@ -9,15 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * M5 P0-2 PR3 MessageDataScopeProvider 桩单元测试 (2026-06-05)
- *
  * <p>配套: doc/M5-P0-2-实施子任务.md §十 (PR3 启动准备)
- *
  * <h2>覆盖</h2>
  * <ul>
  *   <li>TC-DS-16: MessageDataScopeProviderImpl.getContext(userId) 返回 DataScopeContext.none()</li>
  * </ul>
- *
- * @since 2026-06-05 (PR3 实施)
  */
 @DisplayName("M5 P0-2 PR3 MessageDataScopeProvider 桩测试 (TC-DS-16)")
 class MessageDataScopeProviderImplTest {

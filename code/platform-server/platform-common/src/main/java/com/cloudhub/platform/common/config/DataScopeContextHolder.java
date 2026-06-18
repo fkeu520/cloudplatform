@@ -2,17 +2,12 @@ package com.cloudhub.platform.common.config;
 
 /**
  * 数据权限 SQL 片段 ThreadLocal 上下文
- *
  * 配套: doc/M5-P0-2-实施子任务.md
- *
  * 用法:
  *   - DataScopeAspect 在 @Before 时调用 set() 写入 SQL 片段
  *   - DataScopeInnerInterceptor 在 SQL 拼接时调用 get() 读取
  *   - 业务方法结束后由 Aspect/Interceptor 调 clear() 清理
- *
  * 注意: 与 TenantContextHolder 不同, 此处存的是"已拼接的 SQL 片段"而非租户 ID
- *
- * @since 2026-06-04
  */
 public class DataScopeContextHolder {
 

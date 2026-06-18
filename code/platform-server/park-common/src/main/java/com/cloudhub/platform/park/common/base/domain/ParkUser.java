@@ -10,13 +10,10 @@ import java.util.Set;
 
 /**
  * 园区用户上下文 (csyh cn.flyrise.pai.fe.common.organize.domain.User 翻译)
- *
  * <p>csyh 出现 340 次, 是跨业务最常引用的类 (任何 controller/service 都有).
  * 翻译策略: 字段全保留, 类型按云枢规范 (Long id, 雪花 ID), 不引入新业务逻辑.</p>
- *
  * <p>W2 阶段: 仅做"翻译壳", 不接入实际"当前登录用户"获取.
  * W3 阶段: 接入 platform-common LoginContextHolder, 增加 {@code current()} 静态方法.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * ParkUser user = ...;  // 从 Service/Controller 传参获得
@@ -24,9 +21,6 @@ import java.util.Set;
  * String username = user.getUsername();
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-16
  * @see com.cloudhub.platform.user.entity.SysUser (云枢实体, 通过 platform-user 暴露)
  */
 @Data

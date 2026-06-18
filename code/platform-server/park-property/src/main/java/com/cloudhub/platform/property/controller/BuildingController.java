@@ -21,12 +21,8 @@ import java.util.Map;
 
 /**
  * 园区楼宇 Controller (park-property 业务)
- *
  * <p>W3.2 阶段: 完整 CRUD 端点.
  * 路由: 走 platform-gateway /building/** 规则 (待 W3.2 网关路由更新).</p>
- *
- * @author csyh fusion W3.2
- * @since 2026-06-18
  */
 @Tag(name = "园区楼宇", description = "park-property 业务 - 楼宇管理")
 @RequiredArgsConstructor

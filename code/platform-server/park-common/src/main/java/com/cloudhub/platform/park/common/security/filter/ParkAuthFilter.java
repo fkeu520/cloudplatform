@@ -19,10 +19,8 @@ import java.util.Collections;
 
 /**
  * 园区业务服务鉴权 Filter (Phase -1 W3 阶段)
- *
  * <p>职责: 从 HTTP Header 中读取网关转发的用户上下文, 写入 {@link LoginContextHolder}.
  * 依赖 {@code platform-gateway} 的 {@code JwtAuthFilter} 已经完成 JWT 解析与 Header 注入.</p>
- *
  * <p><b>Header 约定</b> (由 gateway 注入, 此处只读):
  * <ul>
  *   <li>{@code X-User-Id}: 用户 ID (必填)</li>
@@ -30,7 +28,6 @@ import java.util.Collections;
  *   <li>{@code X-Tenant-Id}: 租户 ID</li>
  *   <li>{@code X-User-Type}: 用户类型 (0=普通 1=租户管理员 2=运营管理员)</li>
  * </ul>
- *
  * <p><b>使用方式</b> (park-* 业务服务):
  * <pre>{@code
  * &#064;SpringBootApplication
@@ -38,22 +35,16 @@ import java.util.Collections;
  * }</pre>
  * park-common 模块下此 Filter 标注 {@code @Component}, 业务服务启动时被自动注册.
  * 业务代码可通过 {@link LoginContextHolder#get()} 在任意位置访问当前 ParkUser.</p>
- *
  * <p><b>禁用</b>: 设置 {@code platform.park.auth-filter.enabled=false} 可关闭 (默认开启).</p>
- *
  * <p><b>W3 阶段增强</b>:
  * <ol>
  *   <li>调用 platform-user 的 {@code /user/internal/permissions/{userId}} 端点, 加载权限集合</li>
  *   <li>集成 Redis 缓存 (userId → permissions, TTL 5min)</li>
  *   <li>热更新: 用户权限变更时, 通过 Kafka 事件清除本地缓存</li>
  * </ol>
- *
  * <p><b>关于 Spring Boot Filter 顺序</b>:
  * 使用 {@link Order} (HIGHEST_PRECEDENCE + 10 = -2147483648 + 10) 确保 Filter 在最早期执行,
  * 早于业务 Controller, 晚于 Servlet 容器标准 Filter.</p>
- *
- * @author csyh fusion W3
- * @since 2026-06-18
  */
 @Slf4j
 @Component

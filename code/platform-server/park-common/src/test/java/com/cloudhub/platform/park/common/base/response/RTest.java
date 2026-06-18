@@ -15,11 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * R / AjaxResult / TableDataInfo 适配层单元测试
- *
  * <p>验证 park-common 适配类正确委托 platform-common 统一响应, 字段/方法完全兼容.</p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-18
  */
 class RTest {
 

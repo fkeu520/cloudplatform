@@ -19,13 +19,10 @@ import java.util.stream.Collectors;
 
 /**
  * User 模块 DataScopeProvider 实现 (M5 P0-2 实施)
- *
  * 配套: doc/M5-P0-2-实施子任务.md + doc/M5-P0-2-决策记录.md
- *
  * <h2>职责</h2>
  * 根据 userId 查 user 的所有 role, 取 max(data_scope) (决策 1: 取最严格)
  * 同时查 user.dept_id (用于 scope=2/3) 和 custom_dept_ids (用于 scope=5)
- *
  * <h2>数据流</h2>
  * <pre>
  *   DataScopeAspect → DataScopeProvider.getContext(userId)
@@ -36,13 +33,10 @@ import java.util.stream.Collectors;
  *     4. role.customDeptIds (where dataScope=5) → customDeptIds
  *     5. return DataScopeContext
  * }</pre>
- *
  * <h2>异常处理</h2>
  * - user 不存在 → 返回 none() (无限制, 退化)
  * - 角色表空 → dataScope=1 (全部)
  * - dept_id 缺失 → scope=2/3 退化为 scope=4 (本人)
- *
- * @since 2026-06-04
  */
 @Slf4j
 @Service
@@ -61,8 +55,6 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
      * <p>
      * 紧急回滚: yml 设 false + 重启
      * 配套: doc/项目进度.md v7.1 §7.2
-     *
-     * @since 2026-06-05 (PR1 实施)
      */
     @Value("${platform.data-scope.upgrade.enabled:false}")
     private boolean upgradeEnabled;
@@ -145,7 +137,6 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
 
     /**
      * v7.1 新方法: MySQL 8 递归 CTE
-     *
      * <p>配套: DeptMapper.selectChildDeptIdsByCte
      * <p>与决策 2 A 递归 CTE 一致
      * <p>PR1 实施发现: sys_dept 表无 tenant_id 字段, 故 CTE 不加 tenant 过滤 (P0-1 设计就是跨租户共享)

@@ -20,11 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link LoginContextHolder} 单元测试
- *
  * <p>验证 set/get/clear + ThreadLocal 隔离 + 便捷方法正确性.</p>
- *
- * @author csyh fusion W2.3
- * @since 2026-06-18
  */
 class LoginContextHolderTest {
 

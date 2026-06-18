@@ -18,18 +18,13 @@ import java.util.Map;
 
 /**
  * 园区楼宇 Service (park-property 业务)
- *
  * <p>W3.2 阶段: 完整 CRUD (与 RoomService 模式对齐, 复用同一套范式).</p>
- *
  * <p>W3+ 阶段:
  * <ul>
  *   <li>关联 sys_room: 查询某楼的所有房间 (1:N)</li>
  *   <li>关联 sys_contract: 楼宇入驻率统计</li>
  *   <li>工单系统: 报修/巡检记录</li>
  * </ul>
- *
- * @author csyh fusion W3.2
- * @since 2026-06-18
  */
 @Slf4j
 @Service

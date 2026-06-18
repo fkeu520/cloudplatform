@@ -10,12 +10,8 @@ import java.time.LocalDateTime;
 
 /**
  * 园区合同 (park-contract 第一张业务表)
- *
  * <p>W3.2b 阶段接入, 与 sys_room 1:1 关联.
  * 状态机见 {@link com.cloudhub.platform.contract.service.ContractStatus}.</p>
- *
- * @author csyh fusion W3.2b
- * @since 2026-06-18
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

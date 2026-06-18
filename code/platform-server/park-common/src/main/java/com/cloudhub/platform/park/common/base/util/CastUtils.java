@@ -9,12 +9,9 @@ import java.util.Collection;
 
 /**
  * 类型转换工具 (csyh cn.flyrise.pai.fe.common.util.CastUtils 翻译)
- *
  * <p>csyh 出现 58 次, 提供 object → 指定类型 的安全转换. 翻译策略:
  * 委托 Hutool 的工具方法, 业务代码改 import 即可.</p>
- *
  * <p>W2 阶段: 仅基础 8 种类型 + 集合判断. 复杂转换 (Map/List/Date) 留 W3 阶段补全.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * Long id = CastUtils.toLong(obj, 0L);
@@ -22,9 +19,6 @@ import java.util.Collection;
  * boolean flag = CastUtils.toBoolean(obj);
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-16
  */
 public final class CastUtils {
 

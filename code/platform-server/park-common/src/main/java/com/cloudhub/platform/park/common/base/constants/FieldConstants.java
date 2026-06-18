@@ -2,21 +2,15 @@ package com.cloudhub.platform.park.common.base.constants;
 
 /**
  * 字段名常量 (csyh cn.flyrise.pai.fe.common.constants.FieldConstants 翻译)
- *
  * <p>csyh 出现 113 次, 业务模块通过 {@code FieldConstants.ID} 引用字段名, 避免硬编码.
  * 翻译策略: 保留常量名 + 值 (与 csyh 完全一致), 方便批量替换.</p>
- *
  * <p>W2 阶段: 仅枚举 csyh 强引用的 ID/Name/Status 等. 业务模块如有更多,
  * 在各自模块的 {@code constants} 包下扩展.</p>
- *
  * <p>使用示例 (csyh 风格兼容):
  * <pre>{@code
  * wrapper.eq(FieldConstants.ID, dto.getId());
  * }</pre>
  * </p>
- *
- * @author csyh fusion W2.1
- * @since 2026-06-16
  */
 public final class FieldConstants {
 

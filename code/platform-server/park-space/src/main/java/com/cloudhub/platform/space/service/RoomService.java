@@ -18,9 +18,7 @@ import java.util.Map;
 
 /**
  * 园区房屋 Service (park-space 业务)
- *
  * <p>W3.1 阶段: 完整 CRUD + 状态机.</p>
- *
  * <p><b>状态机</b> (5 状态, 见 {@link RoomStatus}):
  * <pre>
  *   VACANT (0) ──┬─→ RENTED (1)        (签订合同)
@@ -29,11 +27,7 @@ import java.util.Map;
  *   RENOVATING (2) → VACANT (0)        (装修完成)
  *   任意 ──────────→ DISABLED (3)      (管理员停用, 终态)
  * </pre>
- *
  * <p>W4+ 阶段: 状态变更触发事件 (Kafka), 联动合同/账单模块.</p>
- *
- * @author csyh fusion W3.1
- * @since 2026-06-18
  */
 @Slf4j
 @Service
@@ -78,7 +72,6 @@ public class RoomService {
 
     /**
      * 新增房源
-     *
      * @param params 字段: parkId, buildingId, floor, roomNo, roomType, area, monthlyRent, remark
      * @return 新建房源的 ID
      */

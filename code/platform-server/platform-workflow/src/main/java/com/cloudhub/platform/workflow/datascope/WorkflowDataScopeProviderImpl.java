@@ -8,22 +8,16 @@ import org.springframework.stereotype.Service;
 
 /**
  * platform-workflow 模块 DataScopeProvider 桩 (M5 P0-2 PR3 实施)
- *
  * <p>配套: doc/M5-P0-2-实施子任务.md §十 (PR3 启动准备)
- *
  * <h2>职责</h2>
  * <p>platform-workflow 启动时, DataScopeAspect 需要一个 DataScopeProvider bean.
  * <p>由于 platform-workflow 不依赖 platform-user, 此处提供**桩**实现, 返回 none() (无限制).
- *
  * <h2>与 UserDataScopeProviderImpl 的关系</h2>
  * <p>user 模块启动时, UserDataScopeProviderImpl 已注册, 此桩因 {@code @ConditionalOnMissingBean} 不创建.
  * <p>workflow 模块启动时, 没 user 依赖, 桩创建, Aspect 拿到桩返回 none().
- *
  * <h2>未来扩展</h2>
  * <p>当 platform-workflow 需要按流程发起人 / 候选人 / 部门 过滤流程实例时,
  *    把此桩替换为真实实现, 查询 workflow 模块自己的 flowable 表 + user 模块的 user/role 表.
- *
- * @since 2026-06-05 (PR3 实施)
  */
 @Slf4j
 @Service
