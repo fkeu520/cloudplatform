@@ -70,6 +70,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '参数配置', icon: 'fas fa-cog', parent: 'system' }
       },
       {
+        path: 'system/park',
+        name: 'ParkMgmt',
+        component: () => import('@/views/system/park/Index.vue'),
+        meta: { title: '园区管理', icon: 'fas fa-building', parent: 'system' }
+      },
+      {
         path: 'system/config/data-scope',
         name: 'DataScopeUpgrade',
         component: () => import('@/views/system/config/DataScopeUpgrade.vue'),
