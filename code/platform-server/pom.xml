@@ -21,6 +21,9 @@
         <module>platform-workflow</module>
         <module>platform-message</module>
         <module>park-common</module>
+        <module>park-space</module>
+        <module>park-property</module>
+        <module>park-contract</module>
     </modules>
 
     <properties>

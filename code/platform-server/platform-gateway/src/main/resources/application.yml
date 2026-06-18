@@ -85,12 +85,57 @@ spring:
         - id: platform-user
           uri: lb://platform-user
           predicates:
-            - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**, /dashboard/**, /room/**, /building/**, /contract/**
+            - Path=/user/**, /role/**, /menu/**, /dict/**, /config/**, /org/**, /dept/**, /post/**, /oper-log/**, /login-log/**, /dashboard/**
           filters:
             - name: CircuitBreaker
               args:
                 name: platform-user-cb
                 fallbackUri: forward:/fallback/user
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
+
+        # 鍥绌洪棿 (W3.1)
+        - id: park-space
+          uri: lb://park-space
+          predicates:
+            - Path=/room/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: park-space-cb
+                fallbackUri: forward:/fallback/space
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
+
+        # 鍥尯鐗╀笟 (W3.2a)
+        - id: park-property
+          uri: lb://park-property
+          predicates:
+            - Path=/building/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: park-property-cb
+                fallbackUri: forward:/fallback/property
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
+
+        # 鍥尯鍚堝悓 (W3.2b)
+        - id: park-contract
+          uri: lb://park-contract
+          predicates:
+            - Path=/contract/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: park-contract-cb
+                fallbackUri: forward:/fallback/contract
             - name: Retry
               args:
                 retries: 3

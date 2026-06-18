@@ -115,6 +115,9 @@ jobs:
             code/platform-server/platform-workflow/target/*.jar
             code/platform-server/platform-message/target/*.jar
             code/platform-server/platform-ops/target/*.jar
+            code/platform-server/park-space/target/*.jar
+            code/platform-server/park-property/target/*.jar
+            code/platform-server/park-contract/target/*.jar
           retention-days: 3
 
   # =============================================
@@ -224,9 +227,12 @@ jobs:
           DF_MAP[platform-workflow]=Dockerfile.workflow
           DF_MAP[platform-message]=Dockerfile.message
           DF_MAP[platform-ops]=Dockerfile.ops
+          DF_MAP[park-space]=Dockerfile.space
+          DF_MAP[park-property]=Dockerfile.property
+          DF_MAP[park-contract]=Dockerfile.contract
 
           cd code/platform-server
-          for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops; do
+          for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops park-space park-property park-contract; do
             img="ghcr.io/${{ github.repository }}/${svc}:latest"
             echo "Building $img"
             docker build -f "${DF_MAP[$svc]}" -t $img .
