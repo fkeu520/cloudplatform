@@ -60,10 +60,19 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 return unauthorized(exchange, "Token无效或已过期");
             }
             String userId = JwtUtil.getUserId(token);
-            log.info("[JwtAuth] Token有效, userId={}", userId);
-            // 将用户ID传递到后续服务（通过 Header）
+            String username = JwtUtil.getUsername(token);
+            Long tenantId = JwtUtil.getTenantId(token);
+            Integer userType = JwtUtil.getUserType(token);
+            log.info("[JwtAuth] Token有效, userId={}, username={}, tenantId={}, userType={}",
+                    userId, username, tenantId, userType);
+
+            // 将用户上下文传递到后续服务（通过 Header）
+            // 业务服务侧可通过 park-common 的 ParkAuthFilter 读取并写入 LoginContextHolder
             ServerHttpRequest mutated = exchange.getRequest().mutate()
                     .header("X-User-Id", userId)
+                    .header("X-User-Name", username == null ? "" : username)
+                    .header("X-Tenant-Id", tenantId == null ? "" : String.valueOf(tenantId))
+                    .header("X-User-Type", userType == null ? "" : String.valueOf(userType))
                     .build();
             return chain.filter(exchange.mutate().request(mutated).build());
         } catch (Exception e) {
