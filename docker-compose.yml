@@ -266,6 +266,90 @@ services:
       retries: 3
     logging: *default-logging
 
+  # ============ 园区空间 (W3.1) ============
+  park-space:
+    image: ghcr.io/fkeu520/cloudplatform/park-space:latest
+    container_name: park-space
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=platform
+      - MYSQL_PASSWORD=platform123
+      - REDIS_HOST=redis
+      - NACOS_HOST=nacos
+      - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=5
+      - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8091/space/v3/api-docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
+  # ============ 园区物业 (W3.2a) ============
+  park-property:
+    image: ghcr.io/fkeu520/cloudplatform/park-property:latest
+    container_name: park-property
+    restart: unless-stopped
+    ports:
+      - "8092:8092"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=platform
+      - MYSQL_PASSWORD=platform123
+      - REDIS_HOST=redis
+      - NACOS_HOST=nacos
+      - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=6
+      - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8092/property/v3/api-docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
+  # ============ 园区合同 (W3.2b) ============
+  park-contract:
+    image: ghcr.io/fkeu520/cloudplatform/park-contract:latest
+    container_name: park-contract
+    restart: unless-stopped
+    ports:
+      - "8093:8093"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=platform
+      - MYSQL_PASSWORD=platform123
+      - REDIS_HOST=redis
+      - NACOS_HOST=nacos
+      - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=7
+      - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8093/contract/v3/api-docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
   # ============ 消息中心 ============
   platform-message:
     image: ghcr.io/fkeu520/cloudplatform/platform-message:latest
