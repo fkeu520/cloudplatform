@@ -3,7 +3,7 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="类别名称" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区"><el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
@@ -44,7 +44,7 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="类型名称" prop="typeName"><el-input v-model="formData.typeName" maxlength="255" /></el-form-item>
         <el-form-item label="类型描述"><el-input v-model="formData.typeDescribe" type="textarea" :rows="2" maxlength="500" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
@@ -61,17 +61,19 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getSpaceCategoryPage, getSpaceCategoryById, createSpaceCategory, updateSpaceCategory, deleteSpaceCategory } from '@/api/space-category'
+import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, status: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
 
 const defaultForm = { parkId: 1, typeName: '', typeDescribe: '', status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
   typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }]
 }
 
@@ -114,7 +116,11 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+}
+
+onMounted(() => { loadData(); loadParkOptions() })
 </script>
 
 <style scoped>

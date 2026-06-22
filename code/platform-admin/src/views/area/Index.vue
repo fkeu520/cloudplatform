@@ -3,7 +3,11 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="区域名称" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" placeholder="园区ID" clearable /></el-form-item>
+        <el-form-item label="园区">
+          <el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
@@ -20,6 +24,9 @@
       <el-table :data="tableData" v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
         <el-table-column prop="areaName" label="区域名称" width="150" />
+        <el-table-column label="园区" width="120">
+          <template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template>
+        </el-table-column>
         <el-table-column prop="areaCovered" label="占地面积(m²)" width="130" align="right">
           <template #default="scope">{{ scope.row.areaCovered ? scope.row.areaCovered.toLocaleString() : '-' }}</template>
         </el-table-column>
@@ -58,7 +65,11 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px" @close="resetForm">
       <el-form :model="formData" label-width="120px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId">
+          <el-select v-model="formData.parkId" placeholder="请选择园区" filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="区域名称" prop="areaName"><el-input v-model="formData.areaName" maxlength="64" /></el-form-item>
         <el-form-item label="占地面积(m²)"><el-input-number v-model="formData.areaCovered" :precision="2" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="建筑面积(m²)"><el-input-number v-model="formData.builtArea" :precision="2" :min="0" style="width:100%" /></el-form-item>
@@ -81,31 +92,22 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getAreaPage, getAreaById, createArea, updateArea, deleteArea } from '@/api/area'
+import { getParkList } from '@/api/park'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const total = ref(0)
-const pageNum = ref(1)
-const pageSize = ref(10)
+const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
+const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, status: undefined as number | undefined })
-const dialogVisible = ref(false)
-const dialogTitle = ref('')
-const isEdit = ref(false)
-const currentId = ref<number | null>(null)
-const submitting = ref(false)
-const formRef = ref()
+const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
+const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
 
-const defaultForm = {
-  parkId: 1, areaName: '', areaCovered: undefined as number | undefined,
-  builtArea: undefined as number | undefined, functionArea: '',
-  buildingAmount: 0, roomAmount: 0, isVirtual: 0, sorting: 0, status: 1
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
 }
+
+const defaultForm = { parkId: undefined as number | undefined, areaName: '', areaCovered: undefined as number | undefined, builtArea: undefined as number | undefined, functionArea: '', buildingAmount: 0, roomAmount: 0, isVirtual: 0, sorting: 0, status: 1 }
 const formData = reactive({ ...defaultForm })
-
-const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
-  areaName: [{ required: true, message: '请输入区域名称', trigger: 'blur' }]
-}
+const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], areaName: [{ required: true, message: '请输入区域名称', trigger: 'blur' }] }
 
 async function loadData() {
   loading.value = true
@@ -114,7 +116,6 @@ async function loadData() {
     if (res.code === 200) { tableData.value = res.data.records || []; total.value = res.data.total || 0 }
   } finally { loading.value = false }
 }
-
 function handleSearch() { pageNum.value = 1; loadData() }
 function handleReset() { searchForm.keyword = ''; searchForm.parkId = undefined; searchForm.status = undefined; handleSearch() }
 function handleSizeChange(v: number) { pageSize.value = v; loadData() }
@@ -127,8 +128,7 @@ async function handleEdit(row: any) {
   dialogVisible.value = true
 }
 async function handleSubmit() {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  const valid = await formRef.value?.validate().catch(() => false); if (!valid) return
   submitting.value = true
   try {
     if (isEdit.value && currentId.value) {
@@ -148,7 +148,7 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadParkOptions() })
 </script>
 
 <style scoped>

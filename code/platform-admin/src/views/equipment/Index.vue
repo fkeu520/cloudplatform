@@ -3,8 +3,16 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="设备名称" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
-        <el-form-item label="配套ID"><el-input-number v-model="searchForm.kitId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区">
+          <el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="配套">
+          <el-select v-model="searchForm.kitId" placeholder="全部配套" clearable filterable>
+            <el-option v-for="k in kitOptions" :key="k.id" :label="k.kitName" :value="k.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
@@ -23,7 +31,9 @@
         <el-table-column prop="equipmentName" label="设备名称" min-width="200" />
         <el-table-column prop="model" label="型号" width="150" />
         <el-table-column prop="amount" label="数量" width="100" align="right" />
-        <el-table-column prop="kitId" label="配套ID" width="100" />
+        <el-table-column label="配套" width="120">
+          <template #default="scope">{{ kitMap[scope.row.kitId] || scope.row.kitId }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="80">
           <template #default="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'" size="small">
@@ -47,11 +57,19 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId">
+          <el-select v-model="formData.parkId" placeholder="请选择园区" filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="设备名称" prop="equipmentName"><el-input v-model="formData.equipmentName" maxlength="64" /></el-form-item>
         <el-form-item label="型号"><el-input v-model="formData.model" maxlength="64" /></el-form-item>
         <el-form-item label="数量"><el-input-number v-model="formData.amount" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="配套ID"><el-input-number v-model="formData.kitId" :min="0" style="width:100%" /></el-form-item>
+        <el-form-item label="配套">
+          <el-select v-model="formData.kitId" placeholder="请选择配套" filterable>
+            <el-option v-for="k in kitOptions" :key="k.id" :label="k.kitName" :value="k.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
       <template #footer>
@@ -66,19 +84,27 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getEquipmentPage, getEquipmentById, createEquipment, updateEquipment, deleteEquipment } from '@/api/equipment'
+import { getParkList } from '@/api/park'
+import { getKitPage } from '@/api/kit'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, kitId: undefined as number | undefined, status: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([])
+const kitOptions = ref<any[]>([]); const kitMap = ref<Record<number, string>>({})
 
-const defaultForm = { parkId: 1, equipmentName: '', model: '', amount: 1, kitId: 1, status: 1 }
-const formData = reactive({ ...defaultForm })
-const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
-  equipmentName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }]
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) parkOptions.value = res.data || [] } catch { /* ignore */ }
 }
+async function loadKitOptions() {
+  try { const res: any = await getKitPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { kitOptions.value = res.data.records || []; kitOptions.value.forEach((k: any) => kitMap.value[k.id] = k.kitName) } } catch { /* ignore */ }
+}
+
+const defaultForm = { parkId: undefined as number | undefined, equipmentName: '', model: '', amount: 1, kitId: undefined as number | undefined, status: 1 }
+const formData = reactive({ ...defaultForm })
+const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], equipmentName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }] }
 
 async function loadData() {
   loading.value = true
@@ -119,7 +145,7 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadParkOptions(); loadKitOptions() })
 </script>
 
 <style scoped>

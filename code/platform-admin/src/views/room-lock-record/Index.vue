@@ -2,8 +2,8 @@
   <div class="page-container">
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="房间ID"><el-input-number v-model="searchForm.roomId" :min="0" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
+        <el-form-item label="房间"><el-select v-model="searchForm.roomId" placeholder="全部房间" clearable filterable><el-option v-for="r in roomOptions" :key="r.id" :label="r.roomName" :value="r.id" /></el-select></el-form-item>
+        <el-form-item label="园区"><el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="操作类型">
           <el-select v-model="searchForm.isLock" placeholder="全部" clearable>
             <el-option label="锁定" :value="1" /><el-option label="解锁" :value="0" />
@@ -22,7 +22,7 @@
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
-        <el-table-column prop="roomId" label="房间ID" width="100" />
+        <el-table-column label="房间" width="150"><template #default="scope">{{ roomMap[scope.row.roomId] || scope.row.roomId }}</template></el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="scope">
             <el-tag :type="scope.row.isLock === 1 ? 'danger' : 'success'" size="small">
@@ -45,8 +45,8 @@
     </el-card>
     <el-dialog v-model="dialogVisible" title="新增锁定记录" width="600px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="房间ID" prop="roomId"><el-input-number v-model="formData.roomId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
+        <el-form-item label="房间" prop="roomId"><el-select v-model="formData.roomId" placeholder="请选择房间" filterable style="width:100%"><el-option v-for="r in roomOptions" :key="r.id" :label="r.roomName" :value="r.id" /></el-select></el-form-item>
         <el-form-item label="操作">
           <el-radio-group v-model="formData.isLock"><el-radio :value="1">锁定</el-radio><el-radio :value="0">解锁</el-radio></el-radio-group>
         </el-form-item>
@@ -68,10 +68,14 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getRoomLockRecordPage, createRoomLockRecord } from '@/api/room-lock-record'
+import { getParkList } from '@/api/park'
+import { getRoomPage } from '@/api/room'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ roomId: undefined as number | undefined, parkId: undefined as number | undefined, isLock: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
+const roomOptions = ref<any[]>([]); const roomMap = ref<Record<number, string>>({})
 const dialogVisible = ref(false); const submitting = ref(false); const formRef = ref()
 
 const defaultForm = {
@@ -81,8 +85,8 @@ const defaultForm = {
 }
 const formData = reactive({ ...defaultForm })
 const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
-  roomId: [{ required: true, message: '请输入房间ID', trigger: 'blur' }]
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
+  roomId: [{ required: true, message: '请选择房间', trigger: 'change' }]
 }
 
 async function loadData() {
@@ -107,7 +111,14 @@ async function handleSubmit() {
   } finally { submitting.value = false }
 }
 
-onMounted(() => loadData())
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+}
+async function loadRoomOptions() {
+  try { const res: any = await getRoomPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { roomOptions.value = res.data.records || []; roomOptions.value.forEach((r: any) => roomMap.value[r.id] = r.roomName) } } catch { /* ignore */ }
+}
+
+onMounted(() => { loadData(); loadParkOptions(); loadRoomOptions() })
 </script>
 
 <style scoped>

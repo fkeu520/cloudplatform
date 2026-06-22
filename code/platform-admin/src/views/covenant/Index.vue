@@ -3,8 +3,16 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="合同/客户ID" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
-        <el-form-item label="房间ID"><el-input-number v-model="searchForm.roomId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区">
+          <el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="房间">
+          <el-select v-model="searchForm.roomId" placeholder="全部房间" clearable filterable>
+            <el-option v-for="r in roomOptions" :key="r.id" :label="r.roomNo" :value="r.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="合同类型">
           <el-select v-model="searchForm.covenantType" placeholder="全部" clearable>
             <el-option label="租赁" :value="0" /><el-option label="销售" :value="1" /><el-option label="其他" :value="2" />
@@ -25,7 +33,12 @@
           <template #default="scope">{{ covenantTypeLabel(scope.row.covenantType) }}</template>
         </el-table-column>
         <el-table-column prop="customerId" label="客户ID" width="100" />
-        <el-table-column prop="roomId" label="房间ID" width="100" />
+        <el-table-column label="房间" width="120">
+          <template #default="scope">{{ roomMap[scope.row.roomId] || scope.row.roomId }}</template>
+        </el-table-column>
+        <el-table-column label="园区" width="120">
+          <template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template>
+        </el-table-column>
         <el-table-column label="状态" width="80">
           <template #default="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'" size="small">
@@ -49,11 +62,19 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId">
+          <el-select v-model="formData.parkId" placeholder="请选择园区" filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="合同ID" prop="covenantId"><el-input-number v-model="formData.covenantId" :min="1" style="width:100%" /></el-form-item>
         <el-form-item label="合同类型"><el-select v-model="formData.covenantType"><el-option label="租赁" :value="0" /><el-option label="销售" :value="1" /><el-option label="其他" :value="2" /></el-select></el-form-item>
         <el-form-item label="客户ID"><el-input-number v-model="formData.customerId" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="房间ID" prop="roomId"><el-input-number v-model="formData.roomId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="房间" prop="roomId">
+          <el-select v-model="formData.roomId" placeholder="请选择房间" filterable>
+            <el-option v-for="r in roomOptions" :key="r.id" :label="r.roomNo" :value="r.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
       <template #footer>
@@ -68,20 +89,27 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getCovenantPage, getCovenantById, createCovenant, updateCovenant, deleteCovenant } from '@/api/covenant'
+import { getParkList } from '@/api/park'
+import { getRoomPage } from '@/api/room'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, roomId: undefined as number | undefined, covenantType: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
+const roomOptions = ref<any[]>([]); const roomMap = ref<Record<number, string>>({})
 
-const defaultForm = { parkId: 1, covenantId: 1, covenantType: 0, customerId: 1, roomId: 1, status: 1 }
-const formData = reactive({ ...defaultForm })
-const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
-  covenantId: [{ required: true, message: '请输入合同ID', trigger: 'blur' }],
-  roomId: [{ required: true, message: '请输入房间ID', trigger: 'blur' }]
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
 }
+async function loadRoomOptions() {
+  try { const res: any = await getRoomPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { roomOptions.value = res.data.records || []; roomOptions.value.forEach((r: any) => roomMap.value[r.id] = r.roomNo) } } catch { /* ignore */ }
+}
+
+const defaultForm = { parkId: undefined as number | undefined, covenantId: 1, covenantType: 0, customerId: 1, roomId: undefined as number | undefined, status: 1 }
+const formData = reactive({ ...defaultForm })
+const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], covenantId: [{ required: true, message: '请输入合同ID', trigger: 'blur' }], roomId: [{ required: true, message: '请选择房间', trigger: 'change' }] }
 
 function covenantTypeLabel(t: number): string { return ['租赁', '销售', '其他'][t] || '-' }
 
@@ -124,7 +152,7 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadParkOptions(); loadRoomOptions() })
 </script>
 
 <style scoped>

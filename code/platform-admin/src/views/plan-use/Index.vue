@@ -3,7 +3,11 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="用途名称" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区">
+          <el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
@@ -52,12 +56,14 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId">
+          <el-select v-model="formData.parkId" placeholder="请选择园区" filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="规划用途编号"><el-input v-model="formData.planUseCode" maxlength="32" /></el-form-item>
         <el-form-item label="规划用途名称" prop="planUseName"><el-input v-model="formData.planUseName" maxlength="256" /></el-form-item>
-        <el-form-item label="标的色">
-          <el-color-picker v-model="formData.color" />
-        </el-form-item>
+        <el-form-item label="标的色"><el-color-picker v-model="formData.color" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
       <template #footer>
@@ -72,19 +78,22 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPlanUsePage, getPlanUseById, createPlanUse, updatePlanUse, deletePlanUse } from '@/api/plan-use'
+import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, status: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([])
 
-const defaultForm = { parkId: 1, planUseCode: '', planUseName: '', color: '#409EFF', status: 1 }
-const formData = reactive({ ...defaultForm })
-const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
-  planUseName: [{ required: true, message: '请输入规划用途名称', trigger: 'blur' }]
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) parkOptions.value = res.data || [] } catch { /* ignore */ }
 }
+
+const defaultForm = { parkId: undefined as number | undefined, planUseCode: '', planUseName: '', color: '#409EFF', status: 1 }
+const formData = reactive({ ...defaultForm })
+const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], planUseName: [{ required: true, message: '请输入规划用途名称', trigger: 'blur' }] }
 
 async function loadData() {
   loading.value = true
@@ -125,7 +134,7 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadParkOptions() })
 </script>
 
 <style scoped>
