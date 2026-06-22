@@ -141,12 +141,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/message/Record.vue'),
         meta: { title: '消息记录', icon: 'fas fa-list' }
       },
-      // ========== W3.1 房源 (park-space 后端 Room CRUD) ==========
+      // ========== 房源管理 ==========
+      {
+        path: 'building/page',
+        name: 'BuildingMgmt',
+        component: () => import('@/views/building/Index.vue'),
+        meta: { title: '楼栋管理', icon: 'fas fa-warehouse', parent: 'property' }
+      },
       {
         path: 'room/page',
         name: 'RoomMgmt',
         component: () => import('@/views/room/Index.vue'),
-        meta: { title: '房源管理', icon: 'fas fa-door-open', parent: 'space' }
+        meta: { title: '房间管理', icon: 'fas fa-door-closed', parent: 'property' }
       },
       // ========== W3.3 简单 CRUD 实体 (park-space 后端 V32) ==========
       {

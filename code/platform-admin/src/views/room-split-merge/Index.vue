@@ -2,7 +2,7 @@
   <div class="page-container">
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区"><el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="操作类型">
           <el-select v-model="searchForm.type" placeholder="全部" clearable>
             <el-option label="拆分" :value="1" /><el-option label="合并" :value="0" />
@@ -55,7 +55,7 @@
     </el-card>
     <el-dialog v-model="dialogVisible" title="新增拆分合并记录" width="700px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="操作人"><el-input v-model="formData.userName" maxlength="64" /></el-form-item>
         <el-form-item label="原房源ID"><el-input-number v-model="formData.oldRoomId" :min="1" style="width:100%" /></el-form-item>
         <el-form-item label="原房源名称"><el-input v-model="formData.oldRoomName" maxlength="64" /></el-form-item>
@@ -80,10 +80,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getRoomSplitMergePage, createRoomSplitMerge } from '@/api/room-split-merge'
+import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ parkId: undefined as number | undefined, type: undefined as number | undefined, status: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
 const dialogVisible = ref(false); const submitting = ref(false); const formRef = ref()
 
 const defaultForm = {
@@ -93,7 +95,7 @@ const defaultForm = {
 }
 const formData = reactive({ ...defaultForm })
 const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }]
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }]
 }
 
 async function loadData() {
@@ -118,7 +120,11 @@ async function handleSubmit() {
   } finally { submitting.value = false }
 }
 
-onMounted(() => loadData())
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+}
+
+onMounted(() => { loadData(); loadParkOptions() })
 </script>
 
 <style scoped>

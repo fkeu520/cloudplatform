@@ -3,8 +3,16 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="楼层名称" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
-        <el-form-item label="楼栋ID"><el-input-number v-model="searchForm.buildingId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区">
+          <el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="楼栋">
+          <el-select v-model="searchForm.buildingId" placeholder="全部楼栋" clearable filterable>
+            <el-option v-for="b in buildingOptions" :key="b.id" :label="b.buildingName" :value="b.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
@@ -26,7 +34,12 @@
           <template #default="scope">{{ floorCategoryLabel(scope.row.floorCategory) }}</template>
         </el-table-column>
         <el-table-column prop="coefficient" label="楼层系数" width="100" align="right" />
-        <el-table-column prop="buildingId" label="楼栋ID" width="100" />
+        <el-table-column label="园区" width="120">
+          <template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template>
+        </el-table-column>
+        <el-table-column label="楼栋" width="120">
+          <template #default="scope">{{ buildingMap[scope.row.buildingId] || scope.row.buildingId }}</template>
+        </el-table-column>
         <el-table-column prop="sorting" label="排序" width="80" />
         <el-table-column label="状态" width="80">
           <template #default="scope">
@@ -50,8 +63,16 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px" @close="resetForm">
       <el-form :model="formData" label-width="120px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="楼栋ID" prop="buildingId"><el-input-number v-model="formData.buildingId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId">
+          <el-select v-model="formData.parkId" placeholder="请选择园区" filterable>
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="楼栋" prop="buildingId">
+          <el-select v-model="formData.buildingId" placeholder="请选择楼栋" filterable>
+            <el-option v-for="b in buildingOptions" :key="b.id" :label="b.buildingName" :value="b.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="楼层名称" prop="floorName"><el-input v-model="formData.floorName" maxlength="64" /></el-form-item>
         <el-form-item label="楼层序号"><el-input-number v-model="formData.serialCode" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="楼层类型">
@@ -75,29 +96,29 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getFloorPage, getFloorById, createFloor, updateFloor, deleteFloor } from '@/api/floor'
+import { getParkList } from '@/api/park'
+import { getBuildingPage } from '@/api/building'
 
-const loading = ref(false)
-const tableData = ref<any[]>([])
-const total = ref(0)
-const pageNum = ref(1)
-const pageSize = ref(10)
+const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
+const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, buildingId: undefined as number | undefined, status: undefined as number | undefined })
-const dialogVisible = ref(false)
-const dialogTitle = ref('')
-const isEdit = ref(false)
-const currentId = ref<number | null>(null)
-const submitting = ref(false)
-const formRef = ref()
+const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
+const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
+const buildingOptions = ref<any[]>([]); const buildingMap = ref<Record<number, string>>({})
 
-const defaultForm = {
-  parkId: 1, buildingId: 1, floorName: '', serialCode: 1,
-  floorCategory: 0, coefficient: 1.0, sorting: 0, status: 1
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
 }
-const formData = reactive({ ...defaultForm })
+async function loadBuildingOptions() {
+  try { const res: any = await getBuildingPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { buildingOptions.value = res.data.records || []; buildingOptions.value.forEach((b: any) => buildingMap.value[b.id] = b.buildingName) } } catch { /* ignore */ }
+}
 
+const defaultForm = { parkId: undefined as number | undefined, buildingId: undefined as number | undefined, floorName: '', serialCode: 1, floorCategory: 0, coefficient: 1.0, sorting: 0, status: 1 }
+const formData = reactive({ ...defaultForm })
 const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
-  buildingId: [{ required: true, message: '请输入楼栋ID', trigger: 'blur' }],
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
+  buildingId: [{ required: true, message: '请选择楼栋', trigger: 'change' }],
   floorName: [{ required: true, message: '请输入楼层名称', trigger: 'blur' }]
 }
 
@@ -110,7 +131,6 @@ async function loadData() {
     if (res.code === 200) { tableData.value = res.data.records || []; total.value = res.data.total || 0 }
   } finally { loading.value = false }
 }
-
 function handleSearch() { pageNum.value = 1; loadData() }
 function handleReset() { searchForm.keyword = ''; searchForm.parkId = undefined; searchForm.buildingId = undefined; searchForm.status = undefined; handleSearch() }
 function handleSizeChange(v: number) { pageSize.value = v; loadData() }
@@ -123,8 +143,7 @@ async function handleEdit(row: any) {
   dialogVisible.value = true
 }
 async function handleSubmit() {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  const valid = await formRef.value?.validate().catch(() => false); if (!valid) return
   submitting.value = true
   try {
     if (isEdit.value && currentId.value) {
@@ -144,7 +163,7 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+onMounted(() => { loadData(); loadParkOptions(); loadBuildingOptions() })
 </script>
 
 <style scoped>

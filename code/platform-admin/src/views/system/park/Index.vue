@@ -21,7 +21,6 @@
 
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="180" :show-overflow-tooltip="true" />
         <el-table-column prop="parkName" label="园区名称" width="160" />
         <el-table-column label="省市区" width="200">
           <template #default="scope">

@@ -3,7 +3,7 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="地块编号/名称" clearable /></el-form-item>
-        <el-form-item label="园区ID"><el-input-number v-model="searchForm.parkId" :min="0" clearable /></el-form-item>
+        <el-form-item label="园区"><el-select v-model="searchForm.parkId" placeholder="全部园区" clearable filterable><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="可用" :value="1" /><el-option label="已卖" :value="0" />
@@ -25,8 +25,8 @@
           <template #default="scope">{{ scope.row.massifArea ? scope.row.massifArea.toLocaleString() : '-' }}</template>
         </el-table-column>
         <el-table-column prop="useYear" label="使用年限" width="100" />
-        <el-table-column prop="landNatureId" label="土地性质ID" width="120" />
-        <el-table-column prop="planUseId" label="规划用途ID" width="120" />
+        <el-table-column label="土地性质" width="120"><template #default="scope">{{ landNatureMap[scope.row.landNatureId] || scope.row.landNatureId }}</template></el-table-column>
+        <el-table-column label="规划用途" width="120"><template #default="scope">{{ planUseMap[scope.row.planUseId] || scope.row.planUseId }}</template></el-table-column>
         <el-table-column label="状态" width="80">
           <template #default="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'" size="small">
@@ -50,13 +50,13 @@
     </el-card>
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区ID" prop="parkId"><el-input-number v-model="formData.parkId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="地块编号" prop="massifCode"><el-input v-model="formData.massifCode" maxlength="32" /></el-form-item>
         <el-form-item label="地块名称"><el-input v-model="formData.massifName" maxlength="256" /></el-form-item>
         <el-form-item label="地块面积(m²)"><el-input-number v-model="formData.massifArea" :precision="2" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="使用年限"><el-input-number v-model="formData.useYear" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="土地性质ID"><el-input-number v-model="formData.landNatureId" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="规划用途ID"><el-input-number v-model="formData.planUseId" :min="1" style="width:100%" /></el-form-item>
+        <el-form-item label="土地性质"><el-select v-model="formData.landNatureId" placeholder="请选择" filterable style="width:100%"><el-option v-for="item in landNatureOptions" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="规划用途"><el-select v-model="formData.planUseId" placeholder="请选择" filterable style="width:100%"><el-option v-for="item in planUseOptions" :key="item.id" :label="item.purposeName || item.name" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="资产类型"><el-input v-model="formData.assetType" placeholder="国土资源" /></el-form-item>
         <el-form-item label="地块描述"><el-input v-model="formData.massifDesc" type="textarea" :rows="2" maxlength="256" /></el-form-item>
         <el-form-item label="地块地址"><el-input v-model="formData.address" maxlength="255" /></el-form-item>
@@ -74,10 +74,16 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getMassifPage, getMassifById, createMassif, updateMassif, deleteMassif } from '@/api/massif'
+import { getParkList } from '@/api/park'
+import { getLandNaturePage } from '@/api/land-nature'
+import { getPlanUsePage } from '@/api/plan-use'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, status: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
+const landNatureOptions = ref<any[]>([]); const landNatureMap = ref<Record<number, string>>({})
+const planUseOptions = ref<any[]>([]); const planUseMap = ref<Record<number, string>>({})
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
 
@@ -88,7 +94,7 @@ const defaultForm = {
 }
 const formData = reactive({ ...defaultForm })
 const rules = {
-  parkId: [{ required: true, message: '请输入园区ID', trigger: 'blur' }],
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
   massifCode: [{ required: true, message: '请输入地块编号', trigger: 'blur' }]
 }
 
@@ -131,7 +137,17 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => loadData())
+async function loadParkOptions() {
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+}
+async function loadLandNatureOptions() {
+  try { const res: any = await getLandNaturePage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { landNatureOptions.value = res.data.records || []; landNatureOptions.value.forEach((item: any) => landNatureMap.value[item.id] = item.name) } } catch { /* ignore */ }
+}
+async function loadPlanUseOptions() {
+  try { const res: any = await getPlanUsePage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { planUseOptions.value = res.data.records || []; planUseOptions.value.forEach((item: any) => planUseMap.value[item.id] = item.purposeName || item.name) } } catch { /* ignore */ }
+}
+
+onMounted(() => { loadData(); loadParkOptions(); loadLandNatureOptions(); loadPlanUseOptions() })
 </script>
 
 <style scoped>
