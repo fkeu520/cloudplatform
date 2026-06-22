@@ -46,7 +46,7 @@
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
         <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="类型名称" prop="typeName"><el-input v-model="formData.typeName" maxlength="255" /></el-form-item>
-        <el-form-item label="类型描述"><el-input v-model="formData.typeDescribe" type="textarea" :rows="2" maxlength="500" /></el-form-item>
+        <el-form-item label="类型描述" prop="typeDescribe"><el-input v-model="formData.typeDescribe" type="textarea" :rows="2" maxlength="500" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
       <template #footer>
@@ -74,7 +74,8 @@ const defaultForm = { parkId: 1, typeName: '', typeDescribe: '', status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
-  typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }]
+  typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }],
+  typeDescribe: [{ required: true, message: '请输入类型描述', trigger: 'blur' }]
 }
 
 async function loadData() {

@@ -71,9 +71,9 @@
           </el-select>
         </el-form-item>
         <el-form-item label="区域名称" prop="areaName"><el-input v-model="formData.areaName" maxlength="64" /></el-form-item>
-        <el-form-item label="占地面积(m²)"><el-input-number v-model="formData.areaCovered" :precision="2" :min="0" style="width:100%" /></el-form-item>
+        <el-form-item label="占地面积(m²)" prop="areaCovered"><el-input-number v-model="formData.areaCovered" :precision="2" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="建筑面积(m²)"><el-input-number v-model="formData.builtArea" :precision="2" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="功能区域"><el-input v-model="formData.functionArea" maxlength="64" /></el-form-item>
+        <el-form-item label="功能区域" prop="functionArea"><el-input v-model="formData.functionArea" maxlength="64" /></el-form-item>
         <el-form-item label="楼栋数"><el-input-number v-model="formData.buildingAmount" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="房间数"><el-input-number v-model="formData.roomAmount" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="是否虚拟"><el-switch v-model="formData.isVirtual" :active-value="1" :inactive-value="0" /></el-form-item>
@@ -107,7 +107,12 @@ async function loadParkOptions() {
 
 const defaultForm = { parkId: undefined as number | undefined, areaName: '', areaCovered: undefined as number | undefined, builtArea: undefined as number | undefined, functionArea: '', buildingAmount: 0, roomAmount: 0, isVirtual: 0, sorting: 0, status: 1 }
 const formData = reactive({ ...defaultForm })
-const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], areaName: [{ required: true, message: '请输入区域名称', trigger: 'blur' }] }
+const rules = {
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
+  areaName: [{ required: true, message: '请输入区域名称', trigger: 'blur' }],
+  areaCovered: [{ required: true, message: '请输入占地面积', trigger: 'blur' }],
+  functionArea: [{ required: true, message: '请输入功能区域', trigger: 'blur' }]
+}
 
 async function loadData() {
   loading.value = true
