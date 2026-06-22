@@ -9,9 +9,12 @@
 
 -- 找出当前已有的 W3 子菜单 parent_id
 -- 先创建三个父级菜单
+-- 注意: 200/201 已被 V29 (物业/楼宇) 占用, 先用 UPDATE 改名/挪 path, 再 INSERT 新菜单
+UPDATE `sys_menu` SET `name`='房源管理', `path`='/property', `icon`='fas fa-door-open', `sort`=3
+    WHERE `id`=200 AND `name`='物业管理';
+UPDATE `sys_menu` SET `name`='园区管理', `path`='/system/park', `component`='system/park/index', `icon`='fas fa-building', `sort`=1
+    WHERE `id`=201 AND `name`='楼宇列表';
 INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `name`, `path`, `component`, `type`, `icon`, `sort`, `perms`, `status`) VALUES
--- 房源管理（改组）
-(200, 0, '房源管理', '/property', NULL, 0, 'fas fa-door-open', 3, NULL, 1),
 -- 空间设置
 (210, 0, '空间设置', '/space-setting', NULL, 0, 'fas fa-compass', 4, NULL, 1),
 -- 地块管理
@@ -19,8 +22,6 @@ INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `name`, `path`, `component`, `
 
 -- ========== 2. 房源管理子菜单 ==========
 INSERT IGNORE INTO `sys_menu` (`id`, `parent_id`, `name`, `path`, `component`, `type`, `icon`, `sort`, `perms`, `status`) VALUES
--- 园区管理 (从系统管理移动到房源管理)
-(201, 200, '园区管理', '/system/park', 'system/park/index', 1, 'fas fa-building', 1, 'system:park:list', 1),
 -- 园区管理子权限
 (227, 201, '查看', NULL, NULL, 2, NULL, 0, 'system:park:view', 1),
 (228, 201, '新增', NULL, NULL, 2, NULL, 0, 'system:park:add', 1),
@@ -75,9 +76,18 @@ DELETE FROM `sys_menu` WHERE `id` BETWEEN 69 AND 73;
 -- ========== 6. 删除旧的空间中心菜单及子菜单（W3 阶段注册的旧菜单）==========
 -- 旧菜单 parent 为 space 的路由：先查旧 parent ID 再删
 -- 旧的 W3 space 菜单 id 范围：根据之前的路由注册，parent 为 'space' 的菜单
+-- 注意: MySQL 不允许在 DELETE/UPDATE 的子查询中直接引用同表, 必须用派生表包一层
 -- 删除旧的角色菜单关联
-DELETE FROM `sys_role_menu` WHERE `menu_id` IN (SELECT `id` FROM `sys_menu` WHERE `parent_id` IN (SELECT `id` FROM `sys_menu` WHERE `name` = '空间中心'));
-DELETE FROM `sys_menu` WHERE `parent_id` IN (SELECT `id` FROM `sys_menu` WHERE `name` = '空间中心');
+DELETE FROM `sys_role_menu` WHERE `menu_id` IN (
+    SELECT `id` FROM (
+        SELECT `id` FROM `sys_menu` WHERE `parent_id` IN (
+            SELECT `id` FROM (SELECT `id` FROM `sys_menu` WHERE `name` = '空间中心') AS _space_parent
+        )
+    ) AS _space_children
+);
+DELETE FROM `sys_menu` WHERE `parent_id` IN (
+    SELECT `id` FROM (SELECT `id` FROM `sys_menu` WHERE `name` = '空间中心') AS _space_parent
+);
 DELETE FROM `sys_menu` WHERE `name` = '空间中心';
 
 -- ========== 7. 授权新菜单给超级管理员 ==========
