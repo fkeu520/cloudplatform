@@ -32,6 +32,7 @@ public class AppService {
     public List<App> list(Integer appType) {
         LambdaQueryWrapper<App> wrapper = new LambdaQueryWrapper<>();
         if (appType != null) wrapper.eq(App::getAppType, appType);
+        wrapper.eq(App::getStatus, 1);
         wrapper.orderByAsc(App::getSort);
         return appMapper.selectList(wrapper);
     }
