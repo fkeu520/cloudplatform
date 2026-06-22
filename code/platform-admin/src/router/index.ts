@@ -140,6 +140,107 @@ const routes: RouteRecordRaw[] = [
         name: 'MessageRecord',
         component: () => import('@/views/message/Record.vue'),
         meta: { title: '消息记录', icon: 'fas fa-list' }
+      },
+      // ========== W3.1 房源 (park-space 后端 Room CRUD) ==========
+      {
+        path: 'room/page',
+        name: 'RoomMgmt',
+        component: () => import('@/views/room/Index.vue'),
+        meta: { title: '房源管理', icon: 'fas fa-door-open', parent: 'space' }
+      },
+      // ========== W3.3 简单 CRUD 实体 (park-space 后端 V32) ==========
+      {
+        path: 'area/page',
+        name: 'AreaMgmt',
+        component: () => import('@/views/area/Index.vue'),
+        meta: { title: '区域管理', icon: 'fas fa-location', parent: 'space' }
+      },
+      {
+        path: 'floor/page',
+        name: 'FloorMgmt',
+        component: () => import('@/views/floor/Index.vue'),
+        meta: { title: '楼层管理', icon: 'fas fa-building', parent: 'space' }
+      },
+      {
+        path: 'kit/page',
+        name: 'KitMgmt',
+        component: () => import('@/views/kit/Index.vue'),
+        meta: { title: '配套管理', icon: 'fas fa-box', parent: 'space' }
+      },
+      {
+        path: 'plan-use/page',
+        name: 'PlanUseMgmt',
+        component: () => import('@/views/plan-use/Index.vue'),
+        meta: { title: '规划用途', icon: 'fas fa-aim', parent: 'space' }
+      },
+      {
+        path: 'land-nature/page',
+        name: 'LandNatureMgmt',
+        component: () => import('@/views/land-nature/Index.vue'),
+        meta: { title: '土地性质', icon: 'fas fa-mountain', parent: 'space' }
+      },
+      // ========== W3.4 关联实体 (park-space 后端 V33) ==========
+      {
+        path: 'covenant/page',
+        name: 'CovenantMgmt',
+        component: () => import('@/views/covenant/Index.vue'),
+        meta: { title: '合同房间', icon: 'fas fa-file-contract', parent: 'space' }
+      },
+      {
+        path: 'energy/page',
+        name: 'EnergyMgmt',
+        component: () => import('@/views/energy/Index.vue'),
+        meta: { title: '能耗管理', icon: 'fas fa-bolt', parent: 'space' }
+      },
+      {
+        path: 'equipment/page',
+        name: 'EquipmentMgmt',
+        component: () => import('@/views/equipment/Index.vue'),
+        meta: { title: '设备设施', icon: 'fas fa-tools', parent: 'space' }
+      },
+      // ========== W3.5 空间实体 (park-space 后端 V34) ==========
+      {
+        path: 'space-category/page',
+        name: 'SpaceCategoryMgmt',
+        component: () => import('@/views/space-category/Index.vue'),
+        meta: { title: '空间类别', icon: 'fas fa-th-large', parent: 'space' }
+      },
+      {
+        path: 'space/page',
+        name: 'SpaceMgmt',
+        component: () => import('@/views/space/Index.vue'),
+        meta: { title: '空间管理', icon: 'fas fa-compass', parent: 'space' }
+      },
+      {
+        path: 'massif/page',
+        name: 'MassifMgmt',
+        component: () => import('@/views/massif/Index.vue'),
+        meta: { title: '地块管理', icon: 'fas fa-map', parent: 'space' }
+      },
+      // ========== W3.6 Room 子表 (park-space 后端 V35, append-only) ==========
+      {
+        path: 'room-purpose/page',
+        name: 'RoomPurposeMgmt',
+        component: () => import('@/views/room-purpose/Index.vue'),
+        meta: { title: '房源用途', icon: 'fas fa-notebook', parent: 'space' }
+      },
+      {
+        path: 'room-lock-record/page',
+        name: 'RoomLockRecordMgmt',
+        component: () => import('@/views/room-lock-record/Index.vue'),
+        meta: { title: '锁定记录', icon: 'fas fa-lock', parent: 'space' }
+      },
+      {
+        path: 'room-record/page',
+        name: 'RoomRecordMgmt',
+        component: () => import('@/views/room-record/Index.vue'),
+        meta: { title: '绑定记录', icon: 'fas fa-plug', parent: 'space' }
+      },
+      {
+        path: 'room-split-merge/page',
+        name: 'RoomSplitMergeMgmt',
+        component: () => import('@/views/room-split-merge/Index.vue'),
+        meta: { title: '拆分合并', icon: 'fas fa-files', parent: 'space' }
       }
     ]
   }
