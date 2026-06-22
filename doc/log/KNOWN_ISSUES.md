@@ -2075,3 +2075,50 @@ CI 重 build platform-user:latest, jar 内含 V25+V27+V27, 217 拉新镜像后 F
 
 - `scripts/diag/verify-tenant-menu.sh`: 217 一站式验证 (拉镜像 + 重启 + Flyway 日志 + DB 数据 + API 端到端)
 - W3 checklist (`doc/log/W3-实施checklist.md`) Section 5.1: 已加 "确认 commit 改的文件至少匹配一个 CI path"
+
+---
+
+## #27: Flyway V36 MySQL 同表 DELETE 失败 + INSERT IGNORE 静默丢失 (2026-06-22)
+
+**故障现象**:
+- 217 部署 8a03326 后, 触发 Flyway V36 迁移 (`restructure_space_menu`)
+- V36 step 6 执行 `DELETE FROM sys_role_menu WHERE menu_id IN (SELECT id FROM sys_menu WHERE parent_id IN (SELECT id FROM sys_menu WHERE name='空间中心'))` 失败
+- 错误码 1093: `You can't specify target table 'sys_menu' for update in FROM clause`
+- platform-user 容器崩溃循环, 启动 → 失败 → 重启 → 失败, 每次 5-10 秒
+- 影响: 登录/用户/菜单所有接口不可用
+
+**根因 1 (MySQL 限制)**: MySQL 不允许在 `DELETE`/`UPDATE` 的子查询中**直接引用被修改的同一表**。需要用派生表包一层:
+```sql
+-- ❌ 错误
+DELETE FROM sys_role_menu 
+  WHERE menu_id IN (SELECT id FROM sys_menu WHERE parent_id IN 
+    (SELECT id FROM sys_menu WHERE name='空间中心'));
+
+-- ✅ 正确
+DELETE FROM sys_role_menu 
+  WHERE menu_id IN (SELECT id FROM (
+    SELECT id FROM sys_menu WHERE parent_id IN (
+      SELECT id FROM (SELECT id FROM sys_menu WHERE name='空间中心') AS _space_parent
+    )
+  ) AS _space_children);
+```
+
+**根因 2 (ID 冲突)**: V29 已用 200/201 表示 `物业管理/楼宇列表`, V36 想用 200/201 表示 `房源管理/园区管理`。`INSERT IGNORE` 静默保留旧值, V36 看似成功但菜单名没改。
+
+**修复 (commit `68f2a2f`)**:
+1. MySQL 子查询用派生表包一层 (2 处 DELETE)
+2. 200/201 改用 `UPDATE ... WHERE id=200` 替代 `INSERT IGNORE`
+
+**217 紧急恢复 (用户驱动)**:
+1. `DELETE FROM flyway_schema_history WHERE version='36' AND success=0` — 清失败记录
+2. SSH 手动执行修复版 V36 SQL (含中文字符, 用 SCP 上传 UTF-8 文件避免管道编码丢失)
+3. `UPDATE flyway_schema_history SET success=1 WHERE version='36'` — 标记已应用
+4. `docker compose up -d --force-recreate platform-user` — 强创, 因为 `pull + up` 看到 digest 相同不会 recreate
+
+**教训**:
+1. **🟢 MySQL 同表 DELETE 限制**是个反复踩的坑。`KNOWN_ISSUES #21` (V11) 也提过类似问题, 当时绕过方案是改写 SQL 而不是用派生表。下次写 Flyway 脚本时, 凡是 DELETE/UPDATE + 子查询引用同表, 一律用派生表。
+2. **🟢 INSERT IGNORE 掩盖冲突**。Flyway 脚本如果用了 `INSERT IGNORE`, 跟历史 migration 的 ID 冲突会被静默吞掉, 看似成功实则没生效。**新 migration 应先 `SELECT` 检查再用 `UPDATE` 或干脆用新 ID 范围**。
+3. **🟢 docker compose pull + up -d 不一定 recreate**。如果新 image digest 与 running 容器相同 (CI 没跑出变化), docker 不会动容器。需要 `--force-recreate`。
+4. **🟢 Flyway 失败 → 启动循环**。失败迁移在 `flyway_schema_history` 留 `success=0` 记录, 下次启动拒绝重跑。修复方式: `DELETE` 该记录 (用修复版 SQL 重跑) 或 `UPDATE success=1` (手动应用数据)。**核心服务 (platform-user) 挂了影响范围大, 要第一时间 `flyway_schema_history` 修状态 + 强创容器**。
+5. **🟢 SSH 管道中文编码丢失**。`ssh user@host 'cat | docker exec -i ...'` 链路中, PowerShell 进程的 stdout 中转会丢字符 (?????)。解决: 用 SCP 上传 UTF-8 文件, `docker exec -i mysql --default-character-set=utf8mb4 < file.sql`。
+6. **🟢 验证 Flyway 状态**: 失败后第一时间 `SELECT version, success, execution_time, installed_on FROM flyway_schema_history WHERE version='36'` 确认。
