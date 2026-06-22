@@ -272,7 +272,7 @@ async function handleOrgs(row: any) {
 
 async function handleAuthorize(row: any) {
   authTenantId.value = row.id
-  const [appsRes, authRes] = await Promise.all([listApps(0), getAuthorizedAppIds(row.id)])
+  const [appsRes, authRes] = await Promise.all([listApps(), getAuthorizedAppIds(row.id)])
   allApps.value = appsRes.data || []
   authAppIds.value = authRes.data || []
   authDialogVisible.value = true
