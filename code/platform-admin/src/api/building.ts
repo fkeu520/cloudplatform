@@ -5,6 +5,7 @@ export interface Building {
   buildingName?: string
   buildingCode?: string
   parkId?: number
+  areaId?: number
   totalFloor?: number
   totalArea?: number
   status?: number
@@ -14,6 +15,7 @@ export interface Building {
 
 export function getBuildingPage(params: {
   keyword?: string
+  areaId?: number
   status?: number
   pageNum?: number
   pageSize?: number

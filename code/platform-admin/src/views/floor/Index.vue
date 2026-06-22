@@ -74,13 +74,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="楼层名称" prop="floorName"><el-input v-model="formData.floorName" maxlength="64" /></el-form-item>
-        <el-form-item label="楼层序号"><el-input-number v-model="formData.serialCode" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="楼层类型">
+        <el-form-item label="楼层序号" prop="serialCode"><el-input-number v-model="formData.serialCode" :min="0" style="width:100%" /></el-form-item>
+        <el-form-item label="楼层类型" prop="floorCategory">
           <el-select v-model="formData.floorCategory">
             <el-option label="地上" :value="0" /><el-option label="地下" :value="1" /><el-option label="夹层" :value="2" />
           </el-select>
         </el-form-item>
-        <el-form-item label="楼层系数"><el-input-number v-model="formData.coefficient" :precision="2" :step="0.1" :min="0" style="width:100%" /></el-form-item>
+        <el-form-item label="楼层系数" prop="coefficient"><el-input-number v-model="formData.coefficient" :precision="2" :step="0.1" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="formData.sorting" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
       </el-form>
@@ -119,7 +119,10 @@ const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
   buildingId: [{ required: true, message: '请选择楼栋', trigger: 'change' }],
-  floorName: [{ required: true, message: '请输入楼层名称', trigger: 'blur' }]
+  floorName: [{ required: true, message: '请输入楼层名称', trigger: 'blur' }],
+  serialCode: [{ required: true, message: '请输入楼层序号', trigger: 'blur' }],
+  floorCategory: [{ required: true, message: '请选择楼层类型', trigger: 'change' }],
+  coefficient: [{ required: true, message: '请输入楼层系数', trigger: 'blur' }]
 }
 
 function floorCategoryLabel(c: number): string { return ['地上', '地下', '夹层'][c] || '-' }

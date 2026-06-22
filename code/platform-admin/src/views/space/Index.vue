@@ -65,13 +65,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="空间名称" prop="spaceName"><el-input v-model="formData.spaceName" maxlength="100" /></el-form-item>
-        <el-form-item label="位置描述"><el-input v-model="formData.spaceDescribe" type="textarea" :rows="2" maxlength="500" /></el-form-item>
-        <el-form-item label="区域">
+        <el-form-item label="位置描述" prop="spaceDescribe"><el-input v-model="formData.spaceDescribe" type="textarea" :rows="2" maxlength="500" /></el-form-item>
+        <el-form-item label="区域" prop="areaId">
           <el-select v-model="formData.areaId" placeholder="请选择区域" filterable>
             <el-option v-for="a in areaOptions" :key="a.id" :label="a.areaName" :value="a.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="类别">
+        <el-form-item label="类别" prop="categoryId">
           <el-select v-model="formData.categoryId" placeholder="请选择类别" filterable>
             <el-option v-for="c in categoryOptions" :key="c.id" :label="c.typeName" :value="c.id" />
           </el-select>
@@ -115,7 +115,13 @@ async function loadCategoryOptions() {
 
 const defaultForm = { parkId: undefined as number | undefined, spaceName: '', spaceDescribe: '', areaId: undefined as number | undefined, categoryId: undefined as number | undefined, status: 1 }
 const formData = reactive({ ...defaultForm })
-const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], spaceName: [{ required: true, message: '请输入空间名称', trigger: 'blur' }] }
+const rules = {
+  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
+  spaceName: [{ required: true, message: '请输入空间名称', trigger: 'blur' }],
+  spaceDescribe: [{ required: true, message: '请输入位置描述', trigger: 'blur' }],
+  areaId: [{ required: true, message: '请选择区域', trigger: 'change' }],
+  categoryId: [{ required: true, message: '请选择类别', trigger: 'change' }]
+}
 
 async function loadData() {
   loading.value = true

@@ -52,7 +52,7 @@
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
         <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="地块编号" prop="massifCode"><el-input v-model="formData.massifCode" maxlength="32" /></el-form-item>
-        <el-form-item label="地块名称"><el-input v-model="formData.massifName" maxlength="256" /></el-form-item>
+        <el-form-item label="地块名称" prop="massifName"><el-input v-model="formData.massifName" maxlength="256" /></el-form-item>
         <el-form-item label="地块面积(m²)"><el-input-number v-model="formData.massifArea" :precision="2" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="使用年限"><el-input-number v-model="formData.useYear" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="土地性质"><el-select v-model="formData.landNatureId" placeholder="请选择" filterable style="width:100%"><el-option v-for="item in landNatureOptions" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
@@ -95,7 +95,8 @@ const defaultForm = {
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
-  massifCode: [{ required: true, message: '请输入地块编号', trigger: 'blur' }]
+  massifCode: [{ required: true, message: '请输入地块编号', trigger: 'blur' }],
+  massifName: [{ required: true, message: '请输入地块名称', trigger: 'blur' }]
 }
 
 async function loadData() {

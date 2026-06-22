@@ -3,6 +3,11 @@
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="楼宇名称/编号" clearable /></el-form-item>
+        <el-form-item label="区域">
+          <el-select v-model="searchForm.areaId" placeholder="全部区域" clearable filterable>
+            <el-option v-for="a in areaOptions" :key="a.id" :label="a.areaName" :value="a.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部" clearable>
             <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
@@ -53,6 +58,11 @@
             <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="区域">
+          <el-select v-model="formData.areaId" placeholder="请选择区域" filterable>
+            <el-option v-for="a in areaOptions" :key="a.id" :label="a.areaName" :value="a.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="楼栋名称" prop="buildingName"><el-input v-model="formData.buildingName" maxlength="64" /></el-form-item>
         <el-form-item label="楼栋编号"><el-input v-model="formData.buildingNo" maxlength="32" /></el-form-item>
         <el-form-item label="总楼层数"><el-input-number v-model="formData.floors" :min="1" style="width:100%" /></el-form-item>
@@ -76,15 +86,17 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getBuildingPage, getBuildingById, createBuilding, updateBuilding, deleteBuilding } from '@/api/building'
 import { getParkList } from '@/api/park'
+import { getAreaPage } from '@/api/area'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', status: undefined as number | undefined })
+const searchForm = reactive({ keyword: '', areaId: undefined as number | undefined, status: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
 const parkOptions = ref<any[]>([])
+const areaOptions = ref<any[]>([])
 
-const defaultForm = { parkId: undefined as number | undefined, buildingName: '', buildingNo: '', floors: 1, totalArea: undefined as number | undefined, buildYear: undefined as number | undefined, manager: '', managerPhone: '', remark: '', status: 1 }
+const defaultForm = { parkId: undefined as number | undefined, areaId: undefined as number | undefined, buildingName: '', buildingNo: '', floors: 1, totalArea: undefined as number | undefined, buildYear: undefined as number | undefined, manager: '', managerPhone: '', remark: '', status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
@@ -93,6 +105,9 @@ const rules = {
 
 async function loadParkOptions() {
   try { const res: any = await getParkList(); if (res.code === 200) parkOptions.value = res.data || [] } catch { /* ignore */ }
+}
+async function loadAreaOptions() {
+  try { const res: any = await getAreaPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) areaOptions.value = res.data.records || [] } catch { /* ignore */ }
 }
 
 async function loadData() {
@@ -103,7 +118,7 @@ async function loadData() {
   } finally { loading.value = false }
 }
 function handleSearch() { pageNum.value = 1; loadData() }
-function handleReset() { searchForm.keyword=''; searchForm.status=undefined; handleSearch() }
+function handleReset() { searchForm.keyword=''; searchForm.areaId=undefined; searchForm.status=undefined; handleSearch() }
 function handleSizeChange(v: number) { pageSize.value = v; loadData() }
 function handlePageChange(v: number) { pageNum.value = v; loadData() }
 function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.value=null; isEdit.value=false }
@@ -134,7 +149,7 @@ async function handleDelete(row: any) {
   } catch { /* cancelled */ }
 }
 
-onMounted(() => { loadData(); loadParkOptions() })
+onMounted(() => { loadData(); loadParkOptions(); loadAreaOptions() })
 </script>
 
 <style scoped>

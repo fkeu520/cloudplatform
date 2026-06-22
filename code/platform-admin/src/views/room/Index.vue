@@ -148,6 +148,7 @@ const defaultForm = { parkId: undefined as number | undefined, buildingId: undef
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
+  buildingId: [{ required: true, message: '请选择楼栋', trigger: 'change' }],
   roomNo: [{ required: true, message: '请输入房号', trigger: 'blur' }],
   roomType: [{ required: true, message: '请选择类型', trigger: 'change' }]
 }
