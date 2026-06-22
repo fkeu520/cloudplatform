@@ -96,11 +96,11 @@ spring:
                 retries: 3
                 statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
 
-        # 鍥绌洪棿 (W3.1)
+        # 鍥绌洪棿 (W3.1 Room + W3.3-W3.6 15 实体)
         - id: park-space
           uri: lb://park-space
           predicates:
-            - Path=/room/**, /park/**
+            - Path=/room/**, /park/**, /area/**, /floor/**, /kit/**, /plan-use/**, /land-nature/**, /covenant/**, /energy/**, /equipment/**, /space-category/**, /space/**, /massif/**, /room-purpose/**, /room-lock-record/**, /room-record/**, /room-split-merge/**
           filters:
             - name: CircuitBreaker
               args:
