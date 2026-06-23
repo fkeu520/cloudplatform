@@ -13,7 +13,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * 设备设施 Service (park-space 业务)
@@ -127,6 +131,74 @@ public class EquipmentService {
 
         equipmentMapper.updateById(e);
         log.info("[EquipmentService] update: id={}", id);
+        return Result.ok();
+    }
+
+    // ========== List by Kit ==========
+
+    public Result<List<Equipment>> listByKitId(Long kitId) {
+        LambdaQueryWrapper<Equipment> w = new LambdaQueryWrapper<Equipment>()
+                .eq(Equipment::getKitId, kitId)
+                .eq(Equipment::getDeleted, 0)
+                .orderByAsc(Equipment::getEquipmentName);
+        List<Equipment> list = equipmentMapper.selectList(w);
+        return Result.ok(list);
+    }
+
+    // ========== Batch Save ==========
+
+    @Transactional
+    public Result<Void> batchSave(Long kitId, List<Map<String, Object>> equipmentList) {
+        // 先获取当前 kit 的所有设备
+        List<Equipment> existing = equipmentMapper.selectList(
+                new LambdaQueryWrapper<Equipment>()
+                        .eq(Equipment::getKitId, kitId)
+                        .eq(Equipment::getDeleted, 0));
+
+        // 提取前端传过来的 id（有 id 的是更新，没有的是新增）
+        List<Long> incomingIds = equipmentList.stream()
+                .map(m -> m.get("id"))
+                .filter(id -> id != null)
+                .map(id -> ((Number) id).longValue())
+                .collect(toList());
+
+        // 删除前端没传的（已删除的行）
+        for (Equipment eq : existing) {
+            if (!incomingIds.contains(eq.getId())) {
+                eq.setDeleted(1);
+                equipmentMapper.updateById(eq);
+            }
+        }
+
+        // 新增或更新
+        for (Map<String, Object> m : equipmentList) {
+            String equipmentName = (String) m.get("equipmentName");
+            if (equipmentName == null || equipmentName.isBlank()) continue;
+
+            Object idObj = m.get("id");
+            if (idObj != null) {
+                // 更新
+                Long id = ((Number) idObj).longValue();
+                Equipment eq = equipmentMapper.selectById(id);
+                if (eq != null && eq.getDeleted() != 1) {
+                    eq.setEquipmentName(equipmentName);
+                    eq.setModel((String) m.get("model"));
+                    eq.setAmount(m.get("amount") != null ? ((Number) m.get("amount")).intValue() : 1);
+                    equipmentMapper.updateById(eq);
+                }
+            } else {
+                // 新增
+                Equipment eq = new Equipment();
+                eq.setKitId(kitId);
+                eq.setEquipmentName(equipmentName);
+                eq.setModel((String) m.get("model"));
+                eq.setAmount(m.get("amount") != null ? ((Number) m.get("amount")).intValue() : 1);
+                eq.setParkId(m.get("parkId") != null ? ((Number) m.get("parkId")).longValue() : null);
+                eq.setStatus(1);
+                eq.setTenantId(currentTenantId());
+                equipmentMapper.insert(eq);
+            }
+        }
         return Result.ok();
     }
 

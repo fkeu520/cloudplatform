@@ -8,11 +8,6 @@
             <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部" clearable>
-            <el-option label="启用" :value="1" /><el-option label="停用" :value="0" />
-          </el-select>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
@@ -25,6 +20,11 @@
         <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
         <el-table-column prop="kitName" label="配套名称" min-width="200" />
         <el-table-column prop="amount" label="数量" width="100" align="right" />
+        <el-table-column label="设备数" width="90" align="center">
+          <template #default="scope">
+            <el-tag size="small">{{ scope.row.equipmentCount ?? '-' }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="80">
           <template #default="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'" size="small">
@@ -46,7 +46,7 @@
           @size-change="handleSizeChange" @current-change="handlePageChange" />
       </div>
     </el-card>
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" @close="resetForm">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px" @close="resetForm">
       <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
         <el-form-item label="园区" prop="parkId">
           <el-select v-model="formData.parkId" placeholder="请选择园区" filterable>
@@ -56,6 +56,33 @@
         <el-form-item label="配套名称" prop="kitName"><el-input v-model="formData.kitName" maxlength="64" /></el-form-item>
         <el-form-item label="数量"><el-input-number v-model="formData.amount" :min="0" style="width:100%" /></el-form-item>
         <el-form-item label="状态"><el-radio-group v-model="formData.status"><el-radio :value="1">启用</el-radio><el-radio :value="0">停用</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="设备清单">
+          <el-button type="primary" size="small" @click="addEquipmentRow">+ 添加设备</el-button>
+        </el-form-item>
+        <el-form-item label=" " v-if="equipmentList.length > 0">
+          <el-table :data="equipmentList" border size="small" style="width:100%">
+            <el-table-column label="设备名称" min-width="160">
+              <template #default="{ row, $index }">
+                <el-input v-model="row.equipmentName" placeholder="设备名称" size="small" />
+              </template>
+            </el-table-column>
+            <el-table-column label="型号" min-width="140">
+              <template #default="{ row, $index }">
+                <el-input v-model="row.model" placeholder="型号" size="small" />
+              </template>
+            </el-table-column>
+            <el-table-column label="数量" width="100">
+              <template #default="{ row, $index }">
+                <el-input-number v-model="row.amount" :min="1" size="small" style="width:100%" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="70" fixed="right">
+              <template #default="{ $index }">
+                <el-button type="danger" size="small" @click="equipmentList.splice($index, 1)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible=false">取消</el-button>
@@ -69,14 +96,16 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getKitPage, getKitById, createKit, updateKit, deleteKit } from '@/api/kit'
+import { listByKit, batchSaveByKit } from '@/api/equipment'
 import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, status: undefined as number | undefined })
+const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
 const parkOptions = ref<any[]>([])
+const equipmentList = ref<any[]>([])
 
 async function loadParkOptions() {
   try { const res: any = await getParkList(); if (res.code === 200) parkOptions.value = res.data || [] } catch { /* ignore */ }
@@ -94,14 +123,18 @@ async function loadData() {
   } finally { loading.value = false }
 }
 function handleSearch() { pageNum.value = 1; loadData() }
-function handleReset() { searchForm.keyword=''; searchForm.parkId=undefined; searchForm.status=undefined; handleSearch() }
+function handleReset() { searchForm.keyword=''; searchForm.parkId=undefined; handleSearch() }
 function handleSizeChange(v: number) { pageSize.value = v; loadData() }
 function handlePageChange(v: number) { pageNum.value = v; loadData() }
-function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.value=null; isEdit.value=false }
+function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.value=null; isEdit.value=false; equipmentList.value = [] }
+function addEquipmentRow() { equipmentList.value.push({ equipmentName: '', model: '', amount: 1 }) }
 function handleAdd() { resetForm(); dialogTitle.value='新增配套'; dialogVisible.value=true }
 async function handleEdit(row: any) {
   resetForm(); isEdit.value=true; currentId.value=row.id; dialogTitle.value='编辑配套'
-  try { const res: any = await getKitById(row.id); if (res.code === 200) Object.assign(formData, res.data) } catch { ElMessage.error('获取详情失败') }
+  try {
+    const res: any = await getKitById(row.id); if (res.code === 200) Object.assign(formData, res.data)
+    const eqRes: any = await listByKit(row.id); if (eqRes.code === 200) equipmentList.value = (eqRes.data || []).map((e: any) => ({ equipmentName: e.equipmentName, model: e.model || '', amount: e.amount ?? 1 }))
+  } catch { ElMessage.error('获取详情失败') }
   dialogVisible.value = true
 }
 async function handleSubmit() {
@@ -110,10 +143,16 @@ async function handleSubmit() {
   try {
     if (isEdit.value && currentId.value) {
       const res: any = await updateKit(currentId.value, formData)
-      if (res.code === 200) { ElMessage.success('更新成功'); dialogVisible.value=false; loadData() } else ElMessage.error(res.message||'更新失败')
+      if (res.code === 200) {
+        await batchSaveByKit(currentId.value, equipmentList.value)
+        ElMessage.success('更新成功'); dialogVisible.value=false; loadData()
+      } else ElMessage.error(res.message||'更新失败')
     } else {
       const res: any = await createKit(formData)
-      if (res.code === 200) { ElMessage.success('新增成功'); dialogVisible.value=false; loadData() } else ElMessage.error(res.message||'新增失败')
+      if (res.code === 200) {
+        if (res.data?.id) await batchSaveByKit(res.data.id, equipmentList.value)
+        ElMessage.success('新增成功'); dialogVisible.value=false; loadData()
+      } else ElMessage.error(res.message||'新增失败')
     }
   } finally { submitting.value = false }
 }

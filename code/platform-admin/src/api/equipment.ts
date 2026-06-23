@@ -38,3 +38,11 @@ export function updateEquipment(id: number, data: any) {
 export function deleteEquipment(id: number) {
   return request({ url: `/equipment/${id}`, method: 'delete' })
 }
+
+export function listByKit(kitId: number) {
+  return request({ url: `/equipment/listByKit/${kitId}`, method: 'get' })
+}
+
+export function batchSaveByKit(kitId: number, data: any[]) {
+  return request({ url: `/equipment/batchSave/${kitId}`, method: 'post', data })
+}
