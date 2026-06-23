@@ -40,3 +40,7 @@ export function updateFloor(id: number, data: any) {
 export function deleteFloor(id: number) {
   return request({ url: `/floor/${id}`, method: 'delete' })
 }
+
+export function listFloorByBuilding(buildingId: number) {
+  return request({ url: `/floor/page-by-building/${buildingId}`, method: 'get' })
+}

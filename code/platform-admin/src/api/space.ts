@@ -2,11 +2,11 @@ import request from './request'
 
 export interface Space {
   id?: number
-  spaceName?: string
-  spaceDescribe?: string
   parkId?: number
   areaId?: number
   categoryId?: number
+  spaceName?: string
+  spaceDescribe?: string
   status?: number
   tenantId?: number
   createTime?: string
@@ -15,8 +15,8 @@ export interface Space {
 export function getSpacePage(params: {
   keyword?: string
   parkId?: number
-  areaId?: number
   categoryId?: number
+  status?: number
   pageNum?: number
   pageSize?: number
 }) {
@@ -37,4 +37,8 @@ export function updateSpace(id: number, data: any) {
 
 export function deleteSpace(id: number) {
   return request({ url: `/space/${id}`, method: 'delete' })
+}
+
+export function checkSpaceName(parkId: number, categoryId: number, spaceName: string, excludeId?: number) {
+  return request({ url: '/space/check-name', method: 'get', params: { parkId, categoryId, spaceName, excludeId } })
 }
