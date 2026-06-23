@@ -497,7 +497,7 @@ onMounted(async () => {
   </div>
 </template>
 
-<style lang="less" scoped>
+<style scoped>
 .page-container {
   padding: 16px;
 }
@@ -537,14 +537,14 @@ onMounted(async () => {
   text-align: center;
   color: rgba(0, 0, 0, 0.45);
   font-size: 14px;
-
-  i {
-    margin-right: 8px;
-    font-size: 18px;
-  }
 }
 
-/deep/ .el-divider__text {
+.empty-equipment i {
+  margin-right: 8px;
+  font-size: 18px;
+}
+
+:deep(.el-divider__text) {
   background: #fff;
 }
 </style>
