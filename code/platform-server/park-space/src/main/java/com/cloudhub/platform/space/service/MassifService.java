@@ -159,8 +159,11 @@ public class MassifService {
     private Long requiredLong(Map<String, Object> params, String key) {
         Object v = params.get(key);
         if (v == null) throw new BizException("缺少必填字段: " + key);
-        if (!(v instanceof Number)) throw new BizException("字段类型错误: " + key);
-        return ((Number) v).longValue();
+        try {
+            return Long.valueOf(v.toString().trim());
+        } catch (NumberFormatException e) {
+            throw new BizException("字段类型错误: " + key);
+        }
     }
 
     private String requiredString(Map<String, Object> params, String key) {
