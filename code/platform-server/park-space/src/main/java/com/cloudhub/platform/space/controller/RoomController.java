@@ -30,7 +30,9 @@ import java.util.Map;
  *   <li>{@code PUT    /room/{id}}        更新字段 (不含状态)</li>
  *   <li>{@code DELETE /room/{id}}        软删除</li>
  *   <li>{@code PATCH  /room/{id}/status} 状态变更 (状态机校验)</li>
+ *   <li>{@code GET    /room/check-no}     房号唯一性校验</li>
  * </ul>
+ * <p>Phase 6 (csyh 业务融合): page 接口新增 parkId/buildingId/floorId 过滤, 用于左侧树形导航.</p>
  * <p>路由: 走 platform-gateway /room/** 规则.</p>
  */
 @Tag(name = "园区房屋", description = "park-space 业务 - 房源管理")
@@ -47,9 +49,22 @@ public class RoomController {
             @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(name = "roomType", required = false) String roomType,
             @RequestParam(name = "status", required = false) Integer status,
+            @RequestParam(name = "parkId", required = false) Long parkId,
+            @RequestParam(name = "buildingId", required = false) Long buildingId,
+            @RequestParam(name = "floorId", required = false) Long floorId,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
-        return roomService.page(keyword, roomType, status, pageNum, pageSize);
+        return roomService.page(keyword, roomType, status, parkId, buildingId, floorId, pageNum, pageSize);
+    }
+
+    @Operation(summary = "校验同园区+楼栋内房号是否已存在 (V37 唯一索引)")
+    @GetMapping("/check-no")
+    public Result<Boolean> checkNo(
+            @RequestParam(name = "parkId") Long parkId,
+            @RequestParam(name = "buildingId") Long buildingId,
+            @RequestParam(name = "roomNo") String roomNo,
+            @RequestParam(name = "excludeId", required = false) Long excludeId) {
+        return roomService.checkNo(parkId, buildingId, roomNo, excludeId);
     }
 
     @Operation(summary = "查询房源详情")

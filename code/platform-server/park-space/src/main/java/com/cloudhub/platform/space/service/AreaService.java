@@ -154,6 +154,28 @@ public class AreaService {
         return Result.ok();
     }
 
+
+    /**
+     * 校验同园区区域名称唯一性
+     * @param parkId 园区 ID
+     * @param areaName 区域名称
+     * @param excludeId 排除的 ID (编辑时传自身)
+     * @return true=名称可用, false=已存在
+     */
+    public Result<Boolean> checkName(Long parkId, String areaName, Long excludeId) {
+        LambdaQueryWrapper<Area> w = new LambdaQueryWrapper<Area>()
+                .eq(Area::getParkId, parkId)
+                .eq(Area::getAreaName, areaName)
+                .eq(Area::getDeleted, 0);
+        if (excludeId != null) {
+            w.ne(Area::getId, excludeId);
+        }
+        Long count = areaMapper.selectCount(w);
+        boolean available = count == null || count == 0;
+        log.info("[AreaService] checkName parkId={}, areaName={} -> available={}", parkId, areaName, available);
+        return Result.ok(available);
+    }
+
     // ========== Helpers ==========
 
     private Long requiredLong(Map<String, Object> params, String key) {
