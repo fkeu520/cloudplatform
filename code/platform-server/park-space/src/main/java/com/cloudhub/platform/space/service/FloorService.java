@@ -172,4 +172,18 @@ public class FloorService {
         Long tid = TenantContextHolder.getTenantId();
         return tid != null ? tid : 1L;
     }
+
+    /**
+     * 按楼栋查询楼层列表 (无分页, Building 弹窗内嵌子表用, 按 sorting 升序)
+     */
+    public Result<java.util.List<com.cloudhub.platform.space.domain.entity.Floor>> listByBuilding(Long buildingId) {
+        java.util.List<com.cloudhub.platform.space.domain.entity.Floor> list = floorMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.cloudhub.platform.space.domain.entity.Floor>()
+                        .eq(com.cloudhub.platform.space.domain.entity.Floor::getBuildingId, buildingId)
+                        .eq(com.cloudhub.platform.space.domain.entity.Floor::getDeleted, 0)
+                        .orderByAsc(com.cloudhub.platform.space.domain.entity.Floor::getSorting)
+                        .orderByAsc(com.cloudhub.platform.space.domain.entity.Floor::getSerialCode));
+        log.info("[FloorService] listByBuilding buildingId={} -> count={}", buildingId, list.size());
+        return Result.ok(list);
+    }
 }

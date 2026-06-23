@@ -42,6 +42,15 @@ public class BuildingController {
         return buildingService.page(keyword, status, pageNum, pageSize);
     }
 
+    @Operation(summary = "校验同园区楼栋编号是否已存在")
+    @GetMapping("/check-code")
+    public Result<Boolean> checkCode(
+            @RequestParam(name = "parkId") Long parkId,
+            @RequestParam(name = "buildingCode") String buildingCode,
+            @RequestParam(name = "excludeId", required = false) Long excludeId) {
+        return buildingService.checkCode(parkId, buildingCode, excludeId);
+    }
+
     @Operation(summary = "查询楼宇详情")
     @GetMapping("/{id}")
     public Result<Building> getById(@PathVariable Long id) {

@@ -50,6 +50,13 @@ public class FloorController {
         return floorService.page(keyword, parkId, buildingId, status, pageNum, pageSize);
     }
 
+    @Operation(summary = "按楼栋查询楼层列表 (Building 弹窗内嵌子表用)")
+    @GetMapping("/page-by-building/{buildingId}")
+    public Result<java.util.List<com.cloudhub.platform.space.domain.entity.Floor>> listByBuilding(
+            @PathVariable(name = "buildingId") Long buildingId) {
+        return floorService.listByBuilding(buildingId);
+    }
+
     @Operation(summary = "查询楼层详情")
     @GetMapping("/{id}")
     public Result<Floor> getById(@PathVariable Long id) {

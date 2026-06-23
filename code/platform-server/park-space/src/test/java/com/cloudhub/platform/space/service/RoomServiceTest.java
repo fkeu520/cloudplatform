@@ -86,7 +86,7 @@ class RoomServiceTest {
         p.setTotal(2);
         when(roomMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Room>> result = roomService.page(null, null, null, 1, 10);
+        Result<PageResult<Room>> result = roomService.page(null, null, null, null, null, null, 1, 10);
         assertEquals(200, result.getCode());
         assertEquals(2, result.getData().getTotal());
     }
@@ -98,7 +98,7 @@ class RoomServiceTest {
         p.setTotal(1);
         when(roomMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Room>> result = roomService.page("   ", null, null, 1, 10);
+        Result<PageResult<Room>> result = roomService.page("   ", null, null, null, null, null, 1, 10);
         assertEquals(1, result.getData().getTotal());
     }
 

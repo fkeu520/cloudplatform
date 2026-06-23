@@ -49,6 +49,15 @@ public class KitController {
         return kitService.page(keyword, parkId, status, pageNum, pageSize);
     }
 
+    @Operation(summary = "校验同园区配套名称是否已存在")
+    @GetMapping("/check-name")
+    public Result<Boolean> checkName(
+            @RequestParam(name = "parkId") Long parkId,
+            @RequestParam(name = "kitName") String kitName,
+            @RequestParam(name = "excludeId", required = false) Long excludeId) {
+        return kitService.checkName(parkId, kitName, excludeId);
+    }
+
     @Operation(summary = "查询配套详情")
     @GetMapping("/{id}")
     public Result<Kit> getById(@PathVariable Long id) {

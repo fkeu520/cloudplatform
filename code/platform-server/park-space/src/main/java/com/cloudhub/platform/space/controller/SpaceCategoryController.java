@@ -42,6 +42,15 @@ public class SpaceCategoryController {
         return spaceCategoryService.page(keyword, parkId, status, pageNum, pageSize);
     }
 
+    @Operation(summary = "校验同园区类别名称是否已存在")
+    @GetMapping("/check-name")
+    public Result<Boolean> checkName(
+            @RequestParam(name = "parkId") Long parkId,
+            @RequestParam(name = "typeName") String typeName,
+            @RequestParam(name = "excludeId", required = false) Long excludeId) {
+        return spaceCategoryService.checkName(parkId, typeName, excludeId);
+    }
+
     @Operation(summary = "查询空间类别详情")
     @GetMapping("/{id}")
     public Result<SpaceCategory> getById(@PathVariable Long id) {

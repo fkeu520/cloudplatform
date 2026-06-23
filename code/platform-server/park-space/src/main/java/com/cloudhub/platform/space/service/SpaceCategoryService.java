@@ -148,4 +148,21 @@ public class SpaceCategoryService {
         Long tid = TenantContextHolder.getTenantId();
         return tid != null ? tid : 1L;
     }
+
+    /**
+     * 校验同园区类别名称唯一性
+     */
+    public Result<Boolean> checkName(Long parkId, String typeName, Long excludeId) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SpaceCategory> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SpaceCategory>()
+                .eq(SpaceCategory::getParkId, parkId)
+                .eq(SpaceCategory::getTypeName, typeName)
+                .eq(SpaceCategory::getDeleted, 0);
+        if (excludeId != null) {
+            w.ne(SpaceCategory::getId, excludeId);
+        }
+        Long count = spaceCategoryMapper.selectCount(w);
+        boolean available = count == null || count == 0;
+        log.info("[SpaceCategoryService] checkName parkId={}, typeName={} -> available={}", parkId, typeName, available);
+        return Result.ok(available);
+    }
 }

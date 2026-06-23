@@ -171,4 +171,21 @@ public class KitService {
         Long tid = TenantContextHolder.getTenantId();
         return tid != null ? tid : 1L;
     }
+
+    /**
+     * 校验同园区配套名称唯一性
+     */
+    public Result<Boolean> checkName(Long parkId, String kitName, Long excludeId) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Kit> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Kit>()
+                .eq(Kit::getParkId, parkId)
+                .eq(Kit::getKitName, kitName)
+                .eq(Kit::getDeleted, 0);
+        if (excludeId != null) {
+            w.ne(Kit::getId, excludeId);
+        }
+        Long count = kitMapper.selectCount(w);
+        boolean available = count == null || count == 0;
+        log.info("[KitService] checkName parkId={}, kitName={} -> available={}", parkId, kitName, available);
+        return Result.ok(available);
+    }
 }

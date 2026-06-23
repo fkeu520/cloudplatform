@@ -28,6 +28,7 @@ import java.util.Map;
  *   <li>{@code POST   /area}              新增</li>
  *   <li>{@code PUT    /area/{id}}         更新</li>
  *   <li>{@code DELETE /area/{id}}         软删除</li>
+ *   <li>{@code GET    /area/check-name}   名称唯一性校验</li>
  * </ul>
  */
 @Tag(name = "区域管理", description = "park-space 业务 - 区域")
@@ -47,6 +48,15 @@ public class AreaController {
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
         return areaService.page(keyword, parkId, status, pageNum, pageSize);
+    }
+
+    @Operation(summary = "校验同园区区域名称是否已存在")
+    @GetMapping("/check-name")
+    public Result<Boolean> checkName(
+            @RequestParam(name = "parkId") Long parkId,
+            @RequestParam(name = "areaName") String areaName,
+            @RequestParam(name = "excludeId", required = false) Long excludeId) {
+        return areaService.checkName(parkId, areaName, excludeId);
     }
 
     @Operation(summary = "查询区域详情")

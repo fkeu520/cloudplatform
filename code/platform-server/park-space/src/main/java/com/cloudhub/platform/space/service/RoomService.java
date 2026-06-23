@@ -40,8 +40,14 @@ public class RoomService {
 
     /**
      * 分页查询房屋列表
+     * <p>Phase 6 (csyh std 融合): 新增 parkId/buildingId/floorId 维度过滤, 用于左侧树形导航 (园区 → 楼栋 → 楼层).</p>
+     *
+     * @param parkId      园区 ID (可选)
+     * @param buildingId  楼栋 ID (可选)
+     * @param floorId     楼层 ID (可选)
      */
     public Result<PageResult<Room>> page(String keyword, String roomType, Integer status,
+                                          Long parkId, Long buildingId, Long floorId,
                                           int pageNum, int pageSize) {
         LambdaQueryWrapper<Room> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
@@ -53,12 +59,21 @@ public class RoomService {
         if (status != null) {
             w.eq(Room::getStatus, status);
         }
+        if (parkId != null) {
+            w.eq(Room::getParkId, parkId);
+        }
+        if (buildingId != null) {
+            w.eq(Room::getBuildingId, buildingId);
+        }
+        if (floorId != null) {
+            w.eq(Room::getFloorId, floorId);
+        }
         w.eq(Room::getDeleted, 0).orderByAsc(Room::getFloor).orderByAsc(Room::getRoomNo);
 
         Page<Room> p = roomMapper.selectPage(new Page<>(pageNum, pageSize), w);
         PageResult<Room> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
-        log.info("[RoomService] page keyword={}, type={}, status={} -> total={}",
-                keyword, roomType, status, p.getTotal());
+        log.info("[RoomService] page keyword={}, type={}, status={}, parkId={}, buildingId={}, floorId={} -> total={}",
+                keyword, roomType, status, parkId, buildingId, floorId, p.getTotal());
         return Result.ok(result);
     }
 
@@ -217,5 +232,28 @@ public class RoomService {
     private Long currentTenantId() {
         Long tid = TenantContextHolder.getTenantId();
         return tid != null ? tid : 1L;
+    }
+
+    /**
+     * 校验同园区+楼栋内房号唯一性 (V37 唯一索引 uk_park_building_room_no)
+     * @param parkId 园区 ID
+     * @param buildingId 楼栋 ID
+     * @param roomNo 房号
+     * @param excludeId 排除的 ID (编辑时传自身)
+     * @return true=房号可用, false=已存在
+     */
+    public Result<Boolean> checkNo(Long parkId, Long buildingId, String roomNo, Long excludeId) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Room> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Room>()
+                .eq(Room::getParkId, parkId)
+                .eq(Room::getBuildingId, buildingId)
+                .eq(Room::getRoomNo, roomNo)
+                .eq(Room::getDeleted, 0);
+        if (excludeId != null) {
+            w.ne(Room::getId, excludeId);
+        }
+        Long count = roomMapper.selectCount(w);
+        boolean available = count == null || count == 0;
+        log.info("[RoomService] checkNo parkId={}, buildingId={}, roomNo={} -> available={}", parkId, buildingId, roomNo, available);
+        return Result.ok(available);
     }
 }

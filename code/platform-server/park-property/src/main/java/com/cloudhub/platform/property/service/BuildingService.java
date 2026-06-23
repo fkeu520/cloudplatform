@@ -166,4 +166,21 @@ public class BuildingService {
         Long tid = TenantContextHolder.getTenantId();
         return tid != null ? tid : 1L;
     }
+
+    /**
+     * 校验同园区楼栋编号唯一性 (V36 唯一索引 uk_park_building_code)
+     */
+    public Result<Boolean> checkCode(Long parkId, String buildingCode, Long excludeId) {
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Building> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Building>()
+                .eq(Building::getParkId, parkId)
+                .eq(Building::getBuildingCode, buildingCode)
+                .eq(Building::getDeleted, 0);
+        if (excludeId != null) {
+            w.ne(Building::getId, excludeId);
+        }
+        Long count = buildingMapper.selectCount(w);
+        boolean available = count == null || count == 0;
+        log.info("[BuildingService] checkCode parkId={}, buildingCode={} -> available={}", parkId, buildingCode, available);
+        return Result.ok(available);
+    }
 }
