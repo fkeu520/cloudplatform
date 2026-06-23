@@ -404,7 +404,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped lang="scss">
+<style scoped>
 .area-page {
   display: flex;
   flex-direction: column;
@@ -471,10 +471,10 @@ onMounted(() => {
 .area-card {
   border-radius: 8px;
   transition: all 0.2s;
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  }
+}
+.area-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 .card-header {
   display: flex;
@@ -500,9 +500,9 @@ onMounted(() => {
   cursor: pointer;
   color: #909399;
   padding: 4px;
-  &:hover {
-    color: #409eff;
-  }
+}
+.more-icon:hover {
+  color: #409eff;
 }
 .card-tag {
   display: flex;
@@ -542,20 +542,20 @@ onMounted(() => {
   padding: 8px 0;
   border-bottom: 1px solid #ebeef5;
   margin-bottom: 12px;
-  .divider {
-    color: #dcdfe6;
-    margin: 0 8px;
-  }
-  b {
-    color: #409eff;
-    font-weight: 600;
-  }
+}
+.card-counts .divider {
+  color: #dcdfe6;
+  margin: 0 8px;
+}
+.card-counts b {
+  color: #409eff;
+  font-weight: 600;
 }
 .card-actions {
   display: flex;
   gap: 8px;
-  :deep(.el-button) {
-    flex: 1;
-  }
+}
+.card-actions :deep(.el-button) {
+  flex: 1;
 }
 </style>
