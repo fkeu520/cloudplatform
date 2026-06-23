@@ -7,16 +7,9 @@ import com.cloudhub.platform.space.service.EquipmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -59,6 +52,18 @@ public class EquipmentController {
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @RequestBody Map<String, Object> params) {
         return equipmentService.update(id, params);
+    }
+
+    @Operation(summary = "根据配套ID查询设备列表")
+    @GetMapping("/listByKit/{kitId}")
+    public Result<List<Equipment>> listByKitId(@PathVariable Long kitId) {
+        return equipmentService.listByKitId(kitId);
+    }
+
+    @Operation(summary = "批量保存配套下的设备列表")
+    @PostMapping("/batchSave/{kitId}")
+    public Result<Void> batchSave(@PathVariable Long kitId, @RequestBody List<Map<String, Object>> equipmentList) {
+        return equipmentService.batchSave(kitId, equipmentList);
     }
 
     @Operation(summary = "删除设备 (软删除)")
