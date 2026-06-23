@@ -1,5 +1,6 @@
 package com.cloudhub.platform.space.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
 import lombok.Data;
@@ -32,4 +33,8 @@ public class Kit extends BaseEntity {
 
     /** 租户 ID (P0-1 多租户拦截器) */
     private Long tenantId;
+
+    /** 设备数 (非数据库字段, 动态统计) */
+    @TableField(exist = false)
+    private Integer equipmentCount;
 }
