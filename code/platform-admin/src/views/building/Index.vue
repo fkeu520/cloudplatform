@@ -739,7 +739,7 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped lang="scss">
+<style scoped>
 .card-grid {
   margin-top: 16px;
   padding: 16px;
@@ -753,18 +753,18 @@ onMounted(async () => {
 .building-card {
   border-radius: 8px;
   transition: all 0.2s;
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  }
+}
+.building-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 .building-image {
   position: relative;
-  .status-tag {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-  }
+}
+.building-image .status-tag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
 }
 .image-fallback {
   width: 100%;
@@ -783,34 +783,34 @@ onMounted(async () => {
   display: flex;
   font-size: 13px;
   line-height: 1.8;
-  .info-label {
-    color: #909399;
-    width: 70px;
-    flex-shrink: 0;
-  }
-  .info-value {
-    color: #303133;
-    flex: 1;
-    word-break: break-all;
-    &.bold {
-      font-weight: 600;
-      font-size: 14px;
-    }
-    .muted {
-      color: #909399;
-      font-size: 12px;
-      margin-left: 4px;
-    }
-  }
+}
+.info-row .info-label {
+  color: #909399;
+  width: 70px;
+  flex-shrink: 0;
+}
+.info-row .info-value {
+  color: #303133;
+  flex: 1;
+  word-break: break-all;
+}
+.info-row .info-value.bold {
+  font-weight: 600;
+  font-size: 14px;
+}
+.info-row .info-value .muted {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 4px;
 }
 .card-actions {
   display: flex;
   gap: 8px;
   padding-top: 8px;
   border-top: 1px solid #ebeef5;
-  :deep(.el-button) {
-    flex: 1;
-  }
+}
+.card-actions :deep(.el-button) {
+  flex: 1;
 }
 .pagination {
   margin-top: 20px;
@@ -831,8 +831,8 @@ onMounted(async () => {
 }
 .muted {
   color: #909399;
-  &.small {
-    font-size: 12px;
-  }
+}
+.muted.small {
+  font-size: 12px;
 }
 </style>
