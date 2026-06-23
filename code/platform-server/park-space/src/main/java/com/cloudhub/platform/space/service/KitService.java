@@ -6,14 +6,19 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.space.domain.entity.Equipment;
 import com.cloudhub.platform.space.domain.entity.Kit;
+import com.cloudhub.platform.space.mapper.EquipmentMapper;
 import com.cloudhub.platform.space.mapper.KitMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 装修配套 Service (park-space 业务)
@@ -25,6 +30,7 @@ import java.util.Map;
 public class KitService {
 
     private final KitMapper kitMapper;
+    private final EquipmentMapper equipmentMapper;
 
     // ========== Query ==========
 
@@ -43,6 +49,22 @@ public class KitService {
         w.eq(Kit::getDeleted, 0).orderByAsc(Kit::getCreateTime);
 
         Page<Kit> p = kitMapper.selectPage(new Page<>(pageNum, pageSize), w);
+        // 填充 equipmentCount
+        List<Kit> records = p.getRecords();
+        if (!records.isEmpty()) {
+            Set<Long> kitIds = records.stream().map(Kit::getId).collect(Collectors.toSet());
+            LambdaQueryWrapper<Equipment> eqW = new LambdaQueryWrapper<Equipment>()
+                    .in(Equipment::getKitId, kitIds)
+                    .eq(Equipment::getDeleted, 0)
+                    .select(Equipment::getKitId, Equipment::getAmount);
+            List<Equipment> eqList = equipmentMapper.selectList(eqW);
+            Map<Long, Integer> countMap = eqList.stream()
+                    .collect(Collectors.groupingBy(Equipment::getKitId,
+                            Collectors.summingInt(e -> e.getAmount() != null ? e.getAmount() : 0)));
+            for (Kit k : records) {
+                k.setEquipmentCount(countMap.getOrDefault(k.getId(), 0));
+            }
+        }
         PageResult<Kit> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
         log.info("[KitService] page keyword={}, parkId={} -> total={}", keyword, parkId, p.getTotal());
         return Result.ok(result);
