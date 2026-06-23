@@ -2,10 +2,10 @@ import request from './request'
 
 export interface SpaceCategory {
   id?: number
+  parkId?: number
   typeName?: string
   typeDescribe?: string
   status?: number
-  parkId?: number
   tenantId?: number
   createTime?: string
 }
@@ -34,4 +34,8 @@ export function updateSpaceCategory(id: number, data: any) {
 
 export function deleteSpaceCategory(id: number) {
   return request({ url: `/space-category/${id}`, method: 'delete' })
+}
+
+export function checkSpaceCategoryName(parkId: number, typeName: string, excludeId?: number) {
+  return request({ url: '/space-category/check-name', method: 'get', params: { parkId, typeName, excludeId } })
 }

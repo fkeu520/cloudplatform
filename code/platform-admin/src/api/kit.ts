@@ -7,7 +7,19 @@ export interface Kit {
   status?: number
   parkId?: number
   tenantId?: number
+  equipmentCount?: number
   createTime?: string
+}
+
+export interface Equipment {
+  id?: number
+  kitId?: number
+  equipmentName?: string
+  model?: string
+  amount?: number
+  status?: number
+  parkId?: number
+  tenantId?: number
 }
 
 export function getKitPage(params: {
@@ -34,4 +46,16 @@ export function updateKit(id: number, data: any) {
 
 export function deleteKit(id: number) {
   return request({ url: `/kit/${id}`, method: 'delete' })
+}
+
+export function checkKitName(parkId: number, kitName: string, excludeId?: number) {
+  return request({ url: '/kit/check-name', method: 'get', params: { parkId, kitName, excludeId } })
+}
+
+export function listEquipmentByKit(kitId: number) {
+  return request({ url: `/equipment/list-by-kit-id/${kitId}`, method: 'get' })
+}
+
+export function batchSaveEquipment(data: Equipment[]) {
+  return request({ url: '/equipment/batch-save', method: 'post', data })
 }

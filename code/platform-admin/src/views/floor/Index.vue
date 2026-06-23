@@ -1,5 +1,13 @@
 <template>
   <div class="page-container">
+    <el-alert
+      class="migration-notice"
+      type="info"
+      :closable="false"
+      show-icon
+      title="楼层已支持在楼栋管理中按楼栋维护"
+      description="Phase 8 (csyh 业务融合): 楼层数据已支持在 [楼栋管理 → 编辑/新增楼栋 → 楼层子表] 处 inline 编辑并保存。本页仍保留为全量楼层查询/编辑入口, 适用于跨楼栋批量管理场景。"
+    />
     <el-card class="search-card">
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="关键字"><el-input v-model="searchForm.keyword" placeholder="楼层名称" clearable /></el-form-item>
@@ -174,4 +182,7 @@ onMounted(() => { loadData(); loadParkOptions(); loadBuildingOptions() })
 .search-card { margin-bottom: 16px; }
 .table-card { margin-bottom: 16px; }
 .pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+.migration-notice {
+  margin-bottom: 16px;
+}
 </style>

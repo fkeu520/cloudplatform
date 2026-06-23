@@ -41,3 +41,7 @@ export function updateArea(id: number, data: any) {
 export function deleteArea(id: number) {
   return request({ url: `/area/${id}`, method: 'delete' })
 }
+
+export function checkAreaName(parkId: number, areaName: string, excludeId?: number) {
+  return request({ url: '/area/check-name', method: 'get', params: { parkId, areaName, excludeId } })
+}
