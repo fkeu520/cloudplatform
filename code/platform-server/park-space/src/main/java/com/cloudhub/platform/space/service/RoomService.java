@@ -111,7 +111,7 @@ public class RoomService {
         r.setFloor(params.get("floor") != null ? ((Number) params.get("floor")).intValue() : null);
         r.setRoomNo(roomNo);
         r.setRoomType(roomType);
-        r.setArea(params.get("area") != null ? new BigDecimal(params.get("area").toString()) : null);
+        r.setAreaCovered(params.get("areaCovered") != null ? new BigDecimal(params.get("areaCovered").toString()) : null);
         r.setMonthlyRent(params.get("monthlyRent") != null
                 ? new BigDecimal(params.get("monthlyRent").toString()) : null);
         r.setRemark((String) params.get("remark"));
@@ -142,7 +142,7 @@ public class RoomService {
         if (params.containsKey("floor")) r.setFloor(((Number) params.get("floor")).intValue());
         if (params.containsKey("roomNo")) r.setRoomNo((String) params.get("roomNo"));
         if (params.containsKey("roomType")) r.setRoomType((String) params.get("roomType"));
-        if (params.containsKey("area")) r.setArea(new BigDecimal(params.get("area").toString()));
+        if (params.containsKey("areaCovered")) r.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
         if (params.containsKey("monthlyRent")) r.setMonthlyRent(new BigDecimal(params.get("monthlyRent").toString()));
         if (params.containsKey("remark")) r.setRemark((String) params.get("remark"));
 
