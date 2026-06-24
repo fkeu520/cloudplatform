@@ -13,8 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
@@ -149,6 +151,35 @@ public class EquipmentService {
 
     @Transactional
     public Result<Void> batchSave(Long kitId, List<Map<String, Object>> equipmentList) {
+        // 校验: 同名设备去重 (前端传入列表中不可同名)
+        Set<String> nameSet = new HashSet<>();
+        for (Map<String, Object> m : equipmentList) {
+            String name = (String) m.get("equipmentName");
+            if (name != null && !name.isBlank()) {
+                if (!nameSet.add(name)) {
+                    throw new BizException("设备列表中存在同名设备: " + name);
+                }
+            }
+        }
+
+        // 校验: 与数据库中已有设备不可同名 (排除自身更新)
+        for (Map<String, Object> m : equipmentList) {
+            String name = (String) m.get("equipmentName");
+            if (name == null || name.isBlank()) continue;
+            Long excludeId = m.get("id") != null ? ((Number) m.get("id")).longValue() : null;
+            LambdaQueryWrapper<Equipment> dw = new LambdaQueryWrapper<Equipment>()
+                    .eq(Equipment::getKitId, kitId)
+                    .eq(Equipment::getEquipmentName, name)
+                    .eq(Equipment::getDeleted, 0);
+            if (excludeId != null) {
+                dw.ne(Equipment::getId, excludeId);
+            }
+            Long dupCount = equipmentMapper.selectCount(dw);
+            if (dupCount != null && dupCount > 0) {
+                throw new BizException("已存在同名设备: " + name);
+            }
+        }
+
         // 先获取当前 kit 的所有设备
         List<Equipment> existing = equipmentMapper.selectList(
                 new LambdaQueryWrapper<Equipment>()
