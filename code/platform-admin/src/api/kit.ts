@@ -5,7 +5,6 @@ export interface Kit {
   kitName?: string
   amount?: number
   status?: number
-  parkId?: number
   tenantId?: number
   equipmentCount?: number
   createTime?: string
@@ -24,7 +23,6 @@ export interface Equipment {
 
 export function getKitPage(params: {
   keyword?: string
-  parkId?: number
   status?: number
   pageNum?: number
   pageSize?: number
@@ -48,8 +46,8 @@ export function deleteKit(id: number) {
   return request({ url: `/kit/${id}`, method: 'delete' })
 }
 
-export function checkKitName(parkId: number, kitName: string, excludeId?: number) {
-  return request({ url: '/kit/check-name', method: 'get', params: { parkId, kitName, excludeId } })
+export function checkKitName(kitName: string, excludeId?: number) {
+  return request({ url: '/kit/check-name', method: 'get', params: { kitName, excludeId } })
 }
 
 export function listEquipmentByKit(kitId: number) {

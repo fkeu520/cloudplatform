@@ -34,14 +34,11 @@ public class KitService {
 
     // ========== Query ==========
 
-    public Result<PageResult<Kit>> page(String keyword, Long parkId, Integer status,
+    public Result<PageResult<Kit>> page(String keyword, Integer status,
                                          int pageNum, int pageSize) {
         LambdaQueryWrapper<Kit> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             w.like(Kit::getKitName, keyword);
-        }
-        if (parkId != null) {
-            w.eq(Kit::getParkId, parkId);
         }
         if (status != null) {
             w.eq(Kit::getStatus, status);
@@ -66,7 +63,7 @@ public class KitService {
             }
         }
         PageResult<Kit> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
-        log.info("[KitService] page keyword={}, parkId={} -> total={}", keyword, parkId, p.getTotal());
+        log.info("[KitService] page keyword={} -> total={}", keyword, p.getTotal());
         return Result.ok(result);
     }
 
@@ -80,19 +77,16 @@ public class KitService {
 
     @Transactional
     public Result<Long> create(Map<String, Object> params) {
-        Long parkId = requiredLong(params, "parkId");
         String kitName = requiredString(params, "kitName");
 
         Long count = kitMapper.selectCount(new LambdaQueryWrapper<Kit>()
-                .eq(Kit::getParkId, parkId)
                 .eq(Kit::getKitName, kitName)
                 .eq(Kit::getDeleted, 0));
         if (count != null && count > 0) {
-            throw new BizException("园区 " + parkId + " 已存在配套 " + kitName);
+            throw new BizException("已存在配套 " + kitName);
         }
 
         Kit k = new Kit();
-        k.setParkId(parkId);
         k.setKitName(kitName);
         k.setAmount(params.get("amount") != null
                 ? ((Number) params.get("amount")).intValue() : 0);
@@ -101,7 +95,7 @@ public class KitService {
         k.setTenantId(currentTenantId());
 
         kitMapper.insert(k);
-        log.info("[KitService] create: id={}, parkId={}, kitName={}", k.getId(), parkId, kitName);
+        log.info("[KitService] create: id={}, kitName={}", k.getId(), kitName);
         return Result.ok(k.getId());
     }
 
@@ -117,12 +111,11 @@ public class KitService {
             String newName = (String) params.get("kitName");
             if (newName != null && !newName.isBlank()) {
                 Long count = kitMapper.selectCount(new LambdaQueryWrapper<Kit>()
-                        .eq(Kit::getParkId, k.getParkId())
                         .eq(Kit::getKitName, newName)
                         .ne(Kit::getId, id)
                         .eq(Kit::getDeleted, 0));
                 if (count != null && count > 0) {
-                    throw new BizException("园区 " + k.getParkId() + " 已存在配套 " + newName);
+                    throw new BizException("已存在配套 " + newName);
                 }
                 k.setKitName(newName);
             }
@@ -173,11 +166,10 @@ public class KitService {
     }
 
     /**
-     * 校验同园区配套名称唯一性
+     * 校验配套名称唯一性 (全局, 不分园区)
      */
-    public Result<Boolean> checkName(Long parkId, String kitName, Long excludeId) {
+    public Result<Boolean> checkName(String kitName, Long excludeId) {
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Kit> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Kit>()
-                .eq(Kit::getParkId, parkId)
                 .eq(Kit::getKitName, kitName)
                 .eq(Kit::getDeleted, 0);
         if (excludeId != null) {
@@ -185,7 +177,7 @@ public class KitService {
         }
         Long count = kitMapper.selectCount(w);
         boolean available = count == null || count == 0;
-        log.info("[KitService] checkName parkId={}, kitName={} -> available={}", parkId, kitName, available);
+        log.info("[KitService] checkName kitName={} -> available={}", kitName, available);
         return Result.ok(available);
     }
 }

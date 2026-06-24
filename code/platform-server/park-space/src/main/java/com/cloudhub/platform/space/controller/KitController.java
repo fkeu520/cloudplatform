@@ -42,20 +42,18 @@ public class KitController {
     @GetMapping("/page")
     public Result<PageResult<Kit>> page(
             @RequestParam(name = "keyword", required = false) String keyword,
-            @RequestParam(name = "parkId", required = false) Long parkId,
             @RequestParam(name = "status", required = false) Integer status,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
-        return kitService.page(keyword, parkId, status, pageNum, pageSize);
+        return kitService.page(keyword, status, pageNum, pageSize);
     }
 
-    @Operation(summary = "校验同园区配套名称是否已存在")
+    @Operation(summary = "校验配套名称是否已存在 (全局)")
     @GetMapping("/check-name")
     public Result<Boolean> checkName(
-            @RequestParam(name = "parkId") Long parkId,
             @RequestParam(name = "kitName") String kitName,
             @RequestParam(name = "excludeId", required = false) Long excludeId) {
-        return kitService.checkName(parkId, kitName, excludeId);
+        return kitService.checkName(kitName, excludeId);
     }
 
     @Operation(summary = "查询配套详情")

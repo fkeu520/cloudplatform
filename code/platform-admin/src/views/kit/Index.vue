@@ -20,7 +20,6 @@ import {
   type Kit,
 } from '@/api/kit'
 import { listByKit, batchSaveByKit } from '@/api/equipment'
-import { getParkList, type Park } from '@/api/park'
 
 // ============== 状态 ==============
 const loading = ref(false)
@@ -29,12 +28,8 @@ const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(10)
 
-const parkOptions = ref<Park[]>([])
-const parkMap = ref<Record<number, string>>({})
-
 const searchForm = reactive({
   keyword: '',
-  parkId: undefined as number | undefined,
   status: undefined as number | undefined,
 })
 
@@ -46,7 +41,6 @@ const submitting = ref(false)
 const formRef = ref()
 
 const defaultForm = () => ({
-  parkId: undefined as number | undefined,
   kitName: '',
   amount: 1,
   status: 1,
@@ -54,17 +48,16 @@ const defaultForm = () => ({
 const form = reactive(defaultForm())
 
 const formRules = {
-  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
   kitName: [
     { required: true, message: '请输入配套名称', trigger: 'blur' },
     { max: 64, message: '配套名称不超过 64 字符', trigger: 'blur' },
     {
       validator: async (_rule: any, value: string, callback: any) => {
-        if (!value || !form.parkId) return callback()
+        if (!value) return callback()
         try {
-          const res: any = await checkKitName(form.parkId, value, editingId.value || undefined)
+          const res: any = await checkKitName(value, editingId.value || undefined)
           if (res.code === 200 && res.data === false) {
-            return callback(new Error(`园区下已存在配套 "${value}"`))
+            return callback(new Error(`已存在配套 "${value}"`))
           }
           return callback()
         } catch {
@@ -93,19 +86,6 @@ const tableRules = {
 }
 
 // ============== 数据加载 ==============
-async function loadParkOptions() {
-  try {
-    const res: any = await getParkList()
-    if (res.code === 200) {
-      parkOptions.value = res.data || []
-      parkMap.value = {}
-      parkOptions.value.forEach((p) => { parkMap.value[p.id!] = p.parkName })
-    }
-  } catch (e) {
-    console.error(e)
-  }
-}
-
 async function loadData() {
   loading.value = true
   try {
@@ -130,7 +110,6 @@ function handleSearch() {
 
 function handleReset() {
   searchForm.keyword = ''
-  searchForm.parkId = undefined
   searchForm.status = undefined
   handleSearch()
 }
@@ -270,7 +249,6 @@ async function handleDelete(k: Kit) {
 const dialogTitle = ref('新增配套')
 
 onMounted(async () => {
-  await loadParkOptions()
   await loadData()
 })
 </script>
@@ -289,23 +267,6 @@ onMounted(async () => {
             @change="handleSearch"
             @clear="handleSearch"
           />
-        </el-form-item>
-        <el-form-item label="园区">
-          <el-select
-            v-model="searchForm.parkId"
-            placeholder="全部园区"
-            clearable
-            filterable
-            style="width: 200px"
-            @change="handleSearch"
-          >
-            <el-option
-              v-for="p in parkOptions"
-              :key="p.id"
-              :label="p.parkName"
-              :value="p.id"
-            />
-          </el-select>
         </el-form-item>
         <el-form-item label="状态">
           <el-select
@@ -331,11 +292,6 @@ onMounted(async () => {
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="园区" min-width="160">
-          <template #default="scope">
-            {{ parkMap[scope.row.parkId] || scope.row.parkId || '-' }}
-          </template>
-        </el-table-column>
         <el-table-column prop="kitName" label="配套名称" min-width="200" :show-overflow-tooltip="true" />
         <el-table-column prop="amount" label="设备总数" width="100" align="right">
           <template #default="scope">
@@ -390,18 +346,6 @@ onMounted(async () => {
         :validate-on-rule-change="false"
       >
         <el-row :gutter="24">
-          <el-col :span="12">
-            <el-form-item label="园区" prop="parkId">
-              <el-select v-model="form.parkId" placeholder="请选择园区" filterable>
-                <el-option
-                  v-for="p in parkOptions"
-                  :key="p.id"
-                  :label="p.parkName"
-                  :value="p.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
           <el-col :span="12">
             <el-form-item label="配套名称" prop="kitName">
               <el-input v-model="form.kitName" placeholder="如 标准办公A" maxlength="64" show-word-limit />

@@ -4,14 +4,12 @@ export interface RoomPurpose {
   id?: number
   purposeName?: string
   status?: number
-  parkId?: number
   tenantId?: number
   createTime?: string
 }
 
 export function getRoomPurposePage(params: {
   keyword?: string
-  parkId?: number
   status?: number
   pageNum?: number
   pageSize?: number
