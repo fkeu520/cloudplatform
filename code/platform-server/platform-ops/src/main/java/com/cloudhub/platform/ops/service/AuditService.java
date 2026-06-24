@@ -1,11 +1,15 @@
 package com.cloudhub.platform.ops.service;
 
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.ops.domain.entity.LoginLog;
 import com.cloudhub.platform.ops.domain.entity.OperLog;
 import com.cloudhub.platform.ops.domain.mapper.OperLogMapper;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +32,9 @@ public class AuditService {
 
     @Value("${spring.elasticsearch.uris:http://localhost:9200}")
     private String esUri;
+
+    /** O2: 复用 RestClient 实例（线程安全，支持连接池） */
+    private RestClient esClient;
 
     public IPage<OperLog> operLogPage(String title, String operName, Integer businessType, Integer status,
                                       String startTime, String endTime, int pageNum, int pageSize) {
@@ -57,34 +64,39 @@ public class AuditService {
     }
 
     public Map<String, Object> searchElk(String keyword, String startTime, String endTime, int from, int size) {
-        RestClient client = null;
         try {
-            String host = esUri.replace("http://", "").replace("https://", "");
-            String scheme = esUri.startsWith("https") ? "https" : "http";
-            int port = host.contains(":") ? Integer.parseInt(host.split(":")[1]) : 9200;
-            host = host.split(":")[0];
+            RestClient client = getClient();
 
-            client = RestClient.builder(new HttpHost(host, port, scheme)).build();
+            // O3: 使用 fastjson2 构建 JSON 体，替代手动字符串拼接 + escapeJson
+            JSONObject query = new JSONObject();
+            JSONObject bool = new JSONObject();
+            JSONArray must = new JSONArray();
 
-            // JSON 注入防护：对 keyword 进行转义
-            String safeKeyword = keyword != null ? escapeJson(keyword) : null;
-
-            StringBuilder query = new StringBuilder();
-            query.append("{\"query\":{\"bool\":{\"must\":[");
-            if (safeKeyword != null && !safeKeyword.isBlank()) {
-                query.append("{\"multi_match\":{\"query\":\"").append(safeKeyword).append("\",\"fields\":[\"message\",\"level\",\"service\"]}}");
+            if (StringUtils.isNotBlank(keyword)) {
+                JSONObject multiMatch = new JSONObject();
+                multiMatch.put("multi_match", JSONObject.of(
+                    "query", keyword,
+                    "fields", new String[]{"message", "level", "service"}
+                ));
+                must.add(multiMatch);
             } else {
-                query.append("{\"match_all\":{}}");
+                must.add(JSONObject.of("match_all", new JSONObject()));
             }
+
             if (startTime != null && endTime != null) {
-                    query.append(",{\"range\":{\"@timestamp\":{\"gte\":\"").append(escapeJson(startTime))
-                        .append("\",\"lte\":\"").append(escapeJson(endTime)).append("\"}}}");
+                JSONObject range = new JSONObject();
+                range.put("@timestamp", JSONObject.of("gte", startTime, "lte", endTime));
+                must.add(JSONObject.of("range", range));
             }
-            query.append("]}},\"from\":").append(from).append(",\"size\":").append(size)
-                    .append(",\"sort\":[{\"@timestamp\":{\"order\":\"desc\"}}]}");
+
+            bool.put("must", must);
+            query.put("query", JSONObject.of("bool", bool));
+            query.put("from", from);
+            query.put("size", size);
+            query.put("sort", new JSONArray(){{ add(JSONObject.of("@timestamp", JSONObject.of("order", "desc"))); }});
 
             Request request = new Request("POST", "/platform-logs-*/_search");
-            request.setJsonEntity(query.toString());
+            request.setJsonEntity(query.toJSONString());
 
             org.elasticsearch.client.Response response = client.performRequest(request);
             int statusCode = response.getStatusLine().getStatusCode();
@@ -101,19 +113,35 @@ public class AuditService {
             error.put("status", 500);
             error.put("error", "ELK查询失败: " + e.getMessage());
             return error;
-        } finally {
-            if (client != null) {
-                try { client.close(); } catch (IOException ignored) {}
-            }
         }
     }
 
-    private String escapeJson(String str) {
-        if (str == null) return null;
-        return str.replace("\\", "\\\\")
-                  .replace("\"", "\\\"")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r")
-                  .replace("\t", "\\t");
+    /** O2: 获取或创建 ES RestClient（单例，线程安全，支持连接池） */
+    private RestClient getClient() {
+        if (esClient == null) {
+            synchronized (this) {
+                if (esClient == null) {
+                    String host = esUri.replace("http://", "").replace("https://", "");
+                    String scheme = esUri.startsWith("https") ? "https" : "http";
+                    int port = host.contains(":") ? Integer.parseInt(host.split(":")[1]) : 9200;
+                    host = host.split(":")[0];
+                    esClient = RestClient.builder(new HttpHost(host, port, scheme)).build();
+                    log.info("ES RestClient 已创建: {}://{}:{}", scheme, host, port);
+                }
+            }
+        }
+        return esClient;
+    }
+
+    @PreDestroy
+    public void closeClient() {
+        if (esClient != null) {
+            try {
+                esClient.close();
+                log.info("ES RestClient 已关闭");
+            } catch (IOException e) {
+                log.warn("ES RestClient 关闭异常", e);
+            }
+        }
     }
 }

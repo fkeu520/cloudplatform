@@ -13,8 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
-
 import java.net.URI;
 import java.util.*;
 
@@ -93,27 +93,37 @@ public class GatewayRouteService {
     }
 
     private void syncToGateway() {
-        try {
-            List<GatewayRoute> enabledRoutes = list(1);
-            List<Map<String, Object>> routeDefs = new ArrayList<>();
-            for (GatewayRoute r : enabledRoutes) {
-                Map<String, Object> def = new LinkedHashMap<>();
-                def.put("id", r.getRouteId());
-                def.put("uri", URI.create(r.getUri()));
-                def.put("order", r.getOrderNo());
-
-                if (StringUtils.isNotBlank(r.getPredicates())) {
-                    def.put("predicates", JSONArray.parse(r.getPredicates()));
-                }
-                if (StringUtils.isNotBlank(r.getFilters())) {
-                    def.put("filters", JSONArray.parse(r.getFilters()));
-                }
-                routeDefs.add(def);
+        List<GatewayRoute> enabledRoutes = list(1);
+        List<Map<String, Object>> routeDefs = new ArrayList<>();
+        for (GatewayRoute r : enabledRoutes) {
+            // O10: 单路由 URI 格式校验，异常时只跳过该路由，不影响其他路由同步
+            try {
+                URI.create(r.getUri());
+            } catch (IllegalArgumentException e) {
+                log.warn("O10: Skipping route with invalid URI. routeId={}, uri={}", r.getRouteId(), r.getUri());
+                continue;
             }
+
+            Map<String, Object> def = new LinkedHashMap<>();
+            def.put("id", r.getRouteId());
+            def.put("uri", URI.create(r.getUri()));
+            def.put("order", r.getOrderNo());
+
+            if (StringUtils.isNotBlank(r.getPredicates())) {
+                def.put("predicates", JSONArray.parse(r.getPredicates()));
+            }
+            if (StringUtils.isNotBlank(r.getFilters())) {
+                def.put("filters", JSONArray.parse(r.getFilters()));
+            }
+            routeDefs.add(def);
+        }
+        try {
             restTemplate.postForEntity(gatewaySyncUrl, routeDefs, String.class);
             log.info("网关路由同步成功: {}条", routeDefs.size());
         } catch (Exception e) {
-            log.warn("网关路由同步失败: {}", e.getMessage());
+            // O4: 同步失败时抛异常，让调用方感知（create/update/delete 事务回滚）
+            log.error("网关路由同步失败, DB与网关状态不一致! routes={}", routeDefs.size(), e);
+            throw new BizException("网关路由同步失败: " + e.getMessage());
         }
     }
 }
