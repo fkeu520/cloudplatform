@@ -56,4 +56,45 @@ public final class ServiceUtils {
         Long tid = TenantContextHolder.getTenantId();
         return tid != null ? tid : 1L;
     }
+
+    /**
+     * 安全 Object → Long 转换 (兼容 Number 和 String 两种入参类型)
+     * <p>修复前端 el-select 传 String parkId/kitId 时的 ClassCastException.
+     * null 返回 null, Number 走 longValue(), 其他 (含 String) 走 Long.valueOf(toString()),
+     * 解析失败返回 null.</p>
+     * <p>2026-06-24: 修复 EquipmentService.batchSave 报 ClassCastException (String cannot be cast to Number)
+     * 见 KNOWN_ISSUES #31 (待登记).</p>
+     */
+    public static Long toLong(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number) return ((Number) v).longValue();
+        try {
+            return Long.valueOf(v.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 安全 Object → Integer 转换 (兼容 Number 和 String 两种入参类型)
+     * @see #toLong(Object) 同样的转换策略
+     */
+    public static Integer toInt(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number) return ((Number) v).intValue();
+        try {
+            return Integer.valueOf(v.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 安全 Object → Integer 转换, 失败/为 null 时返回默认值
+     * @see #toInt(Object)
+     */
+    public static Integer toIntOrDefault(Object v, Integer def) {
+        Integer r = toInt(v);
+        return r != null ? r : def;
+    }
 }
