@@ -1,5 +1,6 @@
 package com.cloudhub.platform.space.domain.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
 import lombok.Data;
@@ -31,6 +32,10 @@ public class Space extends BaseEntity {
 
     /** 所属园区 ID */
     private Long parkId;
+
+    /** 园区名称 (非数据库字段, 前端展示用) */
+    @TableField(exist = false)
+    private String parkName;
 
     /** 所属区域 ID */
     private Long areaId;

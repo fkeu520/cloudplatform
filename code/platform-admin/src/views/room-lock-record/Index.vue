@@ -21,8 +21,9 @@
     </el-card>
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
-        <el-table-column label="房间" width="150"><template #default="scope">{{ roomMap[scope.row.roomId] || scope.row.roomId }}</template></el-table-column>
+<el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+<el-table-column label="园区" width="120"><template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template></el-table-column>
+<el-table-column label="房间" width="150"><template #default="scope">{{ roomMap[scope.row.roomId] || scope.row.roomId }}</template></el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="scope">
             <el-tag :type="scope.row.isLock === 1 ? 'danger' : 'success'" size="small">

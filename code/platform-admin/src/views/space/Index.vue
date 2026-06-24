@@ -28,6 +28,7 @@
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+        <el-table-column label="园区" width="120"><template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template></el-table-column>
         <el-table-column prop="spaceName" label="空间名称" min-width="200" />
         <el-table-column prop="spaceDescribe" label="位置描述" min-width="250" :show-overflow-tooltip="true" />
         <el-table-column label="区域" width="120">
@@ -99,12 +100,12 @@ const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, areaId: undefined as number | undefined, categoryId: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
 const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
-const parkOptions = ref<any[]>([])
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
 const areaOptions = ref<any[]>([]); const areaMap = ref<Record<number, string>>({})
 const categoryOptions = ref<any[]>([]); const categoryMap = ref<Record<number, string>>({})
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) parkOptions.value = res.data || [] } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
 }
 async function loadAreaOptions() {
   try { const res: any = await getAreaPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { areaOptions.value = res.data.records || []; areaOptions.value.forEach((a: any) => areaMap.value[a.id] = a.areaName) } } catch { /* ignore */ }
