@@ -268,7 +268,8 @@ let isDynamicRoutesAdded = false
 
 router.beforeEach(async (to, _from, next) => {
   const userStore = useUserStore()
-  const token = userStore.token || localStorage.getItem('token')
+  // F4: 统一使用 store 中的 token（单数据源），避免 store 与 localStorage 状态不一致
+  const token = userStore.token
   
   console.log('[Router Guard] to:', to.path, 'token:', token ? token.slice(0, 20) + '...' : null)
 

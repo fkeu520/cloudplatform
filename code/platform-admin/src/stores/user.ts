@@ -33,14 +33,15 @@ export const useUserStore = defineStore('user', () => {
   }
 
   // 检查是否有某个权限
+  // F5: 空字符串/空白字符串返回 false（避免权限检查被绕过）
   const hasPermission = (permission: string): boolean => {
-    if (!permission) return true
+    if (!permission || permission.trim() === '') return false
     return permissions.value.includes(permission)
   }
 
   // 检查是否有任意一个权限
   const hasAnyPermission = (permissionList: string[]): boolean => {
-    if (!permissionList || permissionList.length === 0) return true
+    if (!permissionList || permissionList.length === 0) return false
     return permissionList.some(perm => permissions.value.includes(perm))
   }
 

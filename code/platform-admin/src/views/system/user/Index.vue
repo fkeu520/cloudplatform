@@ -26,7 +26,8 @@
         <el-table-column prop="nickname" label="昵称" width="120" />
         <el-table-column prop="mobile" label="手机号" width="130" />
         <el-table-column prop="email" label="邮箱" width="180" />
-        <el-table-column prop="orgName" label="部门" width="120" />
+        <!-- F6: prop="orgName" 对应的是"组织"名，修正 label -->
+        <el-table-column prop="orgName" label="组织" width="120" />
         <el-table-column prop="userTypeDesc" label="用户类型" width="100">
           <template #default="scope">
             <el-tag :type="scope.row.userType === 2 ? 'danger' : scope.row.userType === 1 ? 'warning' : 'info'" size="small">

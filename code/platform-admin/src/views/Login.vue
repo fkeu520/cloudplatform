@@ -98,8 +98,11 @@ const handleLogin = async () => {
     
     ElMessage.success('登录成功')
     router.push('/')
-  } catch {
-    ElMessage.error('登录失败，请检查账号密码')
+  } catch (e) {
+    // F9: 输出具体错误原因到控制台便于排查（RSA 加密失败等）
+    console.error('登录失败:', e)
+    const msg = (e instanceof Error) ? e.message : '请检查账号密码'
+    ElMessage.error('登录失败，' + msg)
   } finally {
     loading.value = false
   }
