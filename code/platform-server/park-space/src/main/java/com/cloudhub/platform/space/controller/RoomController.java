@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -31,6 +33,11 @@ import java.util.Map;
  *   <li>{@code DELETE /room/{id}}        软删除</li>
  *   <li>{@code PATCH  /room/{id}/status} 状态变更 (状态机校验)</li>
  *   <li>{@code GET    /room/check-no}     房号唯一性校验</li>
+ *   <li>{@code GET    /room/control/page}   租售控制分页</li>
+ *   <li>{@code PUT    /room/control/{id}}   单个租售控制更新</li>
+ *   <li>{@code PUT    /room/control/batch}  批量租售控制更新</li>
+ *   <li>{@code POST   /room/control/lock}   锁定房间</li>
+ *   <li>{@code POST   /room/control/unlock} 解锁房间</li>
  * </ul>
  * <p>Phase 6 (csyh 业务融合): page 接口新增 parkId/buildingId/floorId 过滤, 用于左侧树形导航.</p>
  * <p>路由: 走 platform-gateway /room/** 规则.</p>
@@ -95,5 +102,69 @@ public class RoomController {
     @PatchMapping("/{id}/status")
     public Result<Void> updateStatus(@PathVariable Long id, @RequestParam Integer status) {
         return roomService.updateStatus(id, status);
+    }
+
+    // ========== 租售控制 ==========
+
+    @Operation(summary = "租售控制分页查询")
+    @GetMapping("/control/page")
+    public Result<PageResult<Room>> controlPage(
+            @RequestParam(name = "parkId", required = false) Long parkId,
+            @RequestParam(name = "buildingId", required = false) Long buildingId,
+            @RequestParam(name = "floorId", required = false) Long floorId,
+            @RequestParam(name = "rentingSelling", required = false) Integer rentingSelling,
+            @RequestParam(name = "isLock", required = false) Integer isLock,
+            @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
+            @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
+        return roomService.controlPage(parkId, buildingId, floorId, rentingSelling, isLock, keyword, pageNum, pageSize);
+    }
+
+    @Operation(summary = "单个房间租售控制更新")
+    @PutMapping("/control/{id}")
+    public Result<Void> updateControl(
+            @PathVariable Long id,
+            @RequestParam(required = false) Integer rentingSelling,
+            @RequestParam(required = false) BigDecimal leasePrice,
+            @RequestParam(required = false) BigDecimal salePrice,
+            @RequestParam(required = false) Integer isOrder) {
+        return roomService.updateControl(id, rentingSelling, leasePrice, salePrice, isOrder);
+    }
+
+    @Operation(summary = "批量租售控制更新")
+    @PutMapping("/control/batch")
+    public Result<Void> batchUpdateControl(
+            @RequestBody Map<String, Object> params) {
+        @SuppressWarnings("unchecked")
+        List<Number> rawIds = (List<Number>) params.get("ids");
+        List<Long> ids = rawIds != null ? rawIds.stream().map(Number::longValue).toList() : null;
+        Integer rentingSelling = params.get("rentingSelling") != null
+                ? ((Number) params.get("rentingSelling")).intValue() : null;
+        BigDecimal leasePrice = params.get("leasePrice") != null
+                ? new BigDecimal(params.get("leasePrice").toString()) : null;
+        BigDecimal salePrice = params.get("salePrice") != null
+                ? new BigDecimal(params.get("salePrice").toString()) : null;
+        return roomService.batchUpdateControl(ids, rentingSelling, leasePrice, salePrice);
+    }
+
+    @Operation(summary = "锁定房间")
+    @PostMapping("/control/lock")
+    public Result<Void> lockRoom(@RequestBody Map<String, Object> params) {
+        Long roomId = ((Number) params.get("roomId")).longValue();
+        Long enterpriseId = params.get("enterpriseId") != null
+                ? ((Number) params.get("enterpriseId")).longValue() : null;
+        String enterpriseName = (String) params.get("enterpriseName");
+        String reason = (String) params.get("reason");
+        Integer days = params.get("days") != null
+                ? ((Number) params.get("days")).intValue() : null;
+        return roomService.lockRoom(roomId, enterpriseId, enterpriseName, reason, days);
+    }
+
+    @Operation(summary = "解锁房间")
+    @PostMapping("/control/unlock")
+    public Result<Void> unlockRoom(@RequestBody Map<String, Object> params) {
+        Long roomId = ((Number) params.get("roomId")).longValue();
+        String reason = (String) params.get("reason");
+        return roomService.unlockRoom(roomId, reason);
     }
 }
