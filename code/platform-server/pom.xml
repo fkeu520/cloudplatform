@@ -92,6 +92,17 @@
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>
+                    <!-- 2026-06-24 修复: 显式声明 Lombok annotation processor
+                         (KNOWN_ISSUES #30 教训: 没这一段, 本地 mvn compile/test 都跑不通, 依赖 CI 兜底)
+                         Lombok 作为 <optional>true</optional> 不会自动注册为 annotation processor
+                         必须显式列在 annotationProcessorPaths 中, 否则 @Data @Slf4j 等都不生效 -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

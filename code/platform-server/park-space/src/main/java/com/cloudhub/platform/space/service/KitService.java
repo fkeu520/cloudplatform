@@ -1,6 +1,7 @@
 package com.cloudhub.platform.space.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
@@ -50,10 +51,10 @@ public class KitService {
         List<Kit> records = p.getRecords();
         if (!records.isEmpty()) {
             Set<Long> kitIds = records.stream().map(Kit::getId).collect(Collectors.toSet());
-            LambdaQueryWrapper<Equipment> eqW = new LambdaQueryWrapper<Equipment>()
-                    .in(Equipment::getKitId, kitIds)
-                    .eq(Equipment::getDeleted, 0)
-                    .select(Equipment::getKitId, Equipment::getAmount);
+            QueryWrapper<Equipment> eqW = new QueryWrapper<Equipment>()
+                    .in("kit_id", kitIds)
+                    .eq("deleted", 0)
+                    .select("kit_id", "amount");
             List<Equipment> eqList = equipmentMapper.selectList(eqW);
             Map<Long, Integer> countMap = eqList.stream()
                     .collect(Collectors.groupingBy(Equipment::getKitId,
