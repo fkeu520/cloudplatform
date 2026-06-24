@@ -20,7 +20,7 @@ import java.util.List;
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
-    /** 无需鉴权的路径 */
+    /** 无需鉴权的路径 (精确匹配, 需要前缀通配的用  pattern + "/" 后缀) */
     private static final List<String> WHITE_LIST = List.of(
             "/auth/login",
             "/auth/sms/send",
@@ -37,33 +37,33 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
-        log.info("[JwtAuth] path={}, method={}", path, exchange.getRequest().getMethod());
+        log.debug("[JwtAuth] path={}, method={}", path, exchange.getRequest().getMethod());
 
         // 白名单直接放行
         if (isWhitePath(path)) {
-            log.info("[JwtAuth] 白名单放行: {}", path);
+            log.debug("[JwtAuth] 白名单放行: {}", path);
             return chain.filter(exchange);
         }
 
-        log.info("[JwtAuth] 需要鉴权: {}", path);
+        log.debug("[JwtAuth] 需要鉴权: {}", path);
         // 获取 Token
         String token = getToken(exchange.getRequest());
         if (token == null) {
-            log.info("[JwtAuth] 无Token, 返回未登录");
+            log.warn("[JwtAuth] 无Token, path={}", path);
             return unauthorized(exchange, "未登录，请先登录");
         }
 
         // 验证 Token
         try {
             if (!JwtUtil.validate(token)) {
-                log.info("[JwtAuth] Token无效");
+                log.warn("[JwtAuth] Token无效, path={}", path);
                 return unauthorized(exchange, "Token无效或已过期");
             }
             String userId = JwtUtil.getUserId(token);
             String username = JwtUtil.getUsername(token);
             Long tenantId = JwtUtil.getTenantId(token);
             Integer userType = JwtUtil.getUserType(token);
-            log.info("[JwtAuth] Token有效, userId={}, username={}, tenantId={}, userType={}",
+            log.debug("[JwtAuth] Token有效, userId={}, username={}, tenantId={}, userType={}",
                     userId, username, tenantId, userType);
 
             // 将用户上下文传递到后续服务（通过 Header）
@@ -86,8 +86,15 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return -100; // 优先级最高
     }
 
+    /**
+     * 判断路径是否在白名单中
+     * <p>精确匹配: path == pattern
+     * 前缀匹配: pattern 为 "/user/internal" 时匹配 "/user/internal" 和 "/user/internal/xxx",
+     * 但不会误匹配 "/user/internal-admin".</p>
+     */
     private boolean isWhitePath(String path) {
-        return WHITE_LIST.stream().anyMatch(path::startsWith);
+        return WHITE_LIST.stream().anyMatch(pattern ->
+                path.equals(pattern) || path.startsWith(pattern + "/"));
     }
 
     private String getToken(org.springframework.http.server.reactive.ServerHttpRequest request) {
