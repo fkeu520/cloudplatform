@@ -1,13 +1,10 @@
 <script setup lang="ts">
 /**
- * 分区管理 (park-space) - Phase 4 重构
+ * 分区管理 (park-space) - 列表重构
  *
  * 来源 csyh: pai-park-space-ui-csyh-2.x/std/pages/area/area.vue
  *
- * 设计: 左侧 el-collapse 园区折叠面板 + 右侧 el-row 分区卡片网格
- * 卡片内容: 房屋图标 + 分区名称 + 功能区域描述 + 占地面积 + 建筑面积 + 楼栋数/房间数
- * 卡片底部: 添加楼栋 + 添加房间 快捷按钮
- * 右上角悬浮: 编辑 / 删除
+ * 设计: 搜索栏 (园区筛选) + el-table 表格
  */
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -225,130 +222,68 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page-container area-page">
+  <div class="page-container">
     <!-- 顶部操作栏 -->
     <div class="header-bar">
       <div>
         <h2 class="page-title">分区管理</h2>
-        <span class="page-subtitle">共 {{ flatAreas.length }} 个分区</span>
       </div>
-      <el-button type="primary" :icon="'Plus'" @click="handleAdd()">新增分区</el-button>
-    </div>
-
-    <div class="area-body">
-      <!-- 左侧: 园区折叠面板 -->
-      <div class="park-panel">
-        <el-collapse v-model="activeParkId" accordion>
-          <el-collapse-item
-            v-for="group in areaGroups"
-            :key="group.park.id"
-            :name="group.park.id"
-          >
-            <template #title>
-              <span class="park-title">{{ group.park.parkName }}</span>
-              <el-badge :value="group.areas.length" class="park-badge" type="primary" />
-            </template>
-            <div class="park-content">
-              <el-button
-                link
-                type="primary"
-                size="small"
-                @click="handleAdd(group.park.id)"
-              >
-                <el-icon><Plus /></el-icon> 添加分区
-              </el-button>
-            </div>
-          </el-collapse-item>
-          <el-empty v-if="!loading && areaGroups.length === 0" description="暂无园区" />
-        </el-collapse>
-      </div>
-
-      <!-- 右侧: 分区卡片网格 -->
-      <div class="card-grid">
-        <div v-loading="loading">
-          <el-empty
-            v-if="flatAreas.length === 0"
-            description="暂无分区"
-            style="margin-top: 80px"
-          />
-          <div v-for="group in areaGroups" :key="group.park.id">
-            <h3 class="group-title">{{ group.park.parkName }} ({{ group.areas.length }})</h3>
-            <el-row :gutter="20" v-if="group.areas.length > 0">
-              <el-col
-                v-for="area in group.areas"
-                :key="area.id"
-                :xs="24" :sm="12" :md="8" :lg="6" :xl="6"
-                class="card-col"
-              >
-                <el-card class="area-card" shadow="hover">
-                  <!-- 顶部: 图标 + 名称 + 更多操作 -->
-                  <div class="card-header">
-                    <div class="card-header-left">
-                      <el-icon class="card-icon"><OfficeBuilding /></el-icon>
-                      <span class="card-title">{{ area.areaName }}</span>
-                    </div>
-                    <el-dropdown trigger="click" @command="(cmd: string) => {
-                      if (cmd === 'edit') handleEdit(area)
-                      else if (cmd === 'delete') handleDelete(area)
-                    }">
-                      <el-icon class="more-icon"><MoreFilled /></el-icon>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item command="edit">
-                            <el-icon><Edit /></el-icon> 编辑
-                          </el-dropdown-item>
-                          <el-dropdown-item command="delete" divided>
-                            <el-icon><Delete /></el-icon> 删除
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </div>
-
-                  <!-- 功能区域描述 -->
-                  <div class="card-tag">
-                    <el-tag v-if="area.functionArea" size="small" type="info">
-                      {{ area.functionArea }}
-                    </el-tag>
-                    <el-tag v-if="area.isVirtual === 1" size="small" type="warning" effect="plain">
-                      虚拟
-                    </el-tag>
-                  </div>
-
-                  <!-- 面积信息 -->
-                  <div class="card-metrics">
-                    <div class="metric">
-                      <div class="metric-label">占地面积</div>
-                      <div class="metric-value">{{ fmtArea(area.areaCovered) }}<span class="metric-unit">㎡</span></div>
-                    </div>
-                    <div class="metric">
-                      <div class="metric-label">建筑面积</div>
-                      <div class="metric-value">{{ fmtArea(area.builtArea) }}<span class="metric-unit">㎡</span></div>
-                    </div>
-                  </div>
-
-                  <div class="card-counts">
-                    <span>建筑 <b>{{ area.buildingAmount || 0 }}</b> 栋</span>
-                    <span class="divider">|</span>
-                    <span>房间 <b>{{ area.roomAmount || 0 }}</b> 间</span>
-                  </div>
-
-                  <!-- 底部快捷按钮 -->
-                  <div class="card-actions">
-                    <el-button size="small" plain :icon="'OfficeBuilding'" @click="handleAddBuilding(area)">
-                      添加楼栋
-                    </el-button>
-                    <el-button size="small" plain :icon="'House'" @click="handleAddRoom(area)">
-                      添加房间
-                    </el-button>
-                  </div>
-                </el-card>
-              </el-col>
-            </el-row>
-          </div>
-        </div>
+      <div class="header-actions">
+        <el-select
+          v-model="activeParkId"
+          placeholder="全部园区"
+          clearable
+          filterable
+          style="width: 200px"
+          @change="loadAllAreas"
+        >
+          <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
+        </el-select>
+        <el-button type="primary" :icon="'Plus'" @click="handleAdd()">新增分区</el-button>
       </div>
     </div>
+
+    <el-card class="table-card" v-loading="loading">
+      <el-table :data="flatAreas" border stripe>
+        <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+        <el-table-column prop="areaName" label="分区名称" min-width="140" />
+        <el-table-column label="所属园区" width="140">
+          <template #default="scope">{{ getParkName(scope.row.parkId) }}</template>
+        </el-table-column>
+        <el-table-column prop="functionArea" label="功能区域" width="140" :show-overflow-tooltip="true" />
+        <el-table-column label="占地面积" width="120" align="right">
+          <template #default="scope">{{ fmtArea(scope.row.areaCovered) }} ㎡</template>
+        </el-table-column>
+        <el-table-column label="建筑面积" width="120" align="right">
+          <template #default="scope">{{ fmtArea(scope.row.builtArea) }} ㎡</template>
+        </el-table-column>
+        <el-table-column label="虚拟" width="80" align="center">
+          <template #default="scope">
+            <el-tag v-if="scope.row.isVirtual === 1" size="small" type="warning">虚拟</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="楼栋/房间" width="120" align="center">
+          <template #default="scope">
+            {{ scope.row.buildingAmount || 0 }}栋 / {{ scope.row.roomAmount || 0 }}间
+          </template>
+        </el-table-column>
+        <el-table-column prop="sorting" label="排序" width="80" align="center" />
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.status === 1 ? 'success' : 'info'" size="small">
+              {{ scope.row.status === 1 ? '启用' : '停用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="scope">
+            <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <!-- 新增/编辑 dialog -->
     <el-dialog
@@ -405,11 +340,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.area-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
 .header-bar {
   display: flex;
   justify-content: space-between;
@@ -420,142 +350,14 @@ onMounted(() => {
   font-size: 20px;
   font-weight: 600;
   margin: 0;
-  display: inline-block;
-  margin-right: 12px;
 }
-.page-subtitle {
-  color: #909399;
-  font-size: 13px;
-}
-.area-body {
-  flex: 1;
-  display: flex;
-  gap: 16px;
-  overflow: hidden;
-}
-.park-panel {
-  width: 280px;
-  background: #fff;
-  border-radius: 8px;
-  overflow-y: auto;
-  flex-shrink: 0;
-}
-.park-title {
-  font-weight: 500;
-  margin-right: 8px;
-}
-.park-badge {
-  margin-left: 4px;
-}
-.park-content {
-  padding: 0 12px 8px;
-}
-.card-grid {
-  flex: 1;
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-}
-.group-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #303133;
-  margin: 12px 0 12px;
-  padding-left: 8px;
-  border-left: 3px solid #409eff;
-}
-.card-col {
-  margin-bottom: 16px;
-}
-.area-card {
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-.area-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.card-header-left {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.card-icon {
-  font-size: 20px;
-  color: #409eff;
-}
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-.more-icon {
-  cursor: pointer;
-  color: #909399;
-  padding: 4px;
-}
-.more-icon:hover {
-  color: #409eff;
-}
-.card-tag {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
-  min-height: 22px;
-}
-.card-metrics {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  padding: 12px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  margin-bottom: 8px;
 }
-.metric-label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 4px;
-}
-.metric-value {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-}
-.metric-unit {
-  font-size: 12px;
-  font-weight: 400;
-  color: #909399;
-  margin-left: 2px;
-}
-.card-counts {
-  text-align: center;
-  font-size: 13px;
-  color: #606266;
-  padding: 8px 0;
-  border-bottom: 1px solid #ebeef5;
-  margin-bottom: 12px;
-}
-.card-counts .divider {
-  color: #dcdfe6;
-  margin: 0 8px;
-}
-.card-counts b {
-  color: #409eff;
-  font-weight: 600;
-}
-.card-actions {
-  display: flex;
-  gap: 8px;
-}
-.card-actions :deep(.el-button) {
+.table-card {
   flex: 1;
+  overflow: auto;
 }
 </style>

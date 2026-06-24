@@ -1,14 +1,12 @@
 <script setup lang="ts">
 /**
- * 楼宇管理 (park-property) - Phase 5 重构
+ * 楼宇管理 (park-property) - 列表重构
  *
  * 来源 csyh: pai-park-space-ui-csyh-2.x/std/pages/area/building/index.vue + add.vue
  *
- * 设计: 卡片网格 + 图片 + 楼层内嵌子表
- * 卡片: 楼栋图片 + 名称 + 楼层数 + 面积
- * 新增/编辑: 13 字段 + 多图上传 + 楼层 el-table inline edit
+ * 设计: 搜索栏 + el-table 表格 + 弹窗(含楼层内嵌子表)
  */
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getBuildingPage,
@@ -32,7 +30,7 @@ const loading = ref(false)
 const tableData = ref<Building[]>([])
 const total = ref(0)
 const pageNum = ref(1)
-const pageSize = ref(12)
+const pageSize = ref(10)
 
 const parkOptions = ref<Park[]>([])
 const areaOptions = ref<Area[]>([])
@@ -127,7 +125,6 @@ async function loadParks() {
       parkOptions.value = res.data || []
       if (parkOptions.value.length > 0 && !activeParkId.value) {
         activeParkId.value = parkOptions.value[0].id || null
-        searchForm.parkId || (searchForm as any).parkId === undefined
         // 触发首查
         await loadData()
       }
@@ -165,11 +162,6 @@ async function loadDicts() {
       console.error(e)
     }
   }
-}
-
-function dictLabel(type: string, value: number | string | undefined): string {
-  if (value === undefined || value === null) return '-'
-  return dictMap[type]?.find((d) => d.value === String(value))?.label || String(value)
 }
 
 async function loadData() {
@@ -210,18 +202,6 @@ function handleParkChange(parkId: number) {
 function getAreaName(areaId: number | undefined): string {
   if (!areaId) return '-'
   return areaOptions.value.find((a) => a.id === areaId)?.areaName || '-'
-}
-
-function getBuildingImage(b: Building): string {
-  if (b.image) {
-    try {
-      const arr = JSON.parse(b.image)
-      if (Array.isArray(arr) && arr.length > 0) return arr[0]
-    } catch {
-      if (b.image.startsWith('http')) return b.image
-    }
-  }
-  return '' // 用默认占位图
 }
 
 // 新增
@@ -436,81 +416,46 @@ onMounted(async () => {
       </el-form>
     </el-card>
 
-    <!-- 楼栋卡片网格 -->
-    <div class="card-grid" v-loading="loading">
+    <!-- 楼栋表格 -->
+    <el-card class="table-card" v-loading="loading">
       <el-empty v-if="!loading && tableData.length === 0" description="暂无楼栋" />
-      <el-row :gutter="20">
-        <el-col
-          v-for="b in tableData"
-          :key="b.id"
-          :xs="24" :sm="12" :md="8" :lg="6" :xl="6"
-          class="card-col"
-        >
-          <el-card class="building-card" shadow="hover">
-            <!-- 楼栋图片 -->
-            <div class="building-image">
-              <el-image
-                :src="getBuildingImage(b)"
-                fit="cover"
-                style="width: 100%; height: 160px; border-radius: 4px"
-              >
-                <template #error>
-                  <div class="image-fallback">
-                    <el-icon :size="48"><OfficeBuilding /></el-icon>
-                  </div>
-                </template>
-              </el-image>
-              <el-tag v-if="b.status === 0" type="info" size="small" class="status-tag">停用</el-tag>
-            </div>
-
-            <!-- 楼栋信息 -->
-            <div class="building-info">
-              <div class="info-row">
-                <span class="info-label">名称</span>
-                <span class="info-value bold">{{ b.buildingName }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">编号</span>
-                <span class="info-value">{{ b.buildingCode || b.buildingNo || '-' }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">所属区域</span>
-                <span class="info-value">{{ getAreaName(b.areaId) }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">楼层</span>
-                <span class="info-value">
-                  地上 {{ b.floorNumber ?? b.floors ?? '-' }} 层
-                  <template v-if="b.underground && b.underground > 0">
-                    + 地下 {{ b.underground }} 层
-                  </template>
-                </span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">建筑面积</span>
-                <span class="info-value">
-                  {{ b.areaCovered ? Number(b.areaCovered).toLocaleString() : '-' }} ㎡
-                  <span v-if="b.shareArea" class="muted">(公摊 {{ Number(b.shareArea).toLocaleString() }})</span>
-                </span>
-              </div>
-              <div class="info-row" v-if="b.certificate">
-                <span class="info-label">产权证</span>
-                <span class="info-value">{{ b.certificate }}</span>
-              </div>
-            </div>
-
-            <!-- 操作 -->
-            <div class="card-actions">
-              <el-button size="small" type="primary" plain @click="handleEdit(b)">
-                <el-icon><Edit /></el-icon> 编辑
-              </el-button>
-              <el-button size="small" type="danger" plain @click="handleDelete(b)">
-                <el-icon><Delete /></el-icon> 删除
-              </el-button>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+      <el-table :data="tableData" border stripe v-if="tableData.length > 0">
+        <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+        <el-table-column prop="buildingName" label="楼栋名称" min-width="140" />
+        <el-table-column label="楼栋编号" width="140">
+          <template #default="scope">{{ scope.row.buildingCode || scope.row.buildingNo || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="所属园区" width="140">
+          <template #default="scope">{{ parkOptions.find(p => p.id === scope.row.parkId)?.parkName || scope.row.parkId }}</template>
+        </el-table-column>
+        <el-table-column label="所属区域" width="120">
+          <template #default="scope">{{ getAreaName(scope.row.areaId) }}</template>
+        </el-table-column>
+        <el-table-column label="楼层" width="120" align="center">
+          <template #default="scope">
+            地上 {{ scope.row.floorNumber ?? scope.row.floors ?? '-' }} 层
+            <template v-if="scope.row.underground && scope.row.underground > 0">
+              + 地下 {{ scope.row.underground }} 层
+            </template>
+          </template>
+        </el-table-column>
+        <el-table-column label="建筑面积" width="120" align="right">
+          <template #default="scope">{{ scope.row.areaCovered ? Number(scope.row.areaCovered).toLocaleString() : '-' }} ㎡</template>
+        </el-table-column>
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.status === 1 ? 'success' : 'info'" size="small">
+              {{ scope.row.status === 1 ? '启用' : '停用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="scope">
+            <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <!-- 分页 -->
       <el-pagination
@@ -518,13 +463,13 @@ onMounted(async () => {
         v-model:current-page="pageNum"
         v-model:page-size="pageSize"
         :total="total"
-        :page-sizes="[12, 24, 48]"
+        :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
         class="pagination"
         @size-change="loadData"
         @current-change="loadData"
       />
-    </div>
+    </el-card>
 
     <!-- 新增/编辑 dialog -->
     <el-dialog
@@ -740,78 +685,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.card-grid {
-  margin-top: 16px;
-  padding: 16px;
-  background: #fff;
-  border-radius: 8px;
-  min-height: 400px;
-}
-.card-col {
-  margin-bottom: 16px;
-}
-.building-card {
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-.building-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-.building-image {
-  position: relative;
-}
-.building-image .status-tag {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
-.image-fallback {
-  width: 100%;
-  height: 160px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f7fa;
-  color: #c0c4cc;
-  border-radius: 4px;
-}
-.building-info {
-  padding: 12px 0;
-}
-.info-row {
-  display: flex;
-  font-size: 13px;
-  line-height: 1.8;
-}
-.info-row .info-label {
-  color: #909399;
-  width: 70px;
-  flex-shrink: 0;
-}
-.info-row .info-value {
-  color: #303133;
-  flex: 1;
-  word-break: break-all;
-}
-.info-row .info-value.bold {
-  font-weight: 600;
-  font-size: 14px;
-}
-.info-row .info-value .muted {
-  color: #909399;
-  font-size: 12px;
-  margin-left: 4px;
-}
-.card-actions {
-  display: flex;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #ebeef5;
-}
-.card-actions :deep(.el-button) {
-  flex: 1;
-}
 .pagination {
   margin-top: 20px;
   justify-content: flex-end;
