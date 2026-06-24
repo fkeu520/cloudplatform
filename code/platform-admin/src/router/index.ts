@@ -230,30 +230,8 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '地块管理', icon: 'fas fa-map', parent: 'space' }
       },
       // ========== W3.6 Room 子表 (park-space 后端 V35, append-only) ==========
-      {
-        path: 'room-purpose/page',
-        name: 'RoomPurposeMgmt',
-        component: () => import('@/views/room-purpose/Index.vue'),
-        meta: { title: '房源用途', icon: 'fas fa-notebook', parent: 'space' }
-      },
-      {
-        path: 'room-lock-record/page',
-        name: 'RoomLockRecordMgmt',
-        component: () => import('@/views/room-lock-record/Index.vue'),
-        meta: { title: '锁定记录', icon: 'fas fa-lock', parent: 'space' }
-      },
-      {
-        path: 'room-record/page',
-        name: 'RoomRecordMgmt',
-        component: () => import('@/views/room-record/Index.vue'),
-        meta: { title: '绑定记录', icon: 'fas fa-plug', parent: 'space' }
-      },
-      {
-        path: 'room-split-merge/page',
-        name: 'RoomSplitMergeMgmt',
-        component: () => import('@/views/room-split-merge/Index.vue'),
-        meta: { title: '拆分合并', icon: 'fas fa-files', parent: 'space' }
-      }
+      // 以下记录类菜单已按需求移除
+      // room-record (绑定记录), room-lock-record (锁定记录), room-split-merge (拆分合并)
     ]
   }
 ]

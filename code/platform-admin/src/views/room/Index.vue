@@ -1,13 +1,10 @@
 <script setup lang="ts">
 /**
- * 房间管理 (park-space) - Phase 6 重构
+ * 房间管理 (park-space) - 列表重构
  *
  * 来源 csyh: pai-park-space-ui-csyh-2.x/std/pages/room/index.vue + bar/index.vue + detail.vue
  *
- * 设计: 左侧树形导航 (园区 → 楼栋 → 楼层) + 右侧卡片网格
- * 卡片: 状态徽章 + 房间名 + 用途标签 + 建筑面积 + 套内面积
- * 顶部: 房间导入按钮 + 状态 radio filter + 关键字搜索
- * 弹窗: 完整字段 (parkId/buildingId/floorId/roomNo/roomName/houseStructure/areaCovered/buildArea/...)
+ * 设计: 左侧树形导航 (园区 → 楼栋 → 楼层) + 右侧 el-table 表格
  */
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -32,7 +29,7 @@ import { getDictDataByType } from '@/api/dict'
 
 // ============== 状态 ==============
 const loading = ref(false)
-const cardsData = ref<Room[]>([])
+const tableData = ref<Room[]>([])
 const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(50)
@@ -182,13 +179,6 @@ async function loadFloorsForBuilding(building: BuildingTreeNode) {
 }
 
 // 节点点击处理
-async function onParkClick(park: ParkTreeNode) {
-  activeParkId.value = park.id || null
-  if (!park.$loaded) {
-    await loadBuildingsForPark(park)
-  }
-}
-
 async function onBuildingClick(building: BuildingTreeNode) {
   activeBuildingId.value = building.id || null
   if (!building.$loaded) {
@@ -240,7 +230,7 @@ async function loadKitsAndPurposes() {
 
 async function loadData() {
   if (!activeFloorId.value) {
-    cardsData.value = []
+    tableData.value = []
     total.value = 0
     return
   }
@@ -256,7 +246,7 @@ async function loadData() {
       pageSize: pageSize.value,
     })
     if (res.code === 200) {
-      cardsData.value = res.data?.records || []
+      tableData.value = res.data?.records || []
       total.value = res.data?.total || 0
     }
   } finally {
@@ -284,55 +274,25 @@ function handlePageChange(v: number) {
   loadData()
 }
 
-// ============== 卡片辅助函数 ==============
+// ============== 辅助函数 ==============
 function statusLabel(s: number | undefined): string {
   if (s === undefined || s === null) return '空'
   return dictMap.room_status?.find((d) => d.value === String(s))?.label || '空'
 }
 
-function statusBadgeClass(s: number | undefined): string {
-  if (s === 1) return 'bg-status-1'  // 已租
-  if (s === 2) return 'bg-status-2'  // 装修中
-  if (s === 3) return 'bg-status-3'  // 已售
-  if (s === 4) return 'bg-status-4'  // 自用
-  if (s === 5) return 'bg-status-5'  // 已预订
-  return 'bg-status-0'  // 空置
-}
-
-function statusBadgeChar(s: number | undefined): string {
-  if (s === 1) return '租'
-  if (s === 2) return '装'
-  if (s === 3) return '售'
-  if (s === 4) return '己'
-  if (s === 5) return '订'
-  return '空'
-}
-
-function dictLabel(type: string, value: number | string | undefined): string {
-  if (value === undefined || value === null) return '-'
-  return dictMap[type]?.find((d) => d.value === String(value))?.label || String(value)
+function statusTagType(s: number | undefined): string {
+  if (s === 0) return 'warning'
+  if (s === 1) return 'primary'
+  if (s === 2) return 'danger'
+  if (s === 3) return 'success'
+  if (s === 4) return 'info'
+  if (s === 5) return 'warning'
+  return 'info'
 }
 
 function purposeName(id: number | undefined): string {
   if (!id) return '-'
   return purposeOptions.value.find((p) => p.id === id)?.purposeName || '-'
-}
-
-function kitName(id: number | undefined): string {
-  if (!id) return '-'
-  return kitOptions.value.find((k) => k.id === id)?.kitName || '-'
-}
-
-function getRoomImage(r: Room): string {
-  if (r.image) {
-    try {
-      const arr = JSON.parse(r.image)
-      if (Array.isArray(arr) && arr.length > 0) return arr[0]
-    } catch {
-      if (r.image.startsWith('http')) return r.image
-    }
-  }
-  return ''
 }
 
 // ============== 弹窗操作 ==============
@@ -532,6 +492,9 @@ onMounted(async () => {
             <span v-if="currentFloorName" class="current-floor">（{{ currentFloorName }}）</span>
           </span>
           <div class="page-header-actions">
+            <el-button size="small" type="primary" icon="el-icon-plus" @click="handleAdd" v-if="activeFloorId">
+              新增房间
+            </el-button>
             <el-button size="small" type="primary" plain icon="el-icon-download" @click="handleImport">
               房间导入
             </el-button>
@@ -558,66 +521,51 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- 卡片网格 -->
-        <div class="page-list">
-          <el-row :gutter="16" v-if="activeFloorId">
-            <!-- 新增卡片 -->
-            <el-col :xs="24" :md="12" :lg="8" :xl="6" class="custom-col">
-              <div class="item-card-add" @click="handleAdd">
-                <i class="el-icon-plus"></i>
-                <span>新增房间</span>
-              </div>
-            </el-col>
+        <!-- 房间表格 -->
+        <div class="page-table">
+          <el-empty v-if="!loading && activeFloorId && tableData.length === 0" description="暂无房间" />
+          <el-empty v-else-if="!activeFloorId" description="请在左侧选择楼层" />
 
-            <!-- 房间卡片 -->
-            <el-col
-              v-for="(r, idx) in cardsData"
-              :key="idx"
-              :xs="24" :md="12" :lg="8" :xl="6"
-              class="custom-col"
-            >
-              <div class="item-card" @click="handleView(r)">
-                <div class="item-card-header">
-                  <div class="c-status">
-                    <span :class="statusBadgeClass(r.status)">{{ statusBadgeChar(r.status) }}</span>
-                  </div>
-                  <div class="c-title common-ellipsis" :title="r.roomName">{{ r.roomName || r.roomNo }}</div>
-                  <div class="c-type common-ellipsis" :title="purposeName(r.purposeId)">{{ purposeName(r.purposeId) }}</div>
-                  <div class="c-more-button">
-                    <el-button type="text" icon="el-icon-edit-outline" title="编辑" @click.stop="handleEdit(r)"></el-button>
-                    <el-button type="text" class="status-danger" icon="el-icon-delete" title="删除" @click.stop="handleDelete(r)"></el-button>
-                  </div>
-                </div>
-                <div class="item-card-content">
-                  <div class="c-area">
-                    <span>房号</span>
-                    <span>{{ r.roomNo || '-' }}</span>
-                  </div>
-                  <div class="c-area">
-                    <span>建筑面积</span>
-                    <span>{{ r.areaCovered || 0 }} ㎡</span>
-                  </div>
-                  <div class="c-area">
-                    <span>套内面积</span>
-                    <span>{{ r.buildArea || 0 }} ㎡</span>
-                  </div>
-                  <div class="c-area">
-                    <span>单价(元/㎡/月)</span>
-                    <span>{{ r.unitPrice || 0 }}</span>
-                  </div>
-                </div>
-              </div>
-            </el-col>
-          </el-row>
-
-          <el-empty v-else description="请在左侧选择楼层" />
+          <el-table :data="tableData" border stripe v-loading="loading" v-if="activeFloorId && tableData.length > 0">
+            <el-table-column prop="roomNo" label="房号" width="130" />
+            <el-table-column prop="roomName" label="房间名称" min-width="140" />
+            <el-table-column label="状态" width="90" align="center">
+              <template #default="scope">
+                <el-tag :type="statusTagType(scope.row.status)" size="small">
+                  {{ statusLabel(scope.row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="房间用途" width="120">
+              <template #default="scope">{{ purposeName(scope.row.purposeId) }}</template>
+            </el-table-column>
+            <el-table-column label="建筑面积" width="120" align="right">
+              <template #default="scope">{{ scope.row.areaCovered ? Number(scope.row.areaCovered).toLocaleString() : '-' }} ㎡</template>
+            </el-table-column>
+            <el-table-column label="套内面积" width="120" align="right">
+              <template #default="scope">{{ scope.row.buildArea ? Number(scope.row.buildArea).toLocaleString() : '-' }} ㎡</template>
+            </el-table-column>
+            <el-table-column label="计费面积" width="120" align="right">
+              <template #default="scope">{{ scope.row.billableArea ? Number(scope.row.billableArea).toLocaleString() : '-' }} ㎡</template>
+            </el-table-column>
+            <el-table-column label="单价" width="130" align="right">
+              <template #default="scope">{{ scope.row.unitPrice ? Number(scope.row.unitPrice).toLocaleString() : '-' }} 元/㎡/月</template>
+            </el-table-column>
+            <el-table-column label="操作" width="220" fixed="right">
+              <template #default="scope">
+                <el-button link type="primary" size="small" @click="handleView(scope.row)">查看</el-button>
+                <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
 
           <!-- 分页 -->
           <el-pagination
             v-if="total >= 10"
             class="common-pagination"
             background
-            layout="total, prev, pager, next, sizes, jumper"
+            layout="total, sizes, prev, pager, next, jumper"
             :total="total"
             :page-sizes="pageSizes"
             :page-size="pageSize"
@@ -944,156 +892,15 @@ onMounted(async () => {
   flex: 0 0 auto;
 }
 
-.page-list ul {
-  margin: 0 -8px;
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.page-list ul li {
-  margin: 8px;
-  width: 100%;
-  height: 220px;
-  cursor: pointer;
-}
-
-.page-list .item-card {
-  width: 100%;
-  height: 100%;
+.page-table {
   background: #fff;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-  border-radius: 6px;
-  border: 1px solid #fff;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: all 0.2s;
-}
-
-.page-list .item-card:hover {
-  border-color: #409eff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px 0 rgba(64, 158, 255, 0.15);
-}
-
-.page-list .item-card .item-card-header {
+  border-radius: 8px;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.02);
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.page-list .item-card .item-card-content {
-  padding: 12px 16px;
-  flex: 1;
-}
-
-.page-list .item-card .c-status {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-}
-
-.page-list .item-card .c-status span {
-  display: block;
-  border-radius: 50%;
-  color: #fff;
-  line-height: 40px;
-  text-align: center;
-  font-weight: 700;
-  font-size: 18px;
-  width: 100%;
-  height: 100%;
-}
-
-.page-list .item-card .c-status .bg-status-0 { background: #fdb800; }
-.page-list .item-card .c-status .bg-status-1 { background: #409eff; }
-.page-list .item-card .c-status .bg-status-2 { background: #ff9267; }
-.page-list .item-card .c-status .bg-status-3 { background: #67c23a; }
-.page-list .item-card .c-status .bg-status-4 { background: #5b6bff; }
-.page-list .item-card .c-status .bg-status-5 { background: #e6a23c; }
-
-.page-list .item-card .c-title {
-  font-size: 15px;
-  color: rgba(0, 0, 0, 0.85);
-  margin: 0 8px;
-  font-weight: 500;
-  flex: 1;
-}
-
-.page-list .item-card .c-type {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.65);
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-  padding: 2px 8px;
-}
-
-.page-list .item-card .c-more-button {
-  position: absolute;
-  right: 8px;
-  top: 12px;
-}
-
-.page-list .item-card .c-more-button .el-button {
-  font-size: 14px;
-  padding: 4px;
-}
-
-.page-list .item-card .c-more-button .el-button + .el-button {
-  margin-left: 0;
-}
-
-.page-list .item-card .c-area {
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.65);
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  line-height: 20px;
-}
-
-.page-list .item-card .c-area:last-child {
-  margin-bottom: 0;
-}
-
-.page-list .item-card-add {
-  border: 2px dashed rgba(0, 0, 0, 0.15);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  font-size: 15px;
-  color: rgba(0, 0, 0, 0.65);
-  height: 220px;
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-  transition: all 0.2s;
-}
-
-.page-list .item-card-add i {
-  margin-right: 8px;
-  font-size: 18px;
-}
-
-.page-list .item-card-add:hover {
-  font-weight: 600;
-  background: rgba(64, 158, 255, 0.05);
-  border-color: #409eff;
-  color: #409eff;
 }
 
 .common-pagination {
   margin-top: 24px;
   display: flex;
   justify-content: flex-end;
-}
-
-@media screen and (min-width: 1700px) {
-  .custom-col {
-    width: 25% !important;
-  }
 }
 </style>
