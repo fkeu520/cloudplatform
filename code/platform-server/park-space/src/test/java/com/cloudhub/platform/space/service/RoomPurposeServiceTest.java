@@ -51,7 +51,6 @@ class RoomPurposeServiceTest {
     private RoomPurpose makePurpose(Long id, String name) {
         RoomPurpose p = new RoomPurpose();
         p.setId(id);
-        p.setParkId(1L);
         p.setPurposeName(name);
         p.setStatus(1);
         p.setTenantId(1L);
@@ -65,7 +64,7 @@ class RoomPurposeServiceTest {
         p.setTotal(1);
         when(roomPurposeMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<RoomPurpose>> result = roomPurposeService.page(null, null, null, 1, 10);
+        Result<PageResult<RoomPurpose>> result = roomPurposeService.page(null, null, 1, 10);
         assertEquals(200, result.getCode());
         assertEquals(1, result.getData().getTotal());
     }
@@ -87,7 +86,6 @@ class RoomPurposeServiceTest {
     @Test
     void create_valid_shouldInsert() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         params.put("purposeName", "出租");
 
         when(roomPurposeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
@@ -109,7 +107,6 @@ class RoomPurposeServiceTest {
     @Test
     void create_duplicateName_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         params.put("purposeName", "自用");
 
         when(roomPurposeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
