@@ -15,8 +15,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -179,5 +181,34 @@ class EquipmentServiceTest {
     void delete_notFound_shouldThrow() {
         when(equipmentMapper.selectById(999L)).thenReturn(null);
         assertThrows(BizException.class, () -> equipmentService.delete(999L));
+    }
+
+    // ========== BatchSave ==========
+
+    @Test
+    void batchSave_duplicateNameInList_shouldThrow() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, Object> a = new HashMap<>();
+        a.put("equipmentName", "空调");
+        list.add(a);
+        Map<String, Object> b = new HashMap<>();
+        b.put("equipmentName", "空调");
+        list.add(b);
+
+        BizException ex = assertThrows(BizException.class, () -> equipmentService.batchSave(1L, list));
+        assertTrue(ex.getMessage().contains("同名设备"));
+    }
+
+    @Test
+    void batchSave_duplicateNameInDb_shouldThrow() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        Map<String, Object> a = new HashMap<>();
+        a.put("equipmentName", "空调");
+        list.add(a);
+
+        when(equipmentMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
+
+        BizException ex = assertThrows(BizException.class, () -> equipmentService.batchSave(1L, list));
+        assertTrue(ex.getMessage().contains("同名设备"));
     }
 }
