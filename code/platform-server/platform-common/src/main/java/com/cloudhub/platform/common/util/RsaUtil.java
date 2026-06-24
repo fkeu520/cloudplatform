@@ -1,5 +1,7 @@
 package com.cloudhub.platform.common.util;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.crypto.Cipher;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -12,7 +14,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * RSA 非对称加密工具类
  * 用于密码传输加密（前端公钥加密，后端私钥解密）
+ *
+ * <p>C1: 生产环境应通过环境变量 {@code RSA_PRIVATE_KEY} / {@code RSA_PUBLIC_KEY}
+ * 或系统属性 {@code platform.rsa.private-key} / {@code platform.rsa.public-key}
+ * 配置持久密钥对，避免重启后前端公钥失效。</p>
  */
+@Slf4j
 public class RsaUtil {
 
     private static final String RSA_ALGORITHM = "RSA";
@@ -23,8 +30,41 @@ public class RsaUtil {
     private static final String DEFAULT_KEY_ID = "default";
 
     static {
-        // 启动时生成默认密钥对
-        generateKeyPair(DEFAULT_KEY_ID);
+        // C1: 优先从配置加载持久密钥对，避免重启后前端公钥失效
+        String privateKeyB64 = getConfig("RSA_PRIVATE_KEY", "platform.rsa.private-key");
+        String publicKeyB64 = getConfig("RSA_PUBLIC_KEY", "platform.rsa.public-key");
+        if (privateKeyB64 != null && publicKeyB64 != null) {
+            loadKeyPair(DEFAULT_KEY_ID, privateKeyB64, publicKeyB64);
+            log.info("RSA key pair loaded from config (persistent across restarts)");
+        } else {
+            generateKeyPair(DEFAULT_KEY_ID);
+            log.warn("RSA key pair generated on startup (non-persistent). Set RSA_PRIVATE_KEY/RSA_PUBLIC_KEY env vars for production to prevent restart-induced key changes.");
+        }
+    }
+
+    /** 从环境变量或系统属性读取配置 */
+    private static String getConfig(String envName, String propName) {
+        String val = System.getenv(envName);
+        if (val != null && !val.isBlank()) return val;
+        val = System.getProperty(propName);
+        if (val != null && !val.isBlank()) return val;
+        return null;
+    }
+
+    /**
+     * 从 Base64 编码的密钥对恢复 KeyPair
+     */
+    private static void loadKeyPair(String keyId, String privateKeyB64, String publicKeyB64) {
+        try {
+            byte[] privBytes = Base64.getDecoder().decode(privateKeyB64);
+            byte[] pubBytes = Base64.getDecoder().decode(publicKeyB64);
+            KeyFactory keyFactory = KeyFactory.getInstance(RSA_ALGORITHM);
+            PrivateKey privateKey = keyFactory.generatePrivate(new PKCS8EncodedKeySpec(privBytes));
+            PublicKey publicKey = keyFactory.generatePublic(new X509EncodedKeySpec(pubBytes));
+            KEY_PAIR_CACHE.put(keyId, new KeyPair(publicKey, privateKey));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load RSA key pair from config", e);
+        }
     }
 
     /**

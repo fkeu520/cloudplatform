@@ -54,7 +54,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e) {
-        log.error("系统异常", e);
-        return Result.serverError("系统异常，请稍后重试");
+        // C8: 日志含异常类型便于排查，返回体含类型简名
+        log.error("系统异常: type={}", e.getClass().getSimpleName(), e);
+        return Result.error(500, e.getClass().getSimpleName() + ": " + e.getMessage());
     }
 }

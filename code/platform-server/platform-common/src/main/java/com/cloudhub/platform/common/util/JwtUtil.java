@@ -25,6 +25,18 @@ public class JwtUtil {
     /** HS256 密钥（至少 256 位） */
     private static final SecretKey KEY = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 
+    static {
+        // C6: 启动时检测是否使用了硬编码默认密钥
+        if (System.getenv("JWT_SECRET") == null && System.getProperty("jwt.secret") == null) {
+            log.error("\n" +
+                    "╔══════════════════════════════════════════════════════════╗\n" +
+                    "║  JWT_SECRET not configured! Using hardcoded default.    ║\n" +
+                    "║  Anyone with source code can forge tokens.              ║\n" +
+                    "║  Set env var JWT_SECRET for production.                 ║\n" +
+                    "╚══════════════════════════════════════════════════════════╝");
+        }
+    }
+
     /**
      * 生成 Token
      *

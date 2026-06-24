@@ -58,7 +58,8 @@ public abstract class HttpDataScopeProvider implements DataScopeProvider {
         }
     }
 
-    /** 缓存: 60s TTL, ConcurrentHashMap 保证线程安全 */
+    /** 缓存: 60s TTL, ConcurrentHashMap 保证线程安全 (C3: 有界，超限时淘汰过期条目) */
+    private static final int MAX_CACHE_SIZE = 10_000;
     private final Map<Long, CacheEntry> cache = new ConcurrentHashMap<>();
     private final RestTemplate restTemplate;
 
@@ -103,8 +104,8 @@ public abstract class HttpDataScopeProvider implements DataScopeProvider {
                     .childDeptIds((String) data.get("childDeptIds"))
                     .build();
 
-            // 4. 写缓存
-            cache.put(userId, new CacheEntry(ctx, now));
+            // 4. 写缓存 (C3: 容量超限时先淘汰过期条目)
+            putWithEviction(userId, ctx, now);
             log.debug("DataScope cache MISS → HTTP 调用 + 写缓存: userId={}, maxScope={}", userId, ctx.getMaxDataScope());
             return ctx;
         } catch (RestClientException e) {
@@ -114,6 +115,17 @@ public abstract class HttpDataScopeProvider implements DataScopeProvider {
             log.warn("DataScope HTTP 反序列化失败 (降级). userId={}, err={}", userId, e.getMessage());
             return DataScopeContext.none();
         }
+    }
+
+    /**
+     * C3: 有界缓存写入，超限时淘汰过期条目
+     */
+    private void putWithEviction(Long userId, DataScopeContext ctx, long now) {
+        if (cache.size() >= MAX_CACHE_SIZE) {
+            long ttl = cacheTtlMs > 0 ? cacheTtlMs : 60_000L;
+            cache.values().removeIf(e -> (now - e.createdAtMs) > ttl);
+        }
+        cache.put(userId, new CacheEntry(ctx, now));
     }
 
     /**

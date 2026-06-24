@@ -16,12 +16,16 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+@Slf4j
 @Configuration
 public class MybatisPlusConfig implements MetaObjectHandler {
 
+    /** C9: 多租户忽略表 (不含 tenant_id 列) */
     private static final Set<String> IGNORE_TABLES = Set.of(
         "flyway_schema_history", "flyway_schema_history_message",
         "flyway_schema_history_ops", "flyway_schema_history_workflow",
@@ -63,6 +67,8 @@ public class MybatisPlusConfig implements MetaObjectHandler {
                 //   适用于: admin(tenant_id=NULL 运营管理员)、内部接口调用、后台任务
                 //   安全: 正常请求会经过 TenantFilter 设置租户上下文
                 if (tenantId == null) return true;
+                // C9: flyway_ 前缀自动忽略，新增 flyway 表无需手动更新 Set
+                if (tableName.startsWith("flyway_")) return true;
                 return IGNORE_TABLES.contains(tableName);
             }
         }));
@@ -119,6 +125,14 @@ public class MybatisPlusConfig implements MetaObjectHandler {
                 "mybatis-plus.snowflake.datacenter-id must be 0-31, got: " + datacenterId);
         }
         return new DefaultIdentifierGenerator(workerId, datacenterId);
+    }
+
+    /**
+     * C5+C9: 启动时打印 IGNORE_TABLES 清单，提示新增模块表需加入忽略列表或加 tenant_id 列
+     */
+    @PostConstruct
+    public void init() {
+        log.info("Multi-tenant IGNORE_TABLES ({} tables + flyway_* prefix): {}", IGNORE_TABLES.size(), IGNORE_TABLES);
     }
 
     @Override
