@@ -60,6 +60,7 @@ public class UserController {
     }
 
     @Operation(summary = "退出登录")
+    @Log(title = "用户管理", businessType = 0)
     @PostMapping("/logout")
     public Result<Void> logout(@RequestHeader(value = "X-User-Id", required = false) String userId) {
         if (userId != null && !userId.isBlank()) {
@@ -159,6 +160,7 @@ public class UserController {
     }
 
     @Operation(summary = "修改密码")
+    @Log(title = "用户管理", businessType = 2)
     @PostMapping("/{id}/password")
     public Result<Void> changePassword(
             @PathVariable(name = "id") Long id,
@@ -174,6 +176,7 @@ public class UserController {
     }
 
     @Operation(summary = "重置密码")
+    @Log(title = "用户管理", businessType = 2)
     @PostMapping("/{id}/reset-password")
     public Result<Void> resetPassword(
             @PathVariable(name = "id") Long id,
@@ -188,6 +191,7 @@ public class UserController {
     }
 
     @Operation(summary = "切换状态（启用/禁用）")
+    @Log(title = "用户管理", businessType = 2)
     @PostMapping("/{id}/toggle-status")
     public Result<Void> toggleStatus(@PathVariable(name = "id") Long id) {
         userService.toggleStatus(id);
@@ -195,6 +199,7 @@ public class UserController {
     }
 
     @Operation(summary = "分配角色")
+    @Log(title = "用户管理", businessType = 2)
     @PostMapping("/{id}/roles")
     public Result<Void> assignRoles(@PathVariable(name = "id") Long id, @RequestBody Map<String, Object> params) {
         userService.assignRoles(id, params.get("roleIds"));
@@ -208,6 +213,7 @@ public class UserController {
     }
 
     @Operation(summary = "分配用户直接授权菜单（运营管理员专用）")
+    @Log(title = "用户管理", businessType = 2)
     @PostMapping("/{id}/menus")
     public Result<Void> assignUserMenus(@PathVariable(name = "id") Long id, @RequestBody Map<String, Object> params) {
         userService.assignUserMenus(id, params.get("menuIds"));

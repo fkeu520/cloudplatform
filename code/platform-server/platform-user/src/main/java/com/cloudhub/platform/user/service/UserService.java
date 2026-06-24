@@ -32,7 +32,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.cloudhub.platform.common.util.RsaUtil;
-import org.springframework.util.DigestUtils;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import java.util.Arrays;
 import java.nio.charset.StandardCharsets;
@@ -64,6 +65,7 @@ public class UserService {
     /**
      * 用户登录
      */
+    @Transactional
     public LoginVO login(String username, String password) {
         User user = userMapper.selectByUsername(username);
         if (user == null) {
@@ -131,6 +133,7 @@ public class UserService {
      * 内部验证密码（供 auth 服务调用）
      * 验证成功时同步记录登录日志
      */
+    @Transactional
     public UserVO validatePassword(String username, String password) {
         User user = userMapper.selectByUsername(username);
         if (user == null) {
@@ -352,6 +355,7 @@ public class UserService {
     /**
      * 修改密码
      */
+    @Transactional
     @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         User user = userMapper.selectById(userId);
@@ -368,6 +372,7 @@ public class UserService {
     /**
      * 重置密码
      */
+    @Transactional
     @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void resetPassword(Long userId, String newPassword) {
         User user = userMapper.selectById(userId);
@@ -381,6 +386,7 @@ public class UserService {
     /**
      * 切换状态
      */
+    @Transactional
     @com.cloudhub.platform.common.annotation.DataScope(deptAlias = "dept_id", userAlias = "id")
     public void toggleStatus(Long id) {
         User user = userMapper.selectById(id);
@@ -470,36 +476,9 @@ public class UserService {
             Post post = postMapper.selectById(user.getPostId());
             if (post != null) vo.setPostName(post.getName());
         }
-        // 查询用户关联的角色ID列表
-        vo.setRoleIds(userRoleMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserRole>()
-                .eq(UserRole::getUserId, user.getId())
-        ).stream().map(UserRole::getRoleId).collect(java.util.stream.Collectors.toList()));
-        // 查询用户拥有的权限列表（角色权限 + 直接授权的菜单权限）
-        List<Menu> roleMenus = menuMapper.selectByUserId(user.getId());
-        List<Menu> directMenus = menuMapper.selectEnabledByUserMenuIds(user.getId());
-        List<Menu> merged = new java.util.ArrayList<>(roleMenus);
-        for (Menu m : directMenus) {
-            if (merged.stream().noneMatch(ex -> ex.getId().equals(m.getId()))) {
-                merged.add(m);
-            }
-        }
-        vo.setPerms(merged.stream()
-            .filter(m -> m.getPerms() != null && !m.getPerms().isEmpty())
-            .map(Menu::getPerms)
-            .collect(Collectors.toList()));
-        // 查询用户角色名称列表
-        List<String> roleNames = userRoleMapper.selectList(
-            new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UserRole>()
-                .eq(UserRole::getUserId, user.getId())
-        ).stream()
-            .map(ur -> {
-                Role role = roleMapper.selectById(ur.getRoleId());
-                return role != null ? role.getName() : null;
-            })
-            .filter(r -> r != null)
-            .collect(Collectors.toList());
-        vo.setRoles(roleNames);
+        vo.setRoleIds(getRoleIds(user.getId()));
+        vo.setPerms(getMergedPerms(user.getId()));
+        vo.setRoles(getRoleNames(user.getId()));
         return vo;
     }
 
@@ -534,7 +513,70 @@ public class UserService {
         return vo;
     }
 
+    /**
+     * 获取用户关联的角色ID列表
+     */
+    private List<Long> getRoleIds(Long userId) {
+        List<UserRole> userRoles = userRoleMapper.selectList(
+                new LambdaQueryWrapper<UserRole>()
+                        .eq(UserRole::getUserId, userId));
+        return userRoles.stream()
+                .map(UserRole::getRoleId)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 合并角色权限 + 直接授权菜单权限，去重后返回权限标识列表
+     */
+    private List<String> getMergedPerms(Long userId) {
+        List<Menu> roleMenus = menuMapper.selectByUserId(userId);
+        List<Menu> directMenus = menuMapper.selectEnabledByUserMenuIds(userId);
+        // 去重合并
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        List<Menu> merged = new java.util.ArrayList<>();
+        for (Menu m : roleMenus) {
+            if (seen.add(m.getId())) {
+                merged.add(m);
+            }
+        }
+        for (Menu m : directMenus) {
+            if (seen.add(m.getId())) {
+                merged.add(m);
+            }
+        }
+        return merged.stream()
+                .filter(m -> m.getPerms() != null && !m.getPerms().isEmpty())
+                .map(Menu::getPerms)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取用户角色名称列表
+     */
+    private List<String> getRoleNames(Long userId) {
+        List<UserRole> userRoles = userRoleMapper.selectList(
+                new LambdaQueryWrapper<UserRole>()
+                        .eq(UserRole::getUserId, userId));
+        return userRoles.stream()
+                .map(ur -> {
+                    Role role = roleMapper.selectById(ur.getRoleId());
+                    return role != null ? role.getName() : null;
+                })
+                .filter(r -> r != null)
+                .collect(Collectors.toList());
+    }
+
     private String md5(String str) {
-        return DigestUtils.md5DigestAsHex(str.getBytes(StandardCharsets.UTF_8));
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(str.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(32);
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b & 0xff));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("MD5 algorithm not available", e);
+        }
     }
 }
