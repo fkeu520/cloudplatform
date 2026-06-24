@@ -18,8 +18,9 @@
     </el-card>
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
-        <el-table-column prop="typeName" label="类型名称" min-width="200" />
+<el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+<el-table-column label="园区" width="120"><template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template></el-table-column>
+<el-table-column prop="typeName" label="类型名称" min-width="200" />
         <el-table-column prop="typeDescribe" label="类型描述" min-width="250" :show-overflow-tooltip="true" />
         <el-table-column label="状态" width="80">
           <template #default="scope">

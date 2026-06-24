@@ -18,8 +18,9 @@
     </el-card>
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
-        <el-table-column prop="massifCode" label="地块编号" width="150" />
+<el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+<el-table-column label="园区" width="120"><template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template></el-table-column>
+<el-table-column prop="massifCode" label="地块编号" width="150" />
         <el-table-column prop="massifName" label="地块名称" min-width="200" :show-overflow-tooltip="true" />
         <el-table-column prop="massifArea" label="地块面积(m²)" width="130" align="right">
           <template #default="scope">{{ scope.row.massifArea ? scope.row.massifArea.toLocaleString() : '-' }}</template>
