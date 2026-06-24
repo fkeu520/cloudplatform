@@ -62,6 +62,11 @@ public class LogAspect {
         try {
             // 获取当前请求
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attributes == null) {
+                log.warn("无法获取当前请求上下文，跳过操作日志记录");
+                startTime.remove();
+                return;
+            }
             HttpServletRequest request = attributes.getRequest();
 
             // 计算耗时
