@@ -35,7 +35,9 @@ describe('user store', () => {
     store.setPermissions(['system:user:list', 'system:role:list'])
     expect(store.hasPermission('system:user:list')).toBe(true)
     expect(store.hasPermission('system:user:add')).toBe(false)
-    expect(store.hasPermission('')).toBe(true) // empty = always true
+    // F5: 空字符串/空白字符串返回 false（避免权限检查被绕过）
+    expect(store.hasPermission('')).toBe(false)
+    expect(store.hasPermission('   ')).toBe(false)
   })
 
   it('hasAnyPermission checks any of multiple permissions', () => {
@@ -43,7 +45,8 @@ describe('user store', () => {
     store.setPermissions(['workflow:definition:deploy'])
     expect(store.hasAnyPermission(['system:user:list', 'workflow:definition:deploy'])).toBe(true)
     expect(store.hasAnyPermission(['system:user:list', 'system:role:add'])).toBe(false)
-    expect(store.hasAnyPermission([])).toBe(true) // empty list = always true
+    // F5: 空数组返回 false（避免权限检查被绕过）
+    expect(store.hasAnyPermission([])).toBe(false)
   })
 
   it('logout clears all state and localStorage', () => {
