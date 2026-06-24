@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -255,5 +256,40 @@ public class RoomService {
         boolean available = count == null || count == 0;
         log.info("[RoomService] checkNo parkId={}, buildingId={}, roomNo={} -> available={}", parkId, buildingId, roomNo, available);
         return Result.ok(available);
+    }
+
+    // ========== Batch ops for Split/Merge ==========
+
+    @Transactional
+    public void batchSoftDelete(List<Long> ids) {
+        for (Long id : ids) {
+            Room r = roomMapper.selectById(id);
+            if (r != null && r.getDeleted() != 1) {
+                r.setDeleted(1);
+                roomMapper.updateById(r);
+            }
+        }
+        log.info("[RoomService] batchSoftDelete: ids={}", ids);
+    }
+
+    public List<Room> listByIds(List<Long> ids) {
+        return roomMapper.selectBatchIds(ids);
+    }
+
+    @Transactional
+    public void insertBatch(List<Room> rooms) {
+        for (Room r : rooms) {
+            roomMapper.insert(r);
+        }
+    }
+
+    public boolean isRoomInUse(Room r) {
+        return RoomStatus.RENTED.matches(r.getStatus());
+    }
+
+    @Transactional
+    public Long insertAndGetId(Room r) {
+        roomMapper.insert(r);
+        return r.getId();
     }
 }
