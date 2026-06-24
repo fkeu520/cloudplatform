@@ -28,14 +28,11 @@ public class RoomPurposeService {
 
     // ========== Query ==========
 
-    public Result<PageResult<RoomPurpose>> page(String keyword, Long parkId, Integer status,
+    public Result<PageResult<RoomPurpose>> page(String keyword, Integer status,
                                                  int pageNum, int pageSize) {
         LambdaQueryWrapper<RoomPurpose> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             w.like(RoomPurpose::getPurposeName, keyword);
-        }
-        if (parkId != null) {
-            w.eq(RoomPurpose::getParkId, parkId);
         }
         if (status != null) {
             w.eq(RoomPurpose::getStatus, status);
@@ -57,26 +54,23 @@ public class RoomPurposeService {
 
     @Transactional
     public Result<Long> create(Map<String, Object> params) {
-        Long parkId = requiredLong(params, "parkId");
         String purposeName = requiredString(params, "purposeName");
 
         Long count = roomPurposeMapper.selectCount(new LambdaQueryWrapper<RoomPurpose>()
-                .eq(RoomPurpose::getParkId, parkId)
                 .eq(RoomPurpose::getPurposeName, purposeName)
                 .eq(RoomPurpose::getDeleted, 0));
         if (count != null && count > 0) {
-            throw new BizException("园区 " + parkId + " 已存在用途 " + purposeName);
+            throw new BizException("已存在用途 " + purposeName);
         }
 
         RoomPurpose p = new RoomPurpose();
-        p.setParkId(parkId);
         p.setPurposeName(purposeName);
         p.setStatus(params.get("status") != null
                 ? ((Number) params.get("status")).intValue() : 1);
         p.setTenantId(currentTenantId());
 
         roomPurposeMapper.insert(p);
-        log.info("[RoomPurposeService] create: id={}, parkId={}, purposeName={}", p.getId(), parkId, purposeName);
+        log.info("[RoomPurposeService] create: id={}, purposeName={}", p.getId(), purposeName);
         return Result.ok(p.getId());
     }
 
@@ -92,12 +86,11 @@ public class RoomPurposeService {
             String newName = (String) params.get("purposeName");
             if (newName != null && !newName.isBlank()) {
                 Long count = roomPurposeMapper.selectCount(new LambdaQueryWrapper<RoomPurpose>()
-                        .eq(RoomPurpose::getParkId, p.getParkId())
                         .eq(RoomPurpose::getPurposeName, newName)
                         .ne(RoomPurpose::getId, id)
                         .eq(RoomPurpose::getDeleted, 0));
                 if (count != null && count > 0) {
-                    throw new BizException("园区 " + p.getParkId() + " 已存在用途 " + newName);
+                    throw new BizException("已存在用途 " + newName);
                 }
                 p.setPurposeName(newName);
             }

@@ -35,11 +35,10 @@ public class RoomPurposeController {
     @GetMapping("/page")
     public Result<PageResult<RoomPurpose>> page(
             @RequestParam(name = "keyword", required = false) String keyword,
-            @RequestParam(name = "parkId", required = false) Long parkId,
             @RequestParam(name = "status", required = false) Integer status,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
-        return roomPurposeService.page(keyword, parkId, status, pageNum, pageSize);
+        return roomPurposeService.page(keyword, status, pageNum, pageSize);
     }
 
     @Operation(summary = "查询房源用途详情")
