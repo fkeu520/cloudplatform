@@ -66,8 +66,25 @@ public class TenantService {
         tenant.setSort(params.get("sort") != null ? Integer.parseInt(params.get("sort").toString()) : 0);
         tenant.setRemark((String) params.get("remark"));
         tenantMapper.insert(tenant);
-        createRootOrg(tenant);
-        createAdminUser(tenant, params);
+
+        // O1: Saga 模式 — 远程调用失败时执行补偿回滚
+        boolean orgCreated = false;
+        try {
+            createRootOrg(tenant);
+            orgCreated = true;
+            createAdminUser(tenant, params);
+        } catch (Exception e) {
+            // 补偿: 根组织已创建但管理员创建失败 → 删除远程根组织
+            if (orgCreated) {
+                try {
+                    restTemplate.delete(userServiceUrl + "/org/" + tenant.getId());
+                    log.warn("Saga rollback: 已删除远程根组织. tenantId={}", tenant.getId());
+                } catch (Exception re) {
+                    log.error("Saga rollback failed: 远程根组织删除失败, 需人工清理. tenantId={}", tenant.getId(), re);
+                }
+            }
+            throw e;
+        }
     }
 
     private void createRootOrg(Tenant tenant) {
@@ -170,6 +187,10 @@ public class TenantService {
     public void update(Long id, Map<String, Object> params) {
         Tenant tenant = tenantMapper.selectById(id);
         if (tenant == null) throw new BizException("租户不存在");
+        // O5: tenantCode 不可修改，关联系统依赖其不变性
+        if (params.containsKey("tenantCode")) {
+            throw new BizException("租户编码不可修改");
+        }
         if (params.containsKey("tenantName")) tenant.setTenantName((String) params.get("tenantName"));
         if (params.containsKey("tenantType")) tenant.setTenantType(Integer.parseInt(params.get("tenantType").toString()));
         if (params.containsKey("contactPerson")) tenant.setContactPerson((String) params.get("contactPerson"));
