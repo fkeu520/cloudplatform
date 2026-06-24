@@ -72,9 +72,9 @@ const formRules = {
 // 加载园区列表
 async function loadParks() {
   try {
-    const res: any = await getParkList({ pageNum: 1, pageSize: 9999 })
+    const res: any = await getParkList()
     if (res.code === 200) {
-      parkOptions.value = res.data?.records || res.data || []
+      parkOptions.value = res.data || []
       if (parkOptions.value.length > 0 && !activeParkId.value) {
         activeParkId.value = parkOptions.value[0].id || null
       }

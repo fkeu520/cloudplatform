@@ -124,9 +124,9 @@ const formRules = {
 // ============== 数据加载 ==============
 async function loadParks() {
   try {
-    const res: any = await getParkList({ pageNum: 1, pageSize: 9999 })
+    const res: any = await getParkList()
     if (res.code === 200) {
-      parkTree.value = (res.data?.records || []).map((p: Park) => ({ ...p, $loaded: false }))
+      parkTree.value = (res.data || []).map((p: Park) => ({ ...p, $loaded: false }))
       if (parkTree.value.length > 0 && !activeParkId.value) {
         activeParkId.value = parkTree.value[0].id || null
         // 首次默认加载第一个园区的楼栋

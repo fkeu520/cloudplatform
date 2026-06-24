@@ -95,9 +95,9 @@ const tableRules = {
 // ============== 数据加载 ==============
 async function loadParkOptions() {
   try {
-    const res: any = await getParkList({ pageNum: 1, pageSize: 9999 })
+    const res: any = await getParkList()
     if (res.code === 200) {
-      parkOptions.value = res.data?.records || []
+      parkOptions.value = res.data || []
       parkMap.value = {}
       parkOptions.value.forEach((p) => { parkMap.value[p.id!] = p.parkName })
     }
