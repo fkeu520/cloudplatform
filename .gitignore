@@ -70,6 +70,9 @@ doc/sql/
 # Codegraph / tool artifacts
 .codegraph/
 .playwright-mcp/
+.opencode/          # opencode agent session artifacts (commands, skills, state)
+openspec/           # openspec workflow artifacts
+openflow/           # openflow workflow artifacts
 
 # Python
 *.pyc
