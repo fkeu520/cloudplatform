@@ -1,11 +1,12 @@
 package com.cloudhub.platform.auth.service;
 
+import com.cloudhub.platform.auth.domain.vo.AuthVO;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.util.JwtUtil;
 import com.cloudhub.platform.common.util.RsaUtil;
-import com.cloudhub.platform.auth.domain.vo.AuthVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -36,9 +37,8 @@ public class AuthService {
         try {
             password = RsaUtil.decrypt(encryptedPassword);
         } catch (Exception e) {
-            log.warn("密码解密失败，可能未加密或加密方式错误: {}", e.getMessage());
-            // 兼容未加密的情况（开发阶段）
-            password = encryptedPassword;
+            log.warn("密码解密失败: {}", e.getMessage());
+            throw new BizException("登录失败，密码格式异常");
         }
 
         String url = userServiceUrl + "/user/internal/validate";
@@ -80,14 +80,14 @@ public class AuthService {
 
     public AuthVO loginBySms(String mobile, String code) {
         String key = SMS_CODE_PREFIX + mobile;
-        String cached = redisTemplate.opsForValue().get(key);
+        // 原子性 GET + DELETE，防止高并发重放
+        String cached = redisTemplate.opsForValue().getAndDelete(key);
         if (cached == null) {
             throw new BizException("验证码已过期，请重新发送");
         }
         if (!cached.equals(code)) {
             throw new BizException("验证码错误");
         }
-        redisTemplate.delete(key);
         String url = userServiceUrl + "/user/internal/by-username/" + mobile;
         try {
             Map<String, Object> result = restTemplate.getForObject(url, Map.class);
@@ -113,12 +113,28 @@ public class AuthService {
         }
         String userId = JwtUtil.getUserId(token);
         Long tenantId = JwtUtil.getTenantId(token);
-        return generateAuthVO(userId, tenantId != null ? tenantId : 0L);
+        Integer userType = JwtUtil.getUserType(token);
+        String username = JwtUtil.getUsername(token);
+
+        Long effectiveTenantId = (tenantId != null && tenantId > 0) ? tenantId : null;
+        String newToken = JwtUtil.generate(userId, username, effectiveTenantId, userType, TOKEN_EXPIRE_SECONDS);
+
+        AuthVO vo = new AuthVO();
+        vo.setToken(newToken);
+        vo.setExpireTime(System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000);
+        vo.setUserId(Long.parseLong(userId));
+        return vo;
     }
 
     public void validateToken(String token) {
         if (!JwtUtil.validate(token)) {
             throw new BizException("Invalid or expired token");
+        }
+        // 检查是否在登出黑名单中
+        String tokenHash = DigestUtils.sha256Hex(token);
+        Boolean isBlacklisted = redisTemplate.hasKey(TOKEN_BLACKLIST_PREFIX + tokenHash);
+        if (Boolean.TRUE.equals(isBlacklisted)) {
+            throw new BizException("Token has been invalidated");
         }
     }
 
@@ -127,7 +143,9 @@ public class AuthService {
             String userId = JwtUtil.getUserId(token);
             long expire = JwtUtil.parse(token).getExpiration().getTime() - System.currentTimeMillis();
             if (expire > 0) {
-                String key = TOKEN_BLACKLIST_PREFIX + token;
+                // 使用 token 哈希作为 key，减少 Redis 内存占用（JWT ~200B → SHA-256 64B）
+                String tokenHash = DigestUtils.sha256Hex(token);
+                String key = TOKEN_BLACKLIST_PREFIX + tokenHash;
                 redisTemplate.opsForValue().set(key, userId, expire, TimeUnit.MILLISECONDS);
             }
         } catch (Exception e) {
@@ -148,10 +166,8 @@ public class AuthService {
         // 从 userData 中获取 username, 用于 token 中携带
         String username = (userData != null && userData.get("username") instanceof String)
             ? (String) userData.get("username") : null;
-        String token = JwtUtil.generate(userId, username, TOKEN_EXPIRE_SECONDS);
-        if (tenantId != null && tenantId > 0) {
-            token = JwtUtil.generate(userId, username, tenantId, userType, TOKEN_EXPIRE_SECONDS);
-        }
+        Long effectiveTenantId = (tenantId != null && tenantId > 0) ? tenantId : null;
+        String token = JwtUtil.generate(userId, username, effectiveTenantId, userType, TOKEN_EXPIRE_SECONDS);
         long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
         AuthVO vo = new AuthVO();
         vo.setToken(token);
