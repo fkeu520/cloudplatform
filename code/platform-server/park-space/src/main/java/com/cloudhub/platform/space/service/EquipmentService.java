@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Equipment;
 import com.cloudhub.platform.space.mapper.EquipmentMapper;
 import lombok.RequiredArgsConstructor;
@@ -71,8 +72,7 @@ public class EquipmentService {
         String equipmentName = requiredString(params, "equipmentName");
 
         // 校验: 同园区 + 同 kit 下设备名称唯一
-        Long kitId = params.get("kitId") != null
-                ? ((Number) params.get("kitId")).longValue() : null;
+        Long kitId = ServiceUtils.toLong(params.get("kitId"));
         Long count = equipmentMapper.selectCount(new LambdaQueryWrapper<Equipment>()
                 .eq(Equipment::getParkId, parkId)
                 .eq(Equipment::getKitId, kitId)
@@ -86,11 +86,9 @@ public class EquipmentService {
         e.setParkId(parkId);
         e.setEquipmentName(equipmentName);
         e.setModel((String) params.get("model"));
-        e.setAmount(params.get("amount") != null
-                ? ((Number) params.get("amount")).intValue() : 1);
+        e.setAmount(ServiceUtils.toIntOrDefault(params.get("amount"), 1));
         e.setKitId(kitId);
-        e.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+        e.setStatus(ServiceUtils.toIntOrDefault(params.get("status"), 1));
         e.setTenantId(currentTenantId());
 
         equipmentMapper.insert(e);
@@ -125,11 +123,11 @@ public class EquipmentService {
         if (params.containsKey("model"))
             e.setModel((String) params.get("model"));
         if (params.containsKey("amount"))
-            e.setAmount(((Number) params.get("amount")).intValue());
+            e.setAmount(ServiceUtils.toInt(params.get("amount")));
         if (params.containsKey("kitId"))
-            e.setKitId(((Number) params.get("kitId")).longValue());
+            e.setKitId(ServiceUtils.toLong(params.get("kitId")));
         if (params.containsKey("status"))
-            e.setStatus(((Number) params.get("status")).intValue());
+            e.setStatus(ServiceUtils.toInt(params.get("status")));
 
         equipmentMapper.updateById(e);
         log.info("[EquipmentService] update: id={}", id);
@@ -166,7 +164,7 @@ public class EquipmentService {
         for (Map<String, Object> m : equipmentList) {
             String name = (String) m.get("equipmentName");
             if (name == null || name.isBlank()) continue;
-            Long excludeId = m.get("id") != null ? ((Number) m.get("id")).longValue() : null;
+            Long excludeId = ServiceUtils.toLong(m.get("id"));
             LambdaQueryWrapper<Equipment> dw = new LambdaQueryWrapper<Equipment>()
                     .eq(Equipment::getKitId, kitId)
                     .eq(Equipment::getEquipmentName, name)
@@ -190,7 +188,7 @@ public class EquipmentService {
         List<Long> incomingIds = equipmentList.stream()
                 .map(m -> m.get("id"))
                 .filter(id -> id != null)
-                .map(id -> ((Number) id).longValue())
+                .map(ServiceUtils::toLong)
                 .collect(toList());
 
         // 删除前端没传的（已删除的行）
@@ -206,15 +204,14 @@ public class EquipmentService {
             String equipmentName = (String) m.get("equipmentName");
             if (equipmentName == null || equipmentName.isBlank()) continue;
 
-            Object idObj = m.get("id");
-            if (idObj != null) {
+            Long id = ServiceUtils.toLong(m.get("id"));
+            if (id != null) {
                 // 更新
-                Long id = ((Number) idObj).longValue();
                 Equipment eq = equipmentMapper.selectById(id);
                 if (eq != null && eq.getDeleted() != 1) {
                     eq.setEquipmentName(equipmentName);
                     eq.setModel((String) m.get("model"));
-                    eq.setAmount(m.get("amount") != null ? ((Number) m.get("amount")).intValue() : 1);
+                    eq.setAmount(ServiceUtils.toIntOrDefault(m.get("amount"), 1));
                     equipmentMapper.updateById(eq);
                 }
             } else {
@@ -223,8 +220,8 @@ public class EquipmentService {
                 eq.setKitId(kitId);
                 eq.setEquipmentName(equipmentName);
                 eq.setModel((String) m.get("model"));
-                eq.setAmount(m.get("amount") != null ? ((Number) m.get("amount")).intValue() : 1);
-                eq.setParkId(m.get("parkId") != null ? ((Number) m.get("parkId")).longValue() : null);
+                eq.setAmount(ServiceUtils.toIntOrDefault(m.get("amount"), 1));
+                eq.setParkId(ServiceUtils.toLong(m.get("parkId")));
                 eq.setStatus(1);
                 eq.setTenantId(currentTenantId());
                 equipmentMapper.insert(eq);
