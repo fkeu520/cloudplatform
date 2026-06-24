@@ -28,7 +28,8 @@ public class TenantFilter extends OncePerRequestFilter {
                     if (userId != null) TenantContextHolder.setUserId(Long.parseLong(userId));
                     if (tenantId != null) TenantContextHolder.setTenantId(tenantId);
                 } catch (Exception e) {
-                    log.warn("JWT token parsing failed: {}", e.getMessage());
+                    log.error("JWT token parsing failed, tenant context will be empty (multi-tenant isolation may be bypassed). tokenPrefix={}..., error={}",
+                            token.length() > 10 ? token.substring(0, 10) : token, e.getMessage());
                 }
             }
             chain.doFilter(request, response);

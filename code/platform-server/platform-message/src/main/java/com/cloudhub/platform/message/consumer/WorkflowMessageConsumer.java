@@ -53,7 +53,7 @@ public class WorkflowMessageConsumer {
                 try {
                     record.setReceiverId(Long.valueOf(recipient));
                 } catch (NumberFormatException nfe) {
-                    log.warn("Invalid recipient id, skip: {}", recipient);
+                    log.warn("Invalid recipient id, skip. taskId={}, recipient={}", message.getTaskId(), recipient);
                     continue;
                 }
                 record.setReceiverName(recipient);

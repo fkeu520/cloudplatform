@@ -4,21 +4,36 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Service
 public class SseService {
 
-    private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
+    /** SSE 超时: 5 分钟，客户端自动重连，防止失效连接泄漏 (M1) */
+    private static final long SSE_TIMEOUT = 300_000L;
+
+    /** 多标签页支持: 每个用户可持有多个 SseEmitter (M2) */
+    private final Map<Long, CopyOnWriteArrayList<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
     public SseEmitter subscribe(Long userId) {
-        SseEmitter emitter = new SseEmitter(0L);
-        emitters.put(userId, emitter);
-        emitter.onCompletion(() -> emitters.remove(userId));
-        emitter.onTimeout(() -> emitters.remove(userId));
-        emitter.onError(e -> emitters.remove(userId));
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
+        emitters.computeIfAbsent(userId, k -> new CopyOnWriteArrayList<>()).add(emitter);
+        Runnable cleanup = () -> {
+            List<SseEmitter> list = emitters.get(userId);
+            if (list != null) {
+                list.remove(emitter);
+                if (list.isEmpty()) {
+                    emitters.remove(userId);
+                }
+            }
+        };
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(e -> cleanup.run());
         try {
             emitter.send(SseEmitter.event().name("connected").data("ok"));
         } catch (Exception ignored) {}
@@ -26,25 +41,32 @@ public class SseService {
     }
 
     public void sendToUser(Long userId, String eventName, Object data) {
-        SseEmitter emitter = emitters.get(userId);
-        if (emitter != null) {
+        List<SseEmitter> list = emitters.get(userId);
+        if (list == null || list.isEmpty()) return;
+        list.removeIf(emitter -> {
             try {
                 emitter.send(SseEmitter.event().name(eventName).data(data));
+                return false;
             } catch (Exception e) {
-                emitters.remove(userId);
+                return true;
             }
+        });
+        if (list.isEmpty()) {
+            emitters.remove(userId);
         }
     }
 
     public void broadcast(String eventName, Object data) {
-        java.util.List<Long> failedKeys = new java.util.ArrayList<>();
-        emitters.forEach((userId, emitter) -> {
-            try {
-                emitter.send(SseEmitter.event().name(eventName).data(data));
-            } catch (Exception e) {
-                failedKeys.add(userId);
-            }
-        });
-        failedKeys.forEach(emitters::remove);
+        emitters.forEach((userId, list) ->
+            list.removeIf(emitter -> {
+                try {
+                    emitter.send(SseEmitter.event().name(eventName).data(data));
+                    return false;
+                } catch (Exception e) {
+                    return true;
+                }
+            })
+        );
+        emitters.values().removeIf(List::isEmpty);
     }
 }

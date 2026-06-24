@@ -250,7 +250,8 @@ public class DataScopeInnerInterceptor implements InnerInterceptor {
                 }
             }
             if (useDuplicateField == null) {
-                // 无 duplicate 字段 (新版本 jsqlparser 可能改名), 跳过
+                // C7: jsqlparser 版本升级后字段可能改名/移除，记录 WARN 并跳过
+                log.warn("DataScope: jsqlparser Insert class has no useDuplicate/duplicateUpdate field (version upgrade?), skipping INSERT duplicate interception. sql={}", originalSql);
                 return originalSql;
             }
             useDuplicateField.setAccessible(true);

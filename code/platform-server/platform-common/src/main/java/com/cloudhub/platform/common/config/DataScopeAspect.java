@@ -7,6 +7,7 @@ import org.aspectj.lang.annotation.After;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -50,12 +51,20 @@ public class DataScopeAspect {
     @Autowired(required = false)
     private DataScopeProvider dataScopeProvider;
 
+    /**
+     * C2: 严格模式开关。
+     * true: Provider 未注入或调用失败时抛异常 (fail-closed)
+     * false: 降级为无限制 (默认，当前行为)
+     */
+    @Value("${platform.data-scope.strict:false}")
+    private boolean strictMode;
+
     @Before("@annotation(dataScope)")
     public void doBefore(JoinPoint point, DataScope dataScope) {
         Long userId = TenantContextHolder.getUserId();
         if (userId == null) {
-            // 无用户上下文, 不加 data_scope 条件
-            DataScopeContextHolder.set("");
+            // C10: 无用户上下文, set(null) 表"无过滤"，与 get() 的 null→"" 转换保持一致
+            DataScopeContextHolder.set(null);
             return;
         }
 
@@ -78,19 +87,27 @@ public class DataScopeAspect {
 
     /**
      * 查 user 的 data_scope 上下文
-     * 安全降级: Provider 未注入 (测试环境) 时, 返回 none() (无限制)
+     * C2: 严格模式 (strictMode=true) 下 Provider 未注入或失败时抛异常，避免静默退化为无限制
      */
     private DataScopeContext lookupContext(Long userId) {
-        return Optional.ofNullable(dataScopeProvider)
-                .map(provider -> {
-                    try {
-                        return provider.getContext(userId);
-                    } catch (Exception e) {
-                        log.warn("DataScopeProvider.getContext failed, fallback to no-scope. userId={}", userId, e);
-                        return DataScopeContext.none();
-                    }
-                })
-                .orElse(DataScopeContext.none());
+        if (dataScopeProvider == null) {
+            if (strictMode) {
+                throw new DataScopeViolationException(
+                        "DataScopeProvider not injected (strict mode). Check DataScopeProvider bean configuration.");
+            }
+            log.warn("DataScopeProvider not injected (strict=false), fallback to no-scope. userId={}", userId);
+            return DataScopeContext.none();
+        }
+        try {
+            return dataScopeProvider.getContext(userId);
+        } catch (Exception e) {
+            if (strictMode) {
+                throw new DataScopeViolationException(
+                        "DataScopeProvider.getContext failed (strict mode). userId=" + userId, e);
+            }
+            log.warn("DataScopeProvider.getContext failed, fallback to no-scope. userId={}", userId, e);
+            return DataScopeContext.none();
+        }
     }
 
     /**
