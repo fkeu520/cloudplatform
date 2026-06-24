@@ -52,7 +52,6 @@ class KitServiceTest {
     private Kit makeKit(Long id, String name) {
         Kit k = new Kit();
         k.setId(id);
-        k.setParkId(1L);
         k.setKitName(name);
         k.setAmount(1);
         k.setStatus(1);
@@ -69,7 +68,7 @@ class KitServiceTest {
         p.setTotal(1);
         when(kitMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Kit>> result = kitService.page(null, null, null, 1, 10);
+        Result<PageResult<Kit>> result = kitService.page(null, null, 1, 10);
         assertEquals(200, result.getCode());
         assertEquals(1, result.getData().getTotal());
     }
@@ -81,7 +80,7 @@ class KitServiceTest {
         p.setTotal(1);
         when(kitMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Kit>> result = kitService.page("   ", null, null, 1, 10);
+        Result<PageResult<Kit>> result = kitService.page("   ", null, 1, 10);
         assertEquals(1, result.getData().getTotal());
     }
 
@@ -106,7 +105,6 @@ class KitServiceTest {
     @Test
     void create_valid_shouldInsert() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         params.put("kitName", "豪华装修");
         params.put("amount", 1);
 
@@ -129,7 +127,6 @@ class KitServiceTest {
     @Test
     void create_duplicateName_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         params.put("kitName", "标准装修");
 
         when(kitMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
@@ -142,7 +139,6 @@ class KitServiceTest {
     @Test
     void create_missingKitName_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         BizException ex = assertThrows(BizException.class, () -> kitService.create(params));
         assertTrue(ex.getMessage().contains("缺少必填字段"));
     }
