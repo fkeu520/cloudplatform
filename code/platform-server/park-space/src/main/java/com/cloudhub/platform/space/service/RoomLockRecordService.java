@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.RoomLockRecord;
 import com.cloudhub.platform.space.mapper.RoomLockRecordMapper;
 import lombok.RequiredArgsConstructor;
@@ -64,14 +65,14 @@ public class RoomLockRecordService {
         r.setParkId(parkId);
         r.setRoomId(roomId);
         r.setIsLock(params.get("isLock") != null
-                ? ((Number) params.get("isLock")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("isLock")) : 0);
         r.setEnterpriseId(params.get("enterpriseId") != null
-                ? ((Number) params.get("enterpriseId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("enterpriseId")) : null);
         r.setEnterpriseName((String) params.get("enterpriseName"));
         r.setOperator((String) params.get("operator"));
         r.setReason((String) params.get("reason"));
         r.setDays(params.get("days") != null
-                ? ((Number) params.get("days")).intValue() : null);
+                ? ServiceUtils.toInt(params.get("days")) : null);
         r.setTenantId(currentTenantId());
 
         roomLockRecordMapper.insert(r);

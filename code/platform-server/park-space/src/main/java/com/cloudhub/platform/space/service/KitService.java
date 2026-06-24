@@ -7,6 +7,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Equipment;
 import com.cloudhub.platform.space.domain.entity.Kit;
 import com.cloudhub.platform.space.mapper.EquipmentMapper;
@@ -90,9 +91,9 @@ public class KitService {
         Kit k = new Kit();
         k.setKitName(kitName);
         k.setAmount(params.get("amount") != null
-                ? ((Number) params.get("amount")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("amount")) : 0);
         k.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         k.setTenantId(currentTenantId());
 
         kitMapper.insert(k);
@@ -122,9 +123,9 @@ public class KitService {
             }
         }
         if (params.containsKey("amount"))
-            k.setAmount(((Number) params.get("amount")).intValue());
+            k.setAmount(ServiceUtils.toInt(params.get("amount")));
         if (params.containsKey("status"))
-            k.setStatus(((Number) params.get("status")).intValue());
+            k.setStatus(ServiceUtils.toInt(params.get("status")));
 
         kitMapper.updateById(k);
         log.info("[KitService] update: id={}", id);

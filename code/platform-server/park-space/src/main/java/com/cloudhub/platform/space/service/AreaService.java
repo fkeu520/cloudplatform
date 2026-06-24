@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Area;
 import com.cloudhub.platform.space.mapper.AreaMapper;
 import lombok.RequiredArgsConstructor;
@@ -81,15 +82,15 @@ public class AreaService {
                 ? new BigDecimal(params.get("builtArea").toString()) : null);
         a.setFunctionArea((String) params.get("functionArea"));
         a.setBuildingAmount(params.get("buildingAmount") != null
-                ? ((Number) params.get("buildingAmount")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("buildingAmount")) : 0);
         a.setRoomAmount(params.get("roomAmount") != null
-                ? ((Number) params.get("roomAmount")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("roomAmount")) : 0);
         a.setIsVirtual(params.get("isVirtual") != null
-                ? ((Number) params.get("isVirtual")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("isVirtual")) : 0);
         a.setSorting(params.get("sorting") != null
-                ? ((Number) params.get("sorting")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("sorting")) : 0);
         a.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         a.setTenantId(currentTenantId());
 
         areaMapper.insert(a);
@@ -127,15 +128,15 @@ public class AreaService {
         if (params.containsKey("functionArea"))
             a.setFunctionArea((String) params.get("functionArea"));
         if (params.containsKey("buildingAmount"))
-            a.setBuildingAmount(((Number) params.get("buildingAmount")).intValue());
+            a.setBuildingAmount(ServiceUtils.toInt(params.get("buildingAmount")));
         if (params.containsKey("roomAmount"))
-            a.setRoomAmount(((Number) params.get("roomAmount")).intValue());
+            a.setRoomAmount(ServiceUtils.toInt(params.get("roomAmount")));
         if (params.containsKey("isVirtual"))
-            a.setIsVirtual(((Number) params.get("isVirtual")).intValue());
+            a.setIsVirtual(ServiceUtils.toInt(params.get("isVirtual")));
         if (params.containsKey("sorting"))
-            a.setSorting(((Number) params.get("sorting")).intValue());
+            a.setSorting(ServiceUtils.toInt(params.get("sorting")));
         if (params.containsKey("status"))
-            a.setStatus(((Number) params.get("status")).intValue());
+            a.setStatus(ServiceUtils.toInt(params.get("status")));
 
         areaMapper.updateById(a);
         log.info("[AreaService] update: id={}", id);

@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Energy;
 import com.cloudhub.platform.space.mapper.EnergyMapper;
 import lombok.RequiredArgsConstructor;
@@ -68,11 +69,11 @@ public class EnergyService {
         e.setParkId(parkId);
         e.setRoomId(roomId);
         e.setMeterId(params.get("meterId") != null
-                ? ((Number) params.get("meterId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("meterId")) : null);
         e.setMeterClassId(params.get("meterClassId") != null
-                ? ((Number) params.get("meterClassId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("meterClassId")) : null);
         e.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         e.setTenantId(currentTenantId());
 
         energyMapper.insert(e);
@@ -89,13 +90,13 @@ public class EnergyService {
         if (e.getDeleted() != null && e.getDeleted() == 1) throw new BizException("能源关联已删除");
 
         if (params.containsKey("meterId"))
-            e.setMeterId(((Number) params.get("meterId")).longValue());
+            e.setMeterId(ServiceUtils.toLong(params.get("meterId")));
         if (params.containsKey("meterClassId"))
-            e.setMeterClassId(((Number) params.get("meterClassId")).longValue());
+            e.setMeterClassId(ServiceUtils.toLong(params.get("meterClassId")));
         if (params.containsKey("roomId"))
-            e.setRoomId(((Number) params.get("roomId")).longValue());
+            e.setRoomId(ServiceUtils.toLong(params.get("roomId")));
         if (params.containsKey("status"))
-            e.setStatus(((Number) params.get("status")).intValue());
+            e.setStatus(ServiceUtils.toInt(params.get("status")));
 
         energyMapper.updateById(e);
         log.info("[EnergyService] update: id={}", id);

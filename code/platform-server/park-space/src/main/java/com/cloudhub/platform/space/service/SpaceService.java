@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Space;
 import com.cloudhub.platform.space.mapper.SpaceMapper;
 import lombok.RequiredArgsConstructor;
@@ -114,11 +115,11 @@ public class SpaceService {
         if (params.containsKey("spaceDescribe"))
             s.setSpaceDescribe((String) params.get("spaceDescribe"));
         if (params.containsKey("areaId"))
-            s.setAreaId(params.get("areaId") != null ? ((Number) params.get("areaId")).longValue() : null);
+            s.setAreaId(ServiceUtils.toLong(params.get("areaId")));
         if (params.containsKey("categoryId"))
-            s.setCategoryId(params.get("categoryId") != null ? ((Number) params.get("categoryId")).longValue() : null);
+            s.setCategoryId(ServiceUtils.toLong(params.get("categoryId")));
         if (params.containsKey("status"))
-            s.setStatus(params.get("status") != null ? ((Number) params.get("status")).intValue() : null);
+            s.setStatus(ServiceUtils.toInt(params.get("status")));
 
         spaceMapper.updateById(s);
         log.info("[SpaceService] update: id={}", id);

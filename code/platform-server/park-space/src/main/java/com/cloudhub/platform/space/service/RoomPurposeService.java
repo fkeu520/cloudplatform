@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.RoomPurpose;
 import com.cloudhub.platform.space.mapper.RoomPurposeMapper;
 import lombok.RequiredArgsConstructor;
@@ -66,7 +67,7 @@ public class RoomPurposeService {
         RoomPurpose p = new RoomPurpose();
         p.setPurposeName(purposeName);
         p.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         p.setTenantId(currentTenantId());
 
         roomPurposeMapper.insert(p);
@@ -96,7 +97,7 @@ public class RoomPurposeService {
             }
         }
         if (params.containsKey("status"))
-            p.setStatus(((Number) params.get("status")).intValue());
+            p.setStatus(ServiceUtils.toInt(params.get("status")));
 
         roomPurposeMapper.updateById(p);
         return Result.ok();

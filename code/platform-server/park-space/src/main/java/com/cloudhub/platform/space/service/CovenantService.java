@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Covenant;
 import com.cloudhub.platform.space.mapper.CovenantMapper;
 import lombok.RequiredArgsConstructor;
@@ -77,11 +78,11 @@ public class CovenantService {
         c.setRoomId(roomId);
         c.setCovenantId(covenantId);
         c.setCovenantType(params.get("covenantType") != null
-                ? ((Number) params.get("covenantType")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("covenantType")) : 0);
         c.setCustomerId(params.get("customerId") != null
-                ? ((Number) params.get("customerId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("customerId")) : null);
         c.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         c.setTenantId(currentTenantId());
 
         covenantMapper.insert(c);
@@ -99,15 +100,15 @@ public class CovenantService {
         if (c.getDeleted() != null && c.getDeleted() == 1) throw new BizException("合同关联已删除");
 
         if (params.containsKey("covenantId"))
-            c.setCovenantId(((Number) params.get("covenantId")).longValue());
+            c.setCovenantId(ServiceUtils.toLong(params.get("covenantId")));
         if (params.containsKey("covenantType"))
-            c.setCovenantType(((Number) params.get("covenantType")).intValue());
+            c.setCovenantType(ServiceUtils.toInt(params.get("covenantType")));
         if (params.containsKey("customerId"))
-            c.setCustomerId(((Number) params.get("customerId")).longValue());
+            c.setCustomerId(ServiceUtils.toLong(params.get("customerId")));
         if (params.containsKey("roomId"))
-            c.setRoomId(((Number) params.get("roomId")).longValue());
+            c.setRoomId(ServiceUtils.toLong(params.get("roomId")));
         if (params.containsKey("status"))
-            c.setStatus(((Number) params.get("status")).intValue());
+            c.setStatus(ServiceUtils.toInt(params.get("status")));
 
         covenantMapper.updateById(c);
         log.info("[CovenantService] update: id={}", id);

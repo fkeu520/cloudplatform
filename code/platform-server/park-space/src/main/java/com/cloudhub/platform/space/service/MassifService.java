@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Massif;
 import com.cloudhub.platform.space.mapper.MassifMapper;
 import lombok.RequiredArgsConstructor;
@@ -79,16 +80,16 @@ public class MassifService {
         m.setMassifArea(params.get("massifArea") != null
                 ? new BigDecimal(params.get("massifArea").toString()) : null);
         m.setUseYear(params.get("useYear") != null
-                ? ((Number) params.get("useYear")).intValue() : null);
+                ? ServiceUtils.toInt(params.get("useYear")) : null);
         m.setLandNatureId(params.get("landNatureId") != null
-                ? ((Number) params.get("landNatureId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("landNatureId")) : null);
         m.setPlanUseId(params.get("planUseId") != null
-                ? ((Number) params.get("planUseId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("planUseId")) : null);
         m.setAssetType((String) params.get("assetType"));
         m.setMassifDesc((String) params.get("massifDesc"));
         m.setAddress((String) params.get("address"));
         m.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         m.setTenantId(currentTenantId());
 
         massifMapper.insert(m);
@@ -123,11 +124,11 @@ public class MassifService {
         if (params.containsKey("massifArea"))
             m.setMassifArea(new BigDecimal(params.get("massifArea").toString()));
         if (params.containsKey("useYear"))
-            m.setUseYear(((Number) params.get("useYear")).intValue());
+            m.setUseYear(ServiceUtils.toInt(params.get("useYear")));
         if (params.containsKey("landNatureId"))
-            m.setLandNatureId(((Number) params.get("landNatureId")).longValue());
+            m.setLandNatureId(ServiceUtils.toLong(params.get("landNatureId")));
         if (params.containsKey("planUseId"))
-            m.setPlanUseId(((Number) params.get("planUseId")).longValue());
+            m.setPlanUseId(ServiceUtils.toLong(params.get("planUseId")));
         if (params.containsKey("assetType"))
             m.setAssetType((String) params.get("assetType"));
         if (params.containsKey("massifDesc"))
@@ -135,7 +136,7 @@ public class MassifService {
         if (params.containsKey("address"))
             m.setAddress((String) params.get("address"));
         if (params.containsKey("status"))
-            m.setStatus(((Number) params.get("status")).intValue());
+            m.setStatus(ServiceUtils.toInt(params.get("status")));
 
         massifMapper.updateById(m);
         log.info("[MassifService] update: id={}", id);
