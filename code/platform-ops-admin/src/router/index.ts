@@ -71,7 +71,14 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  if (to.path !== '/login' && !localStorage.getItem('token')) {
+  // O4: 已登录用户访问 /login 直接跳首页；未登录用户访问其他页跳登录
+  if (to.path === '/login') {
+    if (localStorage.getItem('token')) {
+      next('/')
+    } else {
+      next()
+    }
+  } else if (!localStorage.getItem('token')) {
     next('/login')
   } else {
     next()

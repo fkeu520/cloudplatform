@@ -27,8 +27,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login } from '../api/auth'
 import { rsaEncrypt } from '../api/crypto'
+import { useUserStore } from '@/stores/user' // O5: Pinia 状态管理
 
 const router = useRouter()
+const userStore = useUserStore()
 const formRef = ref()
 const loading = ref(false)
 const form = reactive({ username: '', password: '' })
@@ -46,8 +48,10 @@ async function handleLogin() {
     const encryptedPassword = await rsaEncrypt(form.password)
     const res = await login({ username: form.username, password: encryptedPassword })
     const data = res.data
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('userId', String(data.userId || ''))
+    // O5: 同步到 Pinia store
+    userStore.setToken(data.token)
+    userStore.setUserInfo(data)
+    if (data.perms) userStore.setPermissions(data.perms)
     router.push('/')
   } catch (e: any) {
     ElMessage.error(e.message || '登录失败')
