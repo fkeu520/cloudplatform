@@ -49,4 +49,7 @@ public class LoginUser implements Serializable {
     /** 权限字符串列表 (e.g. ["user:add"]) */
     @Builder.Default
     private Set<String> permissions = Collections.emptySet();
+
+    /** 用户类型: 0=普通 1=租户管理员 2=运营管理员 (来自 X-User-Type Header) */
+    private Integer userType;
 }

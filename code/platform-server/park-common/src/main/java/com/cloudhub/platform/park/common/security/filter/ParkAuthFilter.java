@@ -112,6 +112,7 @@ public class ParkAuthFilter extends OncePerRequestFilter {
                 .userId(userId)
                 .username(username)
                 .tenantId(tenantId)
+                .userType(userType)
                 // W2.3 阶段 permissions 为空, 业务模块需要时手动调用 LoginContextHolder.populatePermissions()
                 .permissions(Collections.emptySet())
                 .build();

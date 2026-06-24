@@ -12,15 +12,12 @@ import java.util.Map;
  * <p>csyh 出现 277 次, 提供 object → 指定类型 的安全转换, 失败返回默认值.
  * 翻译策略: 用 commons-lang3 (云枢已依赖) + Java 反射, 不引入 hutool 减体积.
  * 与 {@link CastUtils} 的差异: ConvertUtil 偏"字符串/Map"场景, CastUtils 偏"基本类型"场景.</p>
- * <p>使用示例 (csyh 风格兼容):
- * <pre>{@code
- * String s = ConvertUtil.toStr(obj, "");
- * Long id = ConvertUtil.toLong(obj, 0L);
- * boolean b = ConvertUtil.toBool(obj, false);
- * }</pre>
- * </p>
- * @see com.cloudhub.platform.park.common.base.util.CastUtils 基础类型转换 (本类超集)
+ * <p><b>已废弃</b>: 功能已被 {@link CastUtils} 覆盖, 新代码请直接使用 CastUtils.
+ * 为兼容 csyh 迁移代码保留本类, 后续将移除.</p>
+ * @deprecated 使用 {@link CastUtils} 替代
+ * @see CastUtils 基础类型转换 (本类超集)
  */
+@Deprecated
 public final class ConvertUtil {
 
     private ConvertUtil() {}
