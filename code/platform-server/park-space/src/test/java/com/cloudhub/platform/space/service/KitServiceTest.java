@@ -5,7 +5,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.space.domain.entity.Equipment;
 import com.cloudhub.platform.space.domain.entity.Kit;
+import com.cloudhub.platform.space.mapper.EquipmentMapper;
 import com.cloudhub.platform.space.mapper.KitMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,9 @@ class KitServiceTest {
     @Mock
     private KitMapper kitMapper;
 
+    @Mock
+    private EquipmentMapper equipmentMapper;
+
     @InjectMocks
     private KitService kitService;
 
@@ -67,6 +72,7 @@ class KitServiceTest {
         p.setRecords(Collections.singletonList(kitA));
         p.setTotal(1);
         when(kitMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
+        when(equipmentMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         Result<PageResult<Kit>> result = kitService.page(null, null, 1, 10);
         assertEquals(200, result.getCode());
@@ -79,6 +85,7 @@ class KitServiceTest {
         p.setRecords(Collections.singletonList(kitA));
         p.setTotal(1);
         when(kitMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
+        when(equipmentMapper.selectList(any())).thenReturn(Collections.emptyList());
 
         Result<PageResult<Kit>> result = kitService.page("   ", null, 1, 10);
         assertEquals(1, result.getData().getTotal());
