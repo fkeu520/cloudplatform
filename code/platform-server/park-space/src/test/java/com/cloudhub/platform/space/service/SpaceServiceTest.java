@@ -152,6 +152,20 @@ class SpaceServiceTest {
         assertThrows(BizException.class, () -> spaceService.update(999L, new HashMap<>()));
     }
 
+    @Test
+    void update_nullNumericFields_shouldNotThrowNpe() {
+        when(spaceMapper.selectById(1L)).thenReturn(spaceA);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("areaId", null);
+        params.put("categoryId", null);
+        params.put("status", null);
+
+        Result<Void> result = spaceService.update(1L, params);
+        assertEquals(200, result.getCode());
+        verify(spaceMapper).updateById(any(Space.class));
+    }
+
     // ========== Delete ==========
 
     @Test
