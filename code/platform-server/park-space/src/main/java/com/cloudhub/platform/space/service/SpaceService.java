@@ -114,11 +114,11 @@ public class SpaceService {
         if (params.containsKey("spaceDescribe"))
             s.setSpaceDescribe((String) params.get("spaceDescribe"));
         if (params.containsKey("areaId"))
-            s.setAreaId(((Number) params.get("areaId")).longValue());
+            s.setAreaId(params.get("areaId") != null ? ((Number) params.get("areaId")).longValue() : null);
         if (params.containsKey("categoryId"))
-            s.setCategoryId(((Number) params.get("categoryId")).longValue());
+            s.setCategoryId(params.get("categoryId") != null ? ((Number) params.get("categoryId")).longValue() : null);
         if (params.containsKey("status"))
-            s.setStatus(((Number) params.get("status")).intValue());
+            s.setStatus(params.get("status") != null ? ((Number) params.get("status")).intValue() : null);
 
         spaceMapper.updateById(s);
         log.info("[SpaceService] update: id={}", id);
