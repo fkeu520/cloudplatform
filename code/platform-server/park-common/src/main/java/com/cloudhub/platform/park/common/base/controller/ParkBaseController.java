@@ -3,6 +3,8 @@ package com.cloudhub.platform.park.common.base.controller;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.park.common.base.domain.ParkUser;
+import com.cloudhub.platform.park.common.security.context.LoginContextHolder;
+import com.cloudhub.platform.park.common.security.context.LoginUser;
 import com.cloudhub.platform.park.common.base.model.query.CommonQuery;
 import com.cloudhub.platform.park.common.base.model.vo.CommonVO;
 import com.cloudhub.platform.park.common.base.response.R;
@@ -50,13 +52,20 @@ public abstract class ParkBaseController<D, V extends CommonVO> implements IBase
 
     /**
      * 获取当前登录用户
-     * <p>W2 阶段: 返回 null, 业务方需在 Controller 入参显式传 ParkUser.
-     * W3 阶段: 从 JWT + Redis 解析 ParkUser 上下文.</p>
-     * @return 当前 ParkUser, 未登录返回 null
+     * <p>从 {@link LoginContextHolder} 获取基础字段,
+     * 完整 ParkUser (deptId/orgId/email 等) 需 W3 阶段从 platform-user 接口获取.</p>
+     * @return 当前 ParkUser (含基础字段), 未登录返回 null
      */
     protected ParkUser currentUser() {
-        // TODO W3: LoginContextHolder.get() 解析 ParkUser
-        return null;
+        LoginUser loginUser = LoginContextHolder.get();
+        if (loginUser == null) return null;
+        ParkUser u = new ParkUser();
+        u.setId(loginUser.getUserId());
+        u.setUsername(loginUser.getUsername());
+        u.setTenantId(loginUser.getTenantId());
+        u.setRoles(loginUser.getRoles());
+        u.setPermissions(loginUser.getPermissions());
+        return u;
     }
 
     /**

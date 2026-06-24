@@ -1,11 +1,13 @@
 package com.cloudhub.platform.space.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
+import com.cloudhub.platform.park.common.security.context.LoginContextHolder;
 import com.cloudhub.platform.space.domain.entity.Room;
 import com.cloudhub.platform.space.domain.entity.RoomLockRecord;
 import com.cloudhub.platform.space.mapper.RoomLockRecordMapper;
@@ -213,28 +215,27 @@ public class RoomService {
 
     // ========== Helpers ==========
 
-    private Long requiredLong(Map<String, Object> params, String key) {
-        Object v = params.get(key);
-        if (v == null) throw new BizException("缺少必填字段: " + key);
-        try {
-            return Long.valueOf(v.toString().trim());
-        } catch (NumberFormatException e) {
-            throw new BizException("字段类型错误: " + key);
-        }
+    private static Long requiredLong(Map<String, Object> params, String key) {
+        return ServiceUtils.requiredLong(params, key);
     }
 
-    private String requiredString(Map<String, Object> params, String key) {
-        Object v = params.get(key);
-        if (v == null || v.toString().isBlank()) throw new BizException("缺少必填字段: " + key);
-        return v.toString().trim();
+    private static String requiredString(Map<String, Object> params, String key) {
+        return ServiceUtils.requiredString(params, key);
     }
 
     /**
-     * 当前租户 ID (从 platform-common TenantContextHolder 取, 未设置时默认 1L)
+     * 当前租户 ID (委托 ServiceUtils)
      */
-    private Long currentTenantId() {
-        Long tid = TenantContextHolder.getTenantId();
-        return tid != null ? tid : 1L;
+    private static Long currentTenantId() {
+        return ServiceUtils.currentTenantId();
+    }
+
+    /**
+     * 获取当前操作人 (优先取 LoginContextHolder, 兜底 "system")
+     */
+    private String getCurrentOperator() {
+        String username = LoginContextHolder.getUsername();
+        return username != null ? username : "system";
     }
 
     /**
@@ -306,7 +307,7 @@ public class RoomService {
     }
 
     /**
-     * 批量更新租售控制
+     * 批量更新租售控制 (单条 UPDATE ... WHERE id IN (...))
      */
     @Transactional
     public Result<Void> batchUpdateControl(List<Long> ids, Integer rentingSelling,
@@ -314,15 +315,13 @@ public class RoomService {
         if (ids == null || ids.isEmpty()) {
             throw new BizException("请选择要更新的房间");
         }
-        for (Long id : ids) {
-            Room r = roomMapper.selectById(id);
-            if (r == null) continue;
-            if (r.getDeleted() != null && r.getDeleted() == 1) continue;
-            if (rentingSelling != null) r.setRentingSelling(rentingSelling);
-            if (leasePrice != null) r.setLeasePrice(leasePrice);
-            if (salePrice != null) r.setSalePrice(salePrice);
-            roomMapper.updateById(r);
-        }
+        Room update = new Room();
+        if (rentingSelling != null) update.setRentingSelling(rentingSelling);
+        if (leasePrice != null) update.setLeasePrice(leasePrice);
+        if (salePrice != null) update.setSalePrice(salePrice);
+        roomMapper.update(update, new LambdaUpdateWrapper<Room>()
+                .in(Room::getId, ids)
+                .eq(Room::getDeleted, 0));
         log.info("[RoomService] batchUpdateControl: ids={}, rentingSelling={}", ids.size(), rentingSelling);
         return Result.ok();
     }
@@ -333,24 +332,29 @@ public class RoomService {
 
     /**
      * 锁定房间 (同时写锁定记录)
+     * <p>使用 DB 级乐观锁 (UPDATE ... WHERE is_lock=0) 防止并发重复锁定.</p>
      */
     @Transactional
     public Result<Void> lockRoom(Long roomId, Long enterpriseId, String enterpriseName,
                                   String reason, Integer days) {
         Room r = roomMapper.selectById(roomId);
         if (r == null) throw new BizException("房源不存在");
-        if (r.getIsLock() != null && r.getIsLock() == 1) {
+
+        // DB 级乐观锁: 只有 is_lock=0 或 null 时才能更新为 1
+        int affected = roomMapper.update(null, new LambdaUpdateWrapper<Room>()
+                .set(Room::getIsLock, 1)
+                .eq(Room::getId, roomId)
+                .and(w -> w.eq(Room::getIsLock, 0).or().isNull(Room::getIsLock)));
+        if (affected == 0) {
             throw new BizException("房间已被锁定");
         }
-        r.setIsLock(1);
-        roomMapper.updateById(r);
 
         RoomLockRecord record = new RoomLockRecord();
         record.setRoomId(roomId);
         record.setIsLock(1);
         record.setEnterpriseId(enterpriseId);
         record.setEnterpriseName(enterpriseName);
-        record.setOperator("system");
+        record.setOperator(getCurrentOperator());
         record.setReason(reason);
         record.setDays(days);
         record.setParkId(r.getParkId());
@@ -363,21 +367,26 @@ public class RoomService {
 
     /**
      * 解锁房间 (同时写解锁记录)
+     * <p>使用 DB 级乐观锁 (UPDATE ... WHERE is_lock=1) 防止并发重复解锁.</p>
      */
     @Transactional
     public Result<Void> unlockRoom(Long roomId, String reason) {
         Room r = roomMapper.selectById(roomId);
         if (r == null) throw new BizException("房源不存在");
-        if (r.getIsLock() == null || r.getIsLock() == 0) {
+
+        // DB 级乐观锁: 只有 is_lock=1 时才能更新为 0
+        int affected = roomMapper.update(null, new LambdaUpdateWrapper<Room>()
+                .set(Room::getIsLock, 0)
+                .eq(Room::getId, roomId)
+                .eq(Room::getIsLock, 1));
+        if (affected == 0) {
             throw new BizException("房间未锁定");
         }
-        r.setIsLock(0);
-        roomMapper.updateById(r);
 
         RoomLockRecord record = new RoomLockRecord();
         record.setRoomId(roomId);
         record.setIsLock(0);
-        record.setOperator("system");
+        record.setOperator(getCurrentOperator());
         record.setReason(reason);
         record.setParkId(r.getParkId());
         record.setTenantId(currentTenantId());
@@ -389,16 +398,17 @@ public class RoomService {
 
     // ========== Batch ops for Split/Merge ==========
 
+    /**
+     * 批量软删除 (单条 UPDATE ... WHERE id IN (...))
+     */
     @Transactional
     public void batchSoftDelete(List<Long> ids) {
-        for (Long id : ids) {
-            Room r = roomMapper.selectById(id);
-            if (r != null && r.getDeleted() != 1) {
-                r.setDeleted(1);
-                roomMapper.updateById(r);
-            }
-        }
-        log.info("[RoomService] batchSoftDelete: ids={}", ids);
+        if (ids == null || ids.isEmpty()) return;
+        roomMapper.update(null, new LambdaUpdateWrapper<Room>()
+                .set(Room::getDeleted, 1)
+                .in(Room::getId, ids)
+                .eq(Room::getDeleted, 0));
+        log.info("[RoomService] batchSoftDelete: ids={}", ids.size());
     }
 
     public List<Room> listByIds(List<Long> ids) {
@@ -413,7 +423,7 @@ public class RoomService {
     }
 
     public boolean isRoomInUse(Room r) {
-        return RoomStatus.RENTED.matches(r.getStatus());
+        return RoomStatus.RENTED.matches(r.getStatus()) || RoomStatus.RENOVATING.matches(r.getStatus());
     }
 
     @Transactional
