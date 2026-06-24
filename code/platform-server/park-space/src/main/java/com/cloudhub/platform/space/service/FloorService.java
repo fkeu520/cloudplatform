@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Floor;
 import com.cloudhub.platform.space.mapper.FloorMapper;
 import lombok.RequiredArgsConstructor;
@@ -82,16 +83,12 @@ public class FloorService {
         f.setParkId(parkId);
         f.setBuildingId(buildingId);
         f.setFloorName(floorName);
-        f.setSerialCode(params.get("serialCode") != null
-                ? ((Number) params.get("serialCode")).intValue() : null);
-        f.setFloorCategory(params.get("floorCategory") != null
-                ? ((Number) params.get("floorCategory")).intValue() : 0);
+        f.setSerialCode(ServiceUtils.toInt(params.get("serialCode")));
+        f.setFloorCategory(ServiceUtils.toIntOrDefault(params.get("floorCategory"), 0));
         f.setCoefficient(params.get("coefficient") != null
                 ? new BigDecimal(params.get("coefficient").toString()) : new BigDecimal("1.00"));
-        f.setSorting(params.get("sorting") != null
-                ? ((Number) params.get("sorting")).intValue() : 0);
-        f.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+        f.setSorting(ServiceUtils.toIntOrDefault(params.get("sorting"), 0));
+        f.setStatus(ServiceUtils.toIntOrDefault(params.get("status"), 1));
         f.setTenantId(currentTenantId());
 
         floorMapper.insert(f);
@@ -107,9 +104,19 @@ public class FloorService {
         if (f == null) throw new BizException("楼层不存在");
         if (f.getDeleted() != null && f.getDeleted() == 1) throw new BizException("楼层已删除");
 
+        // 园区变更: 支持从其他园区迁入 (前端 el-select 改动)
+        if (params.containsKey("parkId")) {
+            f.setParkId(ServiceUtils.toLong(params.get("parkId")));
+        }
+        // 楼栋变更: 支持换楼栋 (新楼栋可能在同园区或不同园区)
+        if (params.containsKey("buildingId")) {
+            f.setBuildingId(ServiceUtils.toLong(params.get("buildingId")));
+        }
+
         if (params.containsKey("floorName")) {
             String newName = (String) params.get("floorName");
             if (newName != null && !newName.isBlank()) {
+                // 名称变更: 重新校验唯一性 (按当前 buildingId)
                 Long count = floorMapper.selectCount(new LambdaQueryWrapper<Floor>()
                         .eq(Floor::getBuildingId, f.getBuildingId())
                         .eq(Floor::getFloorName, newName)
@@ -122,18 +129,18 @@ public class FloorService {
             }
         }
         if (params.containsKey("serialCode"))
-            f.setSerialCode(((Number) params.get("serialCode")).intValue());
+            f.setSerialCode(ServiceUtils.toInt(params.get("serialCode")));
         if (params.containsKey("floorCategory"))
-            f.setFloorCategory(((Number) params.get("floorCategory")).intValue());
+            f.setFloorCategory(ServiceUtils.toInt(params.get("floorCategory")));
         if (params.containsKey("coefficient"))
             f.setCoefficient(new BigDecimal(params.get("coefficient").toString()));
         if (params.containsKey("sorting"))
-            f.setSorting(((Number) params.get("sorting")).intValue());
+            f.setSorting(ServiceUtils.toInt(params.get("sorting")));
         if (params.containsKey("status"))
-            f.setStatus(((Number) params.get("status")).intValue());
+            f.setStatus(ServiceUtils.toInt(params.get("status")));
 
         floorMapper.updateById(f);
-        log.info("[FloorService] update: id={}", id);
+        log.info("[FloorService] update: id={}, parkId={}, buildingId={}", id, f.getParkId(), f.getBuildingId());
         return Result.ok();
     }
 

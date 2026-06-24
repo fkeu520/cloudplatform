@@ -142,9 +142,9 @@ public class RoomService {
             throw new BizException("停用状态的房源不可修改");
         }
 
-        if (params.containsKey("parkId")) r.setParkId(((Number) params.get("parkId")).longValue());
-        if (params.containsKey("buildingId")) r.setBuildingId(((Number) params.get("buildingId")).longValue());
-        if (params.containsKey("floor")) r.setFloor(((Number) params.get("floor")).intValue());
+        if (params.containsKey("parkId")) r.setParkId(ServiceUtils.toLong(params.get("parkId")));
+        if (params.containsKey("buildingId")) r.setBuildingId(ServiceUtils.toLong(params.get("buildingId")));
+        if (params.containsKey("floor")) r.setFloor(ServiceUtils.toInt(params.get("floor")));
         if (params.containsKey("roomNo")) r.setRoomNo((String) params.get("roomNo"));
         if (params.containsKey("roomType")) r.setRoomType((String) params.get("roomType"));
         if (params.containsKey("areaCovered")) r.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));

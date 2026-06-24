@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.LandNature;
 import com.cloudhub.platform.space.mapper.LandNatureMapper;
 import lombok.RequiredArgsConstructor;
@@ -75,7 +76,7 @@ public class LandNatureService {
         l.setLandNatureCode((String) params.get("landNatureCode"));
         l.setColor((String) params.get("color"));
         l.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         l.setTenantId(currentTenantId());
 
         landNatureMapper.insert(l);
@@ -111,7 +112,7 @@ public class LandNatureService {
         if (params.containsKey("color"))
             l.setColor((String) params.get("color"));
         if (params.containsKey("status"))
-            l.setStatus(((Number) params.get("status")).intValue());
+            l.setStatus(ServiceUtils.toInt(params.get("status")));
 
         landNatureMapper.updateById(l);
         log.info("[LandNatureService] update: id={}", id);

@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.property.domain.entity.Building;
 import com.cloudhub.platform.property.mapper.BuildingMapper;
 import lombok.RequiredArgsConstructor;
@@ -83,13 +84,13 @@ public class BuildingService {
         b.setParkId(parkId);
         b.setBuildingNo(buildingNo);
         b.setBuildingName((String) params.get("buildingName"));
-        b.setFloors(params.get("floors") != null ? ((Number) params.get("floors")).intValue() : 1);
+        b.setFloors(ServiceUtils.toIntOrDefault(params.get("floors"), 1));
         b.setTotalArea(params.get("totalArea") != null ? new BigDecimal(params.get("totalArea").toString()) : null);
-        b.setBuildYear(params.get("buildYear") != null ? ((Number) params.get("buildYear")).intValue() : null);
+        b.setBuildYear(ServiceUtils.toInt(params.get("buildYear")));
         b.setManager((String) params.get("manager"));
         b.setManagerPhone((String) params.get("managerPhone"));
         b.setRemark((String) params.get("remark"));
-        b.setStatus(params.get("status") != null ? ((Number) params.get("status")).intValue() : 1);
+        b.setStatus(ServiceUtils.toIntOrDefault(params.get("status"), 1));
         b.setTenantId(currentTenantId());
 
         buildingMapper.insert(b);
@@ -105,18 +106,23 @@ public class BuildingService {
         if (b == null) throw new BizException("楼宇不存在");
         if (b.getDeleted() != null && b.getDeleted() == 1) throw new BizException("楼宇已删除");
 
+        // 园区变更: 支持跨园区迁移 (前端 el-select 改动)
+        // 园区变更后, 现有 buildingNo 在新园区可能冲突, 下面统一重新校验
+        if (params.containsKey("parkId")) {
+            b.setParkId(ServiceUtils.toLong(params.get("parkId")));
+        }
         if (params.containsKey("buildingNo")) b.setBuildingNo((String) params.get("buildingNo"));
         if (params.containsKey("buildingName")) b.setBuildingName((String) params.get("buildingName"));
-        if (params.containsKey("floors")) b.setFloors(((Number) params.get("floors")).intValue());
+        if (params.containsKey("floors")) b.setFloors(ServiceUtils.toInt(params.get("floors")));
         if (params.containsKey("totalArea")) b.setTotalArea(new BigDecimal(params.get("totalArea").toString()));
-        if (params.containsKey("buildYear")) b.setBuildYear(((Number) params.get("buildYear")).intValue());
+        if (params.containsKey("buildYear")) b.setBuildYear(ServiceUtils.toInt(params.get("buildYear")));
         if (params.containsKey("manager")) b.setManager((String) params.get("manager"));
         if (params.containsKey("managerPhone")) b.setManagerPhone((String) params.get("managerPhone"));
         if (params.containsKey("remark")) b.setRemark((String) params.get("remark"));
-        if (params.containsKey("status")) b.setStatus(((Number) params.get("status")).intValue());
+        if (params.containsKey("status")) b.setStatus(ServiceUtils.toInt(params.get("status")));
 
-        // 编号变更: 重新校验唯一性
-        if (params.containsKey("buildingNo")) {
+        // 编号或园区变更: 都要重新校验 buildingNo 在当前 parkId 下的唯一性
+        if (params.containsKey("buildingNo") || params.containsKey("parkId")) {
             Long count = buildingMapper.selectCount(new LambdaQueryWrapper<Building>()
                     .eq(Building::getParkId, b.getParkId())
                     .eq(Building::getBuildingNo, b.getBuildingNo())
@@ -128,7 +134,7 @@ public class BuildingService {
         }
 
         buildingMapper.updateById(b);
-        log.info("[BuildingService] update: id={}", id);
+        log.info("[BuildingService] update: id={}, parkId={}", id, b.getParkId());
         return Result.ok();
     }
 
@@ -152,8 +158,7 @@ public class BuildingService {
     private Long requiredLong(Map<String, Object> params, String key) {
         Object v = params.get(key);
         if (v == null) throw new BizException("缺少必填字段: " + key);
-        if (!(v instanceof Number)) throw new BizException("字段类型错误: " + key);
-        return ((Number) v).longValue();
+        return ServiceUtils.toLong(v);
     }
 
     private String requiredString(Map<String, Object> params, String key) {

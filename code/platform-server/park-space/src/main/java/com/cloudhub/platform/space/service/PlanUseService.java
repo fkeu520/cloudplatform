@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.PlanUse;
 import com.cloudhub.platform.space.mapper.PlanUseMapper;
 import lombok.RequiredArgsConstructor;
@@ -75,7 +76,7 @@ public class PlanUseService {
         p.setPlanUseCode((String) params.get("planUseCode"));
         p.setColor((String) params.get("color"));
         p.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         p.setTenantId(currentTenantId());
 
         planUseMapper.insert(p);
@@ -110,7 +111,7 @@ public class PlanUseService {
         if (params.containsKey("color"))
             p.setColor((String) params.get("color"));
         if (params.containsKey("status"))
-            p.setStatus(((Number) params.get("status")).intValue());
+            p.setStatus(ServiceUtils.toInt(params.get("status")));
 
         planUseMapper.updateById(p);
         log.info("[PlanUseService] update: id={}", id);

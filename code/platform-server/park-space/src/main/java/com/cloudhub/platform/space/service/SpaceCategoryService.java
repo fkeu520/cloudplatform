@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.SpaceCategory;
 import com.cloudhub.platform.space.mapper.SpaceCategoryMapper;
 import lombok.RequiredArgsConstructor;
@@ -74,7 +75,7 @@ public class SpaceCategoryService {
         sc.setTypeName(typeName);
         sc.setTypeDescribe((String) params.get("typeDescribe"));
         sc.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 1);
+                ? ServiceUtils.toInt(params.get("status")) : 1);
         sc.setTenantId(currentTenantId());
 
         spaceCategoryMapper.insert(sc);
@@ -107,7 +108,7 @@ public class SpaceCategoryService {
         if (params.containsKey("typeDescribe"))
             sc.setTypeDescribe((String) params.get("typeDescribe"));
         if (params.containsKey("status"))
-            sc.setStatus(((Number) params.get("status")).intValue());
+            sc.setStatus(ServiceUtils.toInt(params.get("status")));
 
         spaceCategoryMapper.updateById(sc);
         log.info("[SpaceCategoryService] update: id={}", id);

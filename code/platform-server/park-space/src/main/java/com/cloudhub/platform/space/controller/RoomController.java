@@ -2,6 +2,7 @@ package com.cloudhub.platform.space.controller;
 
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.Room;
 import com.cloudhub.platform.space.service.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -138,8 +139,7 @@ public class RoomController {
         @SuppressWarnings("unchecked")
         List<Number> rawIds = (List<Number>) params.get("ids");
         List<Long> ids = rawIds != null ? rawIds.stream().map(Number::longValue).toList() : null;
-        Integer rentingSelling = params.get("rentingSelling") != null
-                ? ((Number) params.get("rentingSelling")).intValue() : null;
+        Integer rentingSelling = ServiceUtils.toInt(params.get("rentingSelling"));
         BigDecimal leasePrice = params.get("leasePrice") != null
                 ? new BigDecimal(params.get("leasePrice").toString()) : null;
         BigDecimal salePrice = params.get("salePrice") != null
@@ -150,20 +150,18 @@ public class RoomController {
     @Operation(summary = "锁定房间")
     @PostMapping("/control/lock")
     public Result<Void> lockRoom(@RequestBody Map<String, Object> params) {
-        Long roomId = ((Number) params.get("roomId")).longValue();
-        Long enterpriseId = params.get("enterpriseId") != null
-                ? ((Number) params.get("enterpriseId")).longValue() : null;
+        Long roomId = ServiceUtils.toLong(params.get("roomId"));
+        Long enterpriseId = ServiceUtils.toLong(params.get("enterpriseId"));
         String enterpriseName = (String) params.get("enterpriseName");
         String reason = (String) params.get("reason");
-        Integer days = params.get("days") != null
-                ? ((Number) params.get("days")).intValue() : null;
+        Integer days = ServiceUtils.toInt(params.get("days"));
         return roomService.lockRoom(roomId, enterpriseId, enterpriseName, reason, days);
     }
 
     @Operation(summary = "解锁房间")
     @PostMapping("/control/unlock")
     public Result<Void> unlockRoom(@RequestBody Map<String, Object> params) {
-        Long roomId = ((Number) params.get("roomId")).longValue();
+        Long roomId = ServiceUtils.toLong(params.get("roomId"));
         String reason = (String) params.get("reason");
         return roomService.unlockRoom(roomId, reason);
     }

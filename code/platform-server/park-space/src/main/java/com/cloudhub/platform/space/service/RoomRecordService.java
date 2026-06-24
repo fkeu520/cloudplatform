@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.base.util.ServiceUtils;
 import com.cloudhub.platform.space.domain.entity.RoomRecord;
 import com.cloudhub.platform.space.mapper.RoomRecordMapper;
 import lombok.RequiredArgsConstructor;
@@ -65,13 +66,13 @@ public class RoomRecordService {
         r.setParkId(parkId);
         r.setRoomId(roomId);
         r.setCustomerId(params.get("customerId") != null
-                ? ((Number) params.get("customerId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("customerId")) : null);
         r.setCovenantId(params.get("covenantId") != null
-                ? ((Number) params.get("covenantId")).longValue() : null);
+                ? ServiceUtils.toLong(params.get("covenantId")) : null);
         r.setCovenantType(params.get("covenantType") != null
-                ? ((Number) params.get("covenantType")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("covenantType")) : 0);
         r.setStatus(params.get("status") != null
-                ? ((Number) params.get("status")).intValue() : 0);
+                ? ServiceUtils.toInt(params.get("status")) : 0);
         r.setTenantId(currentTenantId());
 
         roomRecordMapper.insert(r);
