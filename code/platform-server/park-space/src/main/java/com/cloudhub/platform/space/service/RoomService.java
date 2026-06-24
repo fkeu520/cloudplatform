@@ -7,6 +7,8 @@ import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.space.domain.entity.Room;
+import com.cloudhub.platform.space.domain.entity.RoomLockRecord;
+import com.cloudhub.platform.space.mapper.RoomLockRecordMapper;
 import com.cloudhub.platform.space.mapper.RoomMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -256,6 +258,133 @@ public class RoomService {
         boolean available = count == null || count == 0;
         log.info("[RoomService] checkNo parkId={}, buildingId={}, roomNo={} -> available={}", parkId, buildingId, roomNo, available);
         return Result.ok(available);
+    }
+
+    // ========== 租售控制 ==========
+
+    /**
+     * 分页查询房源 (含租售控制筛选)
+     */
+    public Result<PageResult<Room>> controlPage(Long parkId, Long buildingId, Long floorId,
+                                                 Integer rentingSelling, Integer isLock,
+                                                 String keyword, int pageNum, int pageSize) {
+        LambdaQueryWrapper<Room> w = new LambdaQueryWrapper<Room>()
+                .eq(Room::getDeleted, 0);
+        if (parkId != null) w.eq(Room::getParkId, parkId);
+        if (buildingId != null) w.eq(Room::getBuildingId, buildingId);
+        if (floorId != null) w.eq(Room::getFloorId, floorId);
+        if (rentingSelling != null) w.eq(Room::getRentingSelling, rentingSelling);
+        if (isLock != null) w.eq(Room::getIsLock, isLock);
+        if (keyword != null && !keyword.isBlank()) {
+            w.like(Room::getRoomNo, keyword).or(w2 -> w2.like(Room::getRoomName, keyword));
+        }
+        w.orderByAsc(Room::getFloor).orderByAsc(Room::getRoomNo);
+
+        Page<Room> p = roomMapper.selectPage(new Page<>(pageNum, pageSize), w);
+        PageResult<Room> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
+        return Result.ok(result);
+    }
+
+    /**
+     * 单个房间租售控制更新 (只更新租房售相关字段)
+     */
+    @Transactional
+    public Result<Void> updateControl(Long id, Integer rentingSelling,
+                                       BigDecimal leasePrice, BigDecimal salePrice,
+                                       Integer isOrder) {
+        Room r = roomMapper.selectById(id);
+        if (r == null) throw new BizException("房源不存在");
+        if (r.getDeleted() != null && r.getDeleted() == 1) throw new BizException("房源已删除");
+
+        if (rentingSelling != null) r.setRentingSelling(rentingSelling);
+        if (leasePrice != null) r.setLeasePrice(leasePrice);
+        if (salePrice != null) r.setSalePrice(salePrice);
+        if (isOrder != null) r.setIsOrder(isOrder);
+        roomMapper.updateById(r);
+        log.info("[RoomService] updateControl: id={}, rentingSelling={}", id, rentingSelling);
+        return Result.ok();
+    }
+
+    /**
+     * 批量更新租售控制
+     */
+    @Transactional
+    public Result<Void> batchUpdateControl(List<Long> ids, Integer rentingSelling,
+                                            BigDecimal leasePrice, BigDecimal salePrice) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BizException("请选择要更新的房间");
+        }
+        for (Long id : ids) {
+            Room r = roomMapper.selectById(id);
+            if (r == null) continue;
+            if (r.getDeleted() != null && r.getDeleted() == 1) continue;
+            if (rentingSelling != null) r.setRentingSelling(rentingSelling);
+            if (leasePrice != null) r.setLeasePrice(leasePrice);
+            if (salePrice != null) r.setSalePrice(salePrice);
+            roomMapper.updateById(r);
+        }
+        log.info("[RoomService] batchUpdateControl: ids={}, rentingSelling={}", ids.size(), rentingSelling);
+        return Result.ok();
+    }
+
+    // ========== 房间锁定/解锁 ==========
+
+    private final RoomLockRecordMapper roomLockRecordMapper;
+
+    /**
+     * 锁定房间 (同时写锁定记录)
+     */
+    @Transactional
+    public Result<Void> lockRoom(Long roomId, Long enterpriseId, String enterpriseName,
+                                  String reason, Integer days) {
+        Room r = roomMapper.selectById(roomId);
+        if (r == null) throw new BizException("房源不存在");
+        if (r.getIsLock() != null && r.getIsLock() == 1) {
+            throw new BizException("房间已被锁定");
+        }
+        r.setIsLock(1);
+        roomMapper.updateById(r);
+
+        RoomLockRecord record = new RoomLockRecord();
+        record.setRoomId(roomId);
+        record.setIsLock(1);
+        record.setEnterpriseId(enterpriseId);
+        record.setEnterpriseName(enterpriseName);
+        record.setOperator("system");
+        record.setReason(reason);
+        record.setDays(days);
+        record.setParkId(r.getParkId());
+        record.setTenantId(currentTenantId());
+        roomLockRecordMapper.insert(record);
+
+        log.info("[RoomService] lockRoom: roomId={}, reason={}", roomId, reason);
+        return Result.ok();
+    }
+
+    /**
+     * 解锁房间 (同时写解锁记录)
+     */
+    @Transactional
+    public Result<Void> unlockRoom(Long roomId, String reason) {
+        Room r = roomMapper.selectById(roomId);
+        if (r == null) throw new BizException("房源不存在");
+        if (r.getIsLock() == null || r.getIsLock() == 0) {
+            throw new BizException("房间未锁定");
+        }
+        r.setIsLock(0);
+        roomMapper.updateById(r);
+
+        RoomLockRecord record = new RoomLockRecord();
+        record.setRoomId(roomId);
+        record.setIsLock(0);
+        record.setOperator("system");
+        record.setReason(reason);
+        record.setParkId(r.getParkId());
+        record.setTenantId(currentTenantId());
+        roomLockRecordMapper.insert(record);
+
+        log.info("[RoomService] unlockRoom: roomId={}, reason={}", roomId, reason);
+        return Result.ok();
     }
 
     // ========== Batch ops for Split/Merge ==========

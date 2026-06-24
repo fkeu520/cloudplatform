@@ -87,6 +87,23 @@ public class Room extends BaseEntity {
     /** 房间介绍 (csyh introduce) */
     private String introduce;
 
+    // ===== V40 租售控制字段 =====
+
+    /** 租售状态: 0=可租 1=可售 2=可租售 3=自用 */
+    private Integer rentingSelling;
+
+    /** 租价 (元/㎡/天, csyh leasePrice) */
+    private BigDecimal leasePrice;
+
+    /** 售价 (元/㎡, csyh salePrice) */
+    private BigDecimal salePrice;
+
+    /** 是否锁定: 0=否 1=是 (锁定后不可操作) */
+    private Integer isLock;
+
+    /** 是否预定: 0=否 1=是 */
+    private Integer isOrder;
+
     // ===== 旧字段 =====
 
     /** 类型: OFFICE / MEETING / STORAGE / PARKING (csyh roomType) */
