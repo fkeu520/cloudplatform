@@ -12,6 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: ['.monkeycode-ai.online'], // F8: 允许反向代理 host
     proxy: {
       // 统一走 API 网关（需先启动 Docker 中的 platform-gateway）
       '/api': {

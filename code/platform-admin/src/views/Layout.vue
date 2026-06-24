@@ -68,7 +68,8 @@
 
         <el-dropdown @command="handleCommand">
           <span class="user-info">
-            <el-avatar :size="32" src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" />
+            <!-- F7: 使用用户头像（如有），否则用空白默认头像避免 CDN 破图 -->
+            <el-avatar :size="32" :src="avatarSrc" @error="onAvatarError">{{ avatarInitial }}</el-avatar>
             <span class="username">{{ userStore.userInfo?.username || '管理员' }}</span>
           </span>
           <template #dropdown>
@@ -124,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import { Bell, ArrowRight } from '@element-plus/icons-vue'
@@ -146,6 +147,11 @@ const activeApp = ref<string>('')          // 当前选中的 app (顶部 tab)
 const appsLoaded = ref<boolean>(false)     // app 列表是否已加载 (用于空状态判断)
 
 const username = localStorage.getItem('username') || 'admin'
+
+// F7: 头像——优先使用用户头像 URL，否则显示首字
+const avatarSrc = computed(() => userStore.userInfo?.avatar || '')
+const avatarInitial = computed(() => (userStore.userInfo?.nickname || userStore.userInfo?.username || '管')[0])
+function onAvatarError() { /* fallback: initials displayed via {{ avatarInitial }} */ }
 
 // 通知相关 (保留原有逻辑)
 const notifyCount = ref(0)
