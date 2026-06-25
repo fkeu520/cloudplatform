@@ -36,7 +36,7 @@ const searchForm = reactive({
 // 弹窗
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formRef = ref()
 
@@ -71,7 +71,7 @@ const formRules = {
 
 // 设备清单 (el-table inline edit)
 interface EquipmentRow {
-  id?: number
+  id?: string
   equipmentName?: string
   model?: string
   amount?: number
@@ -140,7 +140,7 @@ async function handleAdd() {
 async function handleEdit(k: Kit) {
   resetForm()
   dialogMode.value = 'edit'
-  editingId.value = k.id || null
+  editingId.value = k.id != null ? String(k.id) : null
   try {
     const res: any = await getKitById(k.id!)
     if (res.code === 200) Object.assign(form, defaultForm(), res.data)
@@ -193,7 +193,7 @@ async function handleSubmit() {
   try {
     // 自动计算 amount = 设备清单条目数 (csyh 行为)
     const payload = { ...form, amount: equipmentList.value.length }
-    let kitId: number | null = null
+    let kitId: string | null = null
     if (dialogMode.value === 'edit' && editingId.value) {
       const res: any = await updateKit(editingId.value, payload)
       if (res.code !== 200) {
@@ -201,26 +201,39 @@ async function handleSubmit() {
         return
       }
       kitId = editingId.value
-      ElMessage.success('更新成功')
     } else {
       const res: any = await createKit(payload)
       if (res.code !== 200) {
         ElMessage.error(res.msg || '新增失败')
         return
       }
-      kitId = res.data  // 后端返回新建的 kit ID
-      ElMessage.success('新增成功')
+      // 后端可能返回 string (BaseEntity.@JsonFormat(STRING)) 或 number
+      kitId = res.data != null ? String(res.data) : null
     }
-    // 保存设备清单
+    // 保存设备清单 - 关键: 必须等设备保存成功后再关 dialog
     if (kitId && equipmentList.value.length > 0) {
-      const eqRes: any = await batchSaveByKit(kitId, equipmentList.value)
+      // 移除 id 为 undefined 的字段, 后端只需要 id 有值的字段作为更新依据
+      const eqPayload = equipmentList.value.map((e) => ({
+        id: e.id,
+        equipmentName: e.equipmentName,
+        model: e.model || '',
+        amount: e.amount ?? 1,
+        status: e.status ?? 1,
+      }))
+      const eqRes: any = await batchSaveByKit(kitId, eqPayload)
       if (eqRes.code !== 200) {
-        ElMessage.warning('配套已保存, 但设备清单保存失败: ' + (eqRes.msg || ''))
+        // 设备保存失败 -> 阻止关闭 dialog, 让用户看到错误
+        ElMessage.error('设备清单保存失败: ' + (eqRes.msg || '未知错误') + ' (配套已保存)')
+        submitting.value = false
+        return
       }
     }
+    // 全部成功后才提示成功 + 关闭 dialog + 刷新
+    ElMessage.success(dialogMode.value === 'edit' ? '更新成功' : '新增成功')
     dialogVisible.value = false
     await loadData()
   } catch (e: any) {
+    console.error('[kit handleSubmit] error', e)
     if (e?.msg) ElMessage.error(e.msg)
   } finally {
     submitting.value = false
