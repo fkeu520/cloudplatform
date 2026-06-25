@@ -79,7 +79,7 @@ public class EquipmentService {
                 .eq(Equipment::getEquipmentName, equipmentName)
                 .eq(Equipment::getDeleted, 0));
         if (count != null && count > 0) {
-            throw new BizException("园区 " + parkId + " 已存在设备 " + equipmentName);
+            throw new BizException("该配套下已存在设备 " + equipmentName + "，请直接调整数量");
         }
 
         Equipment e = new Equipment();
@@ -115,7 +115,7 @@ public class EquipmentService {
                         .ne(Equipment::getId, id)
                         .eq(Equipment::getDeleted, 0));
                 if (count != null && count > 0) {
-                    throw new BizException("园区 " + e.getParkId() + " 已存在设备 " + newName);
+                    throw new BizException("该配套下已存在设备 " + newName + "，请直接调整数量");
                 }
                 e.setEquipmentName(newName);
             }
@@ -174,7 +174,7 @@ public class EquipmentService {
             }
             Long dupCount = equipmentMapper.selectCount(dw);
             if (dupCount != null && dupCount > 0) {
-                throw new BizException("已存在同名设备: " + name);
+                throw new BizException("该配套下已存在设备 " + name + "，请直接调整数量");
             }
         }
 
