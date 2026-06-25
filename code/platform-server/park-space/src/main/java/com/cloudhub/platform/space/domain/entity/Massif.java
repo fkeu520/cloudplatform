@@ -3,6 +3,7 @@ package com.cloudhub.platform.space.domain.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -39,9 +40,11 @@ public class Massif extends BaseEntity {
     private Integer useYear;
 
     /** 土地性质 ID (关联 sys_land_nature.id) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long landNatureId;
 
     /** 规划用途 ID (关联 sys_plan_use.id) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long planUseId;
 
     /** 资产类型 */
@@ -57,6 +60,7 @@ public class Massif extends BaseEntity {
     private Integer status;
 
     /** 园区 ID */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 园区名称 (非数据库字段, 前端展示用) */

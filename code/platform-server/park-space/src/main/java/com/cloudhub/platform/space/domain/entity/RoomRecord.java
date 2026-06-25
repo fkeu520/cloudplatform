@@ -3,6 +3,7 @@ package com.cloudhub.platform.space.domain.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -19,12 +20,15 @@ public class RoomRecord extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 房间 ID (关联 sys_room.id) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long roomId;
 
     /** 客户 ID (跨模块引用) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long customerId;
 
     /** 合同 ID (跨模块引用 park-contract) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long covenantId;
 
     /** 合同类型: 0=租赁 1=销售 2=其他 */
@@ -34,6 +38,7 @@ public class RoomRecord extends BaseEntity {
     private Integer status;
 
     /** 园区 ID */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 园区名称 (非数据库字段, 前端展示用) */

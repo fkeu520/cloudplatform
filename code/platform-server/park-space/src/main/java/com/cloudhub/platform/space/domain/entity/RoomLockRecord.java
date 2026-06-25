@@ -3,6 +3,7 @@ package com.cloudhub.platform.space.domain.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -20,12 +21,14 @@ public class RoomLockRecord extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 房间 ID (关联 sys_room.id) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long roomId;
 
     /** 是否锁定: 0=解锁 1=锁定 */
     private Integer isLock;
 
     /** 企业/客户 ID (跨模块引用) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long enterpriseId;
 
     /** 企业/客户名称 */
@@ -41,6 +44,7 @@ public class RoomLockRecord extends BaseEntity {
     private Integer days;
 
     /** 园区 ID */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 园区名称 (非数据库字段, 前端展示用) */

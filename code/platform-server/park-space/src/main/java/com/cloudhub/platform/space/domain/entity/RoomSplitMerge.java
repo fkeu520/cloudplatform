@@ -2,6 +2,7 @@ package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -17,6 +18,7 @@ public class RoomSplitMerge extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long userId;
 
     private String userName;
@@ -40,6 +42,7 @@ public class RoomSplitMerge extends BaseEntity {
 
     private Integer isExtend;
 
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     private Long tenantId;
