@@ -97,24 +97,24 @@ import { getSpaceCategoryPage } from '@/api/space-category'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, areaId: undefined as number | undefined, categoryId: undefined as number | undefined })
+const searchForm = reactive({ keyword: '', parkId: undefined as string | undefined, areaId: undefined as string | undefined, categoryId: undefined as string | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
-const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
-const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
-const areaOptions = ref<any[]>([]); const areaMap = ref<Record<number, string>>({})
-const categoryOptions = ref<any[]>([]); const categoryMap = ref<Record<number, string>>({})
+const currentId = ref<string | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
+const areaOptions = ref<any[]>([]); const areaMap = ref<Record<string, string>>({})
+const categoryOptions = ref<any[]>([]); const categoryMap = ref<Record<string, string>>({})
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
 }
 async function loadAreaOptions() {
-  try { const res: any = await getAreaPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { areaOptions.value = res.data.records || []; areaOptions.value.forEach((a: any) => areaMap.value[a.id] = a.areaName) } } catch { /* ignore */ }
+  try { const res: any = await getAreaPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { areaOptions.value = res.data.records || []; areaOptions.value.forEach((a: any) => areaMap.value[String(a.id)] = a.areaName) } } catch { /* ignore */ }
 }
 async function loadCategoryOptions() {
-  try { const res: any = await getSpaceCategoryPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { categoryOptions.value = res.data.records || []; categoryOptions.value.forEach((c: any) => categoryMap.value[c.id] = c.typeName) } } catch { /* ignore */ }
+  try { const res: any = await getSpaceCategoryPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { categoryOptions.value = res.data.records || []; categoryOptions.value.forEach((c: any) => categoryMap.value[String(c.id)] = c.typeName) } } catch { /* ignore */ }
 }
 
-const defaultForm = { parkId: undefined as number | undefined, spaceName: '', spaceDescribe: '', areaId: undefined as number | undefined, categoryId: undefined as number | undefined, status: 1 }
+const defaultForm = { parkId: undefined as string | undefined, spaceName: '', spaceDescribe: '', areaId: undefined as string | undefined, categoryId: undefined as string | undefined, status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
@@ -139,7 +139,7 @@ function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.va
 function handleAdd() { resetForm(); dialogTitle.value='新增空间'; dialogVisible.value=true }
 async function handleEdit(row: any) {
   resetForm(); isEdit.value=true; currentId.value=row.id; dialogTitle.value='编辑空间'
-  try { const res: any = await getSpaceById(row.id); if (res.code === 200) Object.assign(formData, res.data) } catch { ElMessage.error('获取详情失败') }
+  try { const res: any = await getSpaceById(row.id); if (res.code === 200) Object.assign(formData, { ...res.data, parkId: res.data.parkId != null ? String(res.data.parkId) : undefined, areaId: res.data.areaId != null ? String(res.data.areaId) : undefined, categoryId: res.data.categoryId != null ? String(res.data.categoryId) : undefined }) } catch { ElMessage.error('获取详情失败') }
   dialogVisible.value = true
 }
 async function handleSubmit() {

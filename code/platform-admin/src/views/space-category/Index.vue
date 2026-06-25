@@ -66,12 +66,12 @@ import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, status: undefined as number | undefined })
-const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
+const searchForm = reactive({ keyword: '', parkId: undefined as string | undefined, status: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
-const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const currentId = ref<string | null>(null); const submitting = ref(false); const formRef = ref()
 
-const defaultForm = { parkId: 1, typeName: '', typeDescribe: '', status: 1 }
+const defaultForm = { parkId: undefined as string | undefined, typeName: '', typeDescribe: '', status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
@@ -94,7 +94,7 @@ function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.va
 function handleAdd() { resetForm(); dialogTitle.value='新增空间类别'; dialogVisible.value=true }
 async function handleEdit(row: any) {
   resetForm(); isEdit.value=true; currentId.value=row.id; dialogTitle.value='编辑空间类别'
-  try { const res: any = await getSpaceCategoryById(row.id); if (res.code === 200) Object.assign(formData, res.data) } catch { ElMessage.error('获取详情失败') }
+  try { const res: any = await getSpaceCategoryById(row.id); if (res.code === 200) Object.assign(formData, { ...res.data, parkId: res.data.parkId != null ? String(res.data.parkId) : undefined }) } catch { ElMessage.error('获取详情失败') }
   dialogVisible.value = true
 }
 async function handleSubmit() {
@@ -119,7 +119,7 @@ async function handleDelete(row: any) {
 }
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
 }
 
 onMounted(() => { loadData(); loadParkOptions() })
