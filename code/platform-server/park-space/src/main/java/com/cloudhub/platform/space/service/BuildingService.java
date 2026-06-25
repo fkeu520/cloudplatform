@@ -1,4 +1,4 @@
-package com.cloudhub.platform.property.service;
+package com.cloudhub.platform.space.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -7,8 +7,8 @@ import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.park.common.base.util.ServiceUtils;
-import com.cloudhub.platform.property.domain.entity.Building;
-import com.cloudhub.platform.property.mapper.BuildingMapper;
+import com.cloudhub.platform.space.domain.entity.Building;
+import com.cloudhub.platform.space.mapper.BuildingMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,14 +18,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 /**
- * 园区楼宇 Service (park-property 业务)
- * <p>W3.2 阶段: 完整 CRUD (与 RoomService 模式对齐, 复用同一套范式).</p>
- * <p>W3+ 阶段:
- * <ul>
- *   <li>关联 sys_room: 查询某楼的所有房间 (1:N)</li>
- *   <li>关联 sys_contract: 楼宇入驻率统计</li>
- *   <li>工单系统: 报修/巡检记录</li>
- * </ul>
+ * 园区楼宇 Service (park-space 业务, 从 park-property 迁移)
  */
 @Slf4j
 @Service
@@ -43,8 +36,6 @@ public class BuildingService {
                                               int pageNum, int pageSize) {
         LambdaQueryWrapper<Building> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
-            // 注意: 直接 .or() 生成的 SQL 是 `A LIKE x OR B LIKE x`, AND 其他条件时
-            // 优先级会变成 `A LIKE x OR (B LIKE x AND ...)` 漏过滤. 必须用 and() 包装.
             w.and(w2 -> w2.like(Building::getBuildingNo, keyword)
                     .or().like(Building::getBuildingName, keyword));
         }
@@ -114,8 +105,6 @@ public class BuildingService {
         if (b == null) throw new BizException("楼宇不存在");
         if (b.getDeleted() != null && b.getDeleted() == 1) throw new BizException("楼宇已删除");
 
-        // 园区变更: 支持跨园区迁移 (前端 el-select 改动)
-        // 园区变更后, 现有 buildingNo 在新园区可能冲突, 下面统一重新校验
         if (params.containsKey("parkId")) {
             b.setParkId(ServiceUtils.toLong(params.get("parkId")));
         }
@@ -129,7 +118,7 @@ public class BuildingService {
         if (params.containsKey("remark")) b.setRemark((String) params.get("remark"));
         if (params.containsKey("status")) b.setStatus(ServiceUtils.toInt(params.get("status")));
 
-        // 编号或园区变更: 都要重新校验 buildingNo 在当前 parkId 下的唯一性
+        // 编号或园区变更: 重新校验 buildingNo 在当前 parkId 下的唯一性
         if (params.containsKey("buildingNo") || params.containsKey("parkId")) {
             Long count = buildingMapper.selectCount(new LambdaQueryWrapper<Building>()
                     .eq(Building::getParkId, b.getParkId())
@@ -181,10 +170,10 @@ public class BuildingService {
     }
 
     /**
-     * 校验同园区楼栋编号唯一性 (V36 唯一索引 uk_park_building_code)
+     * 校验同园区楼栋编号唯一性
      */
     public Result<Boolean> checkCode(Long parkId, String buildingCode, Long excludeId) {
-        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Building> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Building>()
+        LambdaQueryWrapper<Building> w = new LambdaQueryWrapper<Building>()
                 .eq(Building::getParkId, parkId)
                 .eq(Building::getBuildingCode, buildingCode)
                 .eq(Building::getDeleted, 0);

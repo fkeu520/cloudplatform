@@ -1,9 +1,9 @@
-package com.cloudhub.platform.property.controller;
+package com.cloudhub.platform.space.controller;
 
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
-import com.cloudhub.platform.property.domain.entity.Building;
-import com.cloudhub.platform.property.service.BuildingService;
+import com.cloudhub.platform.space.domain.entity.Building;
+import com.cloudhub.platform.space.service.BuildingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 园区楼宇 Controller (park-property 业务)
- * <p>W3.2 阶段: 完整 CRUD 端点.
- * 路由: 走 platform-gateway /building/** 规则 (待 W3.2 网关路由更新).</p>
+ * 园区楼宇 Controller (park-space 业务, 从 park-property 迁移)
+ * <p>路由: /building/** 由 platform-gateway 转发到 park-space</p>
  */
-@Tag(name = "园区楼宇", description = "park-property 业务 - 楼宇管理")
+@Tag(name = "园区楼宇", description = "park-space 业务 - 楼宇管理")
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/building")
