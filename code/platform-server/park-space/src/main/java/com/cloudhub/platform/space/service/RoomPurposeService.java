@@ -69,6 +69,7 @@ public class RoomPurposeService {
         p.setStatus(params.get("status") != null
                 ? ServiceUtils.toInt(params.get("status")) : 1);
         p.setTenantId(currentTenantId());
+        p.setBuiltIn(1); // 用户新增默认自定义 (可编辑删除)
 
         roomPurposeMapper.insert(p);
         log.info("[RoomPurposeService] create: id={}, purposeName={}", p.getId(), purposeName);
@@ -82,6 +83,7 @@ public class RoomPurposeService {
         RoomPurpose p = roomPurposeMapper.selectById(id);
         if (p == null) throw new BizException("房源用途不存在");
         if (p.getDeleted() != null && p.getDeleted() == 1) throw new BizException("房源用途已删除");
+        if (p.getBuiltIn() != null && p.getBuiltIn() == 0) throw new BizException("系统固化用途不可修改");
 
         if (params.containsKey("purposeName")) {
             String newName = (String) params.get("purposeName");
@@ -109,6 +111,7 @@ public class RoomPurposeService {
     public Result<Void> delete(Long id) {
         RoomPurpose p = roomPurposeMapper.selectById(id);
         if (p == null) throw new BizException("房源用途不存在");
+        if (p.getBuiltIn() != null && p.getBuiltIn() == 0) throw new BizException("系统固化用途不可删除");
         p.setDeleted(1);
         roomPurposeMapper.updateById(p);
         return Result.ok();
