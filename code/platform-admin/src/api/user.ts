@@ -55,7 +55,7 @@ export function getUserPage(params: {
   orgIds?: string
   deptId?: number
   postId?: number
-  tenantId?: number
+  tenantId?: string
   status?: number
   pageNum?: number
   pageSize?: number

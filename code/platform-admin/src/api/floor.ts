@@ -1,23 +1,23 @@
 import request from './request'
 
 export interface Floor {
-  id?: number
+  id?: string
   floorName?: string
   serialCode?: number
   floorCategory?: number
   coefficient?: number
   sorting?: number
   status?: number
-  parkId?: number
-  buildingId?: number
-  tenantId?: number
+  parkId?: string
+  buildingId?: string
+  tenantId?: string
   createTime?: string
 }
 
 export function getFloorPage(params: {
   keyword?: string
-  parkId?: number
-  buildingId?: number
+  parkId?: string
+  buildingId?: string
   status?: number
   pageNum?: number
   pageSize?: number
@@ -25,7 +25,7 @@ export function getFloorPage(params: {
   return request({ url: '/floor/page', method: 'get', params })
 }
 
-export function getFloorById(id: number) {
+export function getFloorById(id: string) {
   return request({ url: `/floor/${id}`, method: 'get' })
 }
 
@@ -33,14 +33,14 @@ export function createFloor(data: any) {
   return request({ url: '/floor', method: 'post', data })
 }
 
-export function updateFloor(id: number, data: any) {
+export function updateFloor(id: string, data: any) {
   return request({ url: `/floor/${id}`, method: 'put', data })
 }
 
-export function deleteFloor(id: number) {
+export function deleteFloor(id: string) {
   return request({ url: `/floor/${id}`, method: 'delete' })
 }
 
-export function listFloorByBuilding(buildingId: number) {
+export function listFloorByBuilding(buildingId: string) {
   return request({ url: `/floor/page-by-building/${buildingId}`, method: 'get' })
 }

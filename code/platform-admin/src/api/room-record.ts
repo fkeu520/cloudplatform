@@ -1,20 +1,20 @@
 import request from './request'
 
 export interface RoomRecord {
-  id?: number
-  roomId?: number
+  id?: string
+  roomId?: string
   customerId?: number
   covenantId?: number
   covenantType?: number
   status?: number
-  parkId?: number
-  tenantId?: number
+  parkId?: string
+  tenantId?: string
   createTime?: string
 }
 
 export function getRoomRecordPage(params: {
-  roomId?: number
-  parkId?: number
+  roomId?: string
+  parkId?: string
   status?: number
   pageNum?: number
   pageSize?: number
@@ -22,7 +22,7 @@ export function getRoomRecordPage(params: {
   return request({ url: '/room-record/page', method: 'get', params })
 }
 
-export function getRoomRecordById(id: number) {
+export function getRoomRecordById(id: string) {
   return request({ url: `/room-record/${id}`, method: 'get' })
 }
 

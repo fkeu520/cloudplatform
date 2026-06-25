@@ -1,21 +1,21 @@
 import request from './request'
 
 export interface Equipment {
-  id?: number
+  id?: string
   equipmentName?: string
   model?: string
   amount?: number
-  kitId?: number
+  kitId?: string
   status?: number
-  parkId?: number
-  tenantId?: number
+  parkId?: string
+  tenantId?: string
   createTime?: string
 }
 
 export function getEquipmentPage(params: {
   keyword?: string
-  parkId?: number
-  kitId?: number
+  parkId?: string
+  kitId?: string
   status?: number
   pageNum?: number
   pageSize?: number
@@ -23,7 +23,7 @@ export function getEquipmentPage(params: {
   return request({ url: '/equipment/page', method: 'get', params })
 }
 
-export function getEquipmentById(id: number) {
+export function getEquipmentById(id: string) {
   return request({ url: `/equipment/${id}`, method: 'get' })
 }
 
@@ -31,18 +31,18 @@ export function createEquipment(data: any) {
   return request({ url: '/equipment', method: 'post', data })
 }
 
-export function updateEquipment(id: number, data: any) {
+export function updateEquipment(id: string, data: any) {
   return request({ url: `/equipment/${id}`, method: 'put', data })
 }
 
-export function deleteEquipment(id: number) {
+export function deleteEquipment(id: string) {
   return request({ url: `/equipment/${id}`, method: 'delete' })
 }
 
-export function listByKit(kitId: number) {
+export function listByKit(kitId: string) {
   return request({ url: `/equipment/listByKit/${kitId}`, method: 'get' })
 }
 
-export function batchSaveByKit(kitId: number, data: any[]) {
+export function batchSaveByKit(kitId: string, data: any[]) {
   return request({ url: `/equipment/batchSave/${kitId}`, method: 'post', data })
 }

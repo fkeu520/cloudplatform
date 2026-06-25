@@ -1,10 +1,10 @@
 import request from './request'
 
 export interface RoomPurpose {
-  id?: number
+  id?: string
   purposeName?: string
   status?: number
-  tenantId?: number
+  tenantId?: string
   createTime?: string
 }
 
@@ -17,7 +17,7 @@ export function getRoomPurposePage(params: {
   return request({ url: '/room-purpose/page', method: 'get', params })
 }
 
-export function getRoomPurposeById(id: number) {
+export function getRoomPurposeById(id: string) {
   return request({ url: `/room-purpose/${id}`, method: 'get' })
 }
 
@@ -25,10 +25,10 @@ export function createRoomPurpose(data: any) {
   return request({ url: '/room-purpose', method: 'post', data })
 }
 
-export function updateRoomPurpose(id: number, data: any) {
+export function updateRoomPurpose(id: string, data: any) {
   return request({ url: `/room-purpose/${id}`, method: 'put', data })
 }
 
-export function deleteRoomPurpose(id: number) {
+export function deleteRoomPurpose(id: string) {
   return request({ url: `/room-purpose/${id}`, method: 'delete' })
 }

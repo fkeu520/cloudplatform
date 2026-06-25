@@ -1,7 +1,7 @@
 import request from './request'
 
 export interface RoomSplitMerge {
-  id?: number
+  id?: string
   userId?: number
   userName?: string
   reasons?: string
@@ -13,13 +13,13 @@ export interface RoomSplitMerge {
   num?: number
   isExtend?: number
   status?: number
-  parkId?: number
-  tenantId?: number
+  parkId?: string
+  tenantId?: string
   createTime?: string
 }
 
 export function getRoomSplitMergePage(params: {
-  parkId?: number
+  parkId?: string
   status?: number
   type?: number
   pageNum?: number
@@ -28,7 +28,7 @@ export function getRoomSplitMergePage(params: {
   return request({ url: '/room-split-merge/page', method: 'get', params })
 }
 
-export function getRoomSplitMergeById(id: number) {
+export function getRoomSplitMergeById(id: string) {
   return request({ url: `/room-split-merge/${id}`, method: 'get' })
 }
 
@@ -36,11 +36,11 @@ export function createRoomSplitMerge(data: any) {
   return request({ url: '/room-split-merge', method: 'post', data })
 }
 
-/** 合并多个房间为一个新房间 (C6 操作列调用) */
+/** 合并多个房间为一个新房间 (C6 操作列调�? */
 export function mergeRooms(data: {
-  parkId?: number
-  buildingId?: number
-  floorId?: number
+  parkId?: string
+  buildingId?: string
+  floorId?: string
   floor?: number
   roomNo: string
   roomName?: string
@@ -56,10 +56,10 @@ export function mergeRooms(data: {
   return request({ url: '/room-split-merge/merge', method: 'post', data })
 }
 
-/** 拆分一个房间为多个新房间 (C6 操作列调用) */
+/** 拆分一个房间为多个新房�?(C6 操作列调�? */
 export function splitRoom(data: {
-  parkId?: number
-  buildingId?: number
+  parkId?: string
+  buildingId?: string
   oldRoomId: number
   reasons?: string
   num: number
@@ -69,6 +69,6 @@ export function splitRoom(data: {
 }
 
 /** 还原拆分合并 */
-export function restoreSplitMerge(id: number, type: number) {
+export function restoreSplitMerge(id: string, type: number) {
   return request({ url: `/room-split-merge/restore/${id}/${type}`, method: 'post' })
 }

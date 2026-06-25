@@ -1,12 +1,12 @@
 import request from './request'
 
 export interface Building {
-  id?: number
+  id?: string
   buildingName?: string
   buildingCode?: string
   buildingNo?: string
-  parkId?: number
-  areaId?: number
+  parkId?: string
+  areaId?: string
   floorNumber?: number
   underground?: number
   floors?: number
@@ -24,13 +24,13 @@ export interface Building {
   managerPhone?: string
   status?: number
   remark?: string
-  tenantId?: number
+  tenantId?: string
   createTime?: string
 }
 
 export function getBuildingPage(params: {
   keyword?: string
-  areaId?: number
+  areaId?: string
   status?: number
   pageNum?: number
   pageSize?: number
@@ -38,7 +38,7 @@ export function getBuildingPage(params: {
   return request({ url: '/building/page', method: 'get', params })
 }
 
-export function getBuildingById(id: number) {
+export function getBuildingById(id: string) {
   return request({ url: `/building/${id}`, method: 'get' })
 }
 
@@ -46,18 +46,18 @@ export function createBuilding(data: any) {
   return request({ url: '/building', method: 'post', data })
 }
 
-export function updateBuilding(id: number, data: any) {
+export function updateBuilding(id: string, data: any) {
   return request({ url: `/building/${id}`, method: 'put', data })
 }
 
-export function deleteBuilding(id: number) {
+export function deleteBuilding(id: string) {
   return request({ url: `/building/${id}`, method: 'delete' })
 }
 
-export function checkBuildingCode(parkId: number, buildingCode: string, excludeId?: number) {
+export function checkBuildingCode(parkId: string, buildingCode: string, excludeId?: string) {
   return request({ url: '/building/check-code', method: 'get', params: { parkId, buildingCode, excludeId } })
 }
 
-export function getFloorListByBuilding(buildingId: number) {
+export function getFloorListByBuilding(buildingId: string) {
   return request({ url: `/floor/page-by-building/${buildingId}`, method: 'get' })
 }

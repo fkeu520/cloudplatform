@@ -1,7 +1,7 @@
 import request from './request'
 
 export interface Massif {
-  id?: number
+  id?: string
   massifCode?: string
   massifName?: string
   massifArea?: number
@@ -12,14 +12,14 @@ export interface Massif {
   massifDesc?: string
   address?: string
   status?: number
-  parkId?: number
-  tenantId?: number
+  parkId?: string
+  tenantId?: string
   createTime?: string
 }
 
 export function getMassifPage(params: {
   keyword?: string
-  parkId?: number
+  parkId?: string
   status?: number
   pageNum?: number
   pageSize?: number
@@ -27,7 +27,7 @@ export function getMassifPage(params: {
   return request({ url: '/massif/page', method: 'get', params })
 }
 
-export function getMassifById(id: number) {
+export function getMassifById(id: string) {
   return request({ url: `/massif/${id}`, method: 'get' })
 }
 
@@ -35,10 +35,10 @@ export function createMassif(data: any) {
   return request({ url: '/massif', method: 'post', data })
 }
 
-export function updateMassif(id: number, data: any) {
+export function updateMassif(id: string, data: any) {
   return request({ url: `/massif/${id}`, method: 'put', data })
 }
 
-export function deleteMassif(id: number) {
+export function deleteMassif(id: string) {
   return request({ url: `/massif/${id}`, method: 'delete' })
 }

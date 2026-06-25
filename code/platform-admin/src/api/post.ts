@@ -1,7 +1,7 @@
 import request from './request'
 
 export interface Post {
-  id?: number
+  id?: string
   orgId?: number
   deptId?: number
   name?: string
@@ -19,7 +19,7 @@ export function getPostPage(params: { pageNum?: number; pageSize?: number; orgId
   })
 }
 
-export function getPostById(id: number) {
+export function getPostById(id: string) {
   return request({
     url: `/post/${id}`,
     method: 'get'
@@ -48,7 +48,7 @@ export function createPost(data: Post) {
   })
 }
 
-export function updatePost(id: number, data: Post) {
+export function updatePost(id: string, data: Post) {
   return request({
     url: `/post/${id}`,
     method: 'put',
@@ -56,7 +56,7 @@ export function updatePost(id: number, data: Post) {
   })
 }
 
-export function deletePost(id: number) {
+export function deletePost(id: string) {
   return request({
     url: `/post/${id}`,
     method: 'delete'

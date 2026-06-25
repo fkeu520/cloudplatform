@@ -1,7 +1,7 @@
 import request from './request'
 
 export interface Menu {
-  id?: number
+  id?: string
   name: string
   path?: string
   component?: string
@@ -9,7 +9,7 @@ export interface Menu {
   type: number
   sort?: number
   status?: number
-  parentId?: number
+  parentId?: string
   perms?: string
 }
 
@@ -42,7 +42,7 @@ export function getUserPermissions() {
   })
 }
 
-export function getMenuById(id: number) {
+export function getMenuById(id: string) {
   return request({
     url: `/menu/${id}`,
     method: 'get'
@@ -57,7 +57,7 @@ export function createMenu(data: Menu) {
   })
 }
 
-export function updateMenu(id: number, data: Menu) {
+export function updateMenu(id: string, data: Menu) {
   return request({
     url: `/menu/${id}`,
     method: 'put',
@@ -65,7 +65,7 @@ export function updateMenu(id: number, data: Menu) {
   })
 }
 
-export function deleteMenu(id: number) {
+export function deleteMenu(id: string) {
   return request({
     url: `/menu/${id}`,
     method: 'delete'
