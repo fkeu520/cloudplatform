@@ -236,8 +236,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '地块管理', icon: 'fas fa-map', parent: 'space' }
       },
       // ========== W3.6 Room 子表 (park-space 后端 V35, append-only) ==========
-      // 以下记录类菜单已按需求移除
-      // room-record (绑定记录), room-lock-record (锁定记录), room-split-merge (拆分合并)
+      {
+        path: 'room-split-merge/page',
+        name: 'RoomSplitMergeMgmt',
+        component: () => import('@/views/room-split-merge/Index.vue'),
+        meta: { title: '拆分合并记录', icon: 'fas fa-object-ungroup', parent: 'space' }
+      },
+      // room-record (绑定记录), room-lock-record (锁定记录) 暂保留在 room 弹窗 tabs 内
     ]
   }
 ]
