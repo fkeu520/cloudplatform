@@ -946,51 +946,51 @@ onMounted(async () => {
           <el-empty v-if="!loading && activeFloorId && tableData.length === 0" description="暂无房间" />
           <el-empty v-else-if="!activeFloorId" description="请在左侧选择楼层" />
 
-          <el-table :data="tableData" border stripe v-loading="loading"
-            @selection-change="onSelectionChange"
-            v-if="activeFloorId && tableData.length > 0">
-            <el-table-column type="selection" width="48" />
-            <el-table-column prop="roomNo" label="房号" width="130" />
-            <el-table-column prop="roomName" label="房间名称" min-width="140" />
-            <el-table-column label="锁定" width="70" align="center">
-              <template #default="scope">
-                <el-tag v-if="scope.row.isLock === 1" type="warning" size="small">已锁</el-tag>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="90" align="center">
-              <template #default="scope">
-                <el-tag :type="statusTagType(scope.row.status)" size="small">
-                  {{ statusLabel(scope.row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="房间用途" width="120">
-              <template #default="scope">{{ purposeName(scope.row.purposeId) }}</template>
-            </el-table-column>
-            <el-table-column label="建筑面积" width="120" align="right">
-              <template #default="scope">{{ scope.row.areaCovered ? Number(scope.row.areaCovered).toLocaleString() : '-' }} ㎡</template>
-            </el-table-column>
-            <el-table-column label="套内面积" width="120" align="right">
-              <template #default="scope">{{ scope.row.buildArea ? Number(scope.row.buildArea).toLocaleString() : '-' }} ㎡</template>
-            </el-table-column>
-            <el-table-column label="计费面积" width="120" align="right">
-              <template #default="scope">{{ scope.row.billableArea ? Number(scope.row.billableArea).toLocaleString() : '-' }} ㎡</template>
-            </el-table-column>
-            <el-table-column label="单价" width="130" align="right">
-              <template #default="scope">{{ scope.row.unitPrice ? Number(scope.row.unitPrice).toLocaleString() : '-' }} 元/㎡/月</template>
-            </el-table-column>
-            <el-table-column label="操作" width="320" fixed="right">
-              <template #default="scope">
-                <el-button link type="primary" size="small" @click="handleView(scope.row)">查看</el-button>
-                <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
-                <el-button link type="primary" size="small" @click="handleSplit(scope.row)">拆分</el-button>
-                <el-button v-if="scope.row.isLock === 1" link type="warning" size="small" @click="handleUnlock(scope.row)">解锁</el-button>
-                <el-button v-else link type="primary" size="small" @click="handleLock(scope.row)">锁定</el-button>
-                <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+            <el-table :data="tableData" border stripe v-loading="loading"
+              @selection-change="onSelectionChange"
+              v-if="activeFloorId && tableData.length > 0">
+              <el-table-column type="selection" width="48" />
+              <el-table-column prop="roomNo" label="房号" width="120" />
+              <el-table-column prop="roomName" label="房间名称" min-width="120" show-overflow-tooltip />
+              <el-table-column label="锁定" width="60" align="center">
+                <template #default="scope">
+                  <el-tag v-if="scope.row.isLock === 1" type="warning" size="small">已锁</el-tag>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="80" align="center">
+                <template #default="scope">
+                  <el-tag :type="statusTagType(scope.row.status)" size="small">
+                    {{ statusLabel(scope.row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="房间用途" width="100" show-overflow-tooltip>
+                <template #default="scope">{{ purposeName(scope.row.purposeId) }}</template>
+              </el-table-column>
+              <el-table-column label="建筑面积" width="100" align="right">
+                <template #default="scope">{{ scope.row.areaCovered ? Number(scope.row.areaCovered).toLocaleString() : '-' }} ㎡</template>
+              </el-table-column>
+              <el-table-column label="套内面积" width="100" align="right">
+                <template #default="scope">{{ scope.row.buildArea ? Number(scope.row.buildArea).toLocaleString() : '-' }} ㎡</template>
+              </el-table-column>
+              <el-table-column label="计费面积" width="100" align="right">
+                <template #default="scope">{{ scope.row.billableArea ? Number(scope.row.billableArea).toLocaleString() : '-' }} ㎡</template>
+              </el-table-column>
+              <el-table-column label="单价" width="110" align="right">
+                <template #default="scope">{{ scope.row.unitPrice ? Number(scope.row.unitPrice).toLocaleString() : '-' }} 元/㎡/月</template>
+              </el-table-column>
+              <el-table-column label="操作" width="280" fixed="right">
+                <template #default="scope">
+                  <el-button link type="primary" size="small" @click="handleView(scope.row)">查看</el-button>
+                  <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                  <el-button link type="primary" size="small" @click="handleSplit(scope.row)">拆分</el-button>
+                  <el-button v-if="scope.row.isLock === 1" link type="warning" size="small" @click="handleUnlock(scope.row)">解锁</el-button>
+                  <el-button v-else link type="primary" size="small" @click="handleLock(scope.row)">锁定</el-button>
+                  <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
 
           <!-- 分页 -->
           <el-pagination
@@ -1014,6 +1014,7 @@ onMounted(async () => {
       v-model="dialogVisible"
       :title="dialogTitle"
       :width="dialogMode === 'view' ? '1100px' : '900px'"
+      :style="{ maxWidth: '90vw' }"
       :close-on-click-modal="false"
       @close="Object.assign(form, defaultForm())"
     >
@@ -1319,26 +1320,30 @@ onMounted(async () => {
   position: absolute;
   height: calc(100% - 32px);
   width: 100%;
+  overflow-x: hidden;
 }
 
 .common-flex {
   height: 100%;
   display: flex;
+  min-width: 0;
 }
 
 .basic-card-left {
-  min-width: 280px;
-  max-width: 360px;
-  width: 28%;
+  min-width: 240px;
+  max-width: 320px;
+  width: 24%;
   border-right: 1px solid #d8d8d8;
   background: #fff;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .basic-card-right {
   flex: 1;
+  min-width: 0;
   padding: 32px 40px;
   overflow: auto;
   background: #f5f7fa;
