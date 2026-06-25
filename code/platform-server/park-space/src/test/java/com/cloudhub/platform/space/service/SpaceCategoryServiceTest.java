@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link SpaceCategoryService} 单元测试 (W3.5 阶段)
+ * <p>V42: parkId 移除后同步更新 (全局唯一名称校验).</p>
  */
 @ExtendWith(MockitoExtension.class)
 class SpaceCategoryServiceTest {
@@ -51,7 +52,6 @@ class SpaceCategoryServiceTest {
     private SpaceCategory makeCategory(Long id, String name) {
         SpaceCategory sc = new SpaceCategory();
         sc.setId(id);
-        sc.setParkId(1L);
         sc.setTypeName(name);
         sc.setTypeDescribe("研发空间");
         sc.setStatus(1);
@@ -68,7 +68,7 @@ class SpaceCategoryServiceTest {
         p.setTotal(1);
         when(spaceCategoryMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<SpaceCategory>> result = spaceCategoryService.page(null, null, null, 1, 10);
+        Result<PageResult<SpaceCategory>> result = spaceCategoryService.page(null, null, 1, 10);
         assertEquals(200, result.getCode());
         assertEquals(1, result.getData().getTotal());
     }
@@ -94,7 +94,6 @@ class SpaceCategoryServiceTest {
     @Test
     void create_valid_shouldInsert() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         params.put("typeName", "营销中心");
 
         when(spaceCategoryMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
@@ -116,7 +115,6 @@ class SpaceCategoryServiceTest {
     @Test
     void create_duplicateName_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
-        params.put("parkId", 1L);
         params.put("typeName", "研发中心");
 
         when(spaceCategoryMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
