@@ -84,13 +84,13 @@ import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ parkId: undefined as number | undefined, type: undefined as number | undefined, status: undefined as number | undefined })
-const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
+const searchForm = reactive({ parkId: undefined as string | undefined, type: undefined as number | undefined, status: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
 const dialogVisible = ref(false); const submitting = ref(false); const formRef = ref()
 
 const defaultForm = {
-  parkId: 1, userId: undefined as number | undefined, userName: '', reasons: '',
-  type: 1, oldRoomId: 1, oldRoomName: '', newRoomId: 1, newRoomName: '',
+  parkId: undefined as string | undefined, userId: undefined as string | undefined, userName: '', reasons: '',
+  type: 1, oldRoomId: '' as string | undefined, oldRoomName: '', newRoomId: '' as string | undefined, newRoomName: '',
   num: 2, isExtend: 0, status: 1
 }
 const formData = reactive({ ...defaultForm })
@@ -121,7 +121,7 @@ async function handleSubmit() {
 }
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
 }
 
 onMounted(() => { loadData(); loadParkOptions() })

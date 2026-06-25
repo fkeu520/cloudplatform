@@ -76,13 +76,13 @@ import { getRoomPage } from '@/api/room'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ roomId: undefined as number | undefined, parkId: undefined as number | undefined, status: undefined as number | undefined })
-const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
-const roomOptions = ref<any[]>([]); const roomMap = ref<Record<number, string>>({})
+const searchForm = reactive({ roomId: undefined as string | undefined, parkId: undefined as string | undefined, status: undefined as number | undefined })
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
+const roomOptions = ref<any[]>([]); const roomMap = ref<Record<string, string>>({})
 const dialogVisible = ref(false); const submitting = ref(false); const formRef = ref()
 
 const defaultForm = {
-  parkId: 1, roomId: 1, customerId: 1, covenantId: 1, covenantType: 0, status: 0
+  parkId: undefined as string | undefined, roomId: undefined as string | undefined, customerId: undefined as string | undefined, covenantId: undefined as string | undefined, covenantType: 0, status: 0
 }
 const formData = reactive({ ...defaultForm })
 const rules = {
@@ -113,10 +113,10 @@ async function handleSubmit() {
 }
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
 }
 async function loadRoomOptions() {
-  try { const res: any = await getRoomPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { roomOptions.value = res.data.records || []; roomOptions.value.forEach((r: any) => roomMap.value[r.id] = r.roomName) } } catch { /* ignore */ }
+  try { const res: any = await getRoomPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { roomOptions.value = res.data.records || []; roomOptions.value.forEach((r: any) => roomMap.value[String(r.id)] = r.roomName) } } catch { /* ignore */ }
 }
 
 onMounted(() => { loadData(); loadParkOptions(); loadRoomOptions() })
