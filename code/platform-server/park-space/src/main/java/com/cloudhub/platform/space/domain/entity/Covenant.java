@@ -2,7 +2,6 @@ package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -25,25 +24,21 @@ public class Covenant extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 合同 ID (外键引用 park-contract 模块, 跨模块) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long covenantId;
 
     /** 合同类型: 0=租赁 1=销售 2=其他 */
     private Integer covenantType;
 
     /** 客户 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long customerId;
 
     /** 房间 ID (关联 sys_room.id) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long roomId;
 
     /** 状态: 0=停用 1=启用 */
     private Integer status;
 
     /** 园区 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 租户 ID (P0-1 多租户拦截器) */
