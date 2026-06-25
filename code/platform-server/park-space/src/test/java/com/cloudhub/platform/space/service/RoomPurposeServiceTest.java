@@ -46,6 +46,7 @@ class RoomPurposeServiceTest {
     @BeforeEach
     void setUp() {
         purposeRD = makePurpose(1L, "自用");
+        purposeRD.setBuiltIn(1); // 默认用户自定义
     }
 
     private RoomPurpose makePurpose(Long id, String name) {
@@ -132,5 +133,49 @@ class RoomPurposeServiceTest {
     void delete_notFound_shouldThrow() {
         when(roomPurposeMapper.selectById(999L)).thenReturn(null);
         assertThrows(BizException.class, () -> roomPurposeService.delete(999L));
+    }
+
+    // ========== TC: builtIn 固化标识 ==========
+
+    @Test
+    void delete_builtInZero_shouldThrow() {
+        purposeRD.setBuiltIn(0); // 固化
+        when(roomPurposeMapper.selectById(1L)).thenReturn(purposeRD);
+
+        BizException ex = assertThrows(BizException.class, () -> roomPurposeService.delete(1L));
+        assertTrue(ex.getMessage().contains("不可删除"));
+        verify(roomPurposeMapper, never()).updateById(any(RoomPurpose.class));
+    }
+
+    @Test
+    void update_builtInZero_shouldThrow() {
+        purposeRD.setBuiltIn(0); // 固化
+        when(roomPurposeMapper.selectById(1L)).thenReturn(purposeRD);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("purposeName", "新名称");
+
+        BizException ex = assertThrows(BizException.class, () -> roomPurposeService.update(1L, params));
+        assertTrue(ex.getMessage().contains("不可修改"));
+        verify(roomPurposeMapper, never()).updateById(any(RoomPurpose.class));
+    }
+
+    @Test
+    void create_shouldDefaultBuiltInOne() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("purposeName", "新用途");
+
+        when(roomPurposeMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        doAnswer(inv -> {
+            RoomPurpose p = inv.getArgument(0);
+            p.setId(200L);
+            return 1;
+        }).when(roomPurposeMapper).insert(any(RoomPurpose.class));
+
+        roomPurposeService.create(params);
+
+        ArgumentCaptor<RoomPurpose> captor = ArgumentCaptor.forClass(RoomPurpose.class);
+        verify(roomPurposeMapper).insert(captor.capture());
+        assertEquals(Integer.valueOf(1), captor.getValue().getBuiltIn());
     }
 }
