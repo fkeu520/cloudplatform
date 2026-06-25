@@ -43,8 +43,10 @@ public class BuildingService {
                                               int pageNum, int pageSize) {
         LambdaQueryWrapper<Building> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
-            w.like(Building::getBuildingNo, keyword)
-                    .or().like(Building::getBuildingName, keyword);
+            // 注意: 直接 .or() 生成的 SQL 是 `A LIKE x OR B LIKE x`, AND 其他条件时
+            // 优先级会变成 `A LIKE x OR (B LIKE x AND ...)` 漏过滤. 必须用 and() 包装.
+            w.and(w2 -> w2.like(Building::getBuildingNo, keyword)
+                    .or().like(Building::getBuildingName, keyword));
         }
         if (parkId != null) {
             w.eq(Building::getParkId, parkId);
