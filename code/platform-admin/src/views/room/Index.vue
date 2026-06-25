@@ -57,10 +57,10 @@ interface BuildingTreeNode extends Building {
   $loaded?: boolean
 }
 const parkTree = ref<ParkTreeNode[]>([])
-const activeParkId = ref<number | null>(null)
-const activeAreaId = ref<number | null>(null)
-const activeBuildingId = ref<number | null>(null)
-const activeFloorId = ref<number | null>(null)
+const activeParkId = ref<string | null>(null)
+const activeAreaId = ref<string | null>(null)
+const activeBuildingId = ref<string | null>(null)
+const activeFloorId = ref<string | null>(null)
 
 // 搜索/过滤
 const filterStatus = ref<string>('')  // '' = 全部
@@ -83,7 +83,7 @@ const dictMap = reactive<Record<string, Array<{ value: string; label: string }>>
 // 弹窗
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit' | 'view'>('add')
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formRef = ref()
 
@@ -102,10 +102,10 @@ const tabSize = reactive<Record<TabName, number>>({ lock: 10, split: 10, record:
 const tabLoaded = reactive<Record<TabName, boolean>>({ lock: false, split: false, record: false })
 
 const defaultForm = () => ({
-  id: undefined as number | undefined,
-  parkId: undefined as number | undefined,
-  buildingId: undefined as number | undefined,
-  floorId: undefined as number | undefined,
+  id: undefined as string | undefined,
+  parkId: undefined as string | undefined,
+  buildingId: undefined as string | undefined,
+  floorId: undefined as string | undefined,
   floor: 1,
   roomNo: '',
   roomName: '',
@@ -116,8 +116,8 @@ const defaultForm = () => ({
   unitPrice: undefined as number | undefined,
   totalPrice: undefined as number | undefined,
   monthlyRent: undefined as number | undefined,
-  kitId: undefined as number | undefined,
-  purposeId: undefined as number | undefined,
+  kitId: undefined as string | undefined,
+  purposeId: undefined as string | undefined,
   sorting: 0,
   status: 0,
   remark: '',
@@ -367,22 +367,22 @@ function statusTagType(s: number | undefined): string {
   return 'info'
 }
 
-function purposeName(id: number | undefined): string {
+function purposeName(id: string | undefined): string {
   if (!id) return '-'
   return purposeOptions.value.find((p) => p.id === id)?.purposeName || '-'
 }
 
-function kitName(id: number | undefined): string {
+function kitName(id: string | undefined): string {
   if (!id) return '-'
   return kitOptions.value.find((k) => k.id === id)?.kitName || '-'
 }
 
-function parkNameOf(id: number | undefined): string {
+function parkNameOf(id: string | undefined): string {
   if (!id) return '-'
   return parkTree.value.find((p) => p.id === id)?.parkName || '-'
 }
 
-function buildingNameOf(parkId: number | undefined, buildingId: number | undefined): string {
+function buildingNameOf(parkId: string | undefined, buildingId: string | undefined): string {
   if (!parkId || !buildingId) return '-'
   for (const park of parkTree.value) {
     if (park.id !== parkId) continue
@@ -392,7 +392,7 @@ function buildingNameOf(parkId: number | undefined, buildingId: number | undefin
   return '-'
 }
 
-function floorNameOf(parkId: number | undefined, buildingId: number | undefined, floorId: number | undefined): string {
+function floorNameOf(parkId: string | undefined, buildingId: string | undefined, floorId: string | undefined): string {
   if (!parkId || !buildingId || !floorId) return '-'
   for (const park of parkTree.value) {
     if (park.id !== parkId) continue
@@ -553,7 +553,17 @@ async function handleEdit(r: Room) {
   try {
     const res: any = await getRoomById(r.id!)
     if (res.code === 200) {
-      Object.assign(form, defaultForm(), res.data)
+      // 后端 Room.*Id 已用 @JsonFormat(STRING) 序列化, 显式 String() 保险
+      const data = {
+        ...res.data,
+        parkId: res.data.parkId != null ? String(res.data.parkId) : undefined,
+        areaId: res.data.areaId != null ? String(res.data.areaId) : undefined,
+        buildingId: res.data.buildingId != null ? String(res.data.buildingId) : undefined,
+        floorId: res.data.floorId != null ? String(res.data.floorId) : undefined,
+        kitId: res.data.kitId != null ? String(res.data.kitId) : undefined,
+        purposeId: res.data.purposeId != null ? String(res.data.purposeId) : undefined,
+      }
+      Object.assign(form, defaultForm(), data)
       await loadKitsAndPurposes()
       dialogVisible.value = true
     }
@@ -568,7 +578,16 @@ async function handleView(r: Room) {
   try {
     const res: any = await getRoomById(r.id!)
     if (res.code === 200) {
-      Object.assign(form, defaultForm(), res.data)
+      const data = {
+        ...res.data,
+        parkId: res.data.parkId != null ? String(res.data.parkId) : undefined,
+        areaId: res.data.areaId != null ? String(res.data.areaId) : undefined,
+        buildingId: res.data.buildingId != null ? String(res.data.buildingId) : undefined,
+        floorId: res.data.floorId != null ? String(res.data.floorId) : undefined,
+        kitId: res.data.kitId != null ? String(res.data.kitId) : undefined,
+        purposeId: res.data.purposeId != null ? String(res.data.purposeId) : undefined,
+      }
+      Object.assign(form, defaultForm(), data)
       await loadKitsAndPurposes()
       resetTabState()
       dialogVisible.value = true
