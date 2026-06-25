@@ -114,7 +114,7 @@ public class BuildingService {
         if (params.containsKey("buildingNo")) b.setBuildingNo((String) params.get("buildingNo"));
         if (params.containsKey("buildingName")) b.setBuildingName((String) params.get("buildingName"));
         if (params.containsKey("floors")) b.setFloors(ServiceUtils.toInt(params.get("floors")));
-        if (params.containsKey("totalArea")) b.setTotalArea(new BigDecimal(params.get("totalArea").toString()));
+        if (params.containsKey("totalArea") && params.get("totalArea") != null) b.setTotalArea(new BigDecimal(params.get("totalArea").toString()));
         if (params.containsKey("buildYear")) b.setBuildYear(ServiceUtils.toInt(params.get("buildYear")));
         if (params.containsKey("manager")) b.setManager((String) params.get("manager"));
         if (params.containsKey("managerPhone")) b.setManagerPhone((String) params.get("managerPhone"));
