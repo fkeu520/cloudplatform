@@ -199,11 +199,23 @@ class ParkServiceTest {
     }
 
     @Test
-    void listAll_shouldReturnEnabledParks() {
+    void listAll_shouldReturnAllParks() {
         when(parkMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(Arrays.asList(parkA, parkB));
 
         Result<java.util.List<Park>> result = parkService.listAll();
         assertEquals(200, result.getCode());
         assertEquals(2, result.getData().size());
+    }
+
+    @Test
+    void listAll_shouldIncludeDisabledParks() {
+        Park disabled = makePark(3L, "已停用园区", 0);
+        when(parkMapper.selectList(any(LambdaQueryWrapper.class))).thenReturn(Arrays.asList(parkA, disabled));
+
+        Result<java.util.List<Park>> result = parkService.listAll();
+        assertEquals(200, result.getCode());
+        assertEquals(2, result.getData().size());
+        assertEquals("已停用园区", result.getData().get(1).getParkName());
+        assertEquals(0, result.getData().get(1).getStatus());
     }
 }

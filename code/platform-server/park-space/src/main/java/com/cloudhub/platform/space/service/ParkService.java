@@ -169,10 +169,12 @@ public class ParkService {
 
     // ========== 查询全部 ==========
 
-    /** 不分页查询所有启用园区（供其他模块下拉选择使用） */
+    /**
+     * 不分页查询所有园区（供其他模块下拉选择使用）
+     * <p>包含启用与停用园区：用于筛选/编辑关联到停用园区的数据时仍需可见</p>
+     */
     public Result<List<Park>> listAll() {
         List<Park> list = parkMapper.selectList(new LambdaQueryWrapper<Park>()
-                .eq(Park::getStatus, 1)
                 .eq(Park::getDeleted, 0)
                 .orderByAsc(Park::getParkName));
         return Result.ok(list);
