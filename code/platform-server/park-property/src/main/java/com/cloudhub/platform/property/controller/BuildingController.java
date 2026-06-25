@@ -32,14 +32,16 @@ public class BuildingController {
 
     private final BuildingService buildingService;
 
-    @Operation(summary = "分页查询楼宇列表")
+    @Operation(summary = "分页查询楼宇列表 (支持 parkId/areaId 级联过滤)")
     @GetMapping("/page")
     public Result<PageResult<Building>> page(
             @RequestParam(name = "keyword", required = false) String keyword,
+            @RequestParam(name = "parkId", required = false) Long parkId,
+            @RequestParam(name = "areaId", required = false) Long areaId,
             @RequestParam(name = "status", required = false) Integer status,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
-        return buildingService.page(keyword, status, pageNum, pageSize);
+        return buildingService.page(keyword, parkId, areaId, status, pageNum, pageSize);
     }
 
     @Operation(summary = "校验同园区楼栋编号是否已存在")
