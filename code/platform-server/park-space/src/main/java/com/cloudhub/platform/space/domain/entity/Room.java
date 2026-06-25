@@ -20,6 +20,7 @@ import java.math.BigDecimal;
  * <p>关联关系:
  * <ul>
  *   <li>parkId → sys_park.id</li>
+ *   <li>areaId → sys_area.id (V41 新增, 来源 building.area_id, 支持 4 层树过滤)</li>
  *   <li>buildingId → park-property.sys_building.id (跨模块)</li>
  *   <li>kitId → sys_kit.id (房间配套, W3.3 已有)</li>
  *   <li>purposeId → sys_room_purpose.id (房间用途, W3.5 已有)</li>
@@ -39,6 +40,9 @@ public class Room extends BaseEntity {
 
     /** 楼宇 ID (跨模块: park-property.sys_building.id) */
     private Long buildingId;
+
+    /** 分区 ID (V41, 来源 building.area_id, 支持 4 层树过滤: 园区→分区→楼栋→楼层) */
+    private Long areaId;
 
     /** 楼层 ID (V38, csyh floorId → sys_floor.id, NULL 兼容旧数据) */
     private Long floorId;
