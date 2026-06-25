@@ -2,6 +2,7 @@ package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -23,18 +24,22 @@ public class Energy extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 能源表 ID (外键, 暂不强约束) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long meterId;
 
     /** 能源表种类 (电表/水表/燃气表) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long meterClassId;
 
     /** 房间 ID (关联 sys_room.id) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long roomId;
 
     /** 状态: 0=停用 1=启用 */
     private Integer status;
 
     /** 园区 ID */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 租户 ID (P0-1 多租户拦截器) */
