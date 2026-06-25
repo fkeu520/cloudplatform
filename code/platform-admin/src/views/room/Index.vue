@@ -827,8 +827,8 @@ onMounted(async () => {
           class="building-tree-list"
         >
           <el-submenu
-            v-for="(park, pIdx) in parkTree"
-            :key="pIdx"
+            v-for="park in parkTree"
+            :key="park.id"
             :index="`p-${park.id}`"
             class="first-menu"
             v-loading="park.$loading"
@@ -839,53 +839,51 @@ onMounted(async () => {
               </span>
             </template>
 
-            <template v-if="park.$areaList && park.$areaList.length">
+            <!-- 区域列表 -->
+            <el-submenu
+              v-for="area in (park.$areaList || [])"
+              :key="area.id"
+              :index="`a-${area.id}`"
+              class="second-menu"
+              v-loading="area.$loading"
+            >
+              <template slot="title">
+                <div class="common-ellipsis" :title="area.areaName" @click.stop="onAreaClick(area)">
+                  {{ area.areaName }}
+                </div>
+              </template>
+
+              <!-- 楼栋列表 -->
               <el-submenu
-                v-for="area in park.$areaList"
-                :key="`a-${area.id}`"
-                :index="`a-${area.id}`"
-                class="second-menu"
-                v-loading="area.$loading"
+                v-for="bld in (area.$buildingList || [])"
+                :key="bld.id"
+                :index="`b-${bld.id}`"
+                class="third-menu"
+                v-loading="bld.$loading"
               >
                 <template slot="title">
-                  <div class="common-ellipsis" :title="area.areaName" @click.stop="onAreaClick(area)">
-                    {{ area.areaName }}
+                  <div class="common-ellipsis" :title="bld.buildingName" @click.stop="onBuildingClick(bld)">
+                    {{ bld.buildingName }}
                   </div>
                 </template>
 
-                <template v-if="area.$buildingList && area.$buildingList.length">
-                  <el-submenu
-                    v-for="bld in area.$buildingList"
-                    :key="`b-${bld.id}`"
-                    :index="`b-${bld.id}`"
-                    class="third-menu"
-                    v-loading="bld.$loading"
-                  >
-                    <template slot="title">
-                      <div class="common-ellipsis" :title="bld.buildingName" @click.stop="onBuildingClick(bld)">
-                        {{ bld.buildingName }}
-                      </div>
-                    </template>
+                <!-- 楼层列表 -->
+                <el-menu-item
+                  v-for="floor in (bld.$floorList || [])"
+                  :key="floor.id"
+                  :index="`f-${floor.id}`"
+                  @click="onFloorClick(floor)"
+                >
+                  <div class="common-ellipsis" :title="floor.floorName">{{ floor.floorName }}</div>
+                </el-menu-item>
 
-                    <template v-if="bld.$floorList && bld.$floorList.length">
-                      <el-menu-item
-                        v-for="floor in bld.$floorList"
-                        :key="`f-${floor.id}`"
-                        :index="`f-${floor.id}`"
-                        @click="onFloorClick(floor)"
-                      >
-                        <div class="common-ellipsis" :title="floor.floorName">{{ floor.floorName }}</div>
-                      </el-menu-item>
-                    </template>
-                    <div v-else class="data-null-text">该楼栋暂无楼层</div>
-                  </el-submenu>
-                </template>
-
-                <div v-else-if="area.$loaded" class="data-null-text">该分区暂无楼栋</div>
+                <div v-if="bld.$loaded && (!bld.$floorList || bld.$floorList.length === 0)" class="data-null-text">该楼栋暂无楼层</div>
               </el-submenu>
-            </template>
 
-            <div v-else-if="park.$loaded" class="data-null-box">
+              <div v-if="area.$loaded && (!area.$buildingList || area.$buildingList.length === 0)" class="data-null-text">该分区暂无楼栋</div>
+            </el-submenu>
+
+            <div v-if="park.$loaded && (!park.$areaList || park.$areaList.length === 0)" class="data-null-box">
               <div class="data-null-text">暂无分区</div>
             </div>
           </el-submenu>
@@ -1320,6 +1318,7 @@ onMounted(async () => {
   position: absolute;
   height: calc(100% - 32px);
   width: 100%;
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -1330,9 +1329,9 @@ onMounted(async () => {
 }
 
 .basic-card-left {
-  min-width: 240px;
-  max-width: 320px;
-  width: 24%;
+  min-width: 200px;
+  max-width: 260px;
+  width: 20%;
   border-right: 1px solid #d8d8d8;
   background: #fff;
   overflow: hidden;
@@ -1344,7 +1343,7 @@ onMounted(async () => {
 .basic-card-right {
   flex: 1;
   min-width: 0;
-  padding: 32px 40px;
+  padding: 24px 24px;
   overflow: auto;
   background: #f5f7fa;
 }
