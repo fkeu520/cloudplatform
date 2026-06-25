@@ -23,12 +23,12 @@ import { getParkList, type Park } from '@/api/park'
 const loading = ref(false)
 const parkOptions = ref<Park[]>([])
 const areaGroups = ref<{ park: Park; areas: Area[] }[]>([])
-const activeParkId = ref<number | null>(null)
+const activeParkId = ref<string | null>(null)
 
 // 新增/编辑 dialog
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formRef = ref()
 const form = reactive({
@@ -39,7 +39,7 @@ const form = reactive({
   isVirtual: 0,
   sorting: 0,
   status: 1,
-  parkId: undefined as number | undefined,
+  parkId: undefined as string | undefined,
 })
 
 const formRules = {
@@ -104,13 +104,13 @@ async function loadAllAreas() {
 
 const flatAreas = computed(() => areaGroups.value.flatMap((g) => g.areas))
 
-function getAreasByPark(parkId: number): Area[] {
+function getAreasByPark(parkId: string): Area[] {
   return areaGroups.value.find((g) => g.park.id === parkId)?.areas || []
 }
 
-function getParkName(parkId: number | undefined): string {
+function getParkName(parkId: string | undefined): string {
   if (!parkId) return '-'
-  return parkOptions.value.find((p) => String(parkId) === p.id)?.parkName || '-'
+  return parkOptions.value.find((p) => p.id === parkId)?.parkName || '-'
 }
 
 function fmtArea(v: number | undefined): string {
@@ -119,7 +119,7 @@ function fmtArea(v: number | undefined): string {
 }
 
 // 新增
-function handleAdd(parkId?: number) {
+function handleAdd(parkId?: string) {
   dialogMode.value = 'add'
   editingId.value = null
   form.areaName = ''
@@ -148,7 +148,7 @@ async function handleEdit(area: Area) {
       form.isVirtual = a.isVirtual ?? 0
       form.sorting = a.sorting ?? 0
       form.status = a.status ?? 1
-      form.parkId = a.parkId
+      form.parkId = a.parkId != null ? String(a.parkId) : undefined
       dialogVisible.value = true
     }
   } catch (e) {

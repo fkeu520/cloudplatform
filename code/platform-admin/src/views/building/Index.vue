@@ -35,25 +35,25 @@ const pageSize = ref(10)
 const parkOptions = ref<Park[]>([])
 const areaOptions = ref<Area[]>([])
 const dictMap = reactive<Record<string, Array<{ value: string; label: string }>>>({})
-const activeParkId = ref<number | null>(null)
+const activeParkId = ref<string | null>(null)
 
 const searchForm = reactive({
   keyword: '',
-  areaId: undefined as number | undefined,
+  areaId: undefined as string | undefined,
   status: undefined as number | undefined,
 })
 
 // 新增/编辑 dialog
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const submitting = ref(false)
 const formRef = ref()
 const imageFiles = ref<string[]>([])
 
 const defaultForm = () => ({
-  parkId: undefined as number | undefined,
-  areaId: undefined as number | undefined,
+  parkId: undefined as string | undefined,
+  areaId: undefined as string | undefined,
   buildingCode: '',
   buildingNo: '',
   buildingName: '',
@@ -134,7 +134,7 @@ async function loadParks() {
   }
 }
 
-async function loadAreas(parkId: number) {
+async function loadAreas(parkId: string) {
   if (!parkId) {
     areaOptions.value = []
     return
@@ -192,14 +192,14 @@ function handleSearch() {
   loadData()
 }
 
-function handleParkChange(parkId: number) {
+function handleParkChange(parkId: string) {
   activeParkId.value = parkId
   searchForm.areaId = undefined
   loadAreas(parkId)
   handleSearch()
 }
 
-function getAreaName(areaId: number | undefined): string {
+function getAreaName(areaId: string | undefined): string {
   if (!areaId) return '-'
   return areaOptions.value.find((a) => a.id === areaId)?.areaName || '-'
 }
@@ -225,7 +225,13 @@ async function handleEdit(b: Building) {
   try {
     const res: any = await getBuildingById(b.id!)
     if (res.code === 200) {
-      Object.assign(form, defaultForm(), res.data)
+      // 后端 Area.parkId/areaId 已用 @JsonFormat(STRING) 序列化, 但保险起见显式 String()
+      const data = {
+        ...res.data,
+        parkId: res.data.parkId != null ? String(res.data.parkId) : undefined,
+        areaId: res.data.areaId != null ? String(res.data.areaId) : undefined,
+      }
+      Object.assign(form, defaultForm(), data)
       await loadAreas(form.parkId!)
       // 图片
       if (form.image) {
@@ -426,7 +432,7 @@ onMounted(async () => {
           <template #default="scope">{{ scope.row.buildingCode || scope.row.buildingNo || '-' }}</template>
         </el-table-column>
         <el-table-column label="所属园区" width="140">
-          <template #default="scope">{{ parkOptions.find(p => p.id === scope.row.parkId)?.parkName || scope.row.parkId }}</template>
+          <template #default="scope">{{ parkOptions.find(p => p.id === String(scope.row.parkId))?.parkName || scope.row.parkId }}</template>
         </el-table-column>
         <el-table-column label="所属区域" width="120">
           <template #default="scope">{{ getAreaName(scope.row.areaId) }}</template>
