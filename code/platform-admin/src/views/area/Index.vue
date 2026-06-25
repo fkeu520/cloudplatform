@@ -110,7 +110,7 @@ function getAreasByPark(parkId: number): Area[] {
 
 function getParkName(parkId: number | undefined): string {
   if (!parkId) return '-'
-  return parkOptions.value.find((p) => p.id === parkId)?.parkName || '-'
+  return parkOptions.value.find((p) => String(parkId) === p.id)?.parkName || '-'
 }
 
 function fmtArea(v: number | undefined): string {
