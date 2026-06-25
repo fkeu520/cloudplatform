@@ -1,28 +1,30 @@
-package com.cloudhub.platform.property.domain.entity;
+package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 
 /**
- * 园区楼宇 (park-property 核心实体)
+ * 园区楼宇 (park-space 业务, 从 park-property 迁移)
  *
- * <p>csyh 业务融合 Phase 1 扩展字段 (V36 SQL):
+ * <p>csyh 业务融合 Phase 1 扩展字段:
  * <ul>
  *   <li>对齐 csyh std `sys_building` 字段: buildingCode, floorNumber, underground,
  *       areaCovered, propertyRight, buildingSafety, shareArea, leaseMethod,
  *       sorting, certificate, image</li>
- *   <li>保留 W3.2 阶段字段: buildingNo (e.g. A/B/C), buildYear, manager, managerPhone, remark
- *       (用户额外需求, csyh 无但当前项目需要)</li>
+ *   <li>保留字段: buildingNo (e.g. A/B/C), buildYear, manager, managerPhone, remark</li>
  * </ul>
  *
  * <p>关联关系:
  * <ul>
- *   <li>park-space (Room) 通过 building_id 外键引用 (跨模块)</li>
- *   <li>park-space (Floor) 通过 building_id 外键引用 (跨模块)</li>
+ *   <li>park_id → sys_park.id</li>
+ *   <li>area_id → sys_area.id (4 级树级联过滤)</li>
+ *   <li>Room 通过 building_id 外键引用</li>
+ *   <li>Floor 通过 building_id 外键引用</li>
  * </ul>
  */
 @Data
@@ -33,9 +35,11 @@ public class Building extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 园区 ID */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 区域 ID (关联 sys_area.id) */
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long areaId;
 
     // ===== V36 Phase 1 新增字段 (对齐 csyh std) =====
