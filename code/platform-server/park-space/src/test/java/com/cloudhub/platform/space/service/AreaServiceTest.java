@@ -183,6 +183,27 @@ class AreaServiceTest {
         assertThrows(BizException.class, () -> areaService.update(999L, new HashMap<>()));
     }
 
+    /**
+     * Regression: 修复 PUT /area NPE (params.get("xxx") 返回 null 时 .toString() 抛 NPE).
+     * 前端可能显式传 null 来表示 "不修改" (例如 el-input-number 留空).
+     * <p>修复: AreaService.update 在 containsKey 后增加 != null 判断.
+     * <p>2026-06-25 217 生产报 PUT /api/area/{id} 500 NPE.
+     */
+    @Test
+    void update_nullBigDecimalFields_shouldNotNpe() {
+        when(areaMapper.selectById(1L)).thenReturn(areaA);
+
+        Map<String, Object> params = new HashMap<>();
+        // 显式传 null (前端 el-input-number 留空, 或表单字段被置空)
+        params.put("areaCovered", null);
+        params.put("builtArea", null);
+
+        Result<Void> result = areaService.update(1L, params);
+
+        assertEquals(200, result.getCode());
+        verify(areaMapper).updateById(any(Area.class));
+    }
+
     // ========== Delete ==========
 
     @Test
