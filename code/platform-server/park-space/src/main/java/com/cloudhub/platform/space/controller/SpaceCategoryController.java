@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 /**
- * 空间类别 Controller (park-space 业务)
- * <p>W3.5 阶段: 空间类别 (SpaceCategory) 简单 CRUD 端点.</p>
+ * 空间类别 Controller (park-space 业务) - 通用字典
+ * <p>V42: 移除 parkId 参数, 名称全局唯一.</p>
  */
 @Tag(name = "空间类别", description = "park-space 业务 - 空间类别")
 @RequiredArgsConstructor
@@ -35,20 +35,18 @@ public class SpaceCategoryController {
     @GetMapping("/page")
     public Result<PageResult<SpaceCategory>> page(
             @RequestParam(name = "keyword", required = false) String keyword,
-            @RequestParam(name = "parkId", required = false) Long parkId,
             @RequestParam(name = "status", required = false) Integer status,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
-        return spaceCategoryService.page(keyword, parkId, status, pageNum, pageSize);
+        return spaceCategoryService.page(keyword, status, pageNum, pageSize);
     }
 
-    @Operation(summary = "校验同园区类别名称是否已存在")
+    @Operation(summary = "校验类别名称是否已存在 (全局唯一)")
     @GetMapping("/check-name")
     public Result<Boolean> checkName(
-            @RequestParam(name = "parkId") Long parkId,
             @RequestParam(name = "typeName") String typeName,
             @RequestParam(name = "excludeId", required = false) Long excludeId) {
-        return spaceCategoryService.checkName(parkId, typeName, excludeId);
+        return spaceCategoryService.checkName(typeName, excludeId);
     }
 
     @Operation(summary = "查询空间类别详情")
