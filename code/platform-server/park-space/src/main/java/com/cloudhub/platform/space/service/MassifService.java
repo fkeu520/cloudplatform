@@ -121,7 +121,7 @@ public class MassifService {
         }
         if (params.containsKey("massifName"))
             m.setMassifName((String) params.get("massifName"));
-        if (params.containsKey("massifArea"))
+        if (params.containsKey("massifArea") && params.get("massifArea") != null)
             m.setMassifArea(new BigDecimal(params.get("massifArea").toString()));
         if (params.containsKey("useYear"))
             m.setUseYear(ServiceUtils.toInt(params.get("useYear")));

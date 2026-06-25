@@ -132,7 +132,7 @@ public class FloorService {
             f.setSerialCode(ServiceUtils.toInt(params.get("serialCode")));
         if (params.containsKey("floorCategory"))
             f.setFloorCategory(ServiceUtils.toInt(params.get("floorCategory")));
-        if (params.containsKey("coefficient"))
+        if (params.containsKey("coefficient") && params.get("coefficient") != null)
             f.setCoefficient(new BigDecimal(params.get("coefficient").toString()));
         if (params.containsKey("sorting"))
             f.setSorting(ServiceUtils.toInt(params.get("sorting")));

@@ -147,8 +147,8 @@ public class RoomService {
         if (params.containsKey("floor")) r.setFloor(ServiceUtils.toInt(params.get("floor")));
         if (params.containsKey("roomNo")) r.setRoomNo((String) params.get("roomNo"));
         if (params.containsKey("roomType")) r.setRoomType((String) params.get("roomType"));
-        if (params.containsKey("areaCovered")) r.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
-        if (params.containsKey("monthlyRent")) r.setMonthlyRent(new BigDecimal(params.get("monthlyRent").toString()));
+        if (params.containsKey("areaCovered") && params.get("areaCovered") != null) r.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
+        if (params.containsKey("monthlyRent") && params.get("monthlyRent") != null) r.setMonthlyRent(new BigDecimal(params.get("monthlyRent").toString()));
         if (params.containsKey("remark")) r.setRemark((String) params.get("remark"));
 
         // 房号变更: 重新校验唯一性

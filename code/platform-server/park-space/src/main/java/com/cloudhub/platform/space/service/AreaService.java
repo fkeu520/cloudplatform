@@ -121,9 +121,9 @@ public class AreaService {
                 a.setAreaName(newName);
             }
         }
-        if (params.containsKey("areaCovered"))
+        if (params.containsKey("areaCovered") && params.get("areaCovered") != null)
             a.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
-        if (params.containsKey("builtArea"))
+        if (params.containsKey("builtArea") && params.get("builtArea") != null)
             a.setBuiltArea(new BigDecimal(params.get("builtArea").toString()));
         if (params.containsKey("functionArea"))
             a.setFunctionArea((String) params.get("functionArea"));
