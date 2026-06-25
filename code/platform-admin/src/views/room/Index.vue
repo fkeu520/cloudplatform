@@ -26,6 +26,9 @@ import { listFloorByBuilding, type Floor } from '@/api/floor'
 import { getKitPage, type Kit } from '@/api/kit'
 import { getRoomPurposePage, type RoomPurpose } from '@/api/room-purpose'
 import { getDictDataByType } from '@/api/dict'
+import { getRoomLockRecordPage } from '@/api/room-lock-record'
+import { getRoomRecordPage } from '@/api/room-record'
+import { getRoomSplitMergePage } from '@/api/room-split-merge'
 
 // ============== 状态 ==============
 const loading = ref(false)
@@ -68,6 +71,16 @@ const formRef = ref()
 // 配套/用途 options
 const kitOptions = ref<Kit[]>([])
 const purposeOptions = ref<RoomPurpose[]>([])
+
+// 查看模式 tabs 状态
+type TabName = 'lock' | 'split' | 'record'
+const activeTabName = ref<TabName>('lock')
+const tabLoading = reactive<Record<TabName, boolean>>({ lock: false, split: false, record: false })
+const tabData = reactive<Record<TabName, any[]>>({ lock: [], split: [], record: [] })
+const tabTotal = reactive<Record<TabName, number>>({ lock: 0, split: 0, record: 0 })
+const tabPage = reactive<Record<TabName, number>>({ lock: 1, split: 1, record: 1 })
+const tabSize = reactive<Record<TabName, number>>({ lock: 10, split: 10, record: 10 })
+const tabLoaded = reactive<Record<TabName, boolean>>({ lock: false, split: false, record: false })
 
 const defaultForm = () => ({
   id: undefined as number | undefined,
@@ -295,6 +308,164 @@ function purposeName(id: number | undefined): string {
   return purposeOptions.value.find((p) => p.id === id)?.purposeName || '-'
 }
 
+function kitName(id: number | undefined): string {
+  if (!id) return '-'
+  return kitOptions.value.find((k) => k.id === id)?.kitName || '-'
+}
+
+function parkNameOf(id: number | undefined): string {
+  if (!id) return '-'
+  return parkTree.value.find((p) => p.id === id)?.parkName || '-'
+}
+
+function buildingNameOf(parkId: number | undefined, buildingId: number | undefined): string {
+  if (!parkId || !buildingId) return '-'
+  for (const park of parkTree.value) {
+    if (park.id !== parkId) continue
+    const building = park.$buildingList?.find((b) => b.id === buildingId)
+    if (building) return building.buildingName || '-'
+  }
+  return '-'
+}
+
+function floorNameOf(parkId: number | undefined, buildingId: number | undefined, floorId: number | undefined): string {
+  if (!parkId || !buildingId || !floorId) return '-'
+  for (const park of parkTree.value) {
+    if (park.id !== parkId) continue
+    const building = park.$buildingList?.find((b) => b.id === buildingId)
+    const floor = building?.$floorList?.find((f) => f.id === floorId)
+    if (floor) return floor.floorName || '-'
+  }
+  return '-'
+}
+
+function splitMergeTypeLabel(type: number | undefined): string {
+  if (type === 1) return '合并'
+  if (type === 2) return '拆分'
+  return '-'
+}
+
+function recordTypeLabel(covenantType: number | undefined, status: number | undefined): string {
+  // covenantType 区分来源 (1=绑定/合同), status 区分动作 (0/1)
+  if (covenantType === 1) return status === 1 ? '绑定' : '解绑'
+  if (covenantType === 2) return status === 1 ? '关联' : '取消'
+  return '-'
+}
+
+function fmtArea(v: number | undefined, unit = '㎡'): string {
+  if (v === undefined || v === null) return '-'
+  return `${Number(v).toLocaleString()} ${unit}`
+}
+
+function fmtPrice(v: number | undefined, unit = '元'): string {
+  if (v === undefined || v === null) return '-'
+  return `${Number(v).toLocaleString()} ${unit}`
+}
+
+// ============== 查看模式 tabs 加载 ==============
+function resetTabState() {
+  activeTabName.value = 'lock'
+  ;(['lock', 'split', 'record'] as TabName[]).forEach((k) => {
+    tabLoading[k] = false
+    tabData[k] = []
+    tabTotal[k] = 0
+    tabPage[k] = 1
+    tabSize[k] = 10
+    tabLoaded[k] = false
+  })
+}
+
+async function loadLockRecords() {
+  if (!editingId.value) return
+  tabLoading.lock = true
+  try {
+    const res: any = await getRoomLockRecordPage({
+      roomId: editingId.value,
+      pageNum: tabPage.lock,
+      pageSize: tabSize.lock,
+    })
+    if (res.code === 200) {
+      tabData.lock = res.data?.records || []
+      tabTotal.lock = res.data?.total || 0
+      tabLoaded.lock = true
+    }
+  } catch (e) {
+    console.error('loadLockRecords error', e)
+  } finally {
+    tabLoading.lock = false
+  }
+}
+
+async function loadSplitRecords() {
+  if (!editingId.value) return
+  tabLoading.split = true
+  try {
+    // /room-split-merge/page 无 roomId 参数, 用 parkId 加载后客户端过滤
+    // (split/merge 记录数有限, 性能可接受)
+    const res: any = await getRoomSplitMergePage({
+      parkId: form.parkId,
+      pageNum: tabPage.split,
+      pageSize: tabSize.split * 5, // 多取一些以补偿客户端过滤
+    })
+    if (res.code === 200) {
+      const roomId = editingId.value
+      const all = res.data?.records || []
+      tabData.split = all.filter(
+        (r: any) => r.oldRoomId === roomId || r.newRoomId === roomId
+      )
+      tabTotal.split = tabData.split.length
+      tabLoaded.split = true
+    }
+  } catch (e) {
+    console.error('loadSplitRecords error', e)
+  } finally {
+    tabLoading.split = false
+  }
+}
+
+async function loadRoomRecords() {
+  if (!editingId.value) return
+  tabLoading.record = true
+  try {
+    const res: any = await getRoomRecordPage({
+      roomId: editingId.value,
+      pageNum: tabPage.record,
+      pageSize: tabSize.record,
+    })
+    if (res.code === 200) {
+      tabData.record = res.data?.records || []
+      tabTotal.record = res.data?.total || 0
+      tabLoaded.record = true
+    }
+  } catch (e) {
+    console.error('loadRoomRecords error', e)
+  } finally {
+    tabLoading.record = false
+  }
+}
+
+function onTabClick(tab: any) {
+  const name = tab.props.name as TabName
+  if (name === 'lock' && !tabLoaded.lock) loadLockRecords()
+  if (name === 'split' && !tabLoaded.split) loadSplitRecords()
+  if (name === 'record' && !tabLoaded.record) loadRoomRecords()
+}
+
+function onTabSizeChange(name: TabName, v: number) {
+  tabSize[name] = v
+  tabPage[name] = 1
+  if (name === 'lock') loadLockRecords()
+  if (name === 'split') loadSplitRecords()
+  if (name === 'record') loadRoomRecords()
+}
+
+function onTabPageChange(name: TabName, v: number) {
+  tabPage[name] = v
+  if (name === 'lock') loadLockRecords()
+  if (name === 'split') loadSplitRecords()
+  if (name === 'record') loadRoomRecords()
+}
+
 // ============== 弹窗操作 ==============
 async function handleAdd() {
   if (!activeBuildingId.value || !activeFloorId.value) {
@@ -335,7 +506,10 @@ async function handleView(r: Room) {
     if (res.code === 200) {
       Object.assign(form, defaultForm(), res.data)
       await loadKitsAndPurposes()
+      resetTabState()
       dialogVisible.value = true
+      // 预加载默认 tab (锁定记录)
+      loadLockRecords()
     }
   } catch {
     ElMessage.error('加载房间详情失败')
@@ -581,16 +755,150 @@ onMounted(async () => {
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="900px"
+      :width="dialogMode === 'view' ? '1100px' : '900px'"
       :close-on-click-modal="false"
       @close="Object.assign(form, defaultForm())"
     >
+      <!-- 查看模式: 概要 + 3 个子表 tabs -->
+      <template v-if="dialogMode === 'view'">
+        <el-descriptions
+          class="room-detail-descriptions"
+          :column="3"
+          border
+          size="default"
+          title="基本信息"
+        >
+          <el-descriptions-item label="所属园区">{{ parkNameOf(form.parkId) }}</el-descriptions-item>
+          <el-descriptions-item label="所属楼栋">{{ buildingNameOf(form.parkId, form.buildingId) }}</el-descriptions-item>
+          <el-descriptions-item label="所属楼层">{{ floorNameOf(form.parkId, form.buildingId, form.floorId) }}</el-descriptions-item>
+          <el-descriptions-item label="房间编号">{{ form.roomNo || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="房间名称">{{ form.roomName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="statusTagType(form.status)" size="small">{{ statusLabel(form.status) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="建筑面积">{{ fmtArea(form.areaCovered) }}</el-descriptions-item>
+          <el-descriptions-item label="套内面积">{{ fmtArea(form.buildArea) }}</el-descriptions-item>
+          <el-descriptions-item label="计费面积">{{ fmtArea(form.billableArea) }}</el-descriptions-item>
+          <el-descriptions-item label="单价">{{ fmtPrice(form.unitPrice, '元/㎡/月') }}</el-descriptions-item>
+          <el-descriptions-item label="总价">{{ fmtPrice(form.totalPrice, '元/月') }}</el-descriptions-item>
+          <el-descriptions-item label="月租金">{{ fmtPrice(form.monthlyRent) }}</el-descriptions-item>
+          <el-descriptions-item label="房间配套">{{ kitName(form.kitId) }}</el-descriptions-item>
+          <el-descriptions-item label="房间用途">{{ purposeName(form.purposeId) }}</el-descriptions-item>
+          <el-descriptions-item label="排序">{{ form.sorting ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item v-if="(form as any).introduce" label="房间介绍" :span="3">
+            {{ (form as any).introduce }}
+          </el-descriptions-item>
+          <el-descriptions-item v-if="form.remark" label="备注" :span="3">
+            {{ form.remark }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <el-tabs v-model="activeTabName" class="room-detail-tabs" @tab-click="onTabClick">
+          <!-- 锁定记录 -->
+          <el-tab-pane label="锁定记录" name="lock">
+            <el-table :data="tabData.lock" v-loading="tabLoading.lock" border stripe size="small">
+              <el-table-column prop="createTime" label="操作时间" width="170" />
+              <el-table-column prop="operator" label="操作人" width="120" />
+              <el-table-column label="操作类型" width="90" align="center">
+                <template #default="scope">
+                  <el-tag :type="scope.row.isLock === 1 ? 'warning' : 'success'" size="small">
+                    {{ scope.row.isLock === 1 ? '锁定' : '解锁' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="enterpriseName" label="关联企业" min-width="140" />
+              <el-table-column prop="days" label="锁定天数" width="90" align="right" />
+              <el-table-column prop="reason" label="原因" min-width="160" show-overflow-tooltip />
+              <template #empty>
+                <el-empty description="暂无锁定记录" :image-size="60" />
+              </template>
+            </el-table>
+            <el-pagination
+              v-if="tabTotal.lock >= 10"
+              class="common-pagination"
+              background
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="tabTotal.lock"
+              :page-sizes="[10, 20, 50]"
+              :page-size="tabSize.lock"
+              :current-page.sync="tabPage.lock"
+              @size-change="(v: number) => onTabSizeChange('lock', v)"
+              @current-change="(v: number) => onTabPageChange('lock', v)"
+            />
+          </el-tab-pane>
+
+          <!-- 拆分合并 -->
+          <el-tab-pane label="拆分合并" name="split">
+            <el-table :data="tabData.split" v-loading="tabLoading.split" border stripe size="small">
+              <el-table-column prop="createTime" label="操作时间" width="170" />
+              <el-table-column prop="userName" label="操作人" width="120" />
+              <el-table-column label="类型" width="80" align="center">
+                <template #default="scope">
+                  <el-tag :type="scope.row.type === 1 ? 'primary' : 'warning'" size="small">
+                    {{ splitMergeTypeLabel(scope.row.type) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="oldRoomName" label="原房间" min-width="120" />
+              <el-table-column prop="newRoomName" label="新房间" min-width="120" />
+              <el-table-column prop="num" label="数量" width="80" align="right" />
+              <el-table-column prop="reasons" label="原因" min-width="160" show-overflow-tooltip />
+              <template #empty>
+                <el-empty description="暂无拆分合并记录" :image-size="60" />
+              </template>
+            </el-table>
+            <el-pagination
+              v-if="tabTotal.split >= 10"
+              class="common-pagination"
+              background
+              layout="total, prev, pager, next, jumper"
+              :total="tabTotal.split"
+              :page-size="tabSize.split"
+              :current-page.sync="tabPage.split"
+              @current-change="(v: number) => onTabPageChange('split', v)"
+            />
+          </el-tab-pane>
+
+          <!-- 房间记录 (绑定/解绑历史) -->
+          <el-tab-pane label="房间记录" name="record">
+            <el-table :data="tabData.record" v-loading="tabLoading.record" border stripe size="small">
+              <el-table-column prop="createTime" label="操作时间" width="170" />
+              <el-table-column label="操作" width="100" align="center">
+                <template #default="scope">
+                  <el-tag :type="scope.row.status === 1 ? 'success' : 'info'" size="small">
+                    {{ recordTypeLabel(scope.row.covenantType, scope.row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="customerId" label="客户 ID" width="100" align="right" />
+              <el-table-column prop="covenantId" label="合同 ID" width="100" align="right" />
+              <template #empty>
+                <el-empty description="暂无房间记录" :image-size="60" />
+              </template>
+            </el-table>
+            <el-pagination
+              v-if="tabTotal.record >= 10"
+              class="common-pagination"
+              background
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="tabTotal.record"
+              :page-sizes="[10, 20, 50]"
+              :page-size="tabSize.record"
+              :current-page.sync="tabPage.record"
+              @size-change="(v: number) => onTabSizeChange('record', v)"
+              @current-change="(v: number) => onTabPageChange('record', v)"
+            />
+          </el-tab-pane>
+        </el-tabs>
+      </template>
+
+      <!-- 新增/编辑模式: 原表单 -->
       <el-form
+        v-else
         :model="form"
         label-width="120px"
         :rules="formRules"
         ref="formRef"
-        :disabled="dialogMode === 'view'"
         :validate-on-rule-change="false"
       >
         <el-row :gutter="24">
@@ -736,7 +1044,7 @@ onMounted(async () => {
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="dialogVisible = false">{{ dialogMode === 'view' ? '关闭' : '取消' }}</el-button>
         <el-button
           v-if="dialogMode !== 'view'"
           type="primary"
@@ -837,6 +1145,38 @@ onMounted(async () => {
 .data-null-box {
   padding: 24px;
   text-align: center;
+}
+
+/* 房间详情查看模式 (el-descriptions + el-tabs) */
+.room-detail-descriptions {
+  margin-bottom: 16px;
+}
+
+.room-detail-descriptions :deep(.el-descriptions__title) {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.room-detail-tabs {
+  margin-top: 8px;
+}
+
+.room-detail-tabs :deep(.el-tabs__header) {
+  margin-bottom: 12px;
+}
+
+.room-detail-tabs :deep(.el-tabs__content) {
+  overflow: visible;
+}
+
+.room-detail-tabs :deep(.el-table) {
+  font-size: 13px;
+}
+
+.room-detail-tabs :deep(.common-pagination) {
+  margin-top: 12px;
+  text-align: right;
 }
 
 .data-null-text {
