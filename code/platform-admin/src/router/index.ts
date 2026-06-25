@@ -180,6 +180,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '配套管理', icon: 'fas fa-box', parent: 'space' }
       },
       {
+        path: 'room-purpose/page',
+        name: 'RoomPurposeMgmt',
+        component: () => import('@/views/room-purpose/Index.vue'),
+        meta: { title: '房源用途', icon: 'fas fa-tags', parent: 'space' }
+      },
+      {
         path: 'plan-use/page',
         name: 'PlanUseMgmt',
         component: () => import('@/views/plan-use/Index.vue'),
