@@ -293,9 +293,9 @@ onMounted(async () => {
       <el-table :data="tableData" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="kitName" label="配套名称" min-width="200" :show-overflow-tooltip="true" />
-        <el-table-column prop="amount" label="设备总数" width="100" align="right">
+        <el-table-column prop="equipmentCount" label="设备总数" width="100" align="right">
           <template #default="scope">
-            <el-tag size="small">{{ scope.row.amount ?? 0 }}</el-tag>
+            <el-tag size="small">{{ scope.row.equipmentCount ?? scope.row.amount ?? 0 }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90">
