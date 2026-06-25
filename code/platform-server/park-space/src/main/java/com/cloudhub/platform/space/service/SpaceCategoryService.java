@@ -17,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 /**
- * 空间类别 Service (park-space 业务)
- * <p>W3.5 阶段: 空间类别 (SpaceCategory) 简单 CRUD + 同园区名称唯一校验.</p>
+ * 空间类别 Service (park-space 业务) - 通用字典
+ * <p>V42: 移除 parkId, 名称全局唯一 (V39 Kit/RoomPurpose 同模式).</p>
  */
 @Slf4j
 @Service
@@ -29,14 +29,11 @@ public class SpaceCategoryService {
 
     // ========== Query ==========
 
-    public Result<PageResult<SpaceCategory>> page(String keyword, Long parkId, Integer status,
+    public Result<PageResult<SpaceCategory>> page(String keyword, Integer status,
                                                     int pageNum, int pageSize) {
         LambdaQueryWrapper<SpaceCategory> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             w.like(SpaceCategory::getTypeName, keyword);
-        }
-        if (parkId != null) {
-            w.eq(SpaceCategory::getParkId, parkId);
         }
         if (status != null) {
             w.eq(SpaceCategory::getStatus, status);
@@ -45,7 +42,7 @@ public class SpaceCategoryService {
 
         Page<SpaceCategory> p = spaceCategoryMapper.selectPage(new Page<>(pageNum, pageSize), w);
         PageResult<SpaceCategory> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
-        log.info("[SpaceCategoryService] page keyword={}, parkId={} -> total={}", keyword, parkId, p.getTotal());
+        log.info("[SpaceCategoryService] page keyword={} -> total={}", keyword, p.getTotal());
         return Result.ok(result);
     }
 
@@ -59,19 +56,15 @@ public class SpaceCategoryService {
 
     @Transactional
     public Result<Long> create(Map<String, Object> params) {
-        Long parkId = requiredLong(params, "parkId");
         String typeName = requiredString(params, "typeName");
-
         Long count = spaceCategoryMapper.selectCount(new LambdaQueryWrapper<SpaceCategory>()
-                .eq(SpaceCategory::getParkId, parkId)
                 .eq(SpaceCategory::getTypeName, typeName)
                 .eq(SpaceCategory::getDeleted, 0));
         if (count != null && count > 0) {
-            throw new BizException("园区 " + parkId + " 已存在空间类别 " + typeName);
+            throw new BizException("已存在空间类别 " + typeName);
         }
 
         SpaceCategory sc = new SpaceCategory();
-        sc.setParkId(parkId);
         sc.setTypeName(typeName);
         sc.setTypeDescribe((String) params.get("typeDescribe"));
         sc.setStatus(params.get("status") != null
@@ -79,7 +72,7 @@ public class SpaceCategoryService {
         sc.setTenantId(currentTenantId());
 
         spaceCategoryMapper.insert(sc);
-        log.info("[SpaceCategoryService] create: id={}, parkId={}, typeName={}", sc.getId(), parkId, typeName);
+        log.info("[SpaceCategoryService] create: id={}, typeName={}", sc.getId(), typeName);
         return Result.ok(sc.getId());
     }
 
@@ -95,12 +88,11 @@ public class SpaceCategoryService {
             String newName = (String) params.get("typeName");
             if (newName != null && !newName.isBlank()) {
                 Long count = spaceCategoryMapper.selectCount(new LambdaQueryWrapper<SpaceCategory>()
-                        .eq(SpaceCategory::getParkId, sc.getParkId())
                         .eq(SpaceCategory::getTypeName, newName)
                         .ne(SpaceCategory::getId, id)
                         .eq(SpaceCategory::getDeleted, 0));
                 if (count != null && count > 0) {
-                    throw new BizException("园区 " + sc.getParkId() + " 已存在空间类别 " + newName);
+                    throw new BizException("已存在空间类别 " + newName);
                 }
                 sc.setTypeName(newName);
             }
@@ -129,16 +121,6 @@ public class SpaceCategoryService {
 
     // ========== Helpers ==========
 
-    private Long requiredLong(Map<String, Object> params, String key) {
-        Object v = params.get(key);
-        if (v == null) throw new BizException("缺少必填字段: " + key);
-        try {
-            return Long.valueOf(v.toString().trim());
-        } catch (NumberFormatException e) {
-            throw new BizException("字段类型错误: " + key);
-        }
-    }
-
     private String requiredString(Map<String, Object> params, String key) {
         Object v = params.get(key);
         if (v == null || v.toString().isBlank()) throw new BizException("缺少必填字段: " + key);
@@ -151,11 +133,10 @@ public class SpaceCategoryService {
     }
 
     /**
-     * 校验同园区类别名称唯一性
+     * 校验类别名称唯一性 (全局, 不分园区)
      */
-    public Result<Boolean> checkName(Long parkId, String typeName, Long excludeId) {
+    public Result<Boolean> checkName(String typeName, Long excludeId) {
         com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SpaceCategory> w = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SpaceCategory>()
-                .eq(SpaceCategory::getParkId, parkId)
                 .eq(SpaceCategory::getTypeName, typeName)
                 .eq(SpaceCategory::getDeleted, 0);
         if (excludeId != null) {
@@ -163,7 +144,7 @@ public class SpaceCategoryService {
         }
         Long count = spaceCategoryMapper.selectCount(w);
         boolean available = count == null || count == 0;
-        log.info("[SpaceCategoryService] checkName parkId={}, typeName={} -> available={}", parkId, typeName, available);
+        log.info("[SpaceCategoryService] checkName typeName={} -> available={}", typeName, available);
         return Result.ok(available);
     }
 }
