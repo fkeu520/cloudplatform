@@ -199,9 +199,9 @@ function handleParkChange(parkId: string) {
   handleSearch()
 }
 
-function getAreaName(areaId: string | undefined): string {
-  if (!areaId) return '-'
-  return areaOptions.value.find((a) => a.id === areaId)?.areaName || '-'
+function getAreaName(areaId: string | number | undefined): string {
+  if (areaId == null) return '-'
+  return areaOptions.value.find((a) => a.id === String(areaId))?.areaName || '-'
 }
 
 // 新增
