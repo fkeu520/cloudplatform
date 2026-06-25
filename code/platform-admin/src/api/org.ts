@@ -1,10 +1,10 @@
 import request from './request'
 
 export interface Organization {
-  id?: number
+  id?: string
   code?: string
   name: string
-  parentId?: number
+  parentId?: string
   type?: number
   sort?: number
   status?: number
@@ -18,7 +18,7 @@ export function getOrgTree() {
   })
 }
 
-export function getOrgById(id: number) {
+export function getOrgById(id: string) {
   return request({
     url: `/org/${id}`,
     method: 'get'
@@ -33,7 +33,7 @@ export function createOrg(data: Organization) {
   })
 }
 
-export function updateOrg(id: number, data: Organization) {
+export function updateOrg(id: string, data: Organization) {
   return request({
     url: `/org/${id}`,
     method: 'put',
@@ -41,7 +41,7 @@ export function updateOrg(id: number, data: Organization) {
   })
 }
 
-export function deleteOrg(id: number) {
+export function deleteOrg(id: string) {
   return request({
     url: `/org/${id}`,
     method: 'delete'

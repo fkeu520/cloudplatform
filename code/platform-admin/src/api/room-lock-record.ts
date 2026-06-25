@@ -1,22 +1,22 @@
 import request from './request'
 
 export interface RoomLockRecord {
-  id?: number
-  roomId?: number
+  id?: string
+  roomId?: string
   isLock?: number
   enterpriseId?: number
   enterpriseName?: string
   operator?: string
   reason?: string
   days?: number
-  parkId?: number
-  tenantId?: number
+  parkId?: string
+  tenantId?: string
   createTime?: string
 }
 
 export function getRoomLockRecordPage(params: {
-  roomId?: number
-  parkId?: number
+  roomId?: string
+  parkId?: string
   isLock?: number
   pageNum?: number
   pageSize?: number
@@ -24,7 +24,7 @@ export function getRoomLockRecordPage(params: {
   return request({ url: '/room-lock-record/page', method: 'get', params })
 }
 
-export function getRoomLockRecordById(id: number) {
+export function getRoomLockRecordById(id: string) {
   return request({ url: `/room-lock-record/${id}`, method: 'get' })
 }
 

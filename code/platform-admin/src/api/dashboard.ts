@@ -10,21 +10,21 @@ export interface DashboardWelcome {
 }
 
 export interface DashboardTodo {
-  id: number
+  id: string
   title: string
   status: string
   createTime: string
 }
 
 export interface DashboardMessage {
-  id: number
+  id: string
   title: string
   sender: string
   createTime: string
 }
 
 export interface DashboardShortcut {
-  id: number
+  id: string
   name: string
   path: string
   icon?: string
@@ -48,7 +48,7 @@ export interface DashboardSystemStats {
 
 // ============ API 函数 ============
 
-/** 获取工作台欢迎/概览数据 */
+/** 获取工作台欢�?概览数据 */
 export function getDashboardWelcome() {
   return request.get('/dashboard/welcome')
 }

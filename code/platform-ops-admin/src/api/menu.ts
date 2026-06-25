@@ -1,8 +1,8 @@
 import request from './request'
 
 export interface Menu {
-  id: number
-  parentId: number
+  id: string
+  parentId: string
   name: string
   path?: string
   component?: string

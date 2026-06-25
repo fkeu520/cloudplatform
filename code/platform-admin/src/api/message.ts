@@ -26,7 +26,7 @@ export interface RecordPageParams {
   pageSize?: number
   channelCode?: string
   sendStatus?: number
-  tenantId?: number
+  tenantId?: string
   startTime?: string
   endTime?: string
   keyword?: string
@@ -38,7 +38,7 @@ export interface SendTestParams {
   content: string
 }
 
-// ====== 站内信 ======
+// ====== 站内�?======
 
 export function getSiteMessagePage(params: PageParams) {
   return request.get('/message/site/page', { params })
@@ -48,11 +48,11 @@ export function getUnreadSiteMessageCount(userId: string) {
   return request.get('/message/site/unread-count', { params: { userId } })
 }
 
-export function getSiteMessageById(id: number) {
+export function getSiteMessageById(id: string) {
   return request.get(`/message/site/${id}`)
 }
 
-export function markSiteMessageRead(id: number) {
+export function markSiteMessageRead(id: string) {
   return request.post(`/message/site/read/${id}`)
 }
 
@@ -60,7 +60,7 @@ export function markAllSiteMessageRead(userId: string) {
   return request.post('/message/site/read-all', { userId })
 }
 
-export function deleteSiteMessage(id: number) {
+export function deleteSiteMessage(id: string) {
   return request.delete(`/message/site/${id}`)
 }
 
@@ -74,7 +74,7 @@ export function getChannelPage(params: ChannelPageParams) {
   return request.get('/message/channel/page', { params })
 }
 
-export function getChannelById(id: number) {
+export function getChannelById(id: string) {
   return request.get(`/message/channel/${id}`)
 }
 
@@ -82,11 +82,11 @@ export function createChannel(data: any) {
   return request.post('/message/channel', data)
 }
 
-export function updateChannel(id: number, data: any) {
+export function updateChannel(id: string, data: any) {
   return request.put(`/message/channel/${id}`, data)
 }
 
-export function deleteChannel(id: number) {
+export function deleteChannel(id: string) {
   return request.delete(`/message/channel/${id}`)
 }
 
@@ -96,7 +96,7 @@ export function getTemplatePage(params: TemplatePageParams) {
   return request.get('/message/template/page', { params })
 }
 
-export function getTemplateById(id: number) {
+export function getTemplateById(id: string) {
   return request.get(`/message/template/${id}`)
 }
 
@@ -104,21 +104,21 @@ export function createTemplate(data: any) {
   return request.post('/message/template', data)
 }
 
-export function updateTemplate(id: number, data: any) {
+export function updateTemplate(id: string, data: any) {
   return request.put(`/message/template/${id}`, data)
 }
 
-export function deleteTemplate(id: number) {
+export function deleteTemplate(id: string) {
   return request.delete(`/message/template/${id}`)
 }
 
-// ====== 消息发送记录 ======
+// ====== 消息发送记�?======
 
 export function getRecordPage(params: RecordPageParams) {
   return request.get('/message/record/page', { params })
 }
 
-export function getRecordById(id: number) {
+export function getRecordById(id: string) {
   return request.get(`/message/record/${id}`)
 }
 
@@ -130,10 +130,10 @@ export function sendTestMessage(data: SendTestParams) {
   return request.post('/message/record/test-send', data)
 }
 
-export function resendRecord(id: number) {
+export function resendRecord(id: string) {
   return request.post(`/message/record/resend/${id}`)
 }
 
-export function deleteRecord(id: number) {
+export function deleteRecord(id: string) {
   return request.delete(`/message/record/${id}`)
 }

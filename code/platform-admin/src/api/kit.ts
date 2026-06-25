@@ -1,24 +1,24 @@
 import request from './request'
 
 export interface Kit {
-  id?: number
+  id?: string
   kitName?: string
   amount?: number
   status?: number
-  tenantId?: number
+  tenantId?: string
   equipmentCount?: number
   createTime?: string
 }
 
 export interface Equipment {
-  id?: number
-  kitId?: number
+  id?: string
+  kitId?: string
   equipmentName?: string
   model?: string
   amount?: number
   status?: number
-  parkId?: number
-  tenantId?: number
+  parkId?: string
+  tenantId?: string
 }
 
 export function getKitPage(params: {
@@ -30,7 +30,7 @@ export function getKitPage(params: {
   return request({ url: '/kit/page', method: 'get', params })
 }
 
-export function getKitById(id: number) {
+export function getKitById(id: string) {
   return request({ url: `/kit/${id}`, method: 'get' })
 }
 
@@ -38,19 +38,19 @@ export function createKit(data: any) {
   return request({ url: '/kit', method: 'post', data })
 }
 
-export function updateKit(id: number, data: any) {
+export function updateKit(id: string, data: any) {
   return request({ url: `/kit/${id}`, method: 'put', data })
 }
 
-export function deleteKit(id: number) {
+export function deleteKit(id: string) {
   return request({ url: `/kit/${id}`, method: 'delete' })
 }
 
-export function checkKitName(kitName: string, excludeId?: number) {
+export function checkKitName(kitName: string, excludeId?: string) {
   return request({ url: '/kit/check-name', method: 'get', params: { kitName, excludeId } })
 }
 
-export function listEquipmentByKit(kitId: number) {
+export function listEquipmentByKit(kitId: string) {
   return request({ url: `/equipment/list-by-kit-id/${kitId}`, method: 'get' })
 }
 

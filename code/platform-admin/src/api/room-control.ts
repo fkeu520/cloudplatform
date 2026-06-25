@@ -1,10 +1,10 @@
 import request from './request'
 
 export interface RoomControl {
-  id?: number
-  parkId?: number
-  buildingId?: number
-  floorId?: number
+  id?: string
+  parkId?: string
+  buildingId?: string
+  floorId?: string
   roomNo?: string
   roomName?: string
   areaCovered?: number
@@ -19,9 +19,9 @@ export interface RoomControl {
 }
 
 export function getRoomControlPage(params: {
-  parkId?: number
-  buildingId?: number
-  floorId?: number
+  parkId?: string
+  buildingId?: string
+  floorId?: string
   rentingSelling?: number
   isLock?: number
   keyword?: string
@@ -32,7 +32,7 @@ export function getRoomControlPage(params: {
 }
 
 export function updateRoomControl(
-  id: number,
+  id: string,
   data: { rentingSelling?: number; leasePrice?: number; salePrice?: number; isOrder?: number }
 ) {
   return request({ url: `/room/control/${id}`, method: 'put', params: data })
@@ -48,7 +48,7 @@ export function batchUpdateRoomControl(data: {
 }
 
 export function lockRoom(data: {
-  roomId: number
+  roomId: string
   enterpriseId?: number
   enterpriseName?: string
   reason: string
@@ -58,7 +58,7 @@ export function lockRoom(data: {
 }
 
 export function unlockRoom(data: {
-  roomId: number
+  roomId: string
   reason: string
 }) {
   return request({ url: '/room/control/unlock', method: 'post', data })

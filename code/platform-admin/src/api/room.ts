@@ -1,10 +1,10 @@
 import request from './request'
 
 export interface Room {
-  id?: number
-  parkId?: number
-  buildingId?: number
-  floorId?: number
+  id?: string
+  parkId?: string
+  buildingId?: string
+  floorId?: string
   floor?: number
   roomNo?: string
   roomName?: string
@@ -16,14 +16,14 @@ export interface Room {
   unitPrice?: number
   totalPrice?: number
   monthlyRent?: number
-  kitId?: number
-  purposeId?: number
+  kitId?: string
+  purposeId?: string
   image?: string
   sorting?: number
   introduce?: string
   status?: number
   remark?: string
-  tenantId?: number
+  tenantId?: string
   createTime?: string
 }
 
@@ -31,16 +31,16 @@ export function getRoomPage(params: {
   keyword?: string
   roomType?: string
   status?: number
-  parkId?: number
-  buildingId?: number
-  floorId?: number
+  parkId?: string
+  buildingId?: string
+  floorId?: string
   pageNum?: number
   pageSize?: number
 }) {
   return request({ url: '/room/page', method: 'get', params })
 }
 
-export function getRoomById(id: number) {
+export function getRoomById(id: string) {
   return request({ url: `/room/${id}`, method: 'get' })
 }
 
@@ -48,18 +48,18 @@ export function createRoom(data: any) {
   return request({ url: '/room', method: 'post', data })
 }
 
-export function updateRoom(id: number, data: any) {
+export function updateRoom(id: string, data: any) {
   return request({ url: `/room/${id}`, method: 'put', data })
 }
 
-export function deleteRoom(id: number) {
+export function deleteRoom(id: string) {
   return request({ url: `/room/${id}`, method: 'delete' })
 }
 
-export function updateRoomStatus(id: number, status: number) {
+export function updateRoomStatus(id: string, status: number) {
   return request({ url: `/room/${id}/status`, method: 'patch', params: { status } })
 }
 
-export function checkRoomNo(parkId: number, buildingId: number, roomNo: string, excludeId?: number) {
+export function checkRoomNo(parkId: string, buildingId: string, roomNo: string, excludeId?: string) {
   return request({ url: '/room/check-no', method: 'get', params: { parkId, buildingId, roomNo, excludeId } })
 }

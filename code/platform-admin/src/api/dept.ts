@@ -1,9 +1,9 @@
 import request from './request'
 
 export interface Dept {
-  id?: number
+  id?: string
   orgId?: number
-  parentId?: number
+  parentId?: string
   name?: string
   code?: string
   manager?: string
@@ -28,7 +28,7 @@ export function getDeptList(orgId: number | string) {
   })
 }
 
-export function getDeptById(id: number) {
+export function getDeptById(id: string) {
   return request({
     url: `/dept/${id}`,
     method: 'get'
@@ -43,7 +43,7 @@ export function createDept(data: Dept) {
   })
 }
 
-export function updateDept(id: number, data: Dept) {
+export function updateDept(id: string, data: Dept) {
   return request({
     url: `/dept/${id}`,
     method: 'put',
@@ -51,7 +51,7 @@ export function updateDept(id: number, data: Dept) {
   })
 }
 
-export function deleteDept(id: number) {
+export function deleteDept(id: string) {
   return request({
     url: `/dept/${id}`,
     method: 'delete'
