@@ -184,6 +184,31 @@ class AreaServiceTest {
     }
 
     /**
+     * Regression: AreaService.update 缺 parkId 更新, 前端 el-select 改园区时静默丢字段.
+     * 用户报告"分区管理编辑无效", 根因是后端 update 接收 parkId 但没写入 entity.
+     * <p>修复: AreaService.update 加 parkId 处理 (与 BuildingService/FloorService 一致),
+     * 改 parkId 后 areaName 唯一性校验用新 parkId.
+     */
+    @Test
+    void update_changeParkId_shouldPersist() {
+        when(areaMapper.selectById(1L)).thenReturn(areaA);
+        when(areaMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("parkId", 2L);  // 跨园区迁移
+        params.put("areaName", "A 区 (新园区)");
+
+        Result<Void> result = areaService.update(1L, params);
+
+        assertEquals(200, result.getCode());
+        // 验证 entity 实际更新了 parkId
+        ArgumentCaptor<Area> captor = ArgumentCaptor.forClass(Area.class);
+        verify(areaMapper).updateById(captor.capture());
+        assertEquals(Long.valueOf(2L), captor.getValue().getParkId());
+        assertEquals("A 区 (新园区)", captor.getValue().getAreaName());
+    }
+
+    /**
      * Regression: 修复 PUT /area NPE (params.get("xxx") 返回 null 时 .toString() 抛 NPE).
      * 前端可能显式传 null 来表示 "不修改" (例如 el-input-number 留空).
      * <p>修复: AreaService.update 在 containsKey 后增加 != null 判断.
