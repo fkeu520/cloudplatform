@@ -100,7 +100,7 @@ spring:
         - id: park-space
           uri: lb://park-space
           predicates:
-            - Path=/room/**, /park/**, /area/**, /floor/**, /kit/**, /plan-use/**, /land-nature/**, /covenant/**, /energy/**, /equipment/**, /space-category/**, /space/**, /massif/**, /room-purpose/**, /room-lock-record/**, /room-record/**, /room-split-merge/**
+            - Path=/room/**, /park/**, /area/**, /floor/**, /kit/**, /plan-use/**, /land-nature/**, /covenant/**, /equipment/**, /space-category/**, /space/**, /massif/**, /room-purpose/**, /room-lock-record/**, /room-record/**, /room-split-merge/**
           filters:
             - name: CircuitBreaker
               args:

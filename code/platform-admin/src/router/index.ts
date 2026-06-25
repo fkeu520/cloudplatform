@@ -204,18 +204,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/covenant/Index.vue'),
         meta: { title: '合同房间', icon: 'fas fa-file-contract', parent: 'space' }
       },
-      {
-        path: 'energy/page',
-        name: 'EnergyMgmt',
-        component: () => import('@/views/energy/Index.vue'),
-        meta: { title: '能耗管理', icon: 'fas fa-bolt', parent: 'space' }
-      },
-      {
-        path: 'equipment/page',
-        name: 'EquipmentMgmt',
-        component: () => import('@/views/equipment/Index.vue'),
-        meta: { title: '设备设施', icon: 'fas fa-tools', parent: 'space' }
-      },
       // ========== W3.5 空间实体 (park-space 后端 V34) ==========
       {
         path: 'space-category/page',
