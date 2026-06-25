@@ -29,7 +29,8 @@ import { getDictDataByType } from '@/api/dict'
 import { getAreaPage, type Area } from '@/api/area'
 import { getRoomLockRecordPage } from '@/api/room-lock-record'
 import { getRoomRecordPage } from '@/api/room-record'
-import { getRoomSplitMergePage } from '@/api/room-split-merge'
+import { getRoomSplitMergePage, mergeRooms, splitRoom } from '@/api/room-split-merge'
+import { lockRoom, unlockRoom } from '@/api/room-control'
 
 // ============== 状态 ==============
 const loading = ref(false)
@@ -64,6 +65,17 @@ const activeFloorId = ref<number | null>(null)
 // 搜索/过滤
 const filterStatus = ref<string>('')  // '' = 全部
 const filterText = ref('')
+
+// C6: 列表多选状态 (合并/批量操作用)
+const selectedRows = ref<Room[]>([])
+
+function onSelectionChange(rows: Room[]) {
+  selectedRows.value = rows
+}
+
+function clearSelection() {
+  selectedRows.value = []
+}
 
 // 字典
 const dictMap = reactive<Record<string, Array<{ value: string; label: string }>>>({})
@@ -619,6 +631,135 @@ function handleImport() {
   // TODO: 实现 Excel 导入弹窗, 调用 /room/import 接口
 }
 
+// ============== C6: 锁定/解锁/拆分/合并 操作 ==============
+
+async function handleLock(r: Room) {
+  try {
+    const { value: reason } = await ElMessageBox.prompt('请输入锁定原因', `锁定房间 ${r.roomNo}`, {
+      confirmButtonText: '锁定',
+      cancelButtonText: '取消',
+      inputPattern: /.+/,
+      inputErrorMessage: '锁定原因不能为空',
+    })
+    const res: any = await lockRoom({ roomId: r.id!, reason })
+    if (res.code === 200) {
+      ElMessage.success('已锁定')
+      await loadData()
+    } else {
+      ElMessage.error(res.msg || '锁定失败')
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
+async function handleUnlock(r: Room) {
+  try {
+    const { value: reason } = await ElMessageBox.prompt('请输入解锁原因', `解锁房间 ${r.roomNo}`, {
+      confirmButtonText: '解锁',
+      cancelButtonText: '取消',
+      inputPattern: /.+/,
+      inputErrorMessage: '解锁原因不能为空',
+    })
+    const res: any = await unlockRoom({ roomId: r.id!, reason })
+    if (res.code === 200) {
+      ElMessage.success('已解锁')
+      await loadData()
+    } else {
+      ElMessage.error(res.msg || '解锁失败')
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
+async function handleSplit(r: Room) {
+  try {
+    const { value: numStr } = await ElMessageBox.prompt(
+      '请输入要拆分为几个新房间 (2-10)',
+      `拆分房间 ${r.roomNo}`,
+      {
+        confirmButtonText: '下一步',
+        cancelButtonText: '取消',
+        inputPattern: /^([2-9]|10)$/,
+        inputErrorMessage: '请输入 2-10 之间的整数',
+      }
+    )
+    const num = Number(numStr)
+    const { value: reasons } = await ElMessageBox.prompt('请输入拆分原因 (可选)', '拆分原因', {
+      confirmButtonText: '确认拆分',
+      cancelButtonText: '取消',
+    })
+    // 用旧房号 + 序号生成新房号
+    const roomList = Array.from({ length: num }, (_, i) => ({
+      roomNo: `${r.roomNo}-${i + 1}`,
+      roomName: `${r.roomName || r.roomNo}-${i + 1}`,
+    }))
+    const res: any = await splitRoom({
+      parkId: r.parkId,
+      buildingId: r.buildingId,
+      oldRoomId: r.id!,
+      num,
+      reasons: reasons || undefined,
+      roomList,
+    })
+    if (res.code === 200) {
+      ElMessage.success('拆分成功')
+      clearSelection()
+      await loadData()
+    } else {
+      ElMessage.error(res.msg || '拆分失败')
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
+async function handleMerge() {
+  if (selectedRows.value.length < 2) {
+    ElMessage.warning('合并至少选择 2 个房间')
+    return
+  }
+  try {
+    const { value: roomNo } = await ElMessageBox.prompt('请输入新房间号', '合并房间', {
+      confirmButtonText: '下一步',
+      cancelButtonText: '取消',
+      inputPattern: /.+/,
+      inputErrorMessage: '新房间号不能为空',
+    })
+    const { value: reasons } = await ElMessageBox.prompt('请输入合并原因 (可选)', '合并原因', {
+      confirmButtonText: '确认合并',
+      cancelButtonText: '取消',
+    })
+    const first = selectedRows.value[0]
+    const res: any = await mergeRooms({
+      parkId: first.parkId,
+      buildingId: first.buildingId,
+      floorId: first.floorId,
+      floor: first.floor,
+      roomNo,
+      roomName: roomNo,
+      roomType: first.roomType,
+      areaCovered: first.areaCovered,
+      buildArea: first.buildArea,
+      billableArea: first.billableArea,
+      unitPrice: first.unitPrice,
+      monthlyRent: first.monthlyRent,
+      reasons: reasons || undefined,
+      oldRoomIds: selectedRows.value.map((r) => r.id!),
+    })
+    if (res.code === 200) {
+      ElMessage.success('合并成功')
+      clearSelection()
+      await loadData()
+    } else {
+      ElMessage.error(res.msg || '合并失败')
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') console.error(e)
+  }
+}
+
 const dialogTitle = computed(() => {
   if (dialogMode.value === 'add') return '新增房间'
   if (dialogMode.value === 'edit') return '编辑房间'
@@ -744,6 +885,17 @@ onMounted(async () => {
             <el-button size="small" type="primary" icon="el-icon-plus" @click="handleAdd" v-if="activeFloorId">
               新增房间
             </el-button>
+            <!-- C6: 合并按钮 (2+ 选中时显示) -->
+            <el-button
+              size="small"
+              type="success"
+              icon="el-icon-merge"
+              :disabled="selectedRows.length < 2"
+              @click="handleMerge"
+              v-if="activeFloorId"
+            >
+              合并 ({{ selectedRows.length }})
+            </el-button>
             <el-button size="small" type="primary" plain icon="el-icon-download" @click="handleImport">
               房间导入
             </el-button>
@@ -775,9 +927,18 @@ onMounted(async () => {
           <el-empty v-if="!loading && activeFloorId && tableData.length === 0" description="暂无房间" />
           <el-empty v-else-if="!activeFloorId" description="请在左侧选择楼层" />
 
-          <el-table :data="tableData" border stripe v-loading="loading" v-if="activeFloorId && tableData.length > 0">
+          <el-table :data="tableData" border stripe v-loading="loading"
+            @selection-change="onSelectionChange"
+            v-if="activeFloorId && tableData.length > 0">
+            <el-table-column type="selection" width="48" />
             <el-table-column prop="roomNo" label="房号" width="130" />
             <el-table-column prop="roomName" label="房间名称" min-width="140" />
+            <el-table-column label="锁定" width="70" align="center">
+              <template #default="scope">
+                <el-tag v-if="scope.row.isLock === 1" type="warning" size="small">已锁</el-tag>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
             <el-table-column label="状态" width="90" align="center">
               <template #default="scope">
                 <el-tag :type="statusTagType(scope.row.status)" size="small">
@@ -800,10 +961,13 @@ onMounted(async () => {
             <el-table-column label="单价" width="130" align="right">
               <template #default="scope">{{ scope.row.unitPrice ? Number(scope.row.unitPrice).toLocaleString() : '-' }} 元/㎡/月</template>
             </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" width="320" fixed="right">
               <template #default="scope">
                 <el-button link type="primary" size="small" @click="handleView(scope.row)">查看</el-button>
                 <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                <el-button link type="primary" size="small" @click="handleSplit(scope.row)">拆分</el-button>
+                <el-button v-if="scope.row.isLock === 1" link type="warning" size="small" @click="handleUnlock(scope.row)">解锁</el-button>
+                <el-button v-else link type="primary" size="small" @click="handleLock(scope.row)">锁定</el-button>
                 <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
               </template>
             </el-table-column>
