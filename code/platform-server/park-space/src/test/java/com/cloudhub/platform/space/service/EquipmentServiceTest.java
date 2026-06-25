@@ -130,8 +130,28 @@ class EquipmentServiceTest {
         when(equipmentMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         BizException ex = assertThrows(BizException.class, () -> equipmentService.create(params));
-        assertTrue(ex.getMessage().contains("已存在设备"));
+        assertTrue(ex.getMessage().contains("该配套下已存在设备"));
         verify(equipmentMapper, never()).insert(any(Equipment.class));
+    }
+
+    @Test
+    void create_sameNameDifferentKit_shouldAllow() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("parkId", 1L);
+        params.put("equipmentName", "空调");
+        params.put("kitId", 20L); // 不同配套类型
+
+        when(equipmentMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L); // kitId=20 下无同名
+        doAnswer(inv -> { Equipment e = inv.getArgument(0); e.setId(200L); return 1; })
+                .when(equipmentMapper).insert(any(Equipment.class));
+
+        Result<Long> result = equipmentService.create(params);
+
+        assertEquals(200, result.getCode());
+        ArgumentCaptor<Equipment> captor = ArgumentCaptor.forClass(Equipment.class);
+        verify(equipmentMapper).insert(captor.capture());
+        assertEquals("空调", captor.getValue().getEquipmentName());
+        assertEquals(Long.valueOf(20L), captor.getValue().getKitId());
     }
 
     @Test
@@ -209,6 +229,6 @@ class EquipmentServiceTest {
         when(equipmentMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         BizException ex = assertThrows(BizException.class, () -> equipmentService.batchSave(1L, list));
-        assertTrue(ex.getMessage().contains("同名设备"));
+        assertTrue(ex.getMessage().contains("该配套下已存在设备"));
     }
 }
