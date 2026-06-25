@@ -109,20 +109,20 @@ import { getBuildingPage } from '@/api/building'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, buildingId: undefined as number | undefined, status: undefined as number | undefined })
+const searchForm = reactive({ keyword: '', parkId: undefined as string | undefined, buildingId: undefined as string | undefined, status: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
-const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
-const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
-const buildingOptions = ref<any[]>([]); const buildingMap = ref<Record<number, string>>({})
+const currentId = ref<string | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
+const buildingOptions = ref<any[]>([]); const buildingMap = ref<Record<string, string>>({})
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
 }
 async function loadBuildingOptions() {
-  try { const res: any = await getBuildingPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { buildingOptions.value = res.data.records || []; buildingOptions.value.forEach((b: any) => buildingMap.value[b.id] = b.buildingName) } } catch { /* ignore */ }
+  try { const res: any = await getBuildingPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { buildingOptions.value = res.data.records || []; buildingOptions.value.forEach((b: any) => buildingMap.value[String(b.id)] = b.buildingName) } } catch { /* ignore */ }
 }
 
-const defaultForm = { parkId: undefined as number | undefined, buildingId: undefined as number | undefined, floorName: '', serialCode: 1, floorCategory: 0, coefficient: 1.0, sorting: 0, status: 1 }
+const defaultForm = { parkId: undefined as string | undefined, buildingId: undefined as string | undefined, floorName: '', serialCode: 1, floorCategory: 0, coefficient: 1.0, sorting: 0, status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
@@ -150,7 +150,7 @@ function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.va
 function handleAdd() { resetForm(); dialogTitle.value = '新增楼层'; dialogVisible.value = true }
 async function handleEdit(row: any) {
   resetForm(); isEdit.value = true; currentId.value = row.id; dialogTitle.value = '编辑楼层'
-  try { const res: any = await getFloorById(row.id); if (res.code === 200) Object.assign(formData, res.data) } catch { ElMessage.error('获取详情失败') }
+  try { const res: any = await getFloorById(row.id); if (res.code === 200) Object.assign(formData, { ...res.data, parkId: res.data.parkId != null ? String(res.data.parkId) : undefined, buildingId: res.data.buildingId != null ? String(res.data.buildingId) : undefined }) } catch { ElMessage.error('获取详情失败') }
   dialogVisible.value = true
 }
 async function handleSubmit() {

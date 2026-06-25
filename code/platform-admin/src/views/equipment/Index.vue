@@ -90,20 +90,20 @@ import { getKitPage } from '@/api/kit'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', parkId: undefined as number | undefined, kitId: undefined as number | undefined, status: undefined as number | undefined })
+const searchForm = reactive({ keyword: '', parkId: undefined as string | undefined, kitId: undefined as string | undefined, status: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
-const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
-const parkOptions = ref<any[]>([]); const parkMap = ref<Record<number, string>>({})
-const kitOptions = ref<any[]>([]); const kitMap = ref<Record<number, string>>({})
+const currentId = ref<string | null>(null); const submitting = ref(false); const formRef = ref()
+const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
+const kitOptions = ref<any[]>([]); const kitMap = ref<Record<string, string>>({})
 
 async function loadParkOptions() {
-  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[p.id] = p.parkName) } } catch { /* ignore */ }
+  try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
 }
 async function loadKitOptions() {
-  try { const res: any = await getKitPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { kitOptions.value = res.data.records || []; kitOptions.value.forEach((k: any) => kitMap.value[k.id] = k.kitName) } } catch { /* ignore */ }
+  try { const res: any = await getKitPage({ pageNum: 1, pageSize: 9999 }); if (res.code === 200) { kitOptions.value = res.data.records || []; kitOptions.value.forEach((k: any) => kitMap.value[String(k.id)] = k.kitName) } } catch { /* ignore */ }
 }
 
-const defaultForm = { parkId: undefined as number | undefined, equipmentName: '', model: '', amount: 1, kitId: undefined as number | undefined, status: 1 }
+const defaultForm = { parkId: undefined as string | undefined, equipmentName: '', model: '', amount: 1, kitId: undefined as string | undefined, status: 1 }
 const formData = reactive({ ...defaultForm })
 const rules = { parkId: [{ required: true, message: '请选择园区', trigger: 'change' }], equipmentName: [{ required: true, message: '请输入设备名称', trigger: 'blur' }] }
 
@@ -122,7 +122,7 @@ function resetForm() { Object.assign(formData, { ...defaultForm }); currentId.va
 function handleAdd() { resetForm(); dialogTitle.value='新增设备'; dialogVisible.value=true }
 async function handleEdit(row: any) {
   resetForm(); isEdit.value=true; currentId.value=row.id; dialogTitle.value='编辑设备'
-  try { const res: any = await getEquipmentById(row.id); if (res.code === 200) Object.assign(formData, res.data) } catch { ElMessage.error('获取详情失败') }
+  try { const res: any = await getEquipmentById(row.id); if (res.code === 200) Object.assign(formData, { ...res.data, parkId: res.data.parkId != null ? String(res.data.parkId) : undefined, kitId: res.data.kitId != null ? String(res.data.kitId) : undefined }) } catch { ElMessage.error('获取详情失败') }
   dialogVisible.value = true
 }
 async function handleSubmit() {
