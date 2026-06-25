@@ -1,14 +1,322 @@
-# 这里是一个示例 .cnb.yml
-  
-  # 匹配develop分支
-  develop:
-    # 触发事件为 push 事件
-    push:
-      # 这里是阶段任务示例，可配置任意多个阶段，这里以一个阶段为例
-      - name: "your first CNB building"
-        stages:
-          # 使用流水线输出你的构建配置数据
-          - name: echo your build data
-            script: echo ${CNB_BUILD_USER} 通过 ${CNB_BRANCH} 分支触发了 ${CNB_EVENT} 事件
-  
-  # 更多资料见 https://docs.cnb.cool/build/quick-start.html
+# 开发分支配置
+"(develop|master)":
+  push:
+    # 后端编译流水线
+    - name: backend-build
+      env:
+        MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
+      ifModify:
+        - 'code/platform-server/**.java'
+        - 'code/platform-server/**/**.java'
+        - 'code/platform-server/**/pom.xml'
+        - 'code/platform-server/pom.xml'
+        - 'code/platform-server/**/application.yml'
+        - 'code/platform-server/**/**/application.yml'
+        - 'code/platform-server/**/application.yaml'
+        - 'code/platform-server/**/**/application.yaml'
+        - 'code/platform-server/**/db/migration/**.sql'
+        - 'code/platform-server/**/**/db/migration/**.sql'
+        - 'code/platform-server/Dockerfile'
+        - 'code/platform-server/Dockerfile.*'
+      docker:
+        image: maven:3.9-eclipse-temurin-21
+      stages:
+        - name: compile
+          script: |
+            cd code/platform-server
+            mvn clean package -DskipTests
+        - name: verify artifacts
+          script: |
+            echo "JAR files compiled successfully"
+            ls -la code/platform-server/*/target/*.jar
+
+    # 前端管理后台编译流水线
+    - name: frontend-admin-build
+      ifModify:
+        - 'code/platform-admin/src/**'
+        - 'code/platform-admin/package.json'
+        - 'code/platform-admin/package-lock.json'
+        - 'code/platform-admin/nginx.conf'
+        - 'code/platform-admin/**/nginx.conf'
+        - 'code/platform-admin/Dockerfile'
+        - 'code/platform-admin/Dockerfile.*'
+      docker:
+        image: node:20
+      stages:
+        - name: install and build
+          script: |
+            cd code/platform-admin
+            npm install --legacy-peer-deps
+            npm run build
+
+    # 前端运营后台编译流水线
+    - name: frontend-ops-build
+      ifModify:
+        - 'code/platform-ops-admin/src/**'
+        - 'code/platform-ops-admin/package.json'
+        - 'code/platform-ops-admin/package-lock.json'
+        - 'code/platform-ops-admin/nginx.conf'
+        - 'code/platform-ops-admin/**/nginx.conf'
+        - 'code/platform-ops-admin/Dockerfile'
+        - 'code/platform-ops-admin/Dockerfile.*'
+      docker:
+        image: node:20
+      stages:
+        - name: install and build
+          script: |
+            cd code/platform-ops-admin
+            npm install
+            npm run build
+
+    # Docker 镜像构建流水线 (仅 develop/master 分支)
+    - name: docker-build
+      ifModify:
+        - 'code/platform-server/**.java'
+        - 'code/platform-server/**/**.java'
+        - 'code/platform-server/**/pom.xml'
+        - 'code/platform-server/pom.xml'
+        - 'code/platform-server/**/application.yml'
+        - 'code/platform-server/**/**/application.yml'
+        - 'code/platform-server/**/db/migration/**.sql'
+        - 'code/platform-server/**/**/db/migration/**.sql'
+        - 'code/platform-admin/src/**'
+        - 'code/platform-admin/package.json'
+        - 'code/platform-admin/package-lock.json'
+        - 'code/platform-admin/nginx.conf'
+        - 'code/platform-admin/**/nginx.conf'
+        - 'code/platform-ops-admin/src/**'
+        - 'code/platform-ops-admin/package.json'
+        - 'code/platform-ops-admin/package-lock.json'
+        - 'code/platform-ops-admin/nginx.conf'
+        - 'code/platform-ops-admin/**/nginx.conf'
+        - 'code/platform-server/Dockerfile'
+        - 'code/platform-server/Dockerfile.*'
+        - 'code/platform-admin/Dockerfile'
+        - 'code/platform-admin/Dockerfile.*'
+        - 'code/platform-ops-admin/Dockerfile'
+        - 'code/platform-ops-admin/Dockerfile.*'
+        - 'scripts/container-exporter/**'
+        - 'scripts/container-exporter/Dockerfile'
+        - 'scripts/container-exporter/Dockerfile.*'
+      services:
+        - docker
+      env:
+        MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
+      docker:
+        image: maven:3.9-eclipse-temurin-21
+      stages:
+        - name: build all
+          script: |
+            # 编译后端
+            cd code/platform-server
+            mvn clean package -DskipTests
+
+            # 编译前端
+            cd $CNB_BUILD_WORKSPACE/code/platform-admin
+            npm install --legacy-peer-deps && npm run build
+
+            cd $CNB_BUILD_WORKSPACE/code/platform-ops-admin
+            npm install && npm run build
+        - name: build and push images
+          script: |
+            # 定义服务映射
+            declare -A DF_MAP
+            DF_MAP[platform-user]=Dockerfile
+            DF_MAP[platform-auth]=Dockerfile.auth
+            DF_MAP[platform-gateway]=Dockerfile.gateway
+            DF_MAP[platform-workflow]=Dockerfile.workflow
+            DF_MAP[platform-message]=Dockerfile.message
+            DF_MAP[platform-ops]=Dockerfile.ops
+            DF_MAP[park-space]=Dockerfile.space
+            DF_MAP[park-property]=Dockerfile.property
+            DF_MAP[park-contract]=Dockerfile.contract
+
+            # 构建后端镜像
+            cd code/platform-server
+            for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops park-space park-property park-contract; do
+              img="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/${svc}:latest"
+              echo "Building $img"
+              docker build -f "${DF_MAP[$svc]}" -t $img .
+              docker push $img
+            done
+
+            # 构建前端镜像
+            cd $CNB_BUILD_WORKSPACE
+            for fe in platform-admin platform-ops-admin; do
+              img="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/${fe}:latest"
+              echo "Building $img"
+              docker build -t $img "./code/$fe"
+              docker push $img
+            done
+
+            # 容器资源监控导出器
+            img="${CNB_DOCKER_REGISTRY}/${CNB_REPO_SLUG_LOWERCASE}/platform-container-exporter:latest"
+            echo "Building $img"
+            docker build -t $img "./scripts/container-exporter"
+            docker push $img
+
+    # 多租户拦截器回滚开关验证
+    - name: tenant-interceptor-toggle
+      docker:
+        image: alpine/git
+      stages:
+        - name: run toggle verification
+          script: bash scripts/ci/check-tenant-interceptor-toggle.sh
+        - name: annotate results
+          if: |
+            [ "$CNB_PIPELINE_STATUS" = "success" ]
+          script: echo "✅ P0-1 多租户拦截器回滚开关验证通过"
+        - name: annotate failure
+          if: |
+            [ "$CNB_PIPELINE_STATUS" != "success" ]
+          script: |
+            echo "❌ P0-1 多租户拦截器回滚开关验证失败 - 见上方日志"
+            exit 1
+
+  # PR 事件配置
+  pull_request:
+    # 后端编译检查
+    - name: backend-pr-check
+      ifModify:
+        - 'code/platform-server/**.java'
+        - 'code/platform-server/**/**.java'
+        - 'code/platform-server/**/pom.xml'
+        - 'code/platform-server/pom.xml'
+        - 'code/platform-server/**/application.yml'
+        - 'code/platform-server/**/**/application.yml'
+        - 'code/platform-server/**/db/migration/**.sql'
+        - 'code/platform-server/**/**/db/migration/**.sql'
+        - 'code/platform-server/Dockerfile'
+        - 'code/platform-server/Dockerfile.*'
+      env:
+        MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
+      docker:
+        image: maven:3.9-eclipse-temurin-21
+      stages:
+        - name: compile check
+          script: |
+            cd code/platform-server
+            mvn clean compile -DskipTests
+
+    # 前端管理后台 PR 检查
+    - name: frontend-admin-pr-check
+      ifModify:
+        - 'code/platform-admin/src/**'
+        - 'code/platform-admin/package.json'
+        - 'code/platform-admin/package-lock.json'
+        - 'code/platform-admin/nginx.conf'
+        - 'code/platform-admin/**/nginx.conf'
+        - 'code/platform-admin/Dockerfile'
+        - 'code/platform-admin/Dockerfile.*'
+      docker:
+        image: node:20
+      stages:
+        - name: install and build check
+          script: |
+            cd code/platform-admin
+            npm install --legacy-peer-deps
+            npm run build
+
+    # 前端运营后台 PR 检查
+    - name: frontend-ops-pr-check
+      ifModify:
+        - 'code/platform-ops-admin/src/**'
+        - 'code/platform-ops-admin/package.json'
+        - 'code/platform-ops-admin/package-lock.json'
+        - 'code/platform-ops-admin/nginx.conf'
+        - 'code/platform-ops-admin/**/nginx.conf'
+        - 'code/platform-ops-admin/Dockerfile'
+        - 'code/platform-ops-admin/Dockerfile.*'
+      docker:
+        image: node:20
+      stages:
+        - name: install and build check
+          script: |
+            cd code/platform-ops-admin
+            npm install
+            npm run build
+
+    # 多租户拦截器回滚开关验证 (PR)
+    - name: tenant-interceptor-toggle-pr
+      docker:
+        image: alpine/git
+      stages:
+        - name: run toggle verification
+          script: bash scripts/ci/check-tenant-interceptor-toggle.sh
+
+# Feature 分支配置
+"feature/**":
+  push:
+    # 后端编译流水线 (feature分支)
+    - name: backend-build-feature
+      ifModify:
+        - 'code/platform-server/**.java'
+        - 'code/platform-server/**/**.java'
+        - 'code/platform-server/**/pom.xml'
+        - 'code/platform-server/pom.xml'
+        - 'code/platform-server/**/application.yml'
+        - 'code/platform-server/**/**/application.yml'
+        - 'code/platform-server/**/db/migration/**.sql'
+        - 'code/platform-server/**/**/db/migration/**.sql'
+      env:
+        MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
+      docker:
+        image: maven:3.9-eclipse-temurin-21
+      stages:
+        - name: compile
+          script: |
+            cd code/platform-server
+            mvn clean package -DskipTests
+
+    # 前端编译流水线 (feature分支)
+    - name: frontend-build-feature
+      ifModify:
+        - 'code/platform-admin/src/**'
+        - 'code/platform-admin/package.json'
+        - 'code/platform-admin/package-lock.json'
+        - 'code/platform-ops-admin/src/**'
+        - 'code/platform-ops-admin/package.json'
+        - 'code/platform-ops-admin/package-lock.json'
+      docker:
+        image: node:20
+      stages:
+        - name: build admin
+          ifModify:
+            - 'code/platform-admin/src/**'
+            - 'code/platform-admin/package.json'
+            - 'code/platform-admin/package-lock.json'
+          script: |
+            cd code/platform-admin
+            npm install --legacy-peer-deps
+            npm run build
+        - name: build ops
+          ifModify:
+            - 'code/platform-ops-admin/src/**'
+            - 'code/platform-ops-admin/package.json'
+            - 'code/platform-ops-admin/package-lock.json'
+          script: |
+            cd code/platform-ops-admin
+            npm install
+            npm run build
+
+  pull_request:
+    # Feature 分支 PR 检查
+    - name: backend-pr-check-feature
+      ifModify:
+        - 'code/platform-server/**.java'
+        - 'code/platform-server/**/**.java'
+        - 'code/platform-server/**/pom.xml'
+        - 'code/platform-server/pom.xml'
+        - 'code/platform-server/**/application.yml'
+        - 'code/platform-server/**/**/application.yml'
+        - 'code/platform-server/**/db/migration/**.sql'
+        - 'code/platform-server/**/**/db/migration/**.sql'
+      env:
+        MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
+      docker:
+        image: maven:3.9-eclipse-temurin-21
+      stages:
+        - name: compile check
+          script: |
+            cd code/platform-server
+            mvn clean compile -DskipTests
