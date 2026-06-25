@@ -2,7 +2,6 @@ package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -49,7 +48,6 @@ public class Area extends BaseEntity {
     private Integer status;
 
     /** 园区 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 租户 ID (P0-1 多租户拦截器) */

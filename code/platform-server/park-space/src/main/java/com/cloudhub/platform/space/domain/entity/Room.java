@@ -2,7 +2,6 @@ package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -37,19 +36,15 @@ public class Room extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 园区 ID (csyh 强依赖字段) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 楼宇 ID (跨模块: park-property.sys_building.id) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long buildingId;
 
     /** 分区 ID (V41, 来源 building.area_id, 支持 4 层树过滤: 园区→分区→楼栋→楼层) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long areaId;
 
     /** 楼层 ID (V38, csyh floorId → sys_floor.id, NULL 兼容旧数据) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long floorId;
 
     /** 楼层 */
@@ -82,11 +77,9 @@ public class Room extends BaseEntity {
     private BigDecimal monthlyRent;
 
     /** 关联 sys_kit.id (房间配套, csyh kitId) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long kitId;
 
     /** 关联 sys_room_purpose.id (房间用途, csyh purposeId) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long purposeId;
 
     /** 房间图片 (JSON 数组, csyh image, max=1000) */

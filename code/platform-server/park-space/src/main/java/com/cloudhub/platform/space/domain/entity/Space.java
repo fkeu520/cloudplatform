@@ -3,7 +3,6 @@ package com.cloudhub.platform.space.domain.entity;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -32,7 +31,6 @@ public class Space extends BaseEntity {
     private String spaceDescribe;
 
     /** 所属园区 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 园区名称 (非数据库字段, 前端展示用) */
@@ -40,11 +38,9 @@ public class Space extends BaseEntity {
     private String parkName;
 
     /** 所属区域 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long areaId;
 
     /** 空间类别 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long categoryId;
 
     /** 状态: 0=停用 1=启用 */

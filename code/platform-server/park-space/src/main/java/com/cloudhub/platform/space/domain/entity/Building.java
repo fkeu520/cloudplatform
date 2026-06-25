@@ -2,7 +2,6 @@ package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cloudhub.platform.common.domain.BaseEntity;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -35,11 +34,9 @@ public class Building extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /** 园区 ID */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long parkId;
 
     /** 区域 ID (关联 sys_area.id) */
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long areaId;
 
     // ===== V36 Phase 1 新增字段 (对齐 csyh std) =====
