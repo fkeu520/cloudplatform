@@ -106,10 +106,15 @@ public class AreaService {
         if (a == null) throw new BizException("区域不存在");
         if (a.getDeleted() != null && a.getDeleted() == 1) throw new BizException("区域已删除");
 
+        // 园区变更: 支持跨园区迁移 (前端 el-select 改动)
+        // 园区变更后 areaName 可能与新园区冲突, 下面统一重新校验
+        if (params.containsKey("parkId")) {
+            a.setParkId(ServiceUtils.toLong(params.get("parkId")));
+        }
         if (params.containsKey("areaName")) {
             String newName = (String) params.get("areaName");
             if (newName != null && !newName.isBlank()) {
-                // 名称变更: 重新校验唯一性
+                // 名称变更: 按当前 parkId (可能刚改) 重新校验唯一性
                 Long count = areaMapper.selectCount(new LambdaQueryWrapper<Area>()
                         .eq(Area::getParkId, a.getParkId())
                         .eq(Area::getAreaName, newName)
