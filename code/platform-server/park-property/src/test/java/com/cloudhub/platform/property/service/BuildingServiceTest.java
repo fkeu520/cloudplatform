@@ -76,7 +76,7 @@ class BuildingServiceTest {
         p.setTotal(2);
         when(buildingMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Building>> result = buildingService.page(null, null, 1, 10);
+        Result<PageResult<Building>> result = buildingService.page(null, null, null, null, 1, 10);
 
         assertEquals(200, result.getCode());
         assertEquals(2, result.getData().getTotal());
@@ -90,7 +90,7 @@ class BuildingServiceTest {
         p.setTotal(1);
         when(buildingMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Building>> result = buildingService.page("A", null, 1, 10);
+        Result<PageResult<Building>> result = buildingService.page("A", null, null, null, 1, 10);
         assertEquals(1, result.getData().getTotal());
     }
 
@@ -101,7 +101,7 @@ class BuildingServiceTest {
         p.setTotal(2);
         when(buildingMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
 
-        Result<PageResult<Building>> result = buildingService.page("   ", null, 1, 10);
+        Result<PageResult<Building>> result = buildingService.page("   ", null, null, null, 1, 10);
         assertEquals(2, result.getData().getTotal());
     }
 

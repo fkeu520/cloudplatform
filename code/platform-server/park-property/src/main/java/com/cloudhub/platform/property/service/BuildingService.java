@@ -37,14 +37,20 @@ public class BuildingService {
     // ========== Query ==========
 
     /**
-     * 分页查询楼宇列表
+     * 分页查询楼宇列表 (支持 parkId / areaId 级联过滤, 用于 4 实体联动下拉)
      */
-    public Result<PageResult<Building>> page(String keyword, Integer status,
+    public Result<PageResult<Building>> page(String keyword, Long parkId, Long areaId, Integer status,
                                               int pageNum, int pageSize) {
         LambdaQueryWrapper<Building> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             w.like(Building::getBuildingNo, keyword)
                     .or().like(Building::getBuildingName, keyword);
+        }
+        if (parkId != null) {
+            w.eq(Building::getParkId, parkId);
+        }
+        if (areaId != null) {
+            w.eq(Building::getAreaId, areaId);
         }
         if (status != null) {
             w.eq(Building::getStatus, status);
@@ -53,8 +59,8 @@ public class BuildingService {
 
         Page<Building> p = buildingMapper.selectPage(new Page<>(pageNum, pageSize), w);
         PageResult<Building> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
-        log.info("[BuildingService] page keyword={}, status={} -> total={}",
-                keyword, status, p.getTotal());
+        log.info("[BuildingService] page keyword={}, parkId={}, areaId={}, status={} -> total={}",
+                keyword, parkId, areaId, status, p.getTotal());
         return Result.ok(result);
     }
 
