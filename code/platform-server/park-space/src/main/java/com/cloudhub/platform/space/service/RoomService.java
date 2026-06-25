@@ -45,14 +45,17 @@ public class RoomService {
 
     /**
      * 分页查询房屋列表
-     * <p>Phase 6 (csyh std 融合): 新增 parkId/buildingId/floorId 维度过滤, 用于左侧树形导航 (园区 → 楼栋 → 楼层).</p>
+     * <p>Phase 6 (csyh std 融合): 新增 parkId/areaId/buildingId/floorId 维度过滤,
+     * 用于左侧 4 层树形导航 (园区 → 分区 → 楼栋 → 楼层).</p>
+     * <p>V41: 新增 areaId 过滤 (Room 实体加 area_id 字段, 来自 building.area_id).</p>
      *
      * @param parkId      园区 ID (可选)
+     * @param areaId      分区 ID (可选, V41)
      * @param buildingId  楼栋 ID (可选)
      * @param floorId     楼层 ID (可选)
      */
     public Result<PageResult<Room>> page(String keyword, String roomType, Integer status,
-                                          Long parkId, Long buildingId, Long floorId,
+                                          Long parkId, Long areaId, Long buildingId, Long floorId,
                                           int pageNum, int pageSize) {
         LambdaQueryWrapper<Room> w = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
@@ -66,6 +69,9 @@ public class RoomService {
         }
         if (parkId != null) {
             w.eq(Room::getParkId, parkId);
+        }
+        if (areaId != null) {
+            w.eq(Room::getAreaId, areaId);
         }
         if (buildingId != null) {
             w.eq(Room::getBuildingId, buildingId);

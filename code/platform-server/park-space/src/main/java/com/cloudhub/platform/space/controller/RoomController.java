@@ -51,18 +51,19 @@ public class RoomController {
 
     private final RoomService roomService;
 
-    @Operation(summary = "分页查询房源列表")
+    @Operation(summary = "分页查询房源列表 (支持 parkId/areaId/buildingId/floorId 4 级树过滤)")
     @GetMapping("/page")
     public Result<PageResult<Room>> page(
             @RequestParam(name = "keyword", required = false) String keyword,
             @RequestParam(name = "roomType", required = false) String roomType,
             @RequestParam(name = "status", required = false) Integer status,
             @RequestParam(name = "parkId", required = false) Long parkId,
+            @RequestParam(name = "areaId", required = false) Long areaId,
             @RequestParam(name = "buildingId", required = false) Long buildingId,
             @RequestParam(name = "floorId", required = false) Long floorId,
             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
-        return roomService.page(keyword, roomType, status, parkId, buildingId, floorId, pageNum, pageSize);
+        return roomService.page(keyword, roomType, status, parkId, areaId, buildingId, floorId, pageNum, pageSize);
     }
 
     @Operation(summary = "校验同园区+楼栋内房号是否已存在 (V37 唯一索引)")

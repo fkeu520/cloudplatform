@@ -26,6 +26,7 @@ import { listFloorByBuilding, type Floor } from '@/api/floor'
 import { getKitPage, type Kit } from '@/api/kit'
 import { getRoomPurposePage, type RoomPurpose } from '@/api/room-purpose'
 import { getDictDataByType } from '@/api/dict'
+import { getAreaPage, type Area } from '@/api/area'
 import { getRoomLockRecordPage } from '@/api/room-lock-record'
 import { getRoomRecordPage } from '@/api/room-record'
 import { getRoomSplitMergePage } from '@/api/room-split-merge'
@@ -38,8 +39,13 @@ const pageNum = ref(1)
 const pageSize = ref(50)
 const pageSizes = [10, 50, 100, 150]
 
-// 树形导航状态
+// 树形导航状态 (4 层: 园区 → 分区 → 楼栋 → 楼层)
 interface ParkTreeNode extends Park {
+  $areaList?: AreaTreeNode[]
+  $loading?: boolean
+  $loaded?: boolean
+}
+interface AreaTreeNode extends Area {
   $buildingList?: BuildingTreeNode[]
   $loading?: boolean
   $loaded?: boolean
@@ -51,6 +57,7 @@ interface BuildingTreeNode extends Building {
 }
 const parkTree = ref<ParkTreeNode[]>([])
 const activeParkId = ref<number | null>(null)
+const activeAreaId = ref<number | null>(null)
 const activeBuildingId = ref<number | null>(null)
 const activeFloorId = ref<number | null>(null)
 
@@ -139,10 +146,17 @@ async function loadParks() {
       parkTree.value = (res.data || []).map((p: Park) => ({ ...p, $loaded: false }))
       if (parkTree.value.length > 0 && !activeParkId.value) {
         activeParkId.value = parkTree.value[0].id || null
-        // 首次默认加载第一个园区的楼栋
-        await loadBuildingsForPark(parkTree.value[0])
+        // 首次默认加载第一个园区的分区
+        await loadAreasForPark(parkTree.value[0])
+        if (activeAreaId.value) {
+          const area = parkTree.value[0].$areaList?.find((a) => a.id === activeAreaId.value)
+          if (area && !area.$loaded) {
+            await loadBuildingsForArea(area)
+          }
+        }
         if (activeBuildingId.value) {
-          const building = parkTree.value[0].$buildingList?.find((b) => b.id === activeBuildingId.value)
+          const area = parkTree.value[0].$areaList?.find((a) => a.id === activeAreaId.value)
+          const building = area?.$buildingList?.find((b) => b.id === activeBuildingId.value)
           if (building && !building.$loaded) {
             await loadFloorsForBuilding(building)
           }
@@ -154,26 +168,49 @@ async function loadParks() {
   }
 }
 
-async function loadBuildingsForPark(park: ParkTreeNode) {
+async function loadAreasForPark(park: ParkTreeNode) {
   if (park.$loaded) return
   park.$loading = true
   try {
-    const res: any = await getBuildingPage({ parkId: park.id, pageNum: 1, pageSize: 9999 })
+    const res: any = await getAreaPage({ parkId: park.id, pageNum: 1, pageSize: 9999 })
     if (res.code === 200) {
-      park.$buildingList = (res.data?.records || []).map((b: Building) => ({ ...b, $loaded: false }))
+      park.$areaList = (res.data?.records || []).map((a: Area) => ({ ...a, $loaded: false }))
       park.$loaded = true
-      // 默认选中第一个楼栋
-      if (park.$buildingList.length > 0 && !activeBuildingId.value) {
-        activeBuildingId.value = park.$buildingList[0].id || null
-        await loadFloorsForBuilding(park.$buildingList[0])
-        // 默认选中第一个楼层
-        if (activeFloorId.value === null && park.$buildingList[0].$floorList?.length) {
-          activeFloorId.value = park.$buildingList[0].$floorList[0].id || null
+      // 默认选中第一个分区
+      if (park.$areaList.length > 0 && !activeAreaId.value) {
+        const firstArea = park.$areaList[0]
+        activeAreaId.value = firstArea.id || null
+        await loadBuildingsForArea(firstArea)
+        // 默认选中第一个楼栋
+        if (firstArea.$buildingList && firstArea.$buildingList.length > 0 && !activeBuildingId.value) {
+          const firstBld = firstArea.$buildingList[0]
+          activeBuildingId.value = firstBld.id || null
+          await loadFloorsForBuilding(firstBld)
+          // 默认选中第一个楼层
+          if (activeFloorId.value === null && firstBld.$floorList?.length) {
+            activeFloorId.value = firstBld.$floorList[0].id || null
+          }
         }
       }
     }
   } finally {
     park.$loading = false
+  }
+}
+
+async function loadBuildingsForArea(area: AreaTreeNode) {
+  if (area.$loaded) return
+  area.$loading = true
+  try {
+    const res: any = await getBuildingPage({ areaId: area.id, pageNum: 1, pageSize: 9999 })
+    if (res.code === 200) {
+      area.$buildingList = (res.data?.records || []).map((b: Building) => ({ ...b, $loaded: false }))
+      area.$loaded = true
+    }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    area.$loading = false
   }
 }
 
@@ -192,8 +229,22 @@ async function loadFloorsForBuilding(building: BuildingTreeNode) {
 }
 
 // 节点点击处理
+async function onAreaClick(area: AreaTreeNode) {
+  activeAreaId.value = area.id || null
+  // 重置下层选择
+  activeBuildingId.value = null
+  activeFloorId.value = null
+  if (!area.$loaded) {
+    await loadBuildingsForArea(area)
+  }
+  // 触发右侧房间列表按 areaId 过滤
+  pageNum.value = 1
+  await loadData()
+}
+
 async function onBuildingClick(building: BuildingTreeNode) {
   activeBuildingId.value = building.id || null
+  activeFloorId.value = null
   if (!building.$loaded) {
     await loadFloorsForBuilding(building)
   }
@@ -253,6 +304,7 @@ async function loadData() {
       keyword: filterText.value || undefined,
       status: filterStatus.value === '' ? undefined : Number(filterStatus.value),
       parkId: activeParkId.value || undefined,
+      areaId: activeAreaId.value || undefined,
       buildingId: activeBuildingId.value || undefined,
       floorId: activeFloorId.value,
       pageNum: pageNum.value,
@@ -573,13 +625,16 @@ const dialogTitle = computed(() => {
   return '查看房间'
 })
 
-// 当前楼层名称
+// 当前楼层名称 (4 层树: park → area → building → floor)
 const currentFloorName = computed(() => {
-  if (!activeBuildingId.value || !activeFloorId.value) return ''
+  if (!activeFloorId.value) return ''
   for (const park of parkTree.value) {
-    const building = park.$buildingList?.find((b) => b.id === activeBuildingId.value)
-    const floor = building?.$floorList?.find((f) => f.id === activeFloorId.value)
-    if (floor) return floor.floorName
+    for (const area of park.$areaList || []) {
+      for (const building of area.$buildingList || []) {
+        const floor = building.$floorList?.find((f) => f.id === activeFloorId.value)
+        if (floor) return floor.floorName
+      }
+    }
   }
   return ''
 })
@@ -619,39 +674,59 @@ onMounted(async () => {
             v-loading="park.$loading"
           >
             <template slot="title">
-              <span class="common-ellipsis" :title="park.parkName">{{ park.parkName }}</span>
+              <span class="common-ellipsis" :title="park.parkName" @click.stop="activeParkId = park.id; if (!park.$loaded) loadAreasForPark(park); pageNum = 1; loadData()">
+                {{ park.parkName }}
+              </span>
             </template>
 
-            <template v-if="park.$buildingList && park.$buildingList.length">
+            <template v-if="park.$areaList && park.$areaList.length">
               <el-submenu
-                v-for="bld in park.$buildingList"
-                :key="`b-${bld.id}`"
-                :index="`b-${bld.id}`"
+                v-for="area in park.$areaList"
+                :key="`a-${area.id}`"
+                :index="`a-${area.id}`"
                 class="second-menu"
-                v-loading="bld.$loading"
+                v-loading="area.$loading"
               >
                 <template slot="title">
-                  <div class="common-ellipsis" :title="bld.buildingName" @click.stop="onBuildingClick(bld)">
-                    {{ bld.buildingName }}
+                  <div class="common-ellipsis" :title="area.areaName" @click.stop="onAreaClick(area)">
+                    {{ area.areaName }}
                   </div>
                 </template>
 
-                <template v-if="bld.$floorList && bld.$floorList.length">
-                  <el-menu-item
-                    v-for="floor in bld.$floorList"
-                    :key="`f-${floor.id}`"
-                    :index="`f-${floor.id}`"
-                    @click="onFloorClick(floor)"
+                <template v-if="area.$buildingList && area.$buildingList.length">
+                  <el-submenu
+                    v-for="bld in area.$buildingList"
+                    :key="`b-${bld.id}`"
+                    :index="`b-${bld.id}`"
+                    class="third-menu"
+                    v-loading="bld.$loading"
                   >
-                    <div class="common-ellipsis" :title="floor.floorName">{{ floor.floorName }}</div>
-                  </el-menu-item>
+                    <template slot="title">
+                      <div class="common-ellipsis" :title="bld.buildingName" @click.stop="onBuildingClick(bld)">
+                        {{ bld.buildingName }}
+                      </div>
+                    </template>
+
+                    <template v-if="bld.$floorList && bld.$floorList.length">
+                      <el-menu-item
+                        v-for="floor in bld.$floorList"
+                        :key="`f-${floor.id}`"
+                        :index="`f-${floor.id}`"
+                        @click="onFloorClick(floor)"
+                      >
+                        <div class="common-ellipsis" :title="floor.floorName">{{ floor.floorName }}</div>
+                      </el-menu-item>
+                    </template>
+                    <div v-else class="data-null-text">该楼栋暂无楼层</div>
+                  </el-submenu>
                 </template>
-                <div v-else class="data-null-text">该楼栋暂无楼层</div>
+
+                <div v-else-if="area.$loaded" class="data-null-text">该分区暂无楼栋</div>
               </el-submenu>
             </template>
 
             <div v-else-if="park.$loaded" class="data-null-box">
-              <div class="data-null-text">暂无楼栋</div>
+              <div class="data-null-text">暂无分区</div>
             </div>
           </el-submenu>
         </el-menu>
@@ -1147,6 +1222,23 @@ onMounted(async () => {
   text-align: center;
 }
 
+/* C5: 4 层树 (park→area→building→floor) 增加 third-menu 样式 */
+.building-tree-list .third-menu {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+  margin: 4px 8px 4px 24px;
+}
+.building-tree-list .third-menu > .el-submenu__title {
+  font-size: 13px;
+  padding-left: 12px !important;
+}
+.building-tree-list .third-menu:last-child {
+  margin-bottom: 0;
+}
+.building-tree-list .third-menu.is-opened > ul {
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
 /* 房间详情查看模式 (el-descriptions + el-tabs) */
 .room-detail-descriptions {
   margin-bottom: 16px;
@@ -1236,6 +1328,12 @@ onMounted(async () => {
   background: #fff;
   border-radius: 8px;
   padding: 16px;
+  /* C5 修复: 表格水平溢出 -> 横向滚动避免页面变形 */
+  overflow-x: auto;
+}
+
+.page-table :deep(.el-table) {
+  min-width: 100%;
 }
 
 .common-pagination {
