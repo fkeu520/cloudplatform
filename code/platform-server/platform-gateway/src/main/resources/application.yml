@@ -60,7 +60,7 @@ spring:
         fail-fast: false
       config:
         server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
-        enabled: false
+        enabled: true
 
     gateway:
       # 浣跨敤 Apache HTTP Client锛堥伩鍏?Netty Connection refused 闂锛?

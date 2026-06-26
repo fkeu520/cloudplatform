@@ -29,7 +29,7 @@ spring:
         fail-fast: false
       config:
         server-addr: localhost:8848
-        enabled: false
+        enabled: true
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
