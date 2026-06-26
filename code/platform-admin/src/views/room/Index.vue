@@ -62,9 +62,47 @@ const activeAreaId = ref<string | null>(null)
 const activeBuildingId = ref<string | null>(null)
 const activeFloorId = ref<string | null>(null)
 
-// 自动展开: 第一个 park + 第一个 area + 第一个 building
-// (floor 不展开, floor 多时折叠看起来更整洁)
-const defaultOpeneds = computed<string[]>(() => {
+// el-tree 引用和配置
+const treeRef = ref()
+const treeProps = { children: 'children', label: 'label' }
+
+// 将 parkTree 转为 el-tree 格式
+const treeData = computed(() => {
+  return parkTree.value.map(park => ({
+    id: `p-${park.id}`,
+    label: park.parkName,
+    children: (park.$loaded && park.$areaList)
+      ? park.$areaList.map(area => ({
+          id: `a-${area.id}`,
+          label: area.areaName,
+          children: (area.$loaded && area.$buildingList)
+            ? area.$buildingList.map(bld => ({
+                id: `b-${bld.id}`,
+                label: bld.buildingName,
+                children: (bld.$loaded && bld.$floorList)
+                  ? bld.$floorList.map(floor => ({
+                      id: `f-${floor.id}`,
+                      label: floor.floorName,
+                    }))
+                  : undefined,
+              }))
+            : undefined,
+        }))
+      : undefined,
+  }))
+})
+
+// 当前高亮节点
+const currentNodeKey = computed<string>(() => {
+  if (activeFloorId.value) return `f-${activeFloorId.value}`
+  if (activeBuildingId.value) return `b-${activeBuildingId.value}`
+  if (activeAreaId.value) return `a-${activeAreaId.value}`
+  if (activeParkId.value) return `p-${activeParkId.value}`
+  return ''
+})
+
+// 默认展开: 第一个 park + 第一个 area + 第一个 building
+const defaultExpandedKeys = computed<string[]>(() => {
   const result: string[] = []
   const firstPark = parkTree.value[0]
   if (firstPark) {
@@ -129,6 +167,7 @@ const defaultForm = () => ({
   floor: 1,
   roomNo: '',
   roomName: '',
+  roomType: '',
   houseStructure: undefined as number | undefined,
   areaCovered: undefined as number | undefined,
   buildArea: undefined as number | undefined,
@@ -138,6 +177,13 @@ const defaultForm = () => ({
   monthlyRent: undefined as number | undefined,
   kitId: undefined as string | undefined,
   purposeId: undefined as string | undefined,
+  rentingSelling: 2,
+  leasePrice: undefined as number | undefined,
+  salePrice: undefined as number | undefined,
+  isLock: 0,
+  isOrder: 0,
+  image: '',
+  introduce: '',
   sorting: 0,
   status: 0,
   remark: '',
@@ -261,46 +307,38 @@ async function loadFloorsForBuilding(building: BuildingTreeNode) {
   }
 }
 
-// 节点点击处理 — 任意层级点击都触发 loadData, 房间列表按当前选中节点过滤
-async function onAreaClick(area: AreaTreeNode) {
-  activeAreaId.value = area.id || null
-  // 重置下层选择
-  activeBuildingId.value = null
-  activeFloorId.value = null
-  if (!area.$loaded) {
-    await loadBuildingsForArea(area)
-  }
-  // 触发右侧房间列表按 areaId 过滤
-  pageNum.value = 1
-  await loadData()
-}
+// 节点点击处理 — 统一入口，根据树层级判断
+function onTreeNodeClick(data: any) {
+  const id = data.id as string
+  const prefix = id.charAt(0)
 
-async function onBuildingClick(building: BuildingTreeNode) {
-  activeBuildingId.value = building.id || null
-  activeFloorId.value = null
-  if (!building.$loaded) {
-    await loadFloorsForBuilding(building)
+  if (prefix === 'p') {
+    activeParkId.value = id.slice(2)
+    activeAreaId.value = activeBuildingId.value = activeFloorId.value = null
+    const park = parkTree.value.find(p => p.id === activeParkId.value)
+    if (park && !park.$loaded) loadAreasForPark(park)
+  } else if (prefix === 'a') {
+    activeAreaId.value = id.slice(2)
+    activeBuildingId.value = activeFloorId.value = null
+    // 找到 area 对象，若未加载则加载
+    for (const park of parkTree.value) {
+      const area = park.$areaList?.find(a => a.id === activeAreaId.value)
+      if (area && !area.$loaded) { loadBuildingsForArea(area); break }
+    }
+  } else if (prefix === 'b') {
+    activeBuildingId.value = id.slice(2)
+    activeFloorId.value = null
+    for (const park of parkTree.value) {
+      for (const area of park.$areaList || []) {
+        const bld = area.$buildingList?.find(b => b.id === activeBuildingId.value)
+        if (bld && !bld.$loaded) { loadFloorsForBuilding(bld); break }
+      }
+    }
+  } else if (prefix === 'f') {
+    activeFloorId.value = id.slice(2)
   }
-  // 触发右侧房间列表按 buildingId 过滤
-  pageNum.value = 1
-  await loadData()
-}
 
-async function onParkClick(park: ParkTreeNode) {
-  activeParkId.value = park.id || null
-  activeAreaId.value = null
-  activeBuildingId.value = null
-  activeFloorId.value = null
-  if (!park.$loaded) {
-    await loadAreasForPark(park)
-  }
-  // 触发右侧房间列表按 parkId 过滤
-  pageNum.value = 1
-  await loadData()
-}
-
-function onFloorClick(floor: Floor) {
-  activeFloorId.value = floor.id || null
+  // 触发右侧房间列表按当前选中节点过滤
   pageNum.value = 1
   loadData()
 }
@@ -404,6 +442,11 @@ function statusTagType(s: number | undefined): string {
   if (s === 3) return 'warning'
   if (s === 4) return 'primary'
   return 'info'
+}
+
+function rentingSellingLabel(val: number | undefined): string {
+  const map: Record<number, string> = { 0: '可租', 1: '可售', 2: '可租售', 3: '自用' }
+  return val != null ? map[val] || '-' : '-'
 }
 
 function purposeName(id: string | undefined): string {
@@ -888,77 +931,24 @@ onMounted(async () => {
 <template>
   <div class="page-cover-container">
     <div class="common-flex">
-      <!-- 左侧树形导航 -->
-      <div class="basic-card-left" v-loading="false">
+      <!-- 左侧树形导航 (el-tree) -->
+      <div class="basic-card-left">
         <div class="left-bar-title">导航</div>
-        <el-menu
-          :default-active="String(activeFloorId || '')"
-          :default-openeds="defaultOpeneds"
-          unique-opened
-          class="building-tree-list"
+        <el-tree
+          ref="treeRef"
+          :data="treeData"
+          :props="treeProps"
+          node-key="id"
+          highlight-current
+          :current-node-key="currentNodeKey"
+          :default-expanded-keys="defaultExpandedKeys"
+          @node-click="onTreeNodeClick"
+          class="building-tree"
         >
-          <el-submenu
-            v-for="park in parkTree"
-            :key="park.id"
-            :index="`p-${park.id}`"
-            class="first-menu"
-            v-loading="park.$loading"
-          >
-            <template slot="title">
-              <span class="common-ellipsis" :title="park.parkName" @click.stop="onParkClick(park)">
-                {{ park.parkName }}
-              </span>
-            </template>
-
-            <!-- 区域列表 -->
-            <el-submenu
-              v-for="area in (park.$areaList || [])"
-              :key="area.id"
-              :index="`a-${area.id}`"
-              class="second-menu"
-              v-loading="area.$loading"
-            >
-              <template slot="title">
-                <div class="common-ellipsis" :title="area.areaName" @click.stop="onAreaClick(area)">
-                  {{ area.areaName }}
-                </div>
-              </template>
-
-              <!-- 楼栋列表 -->
-              <el-submenu
-                v-for="bld in (area.$buildingList || [])"
-                :key="bld.id"
-                :index="`b-${bld.id}`"
-                class="third-menu"
-                v-loading="bld.$loading"
-              >
-                <template slot="title">
-                  <div class="common-ellipsis" :title="bld.buildingName" @click.stop="onBuildingClick(bld)">
-                    {{ bld.buildingName }}
-                  </div>
-                </template>
-
-                <!-- 楼层列表 -->
-                <el-menu-item
-                  v-for="floor in (bld.$floorList || [])"
-                  :key="floor.id"
-                  :index="`f-${floor.id}`"
-                  @click="onFloorClick(floor)"
-                >
-                  <div class="common-ellipsis" :title="floor.floorName">{{ floor.floorName }}</div>
-                </el-menu-item>
-
-                <div v-if="bld.$loaded && (!bld.$floorList || bld.$floorList.length === 0)" class="data-null-text">该楼栋暂无楼层</div>
-              </el-submenu>
-
-              <div v-if="area.$loaded && (!area.$buildingList || area.$buildingList.length === 0)" class="data-null-text">该分区暂无楼栋</div>
-            </el-submenu>
-
-            <div v-if="park.$loaded && (!park.$areaList || park.$areaList.length === 0)" class="data-null-box">
-              <div class="data-null-text">暂无分区</div>
-            </div>
-          </el-submenu>
-        </el-menu>
+          <template #default="{ data }">
+            <span class="common-ellipsis" :title="data.label">{{ data.label }}</span>
+          </template>
+        </el-tree>
       </div>
 
       <!-- 右侧内容区 -->
@@ -1112,6 +1102,10 @@ onMounted(async () => {
           <el-descriptions-item label="月租金">{{ fmtPrice(form.monthlyRent) }}</el-descriptions-item>
           <el-descriptions-item label="房间配套">{{ kitName(form.kitId) }}</el-descriptions-item>
           <el-descriptions-item label="房间用途">{{ purposeName(form.purposeId) }}</el-descriptions-item>
+          <el-descriptions-item label="房屋结构">{{ dictMap.room_structure?.find(d => Number(d.value) === form.houseStructure)?.label || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="租售状态">{{ rentingSellingLabel(form.rentingSelling) }}</el-descriptions-item>
+          <el-descriptions-item label="租价">{{ form.leasePrice != null ? Number(form.leasePrice).toFixed(2) + ' 元/㎡/天' : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="售价">{{ form.salePrice != null ? Number(form.salePrice).toLocaleString() + ' 元/㎡' : '-' }}</el-descriptions-item>
           <el-descriptions-item label="排序">{{ form.sorting ?? 0 }}</el-descriptions-item>
           <el-descriptions-item v-if="(form as any).introduce" label="房间介绍" :span="3">
             {{ (form as any).introduce }}
@@ -1360,6 +1354,35 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="24">
+            <el-form-item label="房屋状态" prop="status">
+              <el-radio-group v-model="form.status">
+                <el-radio v-for="d in dictMap.room_status || []" :key="d.value" :value="Number(d.value)">
+                  {{ d.label }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="租售状态" prop="rentingSelling">
+              <el-radio-group v-model="form.rentingSelling">
+                <el-radio :value="0">可租</el-radio>
+                <el-radio :value="1">可售</el-radio>
+                <el-radio :value="2">可租售</el-radio>
+                <el-radio :value="3">自用</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="租价" prop="leasePrice">
+              <el-input-number v-model="form.leasePrice" :precision="2" :min="0" style="width: 100%" placeholder="元/㎡/天" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="售价" prop="salePrice">
+              <el-input-number v-model="form.salePrice" :precision="2" :min="0" style="width: 100%" placeholder="元/㎡" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
             <el-form-item label="房间介绍" prop="introduce">
               <el-input v-model="(form as any).introduce" type="textarea" :rows="3" placeholder="房间详细介绍" maxlength="500" show-word-limit />
             </el-form-item>
@@ -1397,9 +1420,8 @@ onMounted(async () => {
 }
 
 .basic-card-left {
-  min-width: 200px;
-  max-width: 260px;
-  width: 20%;
+  width: 220px;
+  flex: 0 0 220px;
   border-right: 1px solid #d8d8d8;
   background: #fff;
   overflow: hidden;
@@ -1431,63 +1453,14 @@ onMounted(async () => {
   box-sizing: border-box;
 }
 
-.building-tree-list {
+.building-tree {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 4px 0;
 }
 
-.building-tree-list :deep(.el-menu) {
-  background: none;
-  border: none;
-  width: 100%;
-  min-width: 100%;
-}
-
-.building-tree-list .first-menu {
-  margin-top: 8px;
-}
-
-.building-tree-list .first-menu > .el-submenu__title {
-  background: rgba(0, 0, 0, 0.03);
-  font-weight: 500;
-}
-
-.building-tree-list .first-menu.is-opened > .el-submenu__title {
-  background: none;
-}
-
-.building-tree-list .first-menu > ul {
-  margin: 8px 16px 8px 0;
-  padding-right: 16px;
-}
-
-.building-tree-list .second-menu {
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 4px;
-  margin-bottom: 8px;
-}
-
-.building-tree-list .second-menu:last-child {
-  margin-bottom: 0;
-}
-
-.building-tree-list .second-menu.is-opened > ul {
-  border-top: 1px solid rgba(0, 0, 0, 0.03);
-}
-
-.building-tree-list .second-menu .is-active {
-  background: rgba(64, 158, 255, 0.08);
-  border-radius: 4px;
-  color: #409eff;
-}
-
-.data-null-box {
-  padding: 24px;
-  text-align: center;
-}
-
-/* 树节点文本溢出省略 (.common-ellipsis 在模板中已使用但未定义) */
+/* 树节点文本溢出省略 */
 .common-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1495,29 +1468,6 @@ onMounted(async () => {
   display: inline-block;
   max-width: 100%;
   vertical-align: middle;
-}
-
-/* 树节点容器强制不溢出 */
-.building-tree-list :deep(.el-submenu__title) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* C5: 4 层树 (park→area→building→floor) 增加 third-menu 样式 */
-.building-tree-list .third-menu {
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 4px;
-  margin: 4px 8px 4px 24px;
-}
-.building-tree-list .third-menu > .el-submenu__title {
-  font-size: 13px;
-  padding-left: 12px !important;
-}
-.building-tree-list .third-menu:last-child {
-  margin-bottom: 0;
-}
-.building-tree-list .third-menu.is-opened > ul {
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 /* 房间详情查看模式 (el-descriptions + el-tabs) */
