@@ -1443,16 +1443,24 @@ onMounted(async () => {
   font-weight: 600;
   color: rgba(0, 0, 0, 0.85);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .building-tree-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .building-tree-list :deep(.el-menu) {
   background: none;
   border: none;
+  width: 100%;
+  min-width: 100%;
 }
 
 .building-tree-list .first-menu {
@@ -1496,6 +1504,22 @@ onMounted(async () => {
 .data-null-box {
   padding: 24px;
   text-align: center;
+}
+
+/* 树节点文本溢出省略 (.common-ellipsis 在模板中已使用但未定义) */
+.common-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* 树节点容器强制不溢出 */
+.building-tree-list :deep(.el-submenu__title) {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* C5: 4 层树 (park→area→building→floor) 增加 third-menu 样式 */
