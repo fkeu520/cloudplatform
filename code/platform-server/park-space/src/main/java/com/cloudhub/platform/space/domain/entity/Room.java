@@ -91,6 +91,9 @@ public class Room extends BaseEntity {
     /** 房间介绍 (csyh introduce) */
     private String introduce;
 
+    /** 房屋结构 (字典 room_structure, V49, 0=钢筋混凝土 1=钢结构 2=砖混 3=木结构 4=混合) */
+    private Integer houseStructure;
+
     // ===== V40 租售控制字段 =====
 
     /** 租售状态: 0=可租 1=可售 2=可租售 3=自用 */

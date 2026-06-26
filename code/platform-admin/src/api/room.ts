@@ -3,6 +3,7 @@ import request from './request'
 export interface Room {
   id?: string
   parkId?: string
+  areaId?: string
   buildingId?: string
   floorId?: string
   floor?: number
@@ -18,6 +19,11 @@ export interface Room {
   monthlyRent?: number
   kitId?: string
   purposeId?: string
+  rentingSelling?: number
+  leasePrice?: number
+  salePrice?: number
+  isLock?: number
+  isOrder?: number
   image?: string
   sorting?: number
   introduce?: string
