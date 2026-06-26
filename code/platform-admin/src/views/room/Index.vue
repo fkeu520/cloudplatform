@@ -305,7 +305,10 @@ async function loadKitsAndPurposes() {
 }
 
 async function loadData() {
-  if (!activeFloorId.value) {
+  // 4 级树: park/area/building/floor 任一级都可作为查询入参
+  // 不强制要求 floor_id — 选园区/分区/楼栋也能看到该范围内的房间
+  // 没选园区则不查询 (避免返回所有租户的全量数据)
+  if (!activeParkId.value) {
     tableData.value = []
     total.value = 0
     return
@@ -318,7 +321,7 @@ async function loadData() {
       parkId: activeParkId.value || undefined,
       areaId: activeAreaId.value || undefined,
       buildingId: activeBuildingId.value || undefined,
-      floorId: activeFloorId.value,
+      floorId: activeFloorId.value || undefined,
       pageNum: pageNum.value,
       pageSize: pageSize.value,
     })
@@ -1318,12 +1321,15 @@ onMounted(async () => {
   position: absolute;
   height: calc(100% - 32px);
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .common-flex {
   height: 100%;
+  width: 100%;
   display: flex;
   min-width: 0;
 }
@@ -1341,11 +1347,13 @@ onMounted(async () => {
 }
 
 .basic-card-right {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
-  padding: 24px 24px;
+  max-width: 100%;
+  padding: 16px 16px;
   overflow: auto;
   background: #f5f7fa;
+  box-sizing: border-box;
 }
 
 .left-bar-title {
@@ -1514,13 +1522,26 @@ onMounted(async () => {
 .page-table {
   background: #fff;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   /* C5 修复: 表格水平溢出 -> 横向滚动避免页面变形 */
   overflow-x: auto;
+  overflow-y: auto;
 }
 
 .page-table :deep(.el-table) {
-  min-width: 100%;
+  /* 严格约束: 100% 父容器宽度 + fixed 布局
+     避免 fixed="right" 列把页面撑超 viewport */
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+}
+
+.page-table :deep(.el-table .cell) {
+  word-break: break-all;
+  white-space: normal;
 }
 
 .common-pagination {
