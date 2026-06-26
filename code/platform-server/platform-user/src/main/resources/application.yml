@@ -63,7 +63,7 @@ spring:
         fail-fast: false
       config:
         server-addr: localhost:8848
-        enabled: false
+        enabled: true
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
