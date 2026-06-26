@@ -2293,3 +2293,148 @@ mvn -pl <改动的module> -DskipTests install
 - `D:\work\AI\output\platform\.claude\CLAUDE.md` (项目级规则, 2026-06-24 创建)
 - `doc/handoff/handoff-2026-06-22.md` (P0 上一个 handoff, 列出 9 个质量问题)
 - `doc/log/项目进度.md` § 已知质量问题 (P0 修复状态)
+
+---
+
+## #31 🟢 `el-menu` 冒充 4 层树 + 左侧栏宽度样式硬编码 (2026-06-26)
+
+### 现象
+
+左侧树形导航（园区→分区→楼栋→楼层）用 `el-menu` + 3 层 `el-submenu` 实现，3 个核心 bug：
+
+1. **自动展开不生效**: `default-openeds` computed 值计算正确，但 `el-menu` 的 `default-openeds` 是 **non-reactive**，`parkTree` 异步加载完成后不重新展开
+2. **点击分裂**: `<span @click.stop>` 阻止了 `el-submenu` 展开 — 点名称只加载不展开，点箭头才展开，用户要分两次操作
+3. **70+ 行 CSS 硬适配**: 每层 `first-menu`/`second-menu`/`third-menu` 一堆 `:deep` 覆盖，版本升级就崩
+
+**宽度样式问题**: `.basic-card-left` 设了 `min-width: 200px; max-width: 260px; width: 20%`，三个约束叠加：
+- 20% 父容器变化时不定
+- max-width 260px 与 min-width 200px 差距仅 60px
+- 遇上窄屏或折叠面板，面板宁可溢出也不退回 min-width
+
+### 根因
+
+**选择了个错误组件**: `el-menu` 设计给导航菜单（1-2 层），`el-submenu` 也不是树节点。`el-tree` 从设计上就解决这些问题。
+
+**宽度三约束**: 想"自适应"但用了百分比 + 绝对值的混合约束，不如单一 `width: 220px` 或单一 `flex: 0 0 220px`。
+
+### 修复
+
+**替换为 `el-tree`**（`room/Index.vue`）:
+
+```diff
+- <el-menu :default-openeds="defaultOpeneds" ...>
+-   <el-submenu v-for="park in parkTree" ...>
+-     <span @click.stop="onParkClick(park)">{{ park.parkName }}</span>
+-     <el-submenu v-for="area in park.$areaList" ...>
+-       <div @click.stop="onAreaClick(area)">{{ area.areaName }}</div>
+-       <el-submenu v-for="bld in area.$buildingList" ...>
+-         ...
+-       </el-submenu>
+-     </el-submenu>
+-   </el-submenu>
+- </el-menu>
+
++ <el-tree
++   :data="treeData" :props="treeProps"
++   node-key="id" highlight-current
++   :default-expanded-keys="defaultExpandedKeys"
++   :current-node-key="currentNodeKey"
++   @node-click="onTreeNodeClick"
++ >
++   <template #default="{ data }">
++     <span :title="data.label">{{ data.label }}</span>
++   </template>
++ </el-tree>
+```
+
+- `.basic-card-left` 改 `width: 220px; flex: 0 0 220px;`（单一绝对值）
+- 删除 70+ 行 `el-menu` 专用 CSS
+
+### 验证
+
+- ✅ 自动展开：`default-expanded-keys` 在 `el-tree` 中反应式生效（`treeData` computed 更新时自动重读）
+- ✅ 点击不分裂：`node-click` 单一事件，不阻止展开
+- ✅ 选中高亮：`highlight-current` + `current-node-key` 内置
+- ✅ 0 行 CSS 覆盖：去掉全部 `building-tree-list` / `first-menu` / `second-menu` / `third-menu`
+- ✅ 宽度稳定：`flex: 0 0 220px` 不跟随父容器缩放
+
+### 教训
+
+1. **🟢 选组件先读文档用途**: `el-menu` 是"导航菜单"，不是"树"。4 层层级数据显示应该选 `el-tree`，后者有 lazy / expand / highlight / checkbox 全套。用了错误组件，所有修复都是给组件打补丁（CSS overrides + @click.stop hack）。
+2. **🟢 `el-menu.defaultOpeneds` 是 non-reactive**: 异步数据驱动的展开不要依赖 `default-openeds`，它只在首次挂载时读一次。`el-tree.default-expanded-keys` 配合 computed `treeData` 能反应式工作。
+3. **🟢 CSS 三约束 (min-width + max-width + width) 是反模式**: 百分比和绝对值混合，父容器变化时行为不可预测。侧边栏这种固定行为用单一值 `flex: 0 0 Npx` 更可靠。
+4. **🟢 `@click.stop` 是红线**: 阻止了组件内置事件传递，就是引入分叉交互。`el-tree` 的 `node-click` 是统一入口，不需要 stop。
+5. **🟢 70+ 行 `:deep` CSS 意味着你在对抗框架**: 任何 `:deep` 超过 10 行，说明选错组件。正确组件不需要 `:deep`。
+
+---
+
+## #32 🔴 Service.update() 白名单遗漏新增字段 (2026-06-26)
+
+### 现象
+
+park-space 房间编辑保存时，**房间配套 (kitId)、房间用途 (purposeId)、房间图片 (image)、介绍 (introduce)、排序 (sorting)、房屋结构 (houseStructure)、单价 (unitPrice)、总价 (totalPrice)、套内面积 (buildArea)、计费面积 (billableArea)** 共 10 个字段**修改后数据库不更新**，前端提示"保存成功"但重新打开还是旧值。
+
+**用户反馈**：房间配套、用途等字段修改后未生效。
+
+### 根因
+
+`RoomService.update(Long id, Map<String, Object> params)` 方法用**字段白名单**模式处理入参：
+
+```java
+if (params.containsKey("parkId")) r.setParkId(...);
+if (params.containsKey("roomName")) r.setRoomName(...);
+// ... 11 个字段
+```
+
+Room 实体在 V37 (2026-06-08) 一次性新增 10 个字段（kitId/purposeId/image/introduce/sorting/houseStructure/unitPrice/totalPrice/buildArea/billableArea），但 update() 方法**没有同步补齐**这些新字段的白名单。Controller 接受所有字段 → Service 静默丢弃 → 前端无感知 → 数据丢失。
+
+**根因分类**：典型的"实体字段扩展 → update 方法遗漏同步"反模式。每次实体加字段都面临这个风险。
+
+### 修复 (2026-06-26 commit 待提交)
+
+`RoomService.update()` 第 154-174 行补齐 10 个字段：
+
+```java
+if (params.containsKey("buildArea") && params.get("buildArea") != null) r.setBuildArea(new BigDecimal(params.get("buildArea").toString()));
+if (params.containsKey("billableArea") && params.get("billableArea") != null) r.setBillableArea(new BigDecimal(params.get("billableArea").toString()));
+if (params.containsKey("unitPrice") && params.get("unitPrice") != null) r.setUnitPrice(new BigDecimal(params.get("unitPrice").toString()));
+if (params.containsKey("totalPrice") && params.get("totalPrice") != null) r.setTotalPrice(new BigDecimal(params.get("totalPrice").toString()));
+if (params.containsKey("kitId")) r.setKitId(ServiceUtils.toLong(params.get("kitId")));
+if (params.containsKey("purposeId")) r.setPurposeId(ServiceUtils.toLong(params.get("purposeId")));
+if (params.containsKey("image")) r.setImage((String) params.get("image"));
+if (params.containsKey("introduce")) r.setIntroduce((String) params.get("introduce"));
+if (params.containsKey("sorting")) r.setSorting(ServiceUtils.toInt(params.get("sorting")));
+if (params.containsKey("houseStructure")) r.setHouseStructure(ServiceUtils.toInt(params.get("houseStructure")));
+```
+
+新增 `RoomServiceTest.update_v37Fields_shouldPersist()` 回归测试，覆盖 10 个字段。
+
+### 验证
+
+- ✅ `mvn -pl park-space -am compile` BUILD SUCCESS
+- ✅ `mvn -pl park-space test -Dtest=RoomServiceTest` 37/37 通过 (含新增的 update_v37Fields_shouldPersist)
+- ⏳ 待 217 部署端到端验证 (commit + push + docker compose pull/up)
+
+### 教训 (≥ 5 条)
+
+1. **🔴 `update(Map<String, Object>)` 白名单模式是反模式，应该用反射或 BeanUtils.copyProperties**: 每次实体加字段都面临遗漏风险。短期成本（写 11 行 if）vs 长期维护成本（每加字段都要查 update/create 方法 2 处以上）极不对称。**未来重构方向**：把 `Map<String, Object> params` 替换为 DTO (`RoomUpdateRequest`)，用 MapStruct 或 BeanUtils.copyProperties 自动映射。
+2. **🔴 实体加字段时，必须列出所有 update 方法做 impact 分析**: 仓库里凡是带白名单的 update/create 方法都要 grep 一次 `containsKey`。本项目有同类风险的方法至少包括：
+   - `park-space`：`RoomService.create/update`、`BuildingService.create/update`、`KitService.update`、`RoomPurposeService.update` 等
+   - `park-contract`、`park-property`：同模式
+   - **建议**: 写一条 CI 检查，扫描 `Service` 类里 `containsKey` 调用，对比同模块实体类的 setter 列表，发现遗漏即 fail。
+3. **🔴 静默丢失 vs 抛异常**: 当前模式用户看不出问题（保存 200 OK 但数据没改）。应该在 update() 开头加一行 `params.keySet()` 与白名单 diff，未知 key 一律 WARN 日志，便于发现新字段没接入。最小改动：
+   ```java
+   List<String> knownKeys = List.of("parkId","roomNo", ...);
+   params.keySet().stream().filter(k -> !knownKeys.contains(k))
+       .forEach(k -> log.warn("[RoomService.update] unknown key={} (白名单遗漏?)", k));
+   ```
+4. **🟢 修复时新增回归测试是底线**: update_v37Fields_shouldPersist 不只是验证当前 10 字段，还能防止后续重构无意中删除。回归测试应当**断言每个字段都被 set**（不只断言 updateById 被调用），才有保护价值。
+5. **🟢 反思 Service 接口设计**: `update(Long id, Map<String, Object> params)` 这种"动态 map 入参"接口在 park-* 模块广泛使用，方便前端传任意字段，但也带来"无字段约束"的根本问题。下一阶段（M7-M9）应统一封装 DTO，否则每次实体重构都要 grep 几十处。
+
+### 关联文档
+
+- `doc/log/项目进度.md` - 项目进度主文档
+- `doc/log/worklog.md` - 工作日志 (2026-06-26 5.5h 含此 bug 修复)
+- `code/platform-server/park-space/src/main/java/.../RoomService.java:146-181` - 修复位置
+- `code/platform-server/park-space/src/test/java/.../RoomServiceTest.java:235-275` - 回归测试
+- V37/V40/V49 SQL 迁移: 新增字段源头（10 字段分 3 个版本陆续添加）
