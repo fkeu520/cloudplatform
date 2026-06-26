@@ -128,6 +128,7 @@ public class RoomService {
         r.setMonthlyRent(params.get("monthlyRent") != null
                 ? new BigDecimal(params.get("monthlyRent").toString()) : null);
         r.setRemark((String) params.get("remark"));
+        r.setRoomName((String) params.get("roomName"));
         r.setStatus(RoomStatus.VACANT.code);  // 新建默认空置
         r.setTenantId(currentTenantId());
 
@@ -146,8 +147,8 @@ public class RoomService {
         Room r = roomMapper.selectById(id);
         if (r == null) throw new BizException("房源不存在");
         if (r.getDeleted() != null && r.getDeleted() == 1) throw new BizException("房源已删除");
-        if (RoomStatus.DISABLED.matches(r.getStatus())) {
-            throw new BizException("停用状态的房源不可修改");
+        if (RoomStatus.SOLD.matches(r.getStatus())) {
+            throw new BizException("已售状态的房源不可修改");
         }
 
         if (params.containsKey("parkId")) r.setParkId(ServiceUtils.toLong(params.get("parkId")));
@@ -159,7 +160,8 @@ public class RoomService {
         if (params.containsKey("roomType")) r.setRoomType((String) params.get("roomType"));
         if (params.containsKey("areaCovered") && params.get("areaCovered") != null) r.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
         if (params.containsKey("monthlyRent") && params.get("monthlyRent") != null) r.setMonthlyRent(new BigDecimal(params.get("monthlyRent").toString()));
-        if (params.containsKey("remark")) r.setRemark((String) params.get("remark"));
+	        if (params.containsKey("remark")) r.setRemark((String) params.get("remark"));
+	        if (params.containsKey("roomName")) r.setRoomName((String) params.get("roomName"));
 
         // 房号变更: 重新校验唯一性
         if (params.containsKey("roomNo")) {
@@ -184,6 +186,9 @@ public class RoomService {
     public Result<Void> delete(Long id) {
         Room r = roomMapper.selectById(id);
         if (r == null) throw new BizException("房源不存在");
+        if (RoomStatus.SOLD.matches(r.getStatus())) {
+            throw new BizException("已售状态的房源不可删除");
+        }
         if (RoomStatus.RENTED.matches(r.getStatus())) {
             throw new BizException("已租状态的房源不可删除, 请先退租");
         }
@@ -433,7 +438,7 @@ public class RoomService {
     }
 
     public boolean isRoomInUse(Room r) {
-        return RoomStatus.RENTED.matches(r.getStatus()) || RoomStatus.RENOVATING.matches(r.getStatus());
+        return !RoomStatus.VACANT.matches(r.getStatus());
     }
 
     @Transactional

@@ -401,9 +401,8 @@ function statusTagType(s: number | undefined): string {
   if (s === 0) return 'warning'
   if (s === 1) return 'primary'
   if (s === 2) return 'danger'
-  if (s === 3) return 'success'
-  if (s === 4) return 'info'
-  if (s === 5) return 'warning'
+  if (s === 3) return 'warning'
+  if (s === 4) return 'primary'
   return 'info'
 }
 
@@ -992,9 +991,9 @@ onMounted(async () => {
               <el-radio-button label="">全部</el-radio-button>
               <el-radio-button label="0">空置</el-radio-button>
               <el-radio-button label="1">已租</el-radio-button>
-              <el-radio-button label="2">装修中</el-radio-button>
-              <el-radio-button label="3">已售</el-radio-button>
-              <el-radio-button label="4">自用</el-radio-button>
+              <el-radio-button label="2">已售</el-radio-button>
+              <el-radio-button label="3">锁定</el-radio-button>
+              <el-radio-button label="4">预订</el-radio-button>
             </el-radio-group>
             <el-input
               v-model="filterText"
@@ -1360,18 +1359,6 @@ onMounted(async () => {
               <el-input-number v-model="form.sorting" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
-            <el-form-item label="状态" prop="status">
-              <el-select v-model="form.status" placeholder="请选择状态">
-                <el-option
-                  v-for="d in dictMap.room_status || []"
-                  :key="d.value"
-                  :label="d.label"
-                  :value="Number(d.value)"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
           <el-col :span="24">
             <el-form-item label="房间介绍" prop="introduce">
               <el-input v-model="(form as any).introduce" type="textarea" :rows="3" placeholder="房间详细介绍" maxlength="500" show-word-limit />
@@ -1405,7 +1392,7 @@ onMounted(async () => {
   max-width: 100%;
   box-sizing: border-box;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .common-flex {

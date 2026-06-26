@@ -158,7 +158,7 @@ const routes: RouteRecordRaw[] = [
         path: 'room-control/page',
         name: 'RoomControlMgmt',
         component: () => import('@/views/room-control/Index.vue'),
-        meta: { title: '租售控制', icon: 'fas fa-sliders-h', parent: 'property' }
+        meta: { title: '租售控制', icon: 'fas fa-sliders-h', parent: 'space' }
       },
       // ========== W3.3 简单 CRUD 实体 (park-space 后端 V32) ==========
       {
