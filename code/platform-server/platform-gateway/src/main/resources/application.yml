@@ -31,6 +31,10 @@ spring:
   application:
     name: platform-gateway
 
+  config:
+    import:
+      - optional:nacos:common.yml
+
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
