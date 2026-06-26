@@ -4,16 +4,16 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
 public class ChannelSenderRegistry {
 
     private final List<ChannelSender> senders;
-    private final Map<String, ChannelSender> senderMap = new HashMap<>();
+    private final Map<String, ChannelSender> senderMap = new ConcurrentHashMap<>();
 
     public ChannelSenderRegistry(List<ChannelSender> senders) {
         this.senders = senders;
