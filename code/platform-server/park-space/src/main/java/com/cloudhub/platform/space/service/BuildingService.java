@@ -81,10 +81,22 @@ public class BuildingService {
 
         Building b = new Building();
         b.setParkId(parkId);
+        b.setAreaId(ServiceUtils.toLong(params.get("areaId")));
+        b.setBuildingCode((String) params.get("buildingCode"));
         b.setBuildingNo(buildingNo);
         b.setBuildingName((String) params.get("buildingName"));
+        b.setFloorNumber(ServiceUtils.toIntOrDefault(params.get("floorNumber"), 1));
+        b.setUnderground(ServiceUtils.toIntOrDefault(params.get("underground"), 0));
         b.setFloors(ServiceUtils.toIntOrDefault(params.get("floors"), 1));
+        b.setAreaCovered(params.get("areaCovered") != null ? new BigDecimal(params.get("areaCovered").toString()) : null);
         b.setTotalArea(params.get("totalArea") != null ? new BigDecimal(params.get("totalArea").toString()) : null);
+        b.setPropertyRight(ServiceUtils.toInt(params.get("propertyRight")));
+        b.setBuildingSafety(ServiceUtils.toInt(params.get("buildingSafety")));
+        b.setShareArea(params.get("shareArea") != null ? new BigDecimal(params.get("shareArea").toString()) : null);
+        b.setLeaseMethod(ServiceUtils.toInt(params.get("leaseMethod")));
+        b.setSorting(ServiceUtils.toIntOrDefault(params.get("sorting"), 0));
+        b.setCertificate((String) params.get("certificate"));
+        b.setImage((String) params.get("image"));
         b.setBuildYear(ServiceUtils.toInt(params.get("buildYear")));
         b.setManager((String) params.get("manager"));
         b.setManagerPhone((String) params.get("managerPhone"));
@@ -108,13 +120,35 @@ public class BuildingService {
         if (params.containsKey("parkId")) {
             b.setParkId(ServiceUtils.toLong(params.get("parkId")));
         }
+        if (params.containsKey("areaId")) {
+            b.setAreaId(ServiceUtils.toLong(params.get("areaId")));
+        }
+        if (params.containsKey("buildingCode")) {
+            b.setBuildingCode((String) params.get("buildingCode"));
+        }
         if (params.containsKey("buildingNo")) b.setBuildingNo((String) params.get("buildingNo"));
         if (params.containsKey("buildingName")) b.setBuildingName((String) params.get("buildingName"));
+        if (params.containsKey("floorNumber")) b.setFloorNumber(ServiceUtils.toInt(params.get("floorNumber")));
+        if (params.containsKey("underground")) b.setUnderground(ServiceUtils.toInt(params.get("underground")));
         if (params.containsKey("floors")) b.setFloors(ServiceUtils.toInt(params.get("floors")));
-        if (params.containsKey("totalArea") && params.get("totalArea") != null) b.setTotalArea(new BigDecimal(params.get("totalArea").toString()));
+        if (params.containsKey("areaCovered") && params.get("areaCovered") != null) {
+            b.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
+        }
+        if (params.containsKey("totalArea") && params.get("totalArea") != null) {
+            b.setTotalArea(new BigDecimal(params.get("totalArea").toString()));
+        }
+        if (params.containsKey("propertyRight")) b.setPropertyRight(ServiceUtils.toInt(params.get("propertyRight")));
+        if (params.containsKey("buildingSafety")) b.setBuildingSafety(ServiceUtils.toInt(params.get("buildingSafety")));
+        if (params.containsKey("shareArea") && params.get("shareArea") != null) {
+            b.setShareArea(new BigDecimal(params.get("shareArea").toString()));
+        }
+        if (params.containsKey("leaseMethod")) b.setLeaseMethod(ServiceUtils.toInt(params.get("leaseMethod")));
+        if (params.containsKey("sorting")) b.setSorting(ServiceUtils.toInt(params.get("sorting")));
+        if (params.containsKey("certificate")) b.setCertificate((String) params.get("certificate"));
+        if (params.containsKey("image")) b.setImage((String) params.get("image"));
         if (params.containsKey("buildYear")) b.setBuildYear(ServiceUtils.toInt(params.get("buildYear")));
         if (params.containsKey("manager")) b.setManager((String) params.get("manager"));
-        if (params.containsKey("managerPhone")) b.setManagerPhone((String) params.get("managerPhone"));
+        if (params.containsKey("managerPhone")) b.setManager((String) params.get("managerPhone"));
         if (params.containsKey("remark")) b.setRemark((String) params.get("remark"));
         if (params.containsKey("status")) b.setStatus(ServiceUtils.toInt(params.get("status")));
 
