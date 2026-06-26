@@ -17,6 +17,10 @@ spring:
   application:
     name: platform-message
 
+  config:
+    import:
+      - optional:nacos:common.yml
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
