@@ -146,7 +146,7 @@ const routes: RouteRecordRaw[] = [
         path: 'building/page',
         name: 'BuildingMgmt',
         component: () => import('@/views/building/Index.vue'),
-        meta: { title: '楼栋管理', icon: 'fas fa-warehouse', parent: 'property' }
+        meta: { title: '楼栋管理', icon: 'fas fa-warehouse', parent: 'space' }
       },
       {
         path: 'room/page',

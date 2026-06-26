@@ -1,4 +1,16 @@
 -- ================================================================
+-- [MIGRATION NOTICE 2026-06-26] building 业务已迁至 park-space 模块
+-- ================================================================
+-- 本 V29 是历史迁移文件, 仅保留 sys_building 表的 DDL 与种子数据
+-- 当前 building 业务由 park-space 模块承载:
+--   - 后端: park-space/.../controller/BuildingController.java
+--   - 网关: platform-gateway application.yml park-space 路由 (/building/**)
+--   - 菜单: V36/V38 重组至 app_id=1 (system)
+-- park-property 模块暂时弃用, 不再新增 building 相关业务
+-- Flyway validate-on-migrate: false (所有模块), 本注释变更不影响 checksum 校验
+-- ================================================================
+
+-- ================================================================
 -- V29: park-property 第一张业务表 (csyh 业务融合 W3.2)
 --
 -- 背景: W3.1 (commit 4c08183) 落地 park-space (Room), 现接入 park-property (Building).
