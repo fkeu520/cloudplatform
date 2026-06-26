@@ -62,6 +62,25 @@ const activeAreaId = ref<string | null>(null)
 const activeBuildingId = ref<string | null>(null)
 const activeFloorId = ref<string | null>(null)
 
+// 自动展开: 第一个 park + 第一个 area + 第一个 building
+// (floor 不展开, floor 多时折叠看起来更整洁)
+const defaultOpeneds = computed<string[]>(() => {
+  const result: string[] = []
+  const firstPark = parkTree.value[0]
+  if (firstPark) {
+    result.push(`p-${firstPark.id}`)
+    const firstArea = firstPark.$areaList?.[0]
+    if (firstArea) {
+      result.push(`a-${firstArea.id}`)
+      const firstBuilding = firstArea.$buildingList?.[0]
+      if (firstBuilding) {
+        result.push(`b-${firstBuilding.id}`)
+      }
+    }
+  }
+  return result
+})
+
 // 搜索/过滤
 const filterStatus = ref<string>('')  // '' = 全部
 const filterText = ref('')
@@ -104,6 +123,7 @@ const tabLoaded = reactive<Record<TabName, boolean>>({ lock: false, split: false
 const defaultForm = () => ({
   id: undefined as string | undefined,
   parkId: undefined as string | undefined,
+  areaId: undefined as string | undefined,
   buildingId: undefined as string | undefined,
   floorId: undefined as string | undefined,
   floor: 1,
@@ -126,6 +146,7 @@ const form = reactive(defaultForm())
 
 const formRules = {
   parkId: [{ required: true, message: '请选择园区', trigger: 'change' }],
+  areaId: [{ required: true, message: '请选择分区', trigger: 'change' }],
   buildingId: [{ required: true, message: '请选择楼栋', trigger: 'change' }],
   roomNo: [
     { required: true, message: '请输入房号', trigger: 'blur' },
@@ -240,7 +261,7 @@ async function loadFloorsForBuilding(building: BuildingTreeNode) {
   }
 }
 
-// 节点点击处理
+// 节点点击处理 — 任意层级点击都触发 loadData, 房间列表按当前选中节点过滤
 async function onAreaClick(area: AreaTreeNode) {
   activeAreaId.value = area.id || null
   // 重置下层选择
@@ -260,6 +281,22 @@ async function onBuildingClick(building: BuildingTreeNode) {
   if (!building.$loaded) {
     await loadFloorsForBuilding(building)
   }
+  // 触发右侧房间列表按 buildingId 过滤
+  pageNum.value = 1
+  await loadData()
+}
+
+async function onParkClick(park: ParkTreeNode) {
+  activeParkId.value = park.id || null
+  activeAreaId.value = null
+  activeBuildingId.value = null
+  activeFloorId.value = null
+  if (!park.$loaded) {
+    await loadAreasForPark(park)
+  }
+  // 触发右侧房间列表按 parkId 过滤
+  pageNum.value = 1
+  await loadData()
 }
 
 function onFloorClick(floor: Floor) {
@@ -534,18 +571,49 @@ function onTabPageChange(name: TabName, v: number) {
 }
 
 // ============== 弹窗操作 ==============
+// 表单级联: 切换园区时清空下级 + 加载分区选项
+async function onFormParkChange(parkId: string) {
+  form.areaId = undefined
+  form.buildingId = undefined
+  form.floorId = undefined
+  const park = parkTree.value.find((p) => p.id === parkId)
+  if (park && !park.$loaded) await loadAreasForPark(park)
+}
+
+async function onFormAreaChange(_areaId: string) {
+  form.buildingId = undefined
+  form.floorId = undefined
+}
+
+async function onFormBuildingChange(buildingId: string) {
+  form.floorId = undefined
+  const bld = (parkTree.value
+    .flatMap((p) => p.$areaList || [])
+    .flatMap((a) => a.$buildingList || [])
+    .find((b) => b.id === buildingId))
+  if (bld && !bld.$loaded) await loadFloorsForBuilding(bld)
+}
+
+async function onFormFloorChange(_floorId: string) {
+  // 楼层变化不需要清空其他字段, 房间号等信息独立
+}
+
 async function handleAdd() {
-  if (!activeBuildingId.value || !activeFloorId.value) {
-    ElMessage.warning('请先在左侧选择楼栋和楼层')
+  if (!activeParkId.value) {
+    ElMessage.warning('请先在左侧选择园区')
     return
   }
   dialogMode.value = 'add'
   editingId.value = null
   Object.assign(form, defaultForm(), {
     parkId: activeParkId.value || undefined,
+    areaId: activeAreaId.value || undefined,
     buildingId: activeBuildingId.value || undefined,
     floorId: activeFloorId.value || undefined,
   })
+  // 加载该园区下的分区选项 (供下拉选择)
+  const park = parkTree.value.find((p) => p.id === activeParkId.value)
+  if (park && !park.$loaded) await loadAreasForPark(park)
   await loadKitsAndPurposes()
   dialogVisible.value = true
 }
@@ -826,6 +894,7 @@ onMounted(async () => {
         <div class="left-bar-title">导航</div>
         <el-menu
           :default-active="String(activeFloorId || '')"
+          :default-openeds="defaultOpeneds"
           unique-opened
           class="building-tree-list"
         >
@@ -837,7 +906,7 @@ onMounted(async () => {
             v-loading="park.$loading"
           >
             <template slot="title">
-              <span class="common-ellipsis" :title="park.parkName" @click.stop="activeParkId = park.id; if (!park.$loaded) loadAreasForPark(park); pageNum = 1; loadData()">
+              <span class="common-ellipsis" :title="park.parkName" @click.stop="onParkClick(park)">
                 {{ park.parkName }}
               </span>
             </template>
@@ -1164,7 +1233,7 @@ onMounted(async () => {
         <el-row :gutter="24">
           <el-col :span="8">
             <el-form-item label="所属园区" prop="parkId">
-              <el-select v-model="form.parkId" placeholder="请选择园区" filterable>
+              <el-select v-model="form.parkId" placeholder="请选择园区" filterable @change="onFormParkChange">
                 <el-option
                   v-for="p in parkTree"
                   :key="p.id"
@@ -1175,10 +1244,22 @@ onMounted(async () => {
             </el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="所属楼栋" prop="buildingId">
-              <el-select v-model="form.buildingId" placeholder="请选择楼栋" filterable>
+            <el-form-item label="所属分区" prop="areaId">
+              <el-select v-model="form.areaId" placeholder="请选择分区" filterable clearable @change="onFormAreaChange">
                 <el-option
-                  v-for="b in (parkTree.find(p => p.id === form.parkId)?.$buildingList || [])"
+                  v-for="a in (parkTree.find(p => p.id === form.parkId)?.$areaList || [])"
+                  :key="a.id"
+                  :label="a.areaName"
+                  :value="a.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="所属楼栋" prop="buildingId">
+              <el-select v-model="form.buildingId" placeholder="请选择楼栋" filterable @change="onFormBuildingChange">
+                <el-option
+                  v-for="b in (parkTree.find(p => p.id === form.parkId)?.$areaList?.find(a => a.id === form.areaId)?.$buildingList || parkTree.find(p => p.id === form.parkId)?.$buildingList || [])"
                   :key="b.id"
                   :label="b.buildingName"
                   :value="b.id"
@@ -1188,9 +1269,9 @@ onMounted(async () => {
           </el-col>
           <el-col :span="8">
             <el-form-item label="所属楼层" prop="floorId">
-              <el-select v-model="form.floorId" placeholder="请选择楼层" filterable clearable>
+              <el-select v-model="form.floorId" placeholder="请选择楼层" filterable clearable @change="onFormFloorChange">
                 <el-option
-                  v-for="f in (parkTree.find(p => p.id === form.parkId)?.$buildingList?.find(b => b.id === form.buildingId)?.$floorList || [])"
+                  v-for="f in (parkTree.find(p => p.id === form.parkId)?.$areaList?.find(a => a.id === form.areaId)?.$buildingList?.find(b => b.id === form.buildingId)?.$floorList || parkTree.find(p => p.id === form.parkId)?.$buildingList?.find(b => b.id === form.buildingId)?.$floorList || [])"
                   :key="f.id"
                   :label="f.floorName"
                   :value="f.id"
@@ -1475,11 +1556,11 @@ onMounted(async () => {
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding-bottom: 16px;
-  white-space: nowrap;
   flex-wrap: wrap;
   gap: 12px;
+  row-gap: 12px;
 }
 
 .page-header .page-header-title {
@@ -1487,6 +1568,8 @@ onMounted(async () => {
   font-weight: 600;
   color: rgba(0, 0, 0, 0.85);
   margin-right: 16px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .page-header .current-floor {
@@ -1499,23 +1582,25 @@ onMounted(async () => {
 .page-header .page-header-actions {
   display: flex;
   align-items: center;
-  flex: 1;
+  flex: 1 1 auto;
   justify-content: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .page-header .status-list {
   display: inline-flex;
+  flex-wrap: wrap;
 }
 
 .page-header .status-list :deep(.el-radio-button__inner) {
   border: 1px solid #dcdfe6;
-  padding: 8px 12px;
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .page-header .search-input {
-  max-width: 240px;
-  min-width: 180px;
+  width: 200px;
   flex: 0 0 auto;
 }
 

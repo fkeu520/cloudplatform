@@ -163,6 +163,57 @@ class RoomServiceTest {
     }
 
     @Test
+    void create_with4LevelFields_shouldPersistAll() {
+        // 4 级树字段: parkId + areaId + buildingId + floorId (V38/V41 字段)
+        Map<String, Object> params = new HashMap<>();
+        params.put("parkId", 1L);
+        params.put("areaId", 200L);
+        params.put("buildingId", 300L);
+        params.put("floorId", 400L);
+        params.put("roomNo", "B-501");
+        params.put("roomName", "B 座 501");
+        params.put("floor", 5);
+        params.put("roomType", "OFFICE");
+        params.put("areaCovered", 120);
+        params.put("monthlyRent", 8000);
+        params.put("remark", "test 4-level");
+
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        doAnswer(inv -> {
+            Room r = inv.getArgument(0);
+            r.setId(500L);
+            return 1;
+        }).when(roomMapper).insert(any(Room.class));
+
+        Result<Long> result = roomService.create(params);
+
+        assertEquals(200, result.getCode());
+        ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
+        verify(roomMapper).insert(captor.capture());
+        Room inserted = captor.getValue();
+        assertEquals(Long.valueOf(1L), inserted.getParkId());
+        assertEquals(Long.valueOf(200L), inserted.getAreaId(), "create 必须保存 areaId");
+        assertEquals(Long.valueOf(300L), inserted.getBuildingId());
+        assertEquals(Long.valueOf(400L), inserted.getFloorId(), "create 必须保存 floorId (V38)");
+        assertEquals(Integer.valueOf(5), inserted.getFloor());
+        assertEquals("B-501", inserted.getRoomNo());
+    }
+
+    @Test
+    void update_areaIdChange_shouldPersist() {
+        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
+        Map<String, Object> params = new HashMap<>();
+        params.put("areaId", 999L);
+
+        Result<Void> result = roomService.update(1L, params);
+
+        assertEquals(200, result.getCode());
+        ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
+        verify(roomMapper).updateById(captor.capture());
+        assertEquals(Long.valueOf(999L), captor.getValue().getAreaId(), "update 必须保存 areaId");
+    }
+
+    @Test
     void create_missingParkId_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
         params.put("roomNo", "A-201");

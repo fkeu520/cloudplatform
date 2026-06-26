@@ -118,7 +118,9 @@ public class RoomService {
 
         Room r = new Room();
         r.setParkId(parkId);
-        r.setBuildingId(params.get("buildingId") != null ? ((Number) params.get("buildingId")).longValue() : null);
+        r.setAreaId(params.get("areaId") != null ? ServiceUtils.toLong(params.get("areaId")) : null);
+        r.setBuildingId(params.get("buildingId") != null ? ServiceUtils.toLong(params.get("buildingId")) : null);
+        r.setFloorId(params.get("floorId") != null ? ServiceUtils.toLong(params.get("floorId")) : null);
         r.setFloor(params.get("floor") != null ? ((Number) params.get("floor")).intValue() : null);
         r.setRoomNo(roomNo);
         r.setRoomType(roomType);
@@ -149,7 +151,9 @@ public class RoomService {
         }
 
         if (params.containsKey("parkId")) r.setParkId(ServiceUtils.toLong(params.get("parkId")));
+        if (params.containsKey("areaId")) r.setAreaId(ServiceUtils.toLong(params.get("areaId")));
         if (params.containsKey("buildingId")) r.setBuildingId(ServiceUtils.toLong(params.get("buildingId")));
+        if (params.containsKey("floorId")) r.setFloorId(ServiceUtils.toLong(params.get("floorId")));
         if (params.containsKey("floor")) r.setFloor(ServiceUtils.toInt(params.get("floor")));
         if (params.containsKey("roomNo")) r.setRoomNo((String) params.get("roomNo"));
         if (params.containsKey("roomType")) r.setRoomType((String) params.get("roomType"));
