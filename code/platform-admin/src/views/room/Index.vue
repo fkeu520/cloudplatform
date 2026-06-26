@@ -1386,13 +1386,7 @@ onMounted(async () => {
 
 <style scoped>
 .page-cover-container {
-  position: absolute;
-  height: calc(100% - 32px);
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  overflow-y: auto;
-  overflow-x: auto;
+  height: 100%;
 }
 
 .common-flex {
@@ -1419,7 +1413,7 @@ onMounted(async () => {
   min-width: 0;
   max-width: 100%;
   padding: 16px 16px;
-  overflow: auto;
+  overflow-y: auto;
   background: #f5f7fa;
   box-sizing: border-box;
 }
@@ -1622,17 +1616,11 @@ onMounted(async () => {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  /* C5 修复: 表格水平溢出 -> 横向滚动避免页面变形 */
   overflow-x: auto;
-  overflow-y: auto;
 }
 
 .page-table :deep(.el-table) {
-  /* 严格约束: 100% 父容器宽度 + fixed 布局
-     避免 fixed="right" 列把页面撑超 viewport */
   width: 100%;
-  max-width: 100%;
-  table-layout: fixed;
 }
 
 .page-table :deep(.el-table .cell) {
