@@ -1,7 +1,7 @@
 # 云枢中台 - Opencode 实施计划
 
-**版本：** v7.0
-**日期：** 2026-06-03
+**版本：** v7.1
+**日期：** 2026-06-26 (追加修补阶段 v2 — 配置动态化)
 **代码验证：** ✅ 实际代码全量校验
 **定位：** 构建通用技术底座，价值驱动、小步快跑
 **主规划文档：** [`中台建设中长期规划.md`](中台建设中长期规划.md)（v1.0, 2026-06-03）
@@ -303,6 +303,22 @@ kafka-ui:
 | P2 | 画布交互优化（拖拽、网格对齐） | `ProcessDesigner.vue` | 3h |
 | P2 | 流程验证（BPMN 语法校验、版本管理） | `platform-workflow` | 4h |
 | P2 | 用户任务签收（claim/unclaim） | 前后端 | 3h |
+
+---
+
+## 修补阶段 v2 — 配置动态化（建议优先于 Sprint 3）
+
+代码摸底发现配置维护性问题，详见 [`配置动态改造方案.md`](../../plan/配置动态改造方案.md) v1.1 (2026-06-26)：
+
+| 优先级 | 问题 | 位置 | 预计 |
+|--------|------|------|------|
+| **P0** | `ChannelSenderRegistry.senderMap` 是 `HashMap` 非线程安全，并发初始化有 bug 风险 | `platform-message/.../channel/ChannelSenderRegistry.java:16` | 0.5h |
+| **P0** | `RateLimitFilter.ipCounters` 单实例内存版，多实例 HA 后行为漂移 | `platform-gateway/.../filter/RateLimitFilter.java` | 1.5d (Redis + Lua) |
+| **P1** | 5 模块 `bootstrap.yml` + 4 模块 `spring.config.import` 风格不统一；Spring Boot 3.2.4 已支持 `spring.config.import`，统一用 import 简化加载 | 5 模块 | 1d |
+| **P1** | 9 项频繁调优配置（限流阈值、JWT 过期、多租户开关等）写死 yml，改完需重新打包 | 9 模块 | 1d |
+| P2 | SSE / 数据权限 / 操作日志 缓存 Redis 化（HA 时投入） | 3 模块 | 3-4d |
+
+**预计总工作量**: P0+P1 = 4 天（本周末 + 下周）
 
 ## 6. Phase 2 — 中台平台核心（按依赖关系分 Sprint）
 
