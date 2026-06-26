@@ -29,7 +29,8 @@ public class AuthService {
     private static final String SMS_CODE_PREFIX = "auth:sms:";
     private static final String TOKEN_BLACKLIST_PREFIX = "auth:token:blacklist:";
     private static final long SMS_CODE_EXPIRE_SECONDS = 300;
-    private static final long TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600L;
+    @Value("${jwt.expire-time:604800}")
+    private long tokenExpireSeconds;
 
     public AuthVO loginByPassword(String username, String encryptedPassword) {
         // 解密前端传来的 RSA 加密密码
@@ -117,11 +118,11 @@ public class AuthService {
         String username = JwtUtil.getUsername(token);
 
         Long effectiveTenantId = (tenantId != null && tenantId > 0) ? tenantId : null;
-        String newToken = JwtUtil.generate(userId, username, effectiveTenantId, userType, TOKEN_EXPIRE_SECONDS);
+        String newToken = JwtUtil.generate(userId, username, effectiveTenantId, userType, tokenExpireSeconds);
 
         AuthVO vo = new AuthVO();
         vo.setToken(newToken);
-        vo.setExpireTime(System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000);
+        vo.setExpireTime(System.currentTimeMillis() + tokenExpireSeconds * 1000);
         vo.setUserId(Long.parseLong(userId));
         return vo;
     }
@@ -167,8 +168,8 @@ public class AuthService {
         String username = (userData != null && userData.get("username") instanceof String)
             ? (String) userData.get("username") : null;
         Long effectiveTenantId = (tenantId != null && tenantId > 0) ? tenantId : null;
-        String token = JwtUtil.generate(userId, username, effectiveTenantId, userType, TOKEN_EXPIRE_SECONDS);
-        long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
+        String token = JwtUtil.generate(userId, username, effectiveTenantId, userType, tokenExpireSeconds);
+        long expireTime = System.currentTimeMillis() + tokenExpireSeconds * 1000;
         AuthVO vo = new AuthVO();
         vo.setToken(token);
         vo.setExpireTime(expireTime);

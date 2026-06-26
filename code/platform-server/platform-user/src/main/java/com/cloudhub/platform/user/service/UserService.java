@@ -28,6 +28,7 @@ import com.cloudhub.platform.user.domain.mapper.PostMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +60,8 @@ public class UserService {
     private final LoginLogService loginLogService;
     private final StringRedisTemplate redisTemplate;
 
-    private static final long TOKEN_EXPIRE_SECONDS = 7 * 24 * 3600L; // 7天
+    @Value("${jwt.expire-time:604800}")
+    private long tokenExpireSeconds;
     private static final String TOKEN_PREFIX = "auth:token:";
 
     /**
@@ -92,8 +94,8 @@ public class UserService {
 
         Long tenantId = user.getTenantId() != null ? user.getTenantId().longValue() : 0L;
         Integer userType = user.getUserType();
-        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, userType, TOKEN_EXPIRE_SECONDS);
-        long expireTime = System.currentTimeMillis() + TOKEN_EXPIRE_SECONDS * 1000;
+        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, userType, tokenExpireSeconds);
+        long expireTime = System.currentTimeMillis() + tokenExpireSeconds * 1000;
 
         // 更新最后登录信息
         user.setLastLoginTime(LocalDateTime.now());
