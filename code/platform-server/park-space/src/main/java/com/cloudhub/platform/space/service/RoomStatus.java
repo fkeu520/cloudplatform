@@ -5,12 +5,12 @@ import java.util.Set;
 
 /**
  * 房源状态枚举 (park-space 业务)
- * <p>5 状态机, 4 允许的转换 + 1 终态.</p>
+ * <p>5 状态机, 有限转换.</p>
  * <p>设计原则:
  * <ul>
- *   <li>代码与 sys_room.status 字段一一对应 (0/1/2/3)</li>
+ *   <li>代码与 sys_room.status 字段一一对应 (0/1/2/3/4)</li>
  *   <li>状态转换由 {@link #canTransitionTo(RoomStatus)} 严格校验, 防止非法跳转</li>
- *   <li>{@link #DISABLED} 是终态, 不可逆转 (如需启用, 创建新房源)</li>
+ *   <li>{@link #SOLD} 是终态, 不可逆转</li>
  * </ul>
  */
 public enum RoomStatus {
@@ -21,11 +21,14 @@ public enum RoomStatus {
     /** 已租 */
     RENTED(1, "已租"),
 
-    /** 装修中 */
-    RENOVATING(2, "装修中"),
+    /** 已售 (终态) */
+    SOLD(2, "已售"),
 
-    /** 停用 (终态) */
-    DISABLED(3, "停用");
+    /** 锁定 */
+    LOCKED(3, "锁定"),
+
+    /** 预订 */
+    BOOKED(4, "预订");
 
     public final int code;
     public final String desc;
@@ -52,19 +55,19 @@ public enum RoomStatus {
      * <p>状态转换图:
      * <pre>
      *   VACANT ─┬─→ RENTED      (租)
-     *           └─→ RENOVATING  (装)
+     *           ├─→ SOLD        (售, 终态)
+     *           ├─→ LOCKED      (锁)
+     *           └─→ BOOKED      (预订)
      *   RENTED ────→ VACANT      (退)
-     *   RENOVATING → VACANT     (完)
-     *   任意 ──────→ DISABLED   (管, 终态)
+     *   LOCKED ────→ VACANT      (解锁)
+     *   BOOKED ─┬─→ RENTED      (预订转租)
+     *           └─→ VACANT      (取消)
      * </pre>
      */
     public boolean canTransitionTo(RoomStatus target) {
         if (this == target) return true;
-        // 终态: 不可离开
-        if (this == DISABLED) return false;
-        // 任意 → DISABLED 允许
-        if (target == DISABLED) return true;
-        // 其他转换: 按允许集合判断
+        if (this == SOLD) return false;
+        if (target == SOLD) return true;
         return allowedTransitions().contains(target);
     }
 
@@ -74,13 +77,15 @@ public enum RoomStatus {
     public Set<RoomStatus> allowedTransitions() {
         switch (this) {
             case VACANT:
-                return EnumSet.of(RENTED, RENOVATING, DISABLED);
+                return EnumSet.of(RENTED, SOLD, LOCKED, BOOKED);
             case RENTED:
-                return EnumSet.of(VACANT, DISABLED);
-            case RENOVATING:
-                return EnumSet.of(VACANT, DISABLED);
-            case DISABLED:
-                return EnumSet.noneOf(RoomStatus.class);  // 终态
+                return EnumSet.of(VACANT);
+            case SOLD:
+                return EnumSet.noneOf(RoomStatus.class);
+            case LOCKED:
+                return EnumSet.of(VACANT);
+            case BOOKED:
+                return EnumSet.of(RENTED, VACANT);
             default:
                 return EnumSet.noneOf(RoomStatus.class);
         }

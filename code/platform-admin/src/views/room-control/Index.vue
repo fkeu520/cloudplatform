@@ -100,10 +100,6 @@ async function loadParks() {
     const res: any = await getParkList()
     if (res.code === 200) {
       parkOptions.value = res.data || []
-      if (parkOptions.value.length > 0 && !searchForm.parkId) {
-        searchForm.parkId = Number(parkOptions.value[0].id)
-        await loadBuildings(searchForm.parkId)
-      }
     }
   } catch (e) {
     console.error(e)
@@ -169,6 +165,7 @@ function handleSearch() {
 }
 
 function handleReset() {
+  searchForm.parkId = undefined
   searchForm.buildingId = undefined
   searchForm.floorId = undefined
   searchForm.rentingSelling = undefined
@@ -224,10 +221,9 @@ function statusLabel(s: number | undefined): string {
   switch (s) {
     case 0: return '空置'
     case 1: return '已租'
-    case 2: return '装修中'
-    case 3: return '停用'
-    case 4: return '自用'
-    case 5: return '已预订'
+    case 2: return '已售'
+    case 3: return '锁定'
+    case 4: return '预订'
     default: return '-'
   }
 }
@@ -393,8 +389,13 @@ onMounted(async () => {
   await loadData()
 })
 
-watch(() => searchForm.parkId, (val) => {
-  if (val) onParkChange(val)
+watch(() => searchForm.parkId, (val, oldVal) => {
+  if (val !== oldVal) {
+    searchForm.buildingId = undefined
+    searchForm.floorId = undefined
+    if (val) loadBuildings(val)
+    handleSearch()
+  }
 })
 </script>
 

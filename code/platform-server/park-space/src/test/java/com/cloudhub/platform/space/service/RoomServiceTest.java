@@ -24,7 +24,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,14 +34,6 @@ import static org.mockito.Mockito.when;
 
 /**
  * {@link RoomService} + {@link RoomStatus} 单元测试
- * <p>W3.1 阶段验证:
- * <ul>
- *   <li>分页查询 (W3 hello world 已覆盖)</li>
- *   <li>新增房源 (含唯一性校验)</li>
- *   <li>更新字段 (含 DISABLED 状态保护)</li>
- *   <li>软删除 (RENTED 状态保护)</li>
- *   <li>状态机 (5 状态 + 4 允许转换 + 1 终态)</li>
- * </ul>
  */
 @ExtendWith(MockitoExtension.class)
 class RoomServiceTest {
@@ -53,17 +44,19 @@ class RoomServiceTest {
     @InjectMocks
     private RoomService roomService;
 
-    private Room roomVacant;     // 空置
-    private Room roomRented;     // 已租
-    private Room roomRenovating; // 装修中
-    private Room roomDisabled;   // 停用
+    private Room roomVacant;
+    private Room roomRented;
+    private Room roomSold;
+    private Room roomLocked;
+    private Room roomBooked;
 
     @BeforeEach
     void setUp() {
-        roomVacant = makeRoom(1L, 0);     // VACANT
-        roomRented = makeRoom(2L, 1);     // RENTED
-        roomRenovating = makeRoom(3L, 2); // RENOVATING
-        roomDisabled = makeRoom(4L, 3);   // DISABLED
+        roomVacant = makeRoom(1L, 0);
+        roomRented = makeRoom(2L, 1);
+        roomSold = makeRoom(3L, 2);
+        roomLocked = makeRoom(4L, 3);
+        roomBooked = makeRoom(5L, 4);
     }
 
     private Room makeRoom(Long id, int status) {
@@ -77,7 +70,7 @@ class RoomServiceTest {
         return r;
     }
 
-    // ========== 分页测试 (W3 hello world 验证) ==========
+    // ========== 分页测试 ==========
 
     @Test
     void page_withNoFilters_shouldReturnAll() {
@@ -130,7 +123,6 @@ class RoomServiceTest {
         params.put("monthlyRent", 5000);
 
         when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
-        // 模拟 insert 后给 Room 设置 ID (MP 真实行为)
         doAnswer(inv -> {
             Room r = inv.getArgument(0);
             r.setId(100L);
@@ -138,9 +130,8 @@ class RoomServiceTest {
         }).when(roomMapper).insert(any(Room.class));
 
         Result<Long> result = roomService.create(params);
-
         assertEquals(200, result.getCode());
-        // 验证 insert 被调用且 Room 含正确字段
+
         ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
         verify(roomMapper).insert(captor.capture());
         Room inserted = captor.getValue();
@@ -164,7 +155,6 @@ class RoomServiceTest {
 
     @Test
     void create_with4LevelFields_shouldPersistAll() {
-        // 4 级树字段: parkId + areaId + buildingId + floorId (V38/V41 字段)
         Map<String, Object> params = new HashMap<>();
         params.put("parkId", 1L);
         params.put("areaId", 200L);
@@ -186,15 +176,15 @@ class RoomServiceTest {
         }).when(roomMapper).insert(any(Room.class));
 
         Result<Long> result = roomService.create(params);
-
         assertEquals(200, result.getCode());
+
         ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
         verify(roomMapper).insert(captor.capture());
         Room inserted = captor.getValue();
         assertEquals(Long.valueOf(1L), inserted.getParkId());
         assertEquals(Long.valueOf(200L), inserted.getAreaId(), "create 必须保存 areaId");
         assertEquals(Long.valueOf(300L), inserted.getBuildingId());
-        assertEquals(Long.valueOf(400L), inserted.getFloorId(), "create 必须保存 floorId (V38)");
+        assertEquals(Long.valueOf(400L), inserted.getFloorId(), "create 必须保存 floorId");
         assertEquals(Integer.valueOf(5), inserted.getFloor());
         assertEquals("B-501", inserted.getRoomNo());
     }
@@ -206,8 +196,8 @@ class RoomServiceTest {
         params.put("areaId", 999L);
 
         Result<Void> result = roomService.update(1L, params);
-
         assertEquals(200, result.getCode());
+
         ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
         verify(roomMapper).updateById(captor.capture());
         assertEquals(Long.valueOf(999L), captor.getValue().getAreaId(), "update 必须保存 areaId");
@@ -217,7 +207,6 @@ class RoomServiceTest {
     void create_missingParkId_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
         params.put("roomNo", "A-201");
-
         assertThrows(BizException.class, () -> roomService.create(params));
     }
 
@@ -225,7 +214,6 @@ class RoomServiceTest {
     void create_missingRoomNo_shouldThrow() {
         Map<String, Object> params = new HashMap<>();
         params.put("parkId", 1L);
-
         BizException ex = assertThrows(BizException.class, () -> roomService.create(params));
         assertTrue(ex.getMessage().contains("缺少必填字段"));
     }
@@ -240,25 +228,23 @@ class RoomServiceTest {
         params.put("area", 200);
 
         Result<Void> result = roomService.update(1L, params);
-
         assertEquals(200, result.getCode());
         verify(roomMapper).updateById(any(Room.class));
     }
 
     @Test
-    void update_disabledStatus_shouldThrow() {
-        when(roomMapper.selectById(4L)).thenReturn(roomDisabled);
+    void update_soldStatus_shouldThrow() {
+        when(roomMapper.selectById(3L)).thenReturn(roomSold);
         Map<String, Object> params = new HashMap<>();
         params.put("roomNo", "A-999");
 
-        BizException ex = assertThrows(BizException.class, () -> roomService.update(4L, params));
-        assertTrue(ex.getMessage().contains("停用状态的房源不可修改"));
+        BizException ex = assertThrows(BizException.class, () -> roomService.update(3L, params));
+        assertTrue(ex.getMessage().contains("已售状态的房源不可修改"));
     }
 
     @Test
     void update_changeRoomNoConflict_shouldThrow() {
         when(roomMapper.selectById(1L)).thenReturn(roomVacant);
-        // 第一次 selectCount (用于唯一性校验) 返回 > 0
         when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         Map<String, Object> params = new HashMap<>();
@@ -274,20 +260,24 @@ class RoomServiceTest {
     @Test
     void delete_vacant_shouldSoftDelete() {
         when(roomMapper.selectById(1L)).thenReturn(roomVacant);
-
         Result<Void> result = roomService.delete(1L);
-
         assertEquals(200, result.getCode());
-        // 验证 deleted 字段被设为 1
+
         ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
         verify(roomMapper).updateById(captor.capture());
         assertEquals(Integer.valueOf(1), captor.getValue().getDeleted());
     }
 
     @Test
+    void delete_sold_shouldThrow() {
+        when(roomMapper.selectById(3L)).thenReturn(roomSold);
+        BizException ex = assertThrows(BizException.class, () -> roomService.delete(3L));
+        assertTrue(ex.getMessage().contains("已售状态的房源不可删除"));
+    }
+
+    @Test
     void delete_rented_shouldThrow() {
         when(roomMapper.selectById(2L)).thenReturn(roomRented);
-
         BizException ex = assertThrows(BizException.class, () -> roomService.delete(2L));
         assertTrue(ex.getMessage().contains("已租状态的房源不可删除"));
     }
@@ -305,15 +295,30 @@ class RoomServiceTest {
         when(roomMapper.selectById(1L)).thenReturn(roomVacant);
         Result<Void> result = roomService.updateStatus(1L, 1);
         assertEquals(200, result.getCode());
+
         ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
         verify(roomMapper).updateById(captor.capture());
         assertEquals(Integer.valueOf(1), captor.getValue().getStatus());
     }
 
     @Test
-    void state_vacantToRenovating_shouldSucceed() {
+    void state_vacantToSold_shouldSucceed() {
         when(roomMapper.selectById(1L)).thenReturn(roomVacant);
         Result<Void> result = roomService.updateStatus(1L, 2);
+        assertEquals(200, result.getCode());
+    }
+
+    @Test
+    void state_vacantToLocked_shouldSucceed() {
+        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
+        Result<Void> result = roomService.updateStatus(1L, 3);
+        assertEquals(200, result.getCode());
+    }
+
+    @Test
+    void state_vacantToBooked_shouldSucceed() {
+        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
+        Result<Void> result = roomService.updateStatus(1L, 4);
         assertEquals(200, result.getCode());
     }
 
@@ -325,38 +330,44 @@ class RoomServiceTest {
     }
 
     @Test
-    void state_renovatingToVacant_shouldSucceed() {
-        when(roomMapper.selectById(3L)).thenReturn(roomRenovating);
-        Result<Void> result = roomService.updateStatus(3L, 0);
+    void state_lockedToVacant_shouldSucceed() {
+        when(roomMapper.selectById(4L)).thenReturn(roomLocked);
+        Result<Void> result = roomService.updateStatus(4L, 0);
         assertEquals(200, result.getCode());
     }
 
     @Test
-    void state_anyToDisabled_shouldSucceed() {
-        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
-        Result<Void> result = roomService.updateStatus(1L, 3);
+    void state_bookedToRented_shouldSucceed() {
+        when(roomMapper.selectById(5L)).thenReturn(roomBooked);
+        Result<Void> result = roomService.updateStatus(5L, 1);
         assertEquals(200, result.getCode());
     }
 
     @Test
-    void state_vacantToDisabled_shouldSucceed() {
-        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
-        Result<Void> result = roomService.updateStatus(1L, 3);
+    void state_bookedToVacant_shouldSucceed() {
+        when(roomMapper.selectById(5L)).thenReturn(roomBooked);
+        Result<Void> result = roomService.updateStatus(5L, 0);
         assertEquals(200, result.getCode());
     }
 
     @Test
-    void state_rentedToRenovating_shouldFail() {
-        // 非法: RENTED → RENOVATING (必须先退租到 VACANT)
+    void state_anyToSold_shouldSucceed() {
         when(roomMapper.selectById(2L)).thenReturn(roomRented);
-        BizException ex = assertThrows(BizException.class, () -> roomService.updateStatus(2L, 2));
+        Result<Void> result = roomService.updateStatus(2L, 2);
+        assertEquals(200, result.getCode());
+    }
+
+    @Test
+    void state_rentedToLocked_shouldFail() {
+        when(roomMapper.selectById(2L)).thenReturn(roomRented);
+        BizException ex = assertThrows(BizException.class, () -> roomService.updateStatus(2L, 3));
         assertTrue(ex.getMessage().contains("状态非法转换"));
     }
 
     @Test
-    void state_disabledIsTerminal_cannotLeave() {
-        when(roomMapper.selectById(4L)).thenReturn(roomDisabled);
-        BizException ex = assertThrows(BizException.class, () -> roomService.updateStatus(4L, 0));
+    void state_soldIsTerminal_cannotLeave() {
+        when(roomMapper.selectById(3L)).thenReturn(roomSold);
+        BizException ex = assertThrows(BizException.class, () -> roomService.updateStatus(3L, 0));
         assertTrue(ex.getMessage().contains("状态非法转换"));
     }
 
@@ -365,7 +376,6 @@ class RoomServiceTest {
         when(roomMapper.selectById(1L)).thenReturn(roomVacant);
         Result<Void> result = roomService.updateStatus(1L, 0);
         assertEquals(200, result.getCode());
-        // 同状态不调用 update
         verify(roomMapper, never()).updateById(any(Room.class));
     }
 
@@ -375,8 +385,9 @@ class RoomServiceTest {
     void enum_fromCode_shouldReturnEnum() {
         assertEquals(RoomStatus.VACANT, RoomStatus.fromCode(0));
         assertEquals(RoomStatus.RENTED, RoomStatus.fromCode(1));
-        assertEquals(RoomStatus.RENOVATING, RoomStatus.fromCode(2));
-        assertEquals(RoomStatus.DISABLED, RoomStatus.fromCode(3));
+        assertEquals(RoomStatus.SOLD, RoomStatus.fromCode(2));
+        assertEquals(RoomStatus.LOCKED, RoomStatus.fromCode(3));
+        assertEquals(RoomStatus.BOOKED, RoomStatus.fromCode(4));
         assertEquals(RoomStatus.VACANT, RoomStatus.fromCode(null));
     }
 
@@ -388,35 +399,38 @@ class RoomServiceTest {
     @Test
     void enum_canTransition_allowedPaths() {
         assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.RENTED));
-        assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.RENOVATING));
+        assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.SOLD));
+        assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.LOCKED));
+        assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.BOOKED));
         assertTrue(RoomStatus.RENTED.canTransitionTo(RoomStatus.VACANT));
-        assertTrue(RoomStatus.RENOVATING.canTransitionTo(RoomStatus.VACANT));
+        assertTrue(RoomStatus.LOCKED.canTransitionTo(RoomStatus.VACANT));
+        assertTrue(RoomStatus.BOOKED.canTransitionTo(RoomStatus.RENTED));
+        assertTrue(RoomStatus.BOOKED.canTransitionTo(RoomStatus.VACANT));
     }
 
     @Test
-    void enum_canTransition_anyToDisabled() {
-        assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.DISABLED));
-        assertTrue(RoomStatus.RENTED.canTransitionTo(RoomStatus.DISABLED));
-        assertTrue(RoomStatus.RENOVATING.canTransitionTo(RoomStatus.DISABLED));
+    void enum_canTransition_anyToSold() {
+        assertTrue(RoomStatus.VACANT.canTransitionTo(RoomStatus.SOLD));
+        assertTrue(RoomStatus.RENTED.canTransitionTo(RoomStatus.SOLD));
+        assertTrue(RoomStatus.LOCKED.canTransitionTo(RoomStatus.SOLD));
+        assertTrue(RoomStatus.BOOKED.canTransitionTo(RoomStatus.SOLD));
     }
 
     @Test
-    void enum_canTransition_disabledIsTerminal() {
+    void enum_canTransition_soldIsTerminal() {
         for (RoomStatus target : RoomStatus.values()) {
-            if (target == RoomStatus.DISABLED) continue;
-            assertFalse(RoomStatus.DISABLED.canTransitionTo(target),
-                    "DISABLED 不应能转换到 " + target);
+            if (target == RoomStatus.SOLD) continue;
+            assertFalse(RoomStatus.SOLD.canTransitionTo(target),
+                    "SOLD 不应能转换到 " + target);
         }
     }
 
     @Test
     void enum_canTransition_illegalPaths() {
-        // RENTED 不能直接跳到 RENOVATING
-        assertFalse(RoomStatus.RENTED.canTransitionTo(RoomStatus.RENOVATING));
-        // RENOVATING 不能直接跳到 RENTED
-        assertFalse(RoomStatus.RENOVATING.canTransitionTo(RoomStatus.RENTED));
-        // VACANT 不能跳到自己以外的非法状态
-        assertFalse(RoomStatus.VACANT.canTransitionTo(RoomStatus.VACANT) == false); // 同状态允许 (noop)
+        assertFalse(RoomStatus.RENTED.canTransitionTo(RoomStatus.LOCKED));
+        assertFalse(RoomStatus.RENTED.canTransitionTo(RoomStatus.BOOKED));
+        assertFalse(RoomStatus.SOLD.canTransitionTo(RoomStatus.VACANT));
+        assertFalse(RoomStatus.LOCKED.canTransitionTo(RoomStatus.RENTED));
     }
 
     @Test

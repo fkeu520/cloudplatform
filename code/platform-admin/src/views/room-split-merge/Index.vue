@@ -16,7 +16,6 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
-          <el-button type="success" @click="handleAdd">新增记录</el-button>
         </el-form-item>
       </el-form>
       <el-alert type="info" :closable="false" style="margin-bottom: 16px">
@@ -53,50 +52,19 @@
           @size-change="handleSizeChange" @current-change="handlePageChange" />
       </div>
     </el-card>
-    <el-dialog v-model="dialogVisible" title="新增拆分合并记录" width="700px" @close="resetForm">
-      <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="园区" prop="parkId"><el-select v-model="formData.parkId" placeholder="请选择园区" filterable style="width:100%"><el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" /></el-select></el-form-item>
-        <el-form-item label="操作人"><el-input v-model="formData.userName" maxlength="64" /></el-form-item>
-        <el-form-item label="原房源ID"><el-input-number v-model="formData.oldRoomId" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="原房源名称"><el-input v-model="formData.oldRoomName" maxlength="64" /></el-form-item>
-        <el-form-item label="新房源ID"><el-input-number v-model="formData.newRoomId" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="新房源名称"><el-input v-model="formData.newRoomName" maxlength="64" /></el-form-item>
-        <el-form-item label="拆分数量"><el-input-number v-model="formData.num" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="继承能源表"><el-switch v-model="formData.isExtend" :active-value="1" :inactive-value="0" /></el-form-item>
-        <el-form-item label="操作">
-          <el-radio-group v-model="formData.status"><el-radio :value="1">拆分</el-radio><el-radio :value="0">合并</el-radio></el-radio-group>
-        </el-form-item>
-        <el-form-item label="原因"><el-input v-model="formData.reasons" type="textarea" :rows="2" maxlength="500" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible=false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getRoomSplitMergePage, createRoomSplitMerge } from '@/api/room-split-merge'
+import { getRoomSplitMergePage } from '@/api/room-split-merge'
 import { getParkList } from '@/api/park'
 
 const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(0)
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ parkId: undefined as string | undefined, type: undefined as number | undefined, status: undefined as number | undefined })
 const parkOptions = ref<any[]>([]); const parkMap = ref<Record<string, string>>({})
-const dialogVisible = ref(false); const submitting = ref(false); const formRef = ref()
-
-const defaultForm = {
-  parkId: undefined as string | undefined, userId: undefined as string | undefined, userName: '', reasons: '',
-  type: 1, oldRoomId: '' as string | undefined, oldRoomName: '', newRoomId: '' as string | undefined, newRoomName: '',
-  num: 2, isExtend: 0, status: 1
-}
-const formData = reactive({ ...defaultForm })
-const rules = {
-  parkId: [{ required: true, message: '请选择园区', trigger: 'change' }]
-}
 
 async function loadData() {
   loading.value = true
