@@ -17,6 +17,10 @@ spring:
   application:
     name: platform-workflow
 
+  config:
+    import:
+      - optional:nacos:common.yml
+
   cloud:
     nacos:
       discovery:
@@ -24,8 +28,8 @@ spring:
         # 鍚姩鏃跺蹇?Nacos gRPC 瀹㈡埛绔湭灏辩华
         fail-fast: false
       config:
-        import-check:
-          enabled: false
+        server-addr: localhost:8848
+        enabled: false
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
