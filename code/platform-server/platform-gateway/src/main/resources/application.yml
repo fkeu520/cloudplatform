@@ -100,7 +100,7 @@ spring:
         - id: park-space
           uri: lb://park-space
           predicates:
-            - Path=/room/**, /park/**, /area/**, /floor/**, /kit/**, /plan-use/**, /land-nature/**, /covenant/**, /equipment/**, /space-category/**, /space/**, /massif/**, /room-purpose/**, /room-lock-record/**, /room-record/**, /room-split-merge/**
+            - Path=/room/**, /park/**, /area/**, /floor/**, /building/**, /kit/**, /plan-use/**, /land-nature/**, /covenant/**, /equipment/**, /space-category/**, /space/**, /massif/**, /room-purpose/**, /room-lock-record/**, /room-record/**, /room-split-merge/**
           filters:
             - name: CircuitBreaker
               args:
@@ -110,17 +110,6 @@ spring:
               args:
                 retries: 3
                 statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
-
-        # 鍥尯妤兼 (浠�park-property 杩佺Щ鍒�park-space)
-        - id: park-space-building
-          uri: lb://park-space
-          predicates:
-            - Path=/building/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: park-space-cb
-                fallbackUri: forward:/fallback/space
 
         # 鍥尯鍚堝悓 (W3.2b)
         - id: park-contract

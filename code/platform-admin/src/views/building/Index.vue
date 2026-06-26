@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 楼宇管理 (park-property) - 列表重构
+ * 楼宇管理 (park-space) - 列表重构
  *
  * 来源 csyh: pai-park-space-ui-csyh-2.x/std/pages/area/building/index.vue + add.vue
  *
