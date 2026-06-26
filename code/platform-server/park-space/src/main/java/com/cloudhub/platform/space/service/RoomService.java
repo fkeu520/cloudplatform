@@ -159,9 +159,19 @@ public class RoomService {
         if (params.containsKey("roomNo")) r.setRoomNo((String) params.get("roomNo"));
         if (params.containsKey("roomType")) r.setRoomType((String) params.get("roomType"));
         if (params.containsKey("areaCovered") && params.get("areaCovered") != null) r.setAreaCovered(new BigDecimal(params.get("areaCovered").toString()));
+        if (params.containsKey("buildArea") && params.get("buildArea") != null) r.setBuildArea(new BigDecimal(params.get("buildArea").toString()));
+        if (params.containsKey("billableArea") && params.get("billableArea") != null) r.setBillableArea(new BigDecimal(params.get("billableArea").toString()));
+        if (params.containsKey("unitPrice") && params.get("unitPrice") != null) r.setUnitPrice(new BigDecimal(params.get("unitPrice").toString()));
+        if (params.containsKey("totalPrice") && params.get("totalPrice") != null) r.setTotalPrice(new BigDecimal(params.get("totalPrice").toString()));
         if (params.containsKey("monthlyRent") && params.get("monthlyRent") != null) r.setMonthlyRent(new BigDecimal(params.get("monthlyRent").toString()));
-	        if (params.containsKey("remark")) r.setRemark((String) params.get("remark"));
-	        if (params.containsKey("roomName")) r.setRoomName((String) params.get("roomName"));
+        if (params.containsKey("remark")) r.setRemark((String) params.get("remark"));
+        if (params.containsKey("roomName")) r.setRoomName((String) params.get("roomName"));
+        if (params.containsKey("kitId")) r.setKitId(ServiceUtils.toLong(params.get("kitId")));
+        if (params.containsKey("purposeId")) r.setPurposeId(ServiceUtils.toLong(params.get("purposeId")));
+        if (params.containsKey("image")) r.setImage((String) params.get("image"));
+        if (params.containsKey("introduce")) r.setIntroduce((String) params.get("introduce"));
+        if (params.containsKey("sorting")) r.setSorting(ServiceUtils.toInt(params.get("sorting")));
+        if (params.containsKey("houseStructure")) r.setHouseStructure(ServiceUtils.toInt(params.get("houseStructure")));
 
         // 房号变更: 重新校验唯一性
         if (params.containsKey("roomNo")) {
