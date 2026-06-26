@@ -232,6 +232,44 @@ class RoomServiceTest {
         verify(roomMapper).updateById(any(Room.class));
     }
 
+    /**
+     * 修复回归测试: V37/V49 新增的字段 (buildArea/billableArea/unitPrice/totalPrice/kitId/purposeId/
+     * image/introduce/sorting/houseStructure) 在 update() 中必须被处理.
+     * <p>历史 bug: 这些字段在编辑时无法保存 (P0修复 2026-06-26).</p>
+     */
+    @Test
+    void update_v37Fields_shouldPersist() {
+        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
+        Map<String, Object> params = new HashMap<>();
+        params.put("buildArea", 95);
+        params.put("billableArea", 100);
+        params.put("unitPrice", 50);
+        params.put("totalPrice", 5000);
+        params.put("kitId", 10L);
+        params.put("purposeId", 20L);
+        params.put("image", "[\"img1.jpg\",\"img2.jpg\"]");
+        params.put("introduce", "测试介绍");
+        params.put("sorting", 99);
+        params.put("houseStructure", 1);
+
+        Result<Void> result = roomService.update(1L, params);
+        assertEquals(200, result.getCode());
+
+        ArgumentCaptor<Room> captor = ArgumentCaptor.forClass(Room.class);
+        verify(roomMapper).updateById(captor.capture());
+        Room updated = captor.getValue();
+        assertEquals(0, new BigDecimal("95").compareTo(updated.getBuildArea()), "buildArea 必须保存");
+        assertEquals(0, new BigDecimal("100").compareTo(updated.getBillableArea()), "billableArea 必须保存");
+        assertEquals(0, new BigDecimal("50").compareTo(updated.getUnitPrice()), "unitPrice 必须保存");
+        assertEquals(0, new BigDecimal("5000").compareTo(updated.getTotalPrice()), "totalPrice 必须保存");
+        assertEquals(Long.valueOf(10L), updated.getKitId(), "kitId (房间配套) 必须保存");
+        assertEquals(Long.valueOf(20L), updated.getPurposeId(), "purposeId (房间用途) 必须保存");
+        assertEquals("[\"img1.jpg\",\"img2.jpg\"]", updated.getImage(), "image 必须保存");
+        assertEquals("测试介绍", updated.getIntroduce(), "introduce 必须保存");
+        assertEquals(Integer.valueOf(99), updated.getSorting(), "sorting 必须保存");
+        assertEquals(Integer.valueOf(1), updated.getHouseStructure(), "houseStructure 必须保存");
+    }
+
     @Test
     void update_soldStatus_shouldThrow() {
         when(roomMapper.selectById(3L)).thenReturn(roomSold);
