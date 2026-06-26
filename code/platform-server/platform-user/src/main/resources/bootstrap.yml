@@ -1,9 +1,0 @@
-spring:
-  cloud:
-    nacos:
-      config:
-        # 引导配置：Nacos 地址从这里读取（优先级最高）
-        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
-        namespace: ${NACOS_NAMESPACE:public}
-        group: ${NACOS_GROUP:DEFAULT_GROUP}
-        file-extension: yml
