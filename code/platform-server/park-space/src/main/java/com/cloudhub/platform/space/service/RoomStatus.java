@@ -1,5 +1,7 @@
 package com.cloudhub.platform.space.service;
 
+import com.cloudhub.platform.common.exception.BizException;
+
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -47,7 +49,7 @@ public enum RoomStatus {
         for (RoomStatus s : values()) {
             if (s.code == code) return s;
         }
-        throw new IllegalArgumentException("未知房源状态: " + code);
+        throw new BizException("未知房源状态: " + code);
     }
 
     /**

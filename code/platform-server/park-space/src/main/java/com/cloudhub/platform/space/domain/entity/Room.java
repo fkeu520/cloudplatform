@@ -1,6 +1,7 @@
 package com.cloudhub.platform.space.domain.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import com.cloudhub.platform.common.domain.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -110,6 +111,10 @@ public class Room extends BaseEntity {
 
     /** 是否预定: 0=否 1=是 */
     private Integer isOrder;
+
+    /** 乐观锁版本号 (MyBatis-Plus @Version, V52 新增) */
+    @Version
+    private Long version;
 
     // ===== 旧字段 =====
 

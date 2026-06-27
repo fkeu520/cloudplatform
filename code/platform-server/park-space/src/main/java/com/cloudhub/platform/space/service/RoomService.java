@@ -107,13 +107,17 @@ public class RoomService {
         String roomNo = requiredString(params, "roomNo");
         String roomType = params.get("roomType") != null ? (String) params.get("roomType") : "OFFICE";
 
-        // 1. 校验: 同园区房号唯一
+        // 1. 校验: 同园区+楼栋内房号唯一 (V37 uk_park_building_room_no 兜底)
+        Long buildingIdCheck = params.get("buildingId") != null
+                ? ServiceUtils.toLong(params.get("buildingId")) : null;
         Long count = roomMapper.selectCount(new LambdaQueryWrapper<Room>()
                 .eq(Room::getParkId, parkId)
+                .eq(Room::getBuildingId, buildingIdCheck)
                 .eq(Room::getRoomNo, roomNo)
                 .eq(Room::getDeleted, 0));
         if (count != null && count > 0) {
-            throw new BizException("园区 " + parkId + " 已存在房号 " + roomNo);
+            throw new BizException("园区 " + parkId + " 楼栋 " + buildingIdCheck
+                    + " 已存在房号 " + roomNo);
         }
 
         Room r = new Room();
@@ -151,7 +155,10 @@ public class RoomService {
             throw new BizException("已售状态的房源不可修改");
         }
 
-        if (params.containsKey("parkId")) r.setParkId(ServiceUtils.toLong(params.get("parkId")));
+        if (params.containsKey("parkId")) {
+            // S2-6: 园区归属创建后不可变, 防止跨园区数据错乱
+            throw new BizException("园区归属不可修改");
+        }
         if (params.containsKey("areaId")) r.setAreaId(ServiceUtils.toLong(params.get("areaId")));
         if (params.containsKey("buildingId")) r.setBuildingId(ServiceUtils.toLong(params.get("buildingId")));
         if (params.containsKey("floorId")) r.setFloorId(ServiceUtils.toLong(params.get("floorId")));
@@ -256,11 +263,16 @@ public class RoomService {
     }
 
     /**
-     * 获取当前操作人 (优先取 LoginContextHolder, 兜底 "system")
+     * 获取当前操作人 (优先取 LoginContextHolder, 兜底 "system" 但记录 WARN)
+     * <p>S2-8: 兜底时打 WARN 日志, 提示审计追溯风险</p>
      */
     private String getCurrentOperator() {
         String username = LoginContextHolder.getUsername();
-        return username != null ? username : "system";
+        if (username == null) {
+            log.warn("[RoomService] operator 为空, 使用兜底 'system' (审计追溯风险!)");
+            return "system";
+        }
+        return username;
     }
 
     /**

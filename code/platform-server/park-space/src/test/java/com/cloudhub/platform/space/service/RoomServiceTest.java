@@ -430,8 +430,55 @@ class RoomServiceTest {
     }
 
     @Test
-    void enum_fromCodeInvalid_shouldThrow() {
-        assertThrows(IllegalArgumentException.class, () -> RoomStatus.fromCode(99));
+    void enum_fromCodeInvalid_shouldThrowBizException() {
+        // S2-5: 越界值抛 BizException, 由 GlobalExceptionHandler 返回 400 而非 500
+        assertThrows(BizException.class, () -> RoomStatus.fromCode(99));
+    }
+
+    // ========== S2-5: updateStatus 越界值防护 ==========
+
+    @Test
+    void updateStatus_invalidCode_shouldThrowBizException() {
+        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
+        assertThrows(BizException.class, () -> roomService.updateStatus(1L, 99));
+    }
+
+    // ========== S2-6: update 禁止改 parkId ==========
+
+    @Test
+    void update_parkIdChange_shouldReject() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("parkId", 999L); // 尝试跨园区迁移
+        when(roomMapper.selectById(1L)).thenReturn(roomVacant);
+        assertThrows(BizException.class, () -> roomService.update(1L, params));
+        verify(roomMapper, never()).updateById(any(Room.class));
+    }
+
+    // ========== S2-7: create 加 buildingId 唯一性 ==========
+
+    @Test
+    void create_withExistingBuildingRoomNo_shouldThrow() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("parkId", 1L);
+        params.put("buildingId", 10L);
+        params.put("roomNo", "A-101");
+        params.put("roomType", "OFFICE");
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
+        assertThrows(BizException.class, () -> roomService.create(params));
+    }
+
+    @Test
+    void create_withNoExistingRoomNo_shouldSucceed() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("parkId", 1L);
+        params.put("buildingId", 10L);
+        params.put("roomNo", "A-999");
+        params.put("roomType", "OFFICE");
+        params.put("areaCovered", "100.00");
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        // 不抛异常即成功
+        Result<Long> result = roomService.create(params);
+        assertEquals(200, result.getCode());
     }
 
     @Test

@@ -78,7 +78,10 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         DataScopeInnerInterceptor dataScopeInterceptor = new DataScopeInnerInterceptor();
         dataScopeInterceptor.setWriteStrict(writeStrict);
         interceptor.addInnerInterceptor(dataScopeInterceptor);
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        // S2-10: 全局 pageSize 上限 200, 防止单次查询拉全表
+        PaginationInnerInterceptor paginationInterceptor = new PaginationInnerInterceptor(DbType.MYSQL);
+        paginationInterceptor.setMaxLimit(200L);
+        interceptor.addInnerInterceptor(paginationInterceptor);
         return interceptor;
     }
 
@@ -94,7 +97,10 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         // 仅保留分页拦截器，避免关闭后分页功能异常
         // 紧急关闭场景: 也跳过 DataScopeInnerInterceptor, 完全旁路 (回到 v3.1 行为)
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        // S2-10: 全局 pageSize 上限 200, 防止单次查询拉全表
+        PaginationInnerInterceptor paginationDisabled = new PaginationInnerInterceptor(DbType.MYSQL);
+        paginationDisabled.setMaxLimit(200L);
+        interceptor.addInnerInterceptor(paginationDisabled);
         return interceptor;
     }
 
