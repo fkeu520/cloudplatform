@@ -6,6 +6,7 @@ import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.security.context.LoginContextHolder;
 import com.cloudhub.platform.space.domain.dto.RoomMergeDTO;
 import com.cloudhub.platform.space.domain.dto.RoomSplitDTO;
 import com.cloudhub.platform.space.domain.dto.SplitRoomItem;
@@ -13,6 +14,7 @@ import com.cloudhub.platform.space.domain.entity.Room;
 import com.cloudhub.platform.space.domain.entity.RoomSplitMerge;
 import com.cloudhub.platform.space.mapper.RoomMapper;
 import com.cloudhub.platform.space.mapper.RoomSplitMergeMapper;
+import com.cloudhub.platform.space.remote.UserRemoteClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ public class RoomSplitMergeService {
     private final RoomSplitMergeMapper roomSplitMergeMapper;
     private final RoomMapper roomMapper;
     private final RoomService roomService;
+    private final UserRemoteClient userRemoteClient;
 
     private static final String COMMA = ",";
 
@@ -49,6 +52,7 @@ public class RoomSplitMergeService {
         w.eq(RoomSplitMerge::getDeleted, 0).orderByDesc(RoomSplitMerge::getCreateTime);
 
         Page<RoomSplitMerge> p = roomSplitMergeMapper.selectPage(new Page<>(pageNum, pageSize), w);
+        enrichNickname(p.getRecords());
         PageResult<RoomSplitMerge> result = new PageResult<>(p.getRecords(), p.getTotal(), p.getCurrent(), p.getSize());
         return Result.ok(result);
     }
@@ -56,12 +60,31 @@ public class RoomSplitMergeService {
     public Result<RoomSplitMerge> getById(Long id) {
         RoomSplitMerge r = roomSplitMergeMapper.selectById(id);
         if (r == null) throw new BizException("拆分合并记录不存在");
+        enrichNickname(List.of(r));
         return Result.ok(r);
     }
 
     public Result<List<RoomSplitMerge>> listByRoomId(Long roomId) {
         List<RoomSplitMerge> list = roomSplitMergeMapper.listByRoomId(String.valueOf(roomId));
+        enrichNickname(list);
         return Result.ok(list);
+    }
+
+    /**
+     * 操作人昵称补全: 把 username (登录账号) → nickname
+     * <p>数据库存 username, 显示用 nickname (前端表格列定义也是 userName 字段)</p>
+     * <p>失败降级: nickname=null → 仍显示 username</p>
+     */
+    private void enrichNickname(List<RoomSplitMerge> records) {
+        if (records == null || records.isEmpty()) return;
+        for (RoomSplitMerge r : records) {
+            String username = r.getUserName();
+            if (username == null || username.isBlank()) continue;
+            String nickname = userRemoteClient.getNickname(username);
+            if (nickname != null && !nickname.isBlank()) {
+                r.setUserName(nickname);
+            }
+        }
     }
 
     // ========== Merge ==========
@@ -133,8 +156,8 @@ public class RoomSplitMergeService {
 
         // 插入合并记录
         RoomSplitMerge record = new RoomSplitMerge();
-        record.setUserId(null);
-        record.setUserName(null);
+        record.setUserId(LoginContextHolder.getUserId());
+        record.setUserName(LoginContextHolder.getUsername());
         record.setReasons(dto.getReasons());
         record.setType(0);
         // 同步 status (冗余写入, 兼容旧 UI 读 status 字段)
@@ -231,8 +254,8 @@ public class RoomSplitMergeService {
 
         // 插入拆分记录
         RoomSplitMerge record = new RoomSplitMerge();
-        record.setUserId(null);
-        record.setUserName(null);
+        record.setUserId(LoginContextHolder.getUserId());
+        record.setUserName(LoginContextHolder.getUsername());
         record.setReasons(dto.getReasons());
         record.setType(1);
         // 同步 status (冗余写入, 兼容旧 UI 读 status 字段)
@@ -293,8 +316,8 @@ public class RoomSplitMergeService {
 
         // 插入还原记录
         RoomSplitMerge restoreRecord = new RoomSplitMerge();
-        restoreRecord.setUserId(null);
-        restoreRecord.setUserName(null);
+        restoreRecord.setUserId(LoginContextHolder.getUserId());
+        restoreRecord.setUserName(LoginContextHolder.getUsername());
         restoreRecord.setReasons("还原合并");
         restoreRecord.setType(2);
         restoreRecord.setStatus(2);
@@ -344,8 +367,8 @@ public class RoomSplitMergeService {
 
         // 插入还原记录
         RoomSplitMerge restoreRecord = new RoomSplitMerge();
-        restoreRecord.setUserId(null);
-        restoreRecord.setUserName(null);
+        restoreRecord.setUserId(LoginContextHolder.getUserId());
+        restoreRecord.setUserName(LoginContextHolder.getUsername());
         restoreRecord.setReasons("还原拆分");
         restoreRecord.setType(2);
         restoreRecord.setStatus(2);

@@ -500,8 +500,9 @@ function floorNameOf(parkId: string | undefined, buildingId: string | undefined,
 }
 
 function splitMergeTypeLabel(type: number | undefined): string {
-  if (type === 1) return '合并'
-  if (type === 2) return '拆分'
+  if (type === 0) return '合并'
+  if (type === 1) return '拆分'
+  if (type === 2) return '还原'
   return '-'
 }
 
@@ -1273,7 +1274,7 @@ onMounted(async () => {
               <el-table-column prop="userName" label="操作人" width="120" />
               <el-table-column label="类型" width="80" align="center">
                 <template #default="scope">
-                  <el-tag :type="scope.row.type === 1 ? 'primary' : 'warning'" size="small">
+                  <el-tag :type="scope.row.type === 1 ? 'primary' : (scope.row.type === 2 ? 'info' : 'warning')" size="small">
                     {{ splitMergeTypeLabel(scope.row.type) }}
                   </el-tag>
                 </template>
