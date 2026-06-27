@@ -42,6 +42,9 @@
 | 29 | 🟢 已解决 | CI/CD | CI `paths` 触发器漏 `**/db/migration/**.sql` — 加 V3*.sql 触发规则, 部署后 Flyway 启动才发现 | 2026-06-17 |
 | 30 | ⚠️ 长期纪律 | 流程 | **未跑测试就 commit**: 2026-06-24 P0 #2 + #3 三连 commit 都没本地验证, 第一次 CI 编译失败才补 commit (d388ee9)。强制 5 步流程见本节 | 2026-06-24 |
 | 33 | 🟢 已解决 | Nacos/配置 | Nacos API 推送配置文件须显式指定 type=yaml (否则默认为 text) | 2026-06-26 |
+| 34 | 🟡 待修 (非 P0) | 测试 | DashboardControllerTest Mockito InvalidUseOfMatchers 预存失败 | 2026-06-25 |
+| 35 | 🟢 已解决 | 序列化 | JacksonConfig 全局 Long→String 致 restTemplate 消费端 ClassCastException | 2026-06-25 |
+| 36 | 🟢 已解决 | 部署/配置 | 217 部署缺 JWT_SECRET/RSA 环境变量致登录全崩 | 2026-06-25 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -2529,3 +2532,89 @@ git push origin develop --no-verify  # 本次使用，记录原因
 
 - commit `751a20b` fix(ops-admin): OPA2 审计 6 项
 - KNOWN_ISSUES #30 (测试必跑纪律) — 本次为反向示例：纯前端 commit 不需跑后端测试
+
+---
+
+## #35 🟢 全局 Jackson ToStringSerializer 致 restTemplate 消费端 ClassCastException (2026-06-25)
+
+### 标题
+
+JacksonConfig 注册 `Long.class` → `ToStringSerializer` 全局序列化器，导致 UserVO.tenantId（Long 字段）在 JSON 响应中变为 String，AuthService 用 `(Number) map.get("tenantId")` 强转抛 ClassCastException。
+
+### 现象
+
+- 时间：2026-06-25 部署 2d242eb 后
+- 故障链：login 请求 → AuthService 调 UserService internal API → 收到 String 类型的 tenantId → `(Number) userData.get("tenantId")` 抛 ClassCastException → "调用用户服务验证失败"
+- 影响范围：platform-auth（restTemplate 消费端） + 所有 `(Number) map.get()` 用法
+
+### 根因
+
+1. `JacksonConfig.java` 全局注册 `ToStringSerializer` for `Long.class`，所有 Long 字段输出为 JSON String
+2. AuthService 用 `Map<String, Object>` 接收 UserService 的响应，Jackson 反序列化时 String→Object 映射为 `java.lang.String`，不是 `java.lang.Long`
+3. 直接 `(Number) userData.get("tenantId")` 抛出 ClassCastException
+
+### 修复
+
+PR7 (150e883) 三处修复：
+1. **UserVO.java**:32 — `tenantId` 加 `@JsonFormat(shape = STRING)` 显式声明（与字段类型无关，与消费端契约对齐）
+2. **AuthService.loginByPassword()**:56 — 改为 `instanceof Number → longValue() / instanceof String → parseLong()` 安全读取
+3. **AuthService.loginBySms()**:101 — 同上
+
+### 教训
+
+1. **🟢 全局序列化器变更前必须 grep 消费端用法** — 改 `Long→String` 前应 grep `"(Number).*map.*get"` 和 `"<Long>.*restTemplate"`，评估波及范围
+2. **🟢 `instanceof` 安全读取作为标准防御模式** — restTemplate 消费 `Map<String, Object>` 响应时，用三目安全读取：
+   ```java
+   Object val = map.get("key");
+   if (val instanceof Number) return ((Number) val).longValue();
+   if (val instanceof String) try { return Long.parseLong((String) val); } catch (...) { ... }
+   ```
+3. **🟢 `@JsonFormat` 字段级别标注比全局 ToStringSerializer 更好控制** — 只在需要 String 序列化的字段加注解，不影响其他 Long 字段
+4. **🟢 配套工具方法复用** — 考虑在 `ServiceUtils.java` 或 `CastUtils.java` 中加 `safeParseLong(Object)` 工具方法，一劳永逸
+
+### 关联
+
+- commit `2d242eb` chore(audit): 审计遗留改动综合入档（引入 JacksonConfig）
+- commit `150e883` fix(auth): JacksonConfig 全局 Long→String 后 tenantId 兼容 (PR7)
+- KNOWN_ISSUES #32 (Service.update 白名单遗漏教训) — 同为全局改动未 grep 消费端的教训
+
+---
+
+## #36 🟢 部署 2d242eb 至 217 缺少 JWT_SECRET/RSA 环境变量导致登录全崩 (2026-06-25)
+
+### 标题
+
+2d242eb 的 JwtUtil/RsaUtil 静态初始化（`<clinit>`）依赖 `JWT_SECRET` / `RSA_PRIVATE_KEY` / `RSA_PUBLIC_KEY` 三个环境变量，部署到 217 时 `.env` 中缺少这些变量，导致登录链完全崩溃。
+
+### 现象
+
+故障链（按出现顺序）：
+1. JWT_SECRET 缺失 → JwtUtil.<clinit> 失败 → "认证服务不可用"
+2. RSA_PRIVATE_KEY / RSA_PUBLIC_KEY 缺失 → RsaUtil 每次重启生成新密钥对 → 前端 RSA 公钥缓存失效 → "密码格式异常"
+3. JacksonConfig 全局序列化（#35）→ tenantId ClassCastException → "调用用户服务验证失败"
+
+### 根因
+
+- `JwtUtil.java` (2d242eb) 静态初始化读取 `JWT_SECRET` 环境变量，无 fallback（之前用 yml 默认值）
+- `RsaUtil.java` (2d242eb) 当环境变量缺失时生成临时密钥对，每次重启密钥不同
+- 前端 `crypto.ts`:7 `CACHE_TTL_MS = 300000`（5 分钟），密钥旋转后 5 分钟内所有请求使用旧公钥 → "密码格式异常"
+
+### 修复
+
+1. 用户手动补充 `.env` 添加 JWT_SECRET、RSA_PRIVATE_KEY、RSA_PUBLIC_KEY
+2. PR7 (150e883) 修复 ClassCastException
+3. 建议：新增 `scripts/ci/check-jwt-rsa-secrets.sh` CI 检查脚本
+
+### 教训
+
+1. **🔴 安全/静态初始化变更必须有部署 checklist** — JwtUtil/RsaUtil 从 yml 默认值改为强制 env var 是 breaking change，应记录到部署手册、CHANGELOG、CI check 脚本
+2. **🟢 前端 RSA 公钥缓存 TTL 需要和密钥生命周期对齐** — `crypto.ts CACHE_TTL_MS = 5min`，如果 RsaUtil 每次重启重新生成，则每次重启后前 5 分钟 login 失败。要么延长 TTL（配合固定密钥），要么缩短 TTL（< 1 秒）
+3. **🟢 灰度部署建议新增 `scripts/ci/check-env-secrets.sh`** — 在 CI CD 阶段或部署前自动化检查 `platform-auth` 必需的环境变量
+4. **🟢 .env 文件需要纳入源码管理（加密版）或至少维护一份模版** — `.env.example` 标注所有必需的 env var，部署时对照填写
+
+### 关联
+
+- commit `2d242eb` chore(audit): 审计遗留改动综合入档
+- commit `150e883` fix(auth): JacksonConfig 全局 Long→String 后 tenantId 兼容 (PR7)
+- KNOWN_ISSUES #35 — 同一次部署的连锁故障
+- `code/platform-admin/src/api/crypto.ts:7` — `CACHE_TTL_MS = 300000`
