@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.security.context.LoginContextHolder;
 import com.cloudhub.platform.space.domain.dto.RoomMergeDTO;
 import com.cloudhub.platform.space.domain.dto.RoomSplitDTO;
 import com.cloudhub.platform.space.domain.dto.SplitRoomItem;
@@ -12,11 +13,14 @@ import com.cloudhub.platform.space.domain.entity.Room;
 import com.cloudhub.platform.space.domain.entity.RoomSplitMerge;
 import com.cloudhub.platform.space.mapper.RoomMapper;
 import com.cloudhub.platform.space.mapper.RoomSplitMergeMapper;
+import com.cloudhub.platform.space.remote.UserRemoteClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.ArrayList;
@@ -36,9 +40,13 @@ class RoomSplitMergeServiceTest {
     private RoomMapper roomMapper;
     @Mock
     private RoomService roomService;
+    @Mock
+    private UserRemoteClient userRemoteClient;
 
     @InjectMocks
     private RoomSplitMergeService roomSplitMergeService;
+
+    private MockedStatic<LoginContextHolder> loginContextHolderMock;
 
     private RoomSplitMerge splitRecord;
 
@@ -58,6 +66,16 @@ class RoomSplitMergeServiceTest {
         splitRecord.setNum(2);
         splitRecord.setIsExtend(0);
         splitRecord.setTenantId(1L);
+
+        // Mock LoginContextHolder 静态方法 (默认 null, 不影响现有测试)
+        loginContextHolderMock = mockStatic(LoginContextHolder.class);
+        loginContextHolderMock.when(LoginContextHolder::getUserId).thenReturn(1L);
+        loginContextHolderMock.when(LoginContextHolder::getUsername).thenReturn("admin");
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (loginContextHolderMock != null) loginContextHolderMock.close();
     }
 
     @Test
@@ -551,5 +569,131 @@ class RoomSplitMergeServiceTest {
         when(roomService.isRoomInUse(old1)).thenReturn(true);
 
         assertThrows(BizException.class, () -> roomSplitMergeService.merge(dto));
+    }
+
+    // ========== 操作人写入 (userId/userName) ==========
+
+    @Test
+    void merge_shouldWriteCurrentUserIdAndUsername() {
+        RoomMergeDTO dto = new RoomMergeDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setRoomNo("A-201");
+        dto.setRoomName("合并房间");
+        dto.setRoomType("OFFICE");
+        dto.setOldRoomIds(List.of(1L, 2L));
+
+        Room old1 = new Room(); old1.setId(1L); old1.setRoomName("A-101"); old1.setStatus(0);
+        Room old2 = new Room(); old2.setId(2L); old2.setRoomName("A-102"); old2.setStatus(0);
+
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(roomMapper.selectBatchIds(List.of(1L, 2L))).thenReturn(List.of(old1, old2));
+        doNothing().when(roomService).batchSoftDelete(List.of(1L, 2L));
+        when(roomService.insertAndGetId(any(Room.class))).thenReturn(100L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.merge(dto);
+
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        verify(roomSplitMergeMapper).insert(captor.capture());
+        RoomSplitMerge saved = captor.getValue();
+        assertEquals(Long.valueOf(1L), saved.getUserId(), "merge 应写当前用户 ID");
+        assertEquals("admin", saved.getUserName(), "merge 应写当前用户登录账号");
+    }
+
+    @Test
+    void split_shouldWriteCurrentUserIdAndUsername() {
+        RoomSplitDTO dto = new RoomSplitDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setOldRoomId(1L);
+        dto.setNum(2);
+
+        SplitRoomItem item1 = new SplitRoomItem();
+        item1.setRoomNo("B-101"); item1.setRoomName("B-101-name");
+        SplitRoomItem item2 = new SplitRoomItem();
+        item2.setRoomNo("B-102"); item2.setRoomName("B-102-name");
+        dto.setRoomList(List.of(item1, item2));
+
+        Room oldRoom = new Room(); oldRoom.setId(1L); oldRoom.setRoomName("A-101");
+        oldRoom.setStatus(0); oldRoom.setRoomType("OFFICE"); oldRoom.setFloor(1);
+
+        when(roomMapper.selectById(1L)).thenReturn(oldRoom);
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        doNothing().when(roomService).batchSoftDelete(List.of(1L));
+        when(roomService.insertAndGetId(any(Room.class)))
+                .thenReturn(200L).thenReturn(201L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.split(dto);
+
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        verify(roomSplitMergeMapper).insert(captor.capture());
+        RoomSplitMerge saved = captor.getValue();
+        assertEquals(Long.valueOf(1L), saved.getUserId(), "split 应写当前用户 ID");
+        assertEquals("admin", saved.getUserName(), "split 应写当前用户登录账号");
+    }
+
+    // ========== 昵称补全 (query-time enrichment) ==========
+
+    @Test
+    void page_shouldEnrichUsernameToNickname() {
+        RoomSplitMerge rec1 = new RoomSplitMerge();
+        rec1.setId(1L); rec1.setUserName("admin"); rec1.setType(0);
+        RoomSplitMerge rec2 = new RoomSplitMerge();
+        rec2.setId(2L); rec2.setUserName("manager"); rec2.setType(1);
+
+        Page<RoomSplitMerge> p = new Page<>(1, 10);
+        p.setRecords(List.of(rec1, rec2));
+        p.setTotal(2);
+        when(roomSplitMergeMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
+        when(userRemoteClient.getNickname("admin")).thenReturn("管理员");
+        when(userRemoteClient.getNickname("manager")).thenReturn("经理");
+
+        Result<PageResult<RoomSplitMerge>> result = roomSplitMergeService.page(null, null, 1, 10);
+        assertEquals(200, result.getCode());
+        List<RoomSplitMerge> records = result.getData().getRecords();
+        assertEquals("管理员", records.get(0).getUserName(), "page 记录 1 应被补全为昵称");
+        assertEquals("经理", records.get(1).getUserName(), "page 记录 2 应被补全为昵称");
+    }
+
+    @Test
+    void page_whenNicknameFetchFails_shouldKeepUsername() {
+        RoomSplitMerge rec = new RoomSplitMerge();
+        rec.setId(1L); rec.setUserName("admin"); rec.setType(0);
+
+        Page<RoomSplitMerge> p = new Page<>(1, 10);
+        p.setRecords(Collections.singletonList(rec));
+        p.setTotal(1);
+        when(roomSplitMergeMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(p);
+        when(userRemoteClient.getNickname("admin")).thenReturn(null); // 模拟失败
+
+        Result<PageResult<RoomSplitMerge>> result = roomSplitMergeService.page(null, null, 1, 10);
+        assertEquals("admin", result.getData().getRecords().get(0).getUserName(),
+                "昵称获取失败时, 应保留原 username");
+    }
+
+    @Test
+    void listByRoomId_shouldEnrichNickname() {
+        RoomSplitMerge rec = new RoomSplitMerge();
+        rec.setId(1L); rec.setUserName("admin"); rec.setType(0);
+        when(roomSplitMergeMapper.listByRoomId("100")).thenReturn(List.of(rec));
+        when(userRemoteClient.getNickname("admin")).thenReturn("管理员");
+
+        Result<List<RoomSplitMerge>> result = roomSplitMergeService.listByRoomId(100L);
+        assertEquals("管理员", result.getData().get(0).getUserName());
+    }
+
+    @Test
+    void getById_shouldEnrichNickname() {
+        RoomSplitMerge rec = new RoomSplitMerge();
+        rec.setId(1L); rec.setUserName("admin"); rec.setType(0);
+        when(roomSplitMergeMapper.selectById(1L)).thenReturn(rec);
+        when(userRemoteClient.getNickname("admin")).thenReturn("管理员");
+
+        Result<RoomSplitMerge> result = roomSplitMergeService.getById(1L);
+        assertEquals("管理员", result.getData().getUserName());
     }
 }
