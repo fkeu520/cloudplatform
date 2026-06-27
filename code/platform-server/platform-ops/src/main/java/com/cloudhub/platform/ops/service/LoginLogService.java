@@ -17,7 +17,7 @@ public class LoginLogService {
 
     private final LoginLogMapper loginLogMapper;
 
-    public IPage<LoginLog> page(String username, Integer status, String startTime, String endTime, int pageNum, int pageSize) {
+    public IPage<LoginLog> page(String username, Integer status, String startTime, String endTime, int pageNum, int pageSize, Long tenantId) {
         LambdaQueryWrapper<LoginLog> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.isNotBlank(username)) {
             wrapper.like(LoginLog::getUsername, username);
@@ -28,14 +28,18 @@ public class LoginLogService {
         if (StringUtils.isNotBlank(startTime) && StringUtils.isNotBlank(endTime)) {
             wrapper.between(LoginLog::getLoginTime, startTime, endTime);
         }
+        if (tenantId != null) {
+            wrapper.eq(LoginLog::getTenantId, tenantId);
+        }
         wrapper.orderByDesc(LoginLog::getLoginTime);
         return loginLogMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
     }
 
-    public List<LoginLog> list(String username, Integer status) {
+    public List<LoginLog> list(String username, Integer status, Long tenantId) {
         LambdaQueryWrapper<LoginLog> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.isNotBlank(username)) wrapper.like(LoginLog::getUsername, username);
         if (status != null) wrapper.eq(LoginLog::getStatus, status);
+        if (tenantId != null) wrapper.eq(LoginLog::getTenantId, tenantId);
         wrapper.orderByDesc(LoginLog::getLoginTime);
         return loginLogMapper.selectList(wrapper);
     }

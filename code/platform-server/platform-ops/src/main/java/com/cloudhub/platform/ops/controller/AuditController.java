@@ -1,5 +1,6 @@
 package com.cloudhub.platform.ops.controller;
 
+import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.AuditService;
 import com.cloudhub.platform.ops.service.LoginLogService;
@@ -61,6 +62,6 @@ public class AuditController {
     public Result<?> loginLogStats(
             @RequestParam(required = false) String startTime,
             @RequestParam(required = false) String endTime) {
-        return Result.ok(loginLogService.list(null, null));
+        return Result.ok(loginLogService.list(null, null, TenantContextHolder.getTenantId()));
     }
 }

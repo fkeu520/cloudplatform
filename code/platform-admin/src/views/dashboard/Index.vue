@@ -274,35 +274,45 @@ async function loadWelcome() {
   try {
     const res: any = await getDashboardWelcome()
     Object.assign(welcome, res.data)
-  } catch (e) { /* silent */ }
+  } catch (e) {
+    console.warn('[Dashboard] loadWelcome 失败', e)
+  }
 }
 
 async function loadTodos() {
   try {
     const res: any = await getDashboardTodos(5)
     todos.value = res.data || []
-  } catch (e) { /* silent */ }
+  } catch (e) {
+    console.warn('[Dashboard] loadTodos 失败', e)
+  }
 }
 
 async function loadMessages() {
   try {
     const res: any = await getDashboardMessages(5)
     messages.value = res.data || []
-  } catch (e) { /* silent */ }
+  } catch (e) {
+    console.warn('[Dashboard] loadMessages 失败', e)
+  }
 }
 
 async function loadShortcuts() {
   try {
     const res: any = await getDashboardShortcuts()
     shortcuts.value = res.data || []
-  } catch (e) { /* silent */ }
+  } catch (e) {
+    console.warn('[Dashboard] loadShortcuts 失败', e)
+  }
 }
 
 async function loadBusinessStats() {
   try {
     const res: any = await getDashboardBusinessStats('system')
     businessStats.value = res.data || []
-  } catch (e) { /* silent */ }
+  } catch (e) {
+    console.warn('[Dashboard] loadBusinessStats 失败', e)
+  }
 }
 
 async function loadSystemStats() {
@@ -311,7 +321,9 @@ async function loadSystemStats() {
     if (res.data && Object.keys(res.data).length > 0) {
       systemStats.value = res.data
     }
-  } catch (e) { /* silent */ }
+  } catch (e) {
+    console.warn('[Dashboard] loadSystemStats 失败', e)
+  }
 }
 
 async function loadAll() {

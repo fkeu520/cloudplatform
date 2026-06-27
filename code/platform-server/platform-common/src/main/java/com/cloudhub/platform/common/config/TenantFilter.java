@@ -23,10 +23,11 @@ public class TenantFilter extends OncePerRequestFilter {
             if (auth != null && auth.startsWith("Bearer ")) {
                 String token = auth.substring(7);
                 try {
-                    String userId = JwtUtil.getUserId(token);
-                    Long tenantId = JwtUtil.getTenantId(token);
-                    if (userId != null) TenantContextHolder.setUserId(Long.parseLong(userId));
-                    if (tenantId != null) TenantContextHolder.setTenantId(tenantId);
+                    JwtUtil.JwtClaims claims = JwtUtil.getAll(token);
+                    if (claims != null) {
+                        if (claims.userId() != null) TenantContextHolder.setUserId(Long.parseLong(claims.userId()));
+                        if (claims.tenantId() != null) TenantContextHolder.setTenantId(claims.tenantId());
+                    }
                 } catch (Exception e) {
                     log.error("JWT token parsing failed, tenant context will be empty (multi-tenant isolation may be bypassed). tokenPrefix={}..., error={}",
                             token.length() > 10 ? token.substring(0, 10) : token, e.getMessage());

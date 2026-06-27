@@ -28,13 +28,32 @@ public class JwtUtil {
     static {
         // C6: 启动时检测是否使用了硬编码默认密钥
         if (System.getenv("JWT_SECRET") == null && System.getProperty("jwt.secret") == null) {
-            log.error("\n" +
-                    "╔══════════════════════════════════════════════════════════╗\n" +
-                    "║  JWT_SECRET not configured! Using hardcoded default.    ║\n" +
-                    "║  Anyone with source code can forge tokens.              ║\n" +
-                    "║  Set env var JWT_SECRET for production.                 ║\n" +
-                    "╚══════════════════════════════════════════════════════════╝");
+            throw new IllegalStateException(
+                    "JWT_SECRET not configured! Set env var JWT_SECRET or system property jwt.secret. " +
+                    "Using the hardcoded default key is a security risk — anyone with source code can forge tokens."
+            );
         }
+    }
+
+    /**
+     * JWT 载荷记录 — 封装 Token 中的全部自定义字段
+     */
+    public record JwtClaims(String userId, String username, Long tenantId, Integer userType) {}
+
+    /**
+     * 解析 Token 并返回全部载荷字段（只调用一次 parse）
+     *
+     * @param token JWT Token
+     * @return JwtClaims 记录
+     */
+    public static JwtClaims getAll(String token) {
+        Claims claims = parse(token);
+        return new JwtClaims(
+                claims.getSubject(),
+                claims.get("username", String.class),
+                claims.get("tenantId", Long.class),
+                claims.get("userType", Integer.class)
+        );
     }
 
     /**
@@ -178,4 +197,5 @@ public class JwtUtil {
             return null;
         }
     }
+
 }

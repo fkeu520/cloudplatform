@@ -267,8 +267,8 @@ public class DataScopeInnerInterceptor implements InnerInterceptor {
             log.warn("DataScope: INSERT ... ON DUPLICATE KEY UPDATE 的 UPDATE 部分无法拦截 (jsqlparser 4.6 限制), 业务规范禁用 upsert. sql={}",
                     originalSql);
             return originalSql;
-        } catch (IllegalAccessException e) {
-            log.warn("DataScope: INSERT duplicate 字段反射失败, 跳过. sql={}", originalSql, e);
+        } catch (Exception e) {
+            log.warn("DataScope: INSERT duplicate 字段反射失败 (含 Java 17+ 模块系统限制), 跳过. sql={}", originalSql, e);
             return originalSql;
         }
     }

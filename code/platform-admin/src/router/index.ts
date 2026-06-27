@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import Layout from '@/views/Layout.vue'
 import Login from '@/views/Login.vue'
 import { useUserStore } from '@/stores/user'
@@ -241,25 +242,46 @@ const router = createRouter({
 })
 
 const WHITE_LIST = ['/login']
-let isDynamicRoutesAdded = false
+
+/** 将嵌套菜单树展平为 path 集合，用于路由守卫权限检查 */
+function flattenMenuPaths(menus: any[]): string[] {
+  const paths: string[] = []
+  function walk(items: any[]) {
+    for (const item of items) {
+      if (item.path && item.path !== '/') paths.push(item.path)
+      if (item.children?.length) walk(item.children)
+    }
+  }
+  walk(menus)
+  return paths
+}
 
 router.beforeEach(async (to, _from, next) => {
   const userStore = useUserStore()
   // F4: 统一使用 store 中的 token（单数据源），避免 store 与 localStorage 状态不一致
   const token = userStore.token
-  
-  console.log('[Router Guard] to:', to.path, 'token:', token ? token.slice(0, 20) + '...' : null)
+
+  if (import.meta.env.DEV && token) {
+    console.log('[Router Guard] to:', to.path)
+  }
 
   if (token) {
     if (to.path === '/login') {
       next('/')
-    } else {
-      // 首次加载时动态添加路由（这里简化处理，实际可以根据后端返回的菜单动态生成）
-      if (!isDynamicRoutesAdded) {
-        isDynamicRoutesAdded = true
-      }
-      next()
+      return
     }
+    // A2-1: 如果菜单已加载，校验目标路由是否在用户菜单中
+    // 首次加载时菜单为空 → 放行（Layout.vue onMounted 加载后自动处理）
+    if (userStore.menus.length > 0 && to.path !== '/dashboard') {
+      const allowedPaths = flattenMenuPaths(userStore.menus)
+      if (!allowedPaths.includes(to.path)) {
+        if (import.meta.env.DEV) console.warn('[Router Guard] 无权限访问:', to.path)
+        ElMessage.warning('您没有该页面的访问权限')
+        next('/dashboard')
+        return
+      }
+    }
+    next()
   } else {
     if (WHITE_LIST.includes(to.path)) {
       next()

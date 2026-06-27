@@ -224,10 +224,13 @@ async function loadMenu(appCode: string) {
     const currentApp = appList.value.find(a => a.appCode === appCode)
     const res: any = await getUserMenus(currentApp?.id)
     menuList.value = processMenus(res.data || [])
+    // A2-1: 同步到 store，供路由守卫校验
+    userStore.setMenus(menuList.value)
     localStorage.setItem('activeApp', appCode)
   } catch (e) {
     ElMessage.error('加载菜单失败')
     menuList.value = []
+    userStore.setMenus([])
   }
 }
 

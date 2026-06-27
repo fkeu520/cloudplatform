@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -33,11 +34,14 @@ public class OpsUserController {
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize) {
-        String url = String.format("%s/user/page?userType=2&keyword=%s&status=%s&pageNum=%d&pageSize=%d",
-                userServiceUrl,
-                keyword != null ? keyword : "",
-                status != null ? status.toString() : "",
-                pageNum, pageSize);
+        String url = UriComponentsBuilder.fromHttpUrl(userServiceUrl + "/user/page")
+                .queryParam("userType", "2")
+                .queryParam("keyword", keyword != null ? keyword : "")
+                .queryParam("status", status != null ? status.toString() : "")
+                .queryParam("pageNum", pageNum)
+                .queryParam("pageSize", pageSize)
+                .build()
+                .toUriString();
         return restTemplate.getForObject(url, Map.class);
     }
 

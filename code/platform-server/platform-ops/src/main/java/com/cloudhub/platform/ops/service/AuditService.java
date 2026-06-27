@@ -6,6 +6,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.ops.domain.entity.LoginLog;
 import com.cloudhub.platform.ops.domain.entity.OperLog;
 import com.cloudhub.platform.ops.domain.mapper.OperLogMapper;
@@ -60,7 +61,7 @@ public class AuditService {
 
     public IPage<LoginLog> loginLogPage(String username, Integer status, String startTime, String endTime,
                                         int pageNum, int pageSize) {
-        return loginLogService.page(username, status, startTime, endTime, pageNum, pageSize);
+        return loginLogService.page(username, status, startTime, endTime, pageNum, pageSize, TenantContextHolder.getTenantId());
     }
 
     public Map<String, Object> searchElk(String keyword, String startTime, String endTime, int from, int size) {

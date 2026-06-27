@@ -52,6 +52,15 @@ public class TenantService {
 
     @Transactional
     public void create(Map<String, Object> params) {
+        if (StringUtils.isBlank((String) params.get("tenantName"))) {
+            throw new BizException("租户名称不能为空");
+        }
+        if (StringUtils.isBlank((String) params.get("tenantCode"))) {
+            throw new BizException("租户编码不能为空");
+        }
+        if (StringUtils.isBlank((String) params.get("contactPerson"))) {
+            throw new BizException("联系人不能为空");
+        }
         Tenant tenant = new Tenant();
         tenant.setTenantName((String) params.get("tenantName"));
         tenant.setTenantCode((String) params.get("tenantCode"));

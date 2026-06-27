@@ -15,8 +15,10 @@ public class StorageConfig {
 
     private String endpoint;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String accessKey;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String secretKey;
 
     private String region;

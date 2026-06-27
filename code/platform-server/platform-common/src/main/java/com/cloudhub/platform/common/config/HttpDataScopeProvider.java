@@ -121,11 +121,13 @@ public abstract class HttpDataScopeProvider implements DataScopeProvider {
      * C3: 有界缓存写入，超限时淘汰过期条目
      */
     private void putWithEviction(Long userId, DataScopeContext ctx, long now) {
-        if (cache.size() >= MAX_CACHE_SIZE) {
-            long ttl = cacheTtlMs > 0 ? cacheTtlMs : 60_000L;
-            cache.values().removeIf(e -> (now - e.createdAtMs) > ttl);
+        synchronized (cache) {
+            if (cache.size() >= MAX_CACHE_SIZE) {
+                long ttl = cacheTtlMs > 0 ? cacheTtlMs : 60_000L;
+                cache.values().removeIf(e -> (now - e.createdAtMs) > ttl);
+            }
+            cache.put(userId, new CacheEntry(ctx, now));
         }
-        cache.put(userId, new CacheEntry(ctx, now));
     }
 
     /**
