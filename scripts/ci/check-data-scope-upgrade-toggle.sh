@@ -59,18 +59,19 @@ check "@ResultType(Long.class) 注解" \
       "@ResultType.Long.class." "$DM"
 
 echo ""
-echo "=== 2. UserDataScopeProviderImpl.java 灰度分支 (PR1) ==="
+echo "=== 2. UserDataScopeProviderImpl.java 灰度分支 (PR1 + gray-release PR2 改造) ==="
 UDPI="code/platform-server/platform-user/src/main/java/com/cloudhub/platform/user/tenant/UserDataScopeProviderImpl.java"
-check "import @Value" \
-      "import org.springframework.beans.factory.annotation.Value" "$UDPI"
 check "import TenantContextHolder" \
       "import com.cloudhub.platform.common.config.TenantContextHolder" "$UDPI"
-check "灰度开关字段 upgradeEnabled" \
-      "private boolean upgradeEnabled" "$UDPI"
-check "@Value 注入 platform.data-scope.upgrade.enabled 默认 false" \
-      'platform.data-scope.upgrade.enabled:false' "$UDPI"
-check "collectChildDeptIds 灰度分支 (if upgradeEnabled)" \
-      "if .upgradeEnabled." "$UDPI"
+# gray-release-infrastructure PR2: 灰度开关改为从 PlatformToggleProperties 读取 (Nacos 热生效)
+check "import PlatformToggleProperties (gray-release PR2)" \
+      "import com.cloudhub.platform.common.config.PlatformToggleProperties" "$UDPI"
+check "注入 PlatformToggleProperties 字段 (gray-release PR2)" \
+      "private final PlatformToggleProperties toggleProperties" "$UDPI"
+check "isUpgradeEnabled 方法从 toggleProperties 读取" \
+      "toggleProperties.getDataScope().getUpgrade" "$UDPI"
+check "collectChildDeptIds 灰度分支 (if isUpgradeEnabled)" \
+      "if .isUpgradeEnabled." "$UDPI"
 check "新增 CTE 方法 collectChildDeptIdsByCte" \
       "collectChildDeptIdsByCte" "$UDPI"
 check "老 DFS 方法保留为 collectChildDeptIdsByRecursive (fallback)" \

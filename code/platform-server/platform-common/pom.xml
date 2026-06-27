@@ -76,6 +76,13 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Nacos Config (gray-release-infrastructure PR2)
+             提供 @RefreshScope + NacosPropertySource, 让 PlatformToggleProperties 支持热生效 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
         <!-- Micrometer Registry Prometheus (M6 P1-5 业务指标) -->
         <dependency>
             <groupId>io.micrometer</groupId>

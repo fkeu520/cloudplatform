@@ -1,6 +1,7 @@
 package com.cloudhub.platform.user.tenant;
 
 import com.cloudhub.platform.common.config.DataScopeContext;
+import com.cloudhub.platform.common.config.PlatformToggleProperties;
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.user.domain.entity.Dept;
 import com.cloudhub.platform.user.domain.entity.Role;
@@ -9,13 +10,12 @@ import com.cloudhub.platform.user.domain.mapper.DeptMapper;
 import com.cloudhub.platform.user.mapper.RoleMapper;
 import com.cloudhub.platform.user.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -55,12 +55,31 @@ class UserDataScopeProviderImplTest {
     @Mock
     private DeptMapper deptMapper;
 
-    @InjectMocks
+    /**
+     * gray-release-infrastructure PR2: PlatformToggleProperties 默认值 (upgrade.enabled=false)
+     * 各 TC 通过 {@link #setUpgradeEnabled(boolean)} 切换
+     */
+    private PlatformToggleProperties toggleProperties;
+
+    /** gray-release-infrastructure PR2: 手工 new (避免 @InjectMocks 把 toggleProperties 注入成 null) */
     private UserDataScopeProviderImpl provider;
+
+    @BeforeEach
+    void setUp() {
+        toggleProperties = new PlatformToggleProperties();
+        provider = new UserDataScopeProviderImpl(userMapper, roleMapper, deptMapper, toggleProperties);
+    }
 
     @AfterEach
     void cleanup() {
         TenantContextHolder.clear();
+        // 重置灰度开关为默认值, 防止 TC 间状态泄漏
+        toggleProperties.getDataScope().getUpgrade().setEnabled(false);
+    }
+
+    /** gray-release-infrastructure PR2: 通过 PlatformToggleProperties 切换灰度 */
+    private void setUpgradeEnabled(boolean enabled) {
+        toggleProperties.getDataScope().getUpgrade().setEnabled(enabled);
     }
 
     @Test
@@ -150,7 +169,7 @@ class UserDataScopeProviderImplTest {
     @DisplayName("TC-DS-06 (PR1): 灰度=true + scope=3 → 调 CTE, 不调老 DFS")
     void tc06_upgradeEnabled_callsCte_notRecursive() {
         // 1. 灰度开关 true
-        ReflectionTestUtils.setField(provider, "upgradeEnabled", true);
+        setUpgradeEnabled(true);
 
         // 2. 准备数据: user 101 (dept=100) + role scope=3
         TenantContextHolder.setTenantId(1L);
@@ -186,7 +205,7 @@ class UserDataScopeProviderImplTest {
     @DisplayName("TC-DS-07 (PR1): 灰度=false + scope=3 → 调老 DFS, 不调 CTE")
     void tc07_upgradeDisabled_callsRecursive_notCte() {
         // 1. 灰度开关 false (PR1 部署初始状态, 走 v7.0 行为)
-        ReflectionTestUtils.setField(provider, "upgradeEnabled", false);
+        setUpgradeEnabled(false);
 
         // 2. 准备数据
         TenantContextHolder.setTenantId(1L);
@@ -229,7 +248,7 @@ class UserDataScopeProviderImplTest {
     @DisplayName("TC-DS-08 (PR1): admin (tenantId=NULL) + 灰度=true → CTE 走全量 (无 tenant 过滤)")
     void tc08_upgradeEnabled_adminTenantNullCteReturnsAll() {
         // 1. 灰度开关 true
-        ReflectionTestUtils.setField(provider, "upgradeEnabled", true);
+        setUpgradeEnabled(true);
 
         // 2. admin 场景: tenantId=NULL (不设置, 模拟 admin)
         TenantContextHolder.clear();  // tenantId = null
