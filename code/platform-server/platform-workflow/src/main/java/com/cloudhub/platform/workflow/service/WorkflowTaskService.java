@@ -3,6 +3,7 @@ package com.cloudhub.platform.workflow.service;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.notify.WorkflowMessage;
 import com.cloudhub.platform.workflow.notify.WorkflowMessageProducer;
+import com.cloudhub.platform.workflow.util.TaskCandidateUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -17,6 +18,8 @@ import org.flowable.task.api.history.HistoricTaskInstance;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 
@@ -32,38 +35,46 @@ public class WorkflowTaskService {
     private final JdbcTemplate jdbcTemplate;
     private final WorkflowMessageProducer workflowMessageProducer;
 
+    /**
+     * 待办分页查询
+     * <p>WF2-4: 增加 hard cap 防止 OOM, 默认上限 1000 条 (足以覆盖 99% 业务).
+     * 真正的 SQL 分页需要重写为两个独立查询 + UNION, 暂用内存分页 + cap 兜底.</p>
+     */
+    private static final int TODO_HARD_CAP = 1000;
+
     public Map<String, Object> todoPage(String userId, String processName, int pageNum, int pageSize) {
         if (StringUtils.isBlank(userId)) {
             throw new BizException("用户ID不能为空");
         }
-        // 查找该用户的待办：包括直接指定办理人的任务 + 候选任务
-        List<Task> tasks;
-        long total;
         // 候选任务：直接查 ACT_RU_IDENTITYLINK 拿 task IDs（不依赖 ACT_ID_USER）
-        // 原因：taskCandidateUser(userId) 会 JOIN ACT_ID_USER，若用户不在该表则返回空
         List<Task> candidateTasks = new ArrayList<>();
         try {
             List<String> taskIds = jdbcTemplate.queryForList(
                 "SELECT TASK_ID_ FROM ACT_RU_IDENTITYLINK WHERE TYPE_ = 'candidate' AND USER_ID_ = ?",
                 String.class, userId);
             if (!taskIds.isEmpty()) {
+                // WF2-4: 用 listPage 限制候选任务加载量, 避免拉全表 OOM
                 candidateTasks = taskService.createTaskQuery()
                     .taskIds(new HashSet<>(taskIds))
                     .active()
-                    .list();
+                    .orderByTaskCreateTime().desc()
+                    .listPage(0, TODO_HARD_CAP);
             }
             log.info("[TODO-QUERY] userId={}, candidate taskIds={}, found {} tasks",
                 userId, taskIds, candidateTasks.size());
         } catch (Exception e) {
             log.warn("Candidate query via JdbcTemplate failed, falling back to standard: {}", e.getMessage());
-            candidateTasks = taskService.createTaskQuery().taskCandidateUser(userId).active().list();
+            candidateTasks = taskService.createTaskQuery().taskCandidateUser(userId).active()
+                    .orderByTaskCreateTime().desc()
+                    .listPage(0, TODO_HARD_CAP);
         }
         // 直接指定办理人的任务
         List<Task> assignedTasks = taskService.createTaskQuery().taskAssignee(userId).active()
-                .orderByTaskCreateTime().desc().list();
+                .orderByTaskCreateTime().desc()
+                .listPage(0, TODO_HARD_CAP);
         // 合并去重
         Set<String> seen = new HashSet<>();
-        tasks = new ArrayList<>();
+        List<Task> tasks = new ArrayList<>();
         for (Task t : candidateTasks) { seen.add(t.getId()); tasks.add(t); }
         for (Task t : assignedTasks) { if (!seen.contains(t.getId())) tasks.add(t); }
 
@@ -75,6 +86,11 @@ public class WorkflowTaskService {
             if (cb == null) return -1;
             return cb.compareTo(ca);
         });
+
+        // WF2-4: 命中 hard cap 时 WARN 日志提示运维 (大量待办可能影响性能)
+        if (tasks.size() >= TODO_HARD_CAP) {
+            log.warn("[TODO-CAP] userId={} 待办数 >= {}, 可能需要清理历史任务", userId, TODO_HARD_CAP);
+        }
 
         // 按流程名称过滤
         if (StringUtils.isNotBlank(processName)) {
@@ -89,7 +105,7 @@ public class WorkflowTaskService {
                     .toList();
         }
 
-        total = tasks.size();
+        long total = tasks.size();
         int from = (pageNum - 1) * pageSize;
         int to = Math.min(from + pageSize, tasks.size());
         List<Task> page = from < tasks.size() ? tasks.subList(from, to) : List.of();
@@ -150,31 +166,41 @@ public class WorkflowTaskService {
             taskId);
         taskService.complete(taskId);
 
-        try {
-            List<Task> nextTasks = taskService.createTaskQuery()
-                    .processInstanceId(task.getProcessInstanceId()).active().list();
-            for (Task next : nextTasks) {
-                ensureTaskCandidates(next, next.getProcessDefinitionId());
-                List<String> recipients = collectTaskRecipients(next);
-                String processDefName = null;
-                String businessKey = null;
-                try {
-                    var hpi = historyService.createHistoricProcessInstanceQuery()
-                            .processInstanceId(next.getProcessInstanceId()).singleResult();
-                    if (hpi != null) {
-                        processDefName = hpi.getProcessDefinitionName();
-                        businessKey = hpi.getBusinessKey();
-                    }
-                } catch (Exception ignored) {}
+        // WF2-1: Kafka 发送必须在事务提交后执行, 避免事务回滚但消息已发 (假成功)
+        // 用 TransactionSynchronizationManager.afterCommit 保证 DB 落库成功后才发消息
+        List<Task> nextTasks = taskService.createTaskQuery()
+                .processInstanceId(task.getProcessInstanceId()).active().list();
+        String processInstanceId = task.getProcessInstanceId();
+        if (!nextTasks.isEmpty()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    try {
+                        for (Task next : nextTasks) {
+                            TaskCandidateUtil.ensureTaskCandidates(next, next.getProcessDefinitionId(), jdbcTemplate, taskService, repositoryService);
+                            List<String> recipients = TaskCandidateUtil.collectTaskRecipients(next, taskService);
+                            String processDefName = null;
+                            String businessKey = null;
+                            try {
+                                var hpi = historyService.createHistoricProcessInstanceQuery()
+                                        .processInstanceId(processInstanceId).singleResult();
+                                if (hpi != null) {
+                                    processDefName = hpi.getProcessDefinitionName();
+                                    businessKey = hpi.getBusinessKey();
+                                }
+                            } catch (Exception ignored) {}
 
-                workflowMessageProducer.sendMessage(new WorkflowMessage(
-                        next.getId(), next.getName(), recipients,
-                        next.getProcessInstanceId(), next.getProcessDefinitionId(),
-                        processDefName, businessKey,
-                        next.getCreateTime() != null ? next.getCreateTime().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null));
-            }
-        } catch (Exception e) {
-            log.warn("Failed to notify next tasks: {}", e.getMessage());
+                            workflowMessageProducer.sendMessage(new WorkflowMessage(
+                                    next.getId(), next.getName(), recipients,
+                                    processInstanceId, next.getProcessDefinitionId(),
+                                    processDefName, businessKey,
+                                    next.getCreateTime() != null ? next.getCreateTime().toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() : null));
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to notify next tasks (afterCommit): {}", e.getMessage());
+                    }
+                }
+            });
         }
     }
 
@@ -212,79 +238,6 @@ public class WorkflowTaskService {
     @Transactional
     public void unclaim(String taskId) {
         taskService.unclaim(taskId);
-    }
-
-    /**
-     * 收集任务的收件人列表 (直接 assignee + 候选用户)
-     * 用于修复候选人任务 assignee=null 导致 Kafka 消息丢失的问题
-     */
-    /**
-     * 确保任务的候选人已写入 ACT_RU_IDENTITYLINK (同 WorkflowInstanceService.ensureTaskCandidates, JDBC 直写)
-     */
-    private void ensureTaskCandidates(Task task, String processDefinitionId) {
-        try {
-            List<IdentityLink> links = taskService.getIdentityLinksForTask(task.getId());
-            boolean hasCandidate = links.stream().anyMatch(l -> "candidate".equals(l.getType()));
-            if (hasCandidate) return;
-            org.flowable.bpmn.model.BpmnModel bpmnModel = repositoryService.getBpmnModel(processDefinitionId);
-            if (bpmnModel == null) return;
-            org.flowable.bpmn.model.FlowElement fe = bpmnModel.getFlowElement(task.getTaskDefinitionKey());
-            if (!(fe instanceof org.flowable.bpmn.model.UserTask userTask)) return;
-            List<String> candidateIds = new ArrayList<>();
-            if (userTask.getCandidateUsers() != null) {
-                candidateIds.addAll(userTask.getCandidateUsers());
-            }
-            var extElements = userTask.getExtensionElements();
-            if (extElements != null) {
-                for (Map.Entry<String, List<org.flowable.bpmn.model.ExtensionElement>> entry : extElements.entrySet()) {
-                    if (!"candidateUsers".equals(entry.getKey()) || entry.getValue() == null || entry.getValue().isEmpty()) continue;
-                    String text = entry.getValue().get(0).getElementText();
-                    if (text != null && !text.isBlank()) {
-                        for (String id : text.split("[,， ]+")) {
-                            id = id.trim();
-                            if (!id.isEmpty() && !candidateIds.contains(id)) {
-                                candidateIds.add(id);
-                            }
-                        }
-                    }
-                }
-            }
-            for (String userId : candidateIds) {
-                if (userId == null || userId.isBlank()) continue;
-                try {
-                    jdbcTemplate.update(
-                        "INSERT INTO ACT_RU_IDENTITYLINK (ID_, REV_, TYPE_, USER_ID_, TASK_ID_, PROC_INST_ID_) " +
-                        "VALUES (?, 1, 'candidate', ?, ?, ?)",
-                        java.util.UUID.randomUUID().toString().replace("-", ""),
-                        userId, task.getId(), task.getProcessInstanceId());
-                    log.debug("Inserted candidate identity link: userId={}, taskId={}", userId, task.getId());
-                } catch (Exception ex) {
-                    log.warn("Failed to insert candidate identity link for userId={}, taskId={}: {}",
-                        userId, task.getId(), ex.getMessage());
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to ensure candidates for task {}: {}", task.getId(), e.getMessage());
-        }
-    }
-
-    private List<String> collectTaskRecipients(Task task) {
-        List<String> recipients = new ArrayList<>();
-        if (task.getAssignee() != null && !task.getAssignee().isBlank()) {
-            recipients.add(task.getAssignee());
-        }
-        try {
-            List<IdentityLink> links = taskService.getIdentityLinksForTask(task.getId());
-            for (IdentityLink link : links) {
-                if ("candidate".equals(link.getType()) && link.getUserId() != null
-                        && !recipients.contains(link.getUserId())) {
-                    recipients.add(link.getUserId());
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to load identity links for task {}: {}", task.getId(), e.getMessage());
-        }
-        return recipients;
     }
 
     private Map<String, Object> taskToMap(TaskInfo task) {

@@ -28,37 +28,46 @@ public class SseController {
     public SseEmitter subscribe(@RequestHeader(value = "X-User-Id", required = false) String headerUserId,
                                 @RequestParam(value = "userId", required = false) String paramUserId,
                                 HttpServletRequest request) {
+        // WF2-2: 先确定当前用户 (从 JWT 或 TenantContext), 后续任何来源的 userId 必须与之匹配
+        Long currentUserId = TenantContextHolder.getUserId();
+        if (currentUserId == null) {
+            String auth = request.getHeader("Authorization");
+            if (auth != null && auth.startsWith("Bearer ")) {
+                String uid = JwtUtil.getUserId(auth.substring(7));
+                if (uid != null) {
+                    try {
+                        currentUserId = Long.parseLong(uid);
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        if (currentUserId == null) {
+            throw new com.cloudhub.platform.common.exception.BizException("缺少用户身份, 无法订阅消息");
+        }
+
         Long userId = null;
         // 优先从查询参数获取（EventSource 不支持自定义 Header）
         if (paramUserId != null && !paramUserId.isBlank()) {
             try {
                 userId = Long.parseLong(paramUserId);
             } catch (NumberFormatException ignored) {}
+            // WF2-2: paramUserId 必须等于当前用户, 禁止越权订阅他人消息
+            if (userId != null && !userId.equals(currentUserId)) {
+                throw new com.cloudhub.platform.common.exception.BizException("无权订阅其他用户的消息");
+            }
         }
-        // 其次从网关注入的 Header 获取
+        // 其次从网关注入的 Header 获取 (gateway 已校验, 可信)
         if (userId == null && headerUserId != null && !headerUserId.isBlank()) {
             try {
                 userId = Long.parseLong(headerUserId);
             } catch (NumberFormatException ignored) {}
-        }
-        // 其次从 TenantContext 获取
-        if (userId == null) {
-            userId = TenantContextHolder.getUserId();
-        }
-        // 最后从 JWT Token 解析
-        if (userId == null) {
-            String auth = request.getHeader("Authorization");
-            if (auth != null && auth.startsWith("Bearer ")) {
-                String uid = JwtUtil.getUserId(auth.substring(7));
-                if (uid != null) {
-                    try {
-                        userId = Long.parseLong(uid);
-                    } catch (NumberFormatException ignored) {}
-                }
+            if (userId != null && !userId.equals(currentUserId)) {
+                throw new com.cloudhub.platform.common.exception.BizException("无权订阅其他用户的消息");
             }
         }
+        // 最终使用当前用户
         if (userId == null) {
-            throw new com.cloudhub.platform.common.exception.BizException("缺少用户标识，无法订阅消息");
+            userId = currentUserId;
         }
         return sseService.subscribe(userId);
     }
