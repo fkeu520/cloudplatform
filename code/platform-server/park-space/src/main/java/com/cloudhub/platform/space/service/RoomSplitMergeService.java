@@ -116,6 +116,17 @@ public class RoomSplitMergeService {
         newRoom.setBillableArea(dto.getBillableArea());
         newRoom.setUnitPrice(dto.getUnitPrice());
         newRoom.setMonthlyRent(dto.getMonthlyRent());
+        // 继承更多字段
+        Room firstOld = oldRooms.get(0);
+        newRoom.setAreaId(firstOld.getAreaId());
+        newRoom.setHouseStructure(firstOld.getHouseStructure());
+        newRoom.setRentingSelling(firstOld.getRentingSelling());
+        newRoom.setUnitPrice(firstOld.getUnitPrice());
+        newRoom.setMonthlyRent(firstOld.getMonthlyRent());
+        newRoom.setLeasePrice(firstOld.getLeasePrice());
+        newRoom.setSalePrice(firstOld.getSalePrice());
+        newRoom.setImage(firstOld.getImage());
+        newRoom.setIntroduce(firstOld.getIntroduce());
         newRoom.setStatus(RoomStatus.VACANT.code);
         newRoom.setTenantId(currentTenantId());
         Long newRoomId = roomService.insertAndGetId(newRoom);
@@ -126,6 +137,8 @@ public class RoomSplitMergeService {
         record.setUserName(null);
         record.setReasons(dto.getReasons());
         record.setType(0);
+        // 同步 status (冗余写入, 兼容旧 UI 读 status 字段)
+        record.setStatus(0);
         record.setOldRoomId(oldRoomIds.stream().map(String::valueOf).collect(Collectors.joining(COMMA)));
         record.setOldRoomName(oldRoomNames);
         record.setNewRoomId(String.valueOf(newRoomId));
@@ -192,16 +205,23 @@ public class RoomSplitMergeService {
             Room r = new Room();
             r.setParkId(parkId);
             r.setBuildingId(buildingId);
+            r.setAreaId(oldRoom.getAreaId());
             r.setFloor(item.getFloor() != null ? item.getFloor() : oldRoom.getFloor());
             r.setFloorId(item.getFloorId() != null ? item.getFloorId() : oldRoom.getFloorId());
             r.setRoomNo(item.getRoomNo());
             r.setRoomName(item.getRoomName());
             r.setRoomType(item.getRoomType() != null ? item.getRoomType() : oldRoom.getRoomType());
+            r.setKitId(oldRoom.getKitId());
+            r.setPurposeId(oldRoom.getPurposeId());
+            r.setHouseStructure(oldRoom.getHouseStructure());
             r.setAreaCovered(item.getAreaCovered());
             r.setBuildArea(item.getBuildArea());
             r.setBillableArea(item.getBillableArea());
-            r.setUnitPrice(item.getUnitPrice());
-            r.setMonthlyRent(item.getMonthlyRent());
+            r.setRentingSelling(oldRoom.getRentingSelling());
+            r.setLeasePrice(oldRoom.getLeasePrice());
+            r.setSalePrice(oldRoom.getSalePrice());
+            r.setImage(oldRoom.getImage());
+            r.setIntroduce(oldRoom.getIntroduce());
             r.setStatus(RoomStatus.VACANT.code);
             r.setTenantId(currentTenantId());
             Long id = roomService.insertAndGetId(r);
@@ -215,6 +235,8 @@ public class RoomSplitMergeService {
         record.setUserName(null);
         record.setReasons(dto.getReasons());
         record.setType(1);
+        // 同步 status (冗余写入, 兼容旧 UI 读 status 字段)
+        record.setStatus(1);
         record.setOldRoomId(String.valueOf(oldRoomId));
         record.setOldRoomName(oldRoom.getRoomName());
         record.setNewRoomId(newRooms.stream().map(r -> String.valueOf(r.getId())).collect(Collectors.joining(COMMA)));
@@ -275,6 +297,7 @@ public class RoomSplitMergeService {
         restoreRecord.setUserName(null);
         restoreRecord.setReasons("还原合并");
         restoreRecord.setType(2);
+        restoreRecord.setStatus(2);
         restoreRecord.setOldRoomId(record.getNewRoomId());
         restoreRecord.setOldRoomName(record.getNewRoomName());
         restoreRecord.setNewRoomId(record.getOldRoomId());
@@ -325,6 +348,7 @@ public class RoomSplitMergeService {
         restoreRecord.setUserName(null);
         restoreRecord.setReasons("还原拆分");
         restoreRecord.setType(2);
+        restoreRecord.setStatus(2);
         restoreRecord.setOldRoomId(record.getNewRoomId());
         restoreRecord.setOldRoomName(record.getNewRoomName());
         restoreRecord.setNewRoomId(record.getOldRoomId());

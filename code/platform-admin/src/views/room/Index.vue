@@ -336,6 +336,20 @@ function onTreeNodeClick(data: any) {
     }
   } else if (prefix === 'f') {
     activeFloorId.value = id.slice(2)
+    // 从树中回溯查找楼栋和分区
+    for (const park of parkTree.value) {
+      for (const area of park.$areaList || []) {
+        for (const bld of area.$buildingList || []) {
+          if (bld.$floorList?.some((f: any) => f.id === activeFloorId.value)) {
+            activeAreaId.value = area.id || null
+            activeBuildingId.value = bld.id || null
+            break
+          }
+        }
+        if (activeBuildingId.value) break
+      }
+      if (activeBuildingId.value) break
+    }
   }
 
   // 触发右侧房间列表按当前选中节点过滤
