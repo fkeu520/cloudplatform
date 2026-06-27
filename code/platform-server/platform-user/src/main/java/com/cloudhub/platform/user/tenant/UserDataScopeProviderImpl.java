@@ -2,6 +2,7 @@ package com.cloudhub.platform.user.tenant;
 
 import com.cloudhub.platform.common.config.DataScopeContext;
 import com.cloudhub.platform.common.config.DataScopeProvider;
+import com.cloudhub.platform.common.config.PlatformToggleProperties;
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.user.domain.entity.Dept;
 import com.cloudhub.platform.user.domain.entity.Role;
@@ -11,7 +12,6 @@ import com.cloudhub.platform.user.mapper.RoleMapper;
 import com.cloudhub.platform.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -47,17 +47,22 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
     private final RoleMapper roleMapper;
     private final DeptMapper deptMapper;
 
+    /** gray-release-infrastructure PR2: 灰度开关统一持有类 (Nacos 热生效, 无需重启) */
+    private final PlatformToggleProperties toggleProperties;
+
     /**
      * v7.1 数据权限升级灰度开关 (PR1-4 共用, 决策 3 v1.1)
      * <p>
      * 默认 false: 走 v7.0 行为 (老 DFS 应用层递归, 无租户过滤)
      * true: 走 v7.1 行为 (PR1 启用 MySQL 8 CTE + 租户过滤)
      * <p>
-     * 紧急回滚: yml 设 false + 重启
+     * gray-release-infrastructure PR2: 从 PlatformToggleProperties 读取 (Nacos 热生效, 无需重启)
+     * 紧急回滚: Nacos 推送 platform.data-scope.upgrade.enabled=false → /actuator/refresh
      * 配套: doc/项目进度.md v7.1 §7.2
      */
-    @Value("${platform.data-scope.upgrade.enabled:false}")
-    private boolean upgradeEnabled;
+    private boolean isUpgradeEnabled() {
+        return toggleProperties.getDataScope().getUpgrade().isEnabled();
+    }
 
     @Override
     public DataScopeContext getContext(Long userId) {
@@ -109,7 +114,7 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
         }
 
         log.debug("DataScopeProvider: userId={}, maxScope={}, userDeptId={}, customDeptIds={}, childDeptIds={}, upgradeEnabled={}",
-                userId, maxDataScope, userDeptId, customDeptIds, childDeptIds, upgradeEnabled);
+                userId, maxDataScope, userDeptId, customDeptIds, childDeptIds, isUpgradeEnabled());
 
         return DataScopeContext.builder()
                 .maxDataScope(maxDataScope)
@@ -129,7 +134,7 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
      * 灰度分支: 根据 upgradeEnabled 选择 CTE 或老 DFS
      */
     private String collectChildDeptIds(Long rootDeptId) {
-        if (upgradeEnabled) {
+        if (isUpgradeEnabled()) {
             return collectChildDeptIdsByCte(rootDeptId);
         }
         return collectChildDeptIdsByRecursive(rootDeptId);
