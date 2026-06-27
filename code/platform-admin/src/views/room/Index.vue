@@ -806,89 +806,192 @@ async function handleUnlock(r: Room) {
 }
 
 async function handleSplit(r: Room) {
-  try {
-    const { value: numStr } = await ElMessageBox.prompt(
-      '请输入要拆分为几个新房间 (2-10)',
-      `拆分房间 ${r.roomNo}`,
-      {
-        confirmButtonText: '下一步',
-        cancelButtonText: '取消',
-        inputPattern: /^([2-9]|10)$/,
-        inputErrorMessage: '请输入 2-10 之间的整数',
-      }
-    )
-    const num = Number(numStr)
-    const { value: reasons } = await ElMessageBox.prompt('请输入拆分原因 (可选)', '拆分原因', {
-      confirmButtonText: '确认拆分',
-      cancelButtonText: '取消',
+  // csyh 模式: 打开拆分 dialog, 用户输入数量 → 生成可编辑子表 → 确认提交
+  splitDialogOld.value = { ...r }
+  splitForm.num = 2
+  splitForm.reasons = ''
+  splitForm.roomList = []
+  splitDialogVisible.value = true
+}
+
+async function handleMerge() {
+  // csyh 模式: 打开合并 dialog, 已选房间列表 + 自动 sum 面积 → 用户确认
+  if (selectedRows.value.length < 2) {
+    ElMessage.warning('合并至少选择 2 个房间')
+    return
+  }
+  const first = selectedRows.value[0]
+  // 自动 sum 面积 (csyh 没有自动 sum, 用户要求)
+  const totalArea = selectedRows.value.reduce((s, r) => s + (Number(r.areaCovered) || 0), 0)
+  const totalBuild = selectedRows.value.reduce((s, r) => s + (Number(r.buildArea) || 0), 0)
+  mergeForm.parkId = first.parkId
+  mergeForm.buildingId = first.buildingId
+  mergeForm.floorId = first.floorId
+  mergeForm.floor = first.floor
+  mergeForm.roomType = first.roomType || 'OFFICE'
+  mergeForm.roomNo = ''
+  mergeForm.roomName = ''
+  mergeForm.areaCovered = Number(totalArea.toFixed(2))
+  mergeForm.buildArea = Number(totalBuild.toFixed(2))
+  mergeForm.billableArea = selectedRows.value.reduce((s, r) => s + (Number(r.billableArea) || 0), 0)
+  mergeForm.unitPrice = first.unitPrice
+  mergeForm.monthlyRent = selectedRows.value.reduce((s, r) => s + (Number(r.monthlyRent) || 0), 0)
+  mergeForm.reasons = ''
+  mergeForm.oldRoomIds = selectedRows.value.map((r) => r.id!)
+  mergeDialogVisible.value = true
+}
+
+// ============== 拆分 dialog 逻辑 ==============
+
+const splitDialogVisible = ref(false)
+const splitDialogOld = ref<Room | null>(null)
+const splitSubmitting = ref(false)
+const splitForm = reactive({
+  num: 2,
+  reasons: '',
+  roomList: [] as Array<{ roomNo: string; roomName?: string; areaCovered?: number; buildArea?: number; billableArea?: number; monthlyRent?: number; unitPrice?: number }>,
+})
+
+function generateSplitPreview() {
+  const old = splitDialogOld.value
+  if (!old) return
+  const num = Number(splitForm.num)
+  if (!num || num < 2 || num > 99) {
+    ElMessage.warning('拆分数量必须在 2-99 之间')
+    return
+  }
+  // 自动平均面积 + 末房抹平尾差 (用户要求)
+  const oldArea = Number(old.areaCovered) || 0
+  const oldBuild = Number(old.buildArea) || 0
+  const oldBill = Number(old.billableArea) || 0
+  const avgArea = Number((oldArea / num).toFixed(2))
+  const avgBuild = Number((oldBuild / num).toFixed(2))
+  const avgBill = Number((oldBill / num).toFixed(2))
+  const lastArea = Number((oldArea - avgArea * (num - 1)).toFixed(2))
+  const lastBuild = Number((oldBuild - avgBuild * (num - 1)).toFixed(2))
+  const lastBill = Number((oldBill - avgBill * (num - 1)).toFixed(2))
+
+  splitForm.roomList = []
+  for (let i = 1; i <= num; i++) {
+    const isLast = i === num
+    splitForm.roomList.push({
+      roomNo: `${old.roomNo}-${i}`,
+      roomName: `${old.roomName || old.roomNo}-${i}`,
+      areaCovered: isLast ? lastArea : avgArea,
+      buildArea: isLast ? lastBuild : avgBuild,
+      billableArea: isLast ? lastBill : avgBill,
+      monthlyRent: old.monthlyRent,
+      unitPrice: old.unitPrice,
     })
-    // 用旧房号 + 序号生成新房号
-    const roomList = Array.from({ length: num }, (_, i) => ({
-      roomNo: `${r.roomNo}-${i + 1}`,
-      roomName: `${r.roomName || r.roomNo}-${i + 1}`,
-    }))
+  }
+}
+
+function resetSplitPreview() {
+  generateSplitPreview()
+}
+
+function validateSplitForm(): string | null {
+  if (!splitForm.num || splitForm.num < 2) return '拆分数量至少为 2'
+  if (!splitForm.roomList || splitForm.roomList.length !== Number(splitForm.num)) {
+    return '请先生成拆分预览 (点击「拆分」按钮)'
+  }
+  for (let i = 0; i < splitForm.roomList.length; i++) {
+    const r = splitForm.roomList[i]
+    if (!r.roomNo?.trim()) return `第 ${i + 1} 行房间号不能为空`
+    if (!r.roomName?.trim()) return `第 ${i + 1} 行房间名称不能为空`
+  }
+  return null
+}
+
+async function confirmSplit() {
+  const old = splitDialogOld.value
+  if (!old) return
+  const err = validateSplitForm()
+  if (err) {
+    ElMessage.warning(err)
+    return
+  }
+  splitSubmitting.value = true
+  try {
     const res: any = await splitRoom({
-      parkId: r.parkId,
-      buildingId: r.buildingId,
-      oldRoomId: r.id!,
-      num,
-      reasons: reasons || undefined,
-      roomList,
+      parkId: old.parkId,
+      buildingId: old.buildingId,
+      oldRoomId: old.id!,
+      num: Number(splitForm.num),
+      reasons: splitForm.reasons || undefined,
+      roomList: splitForm.roomList,
     })
     if (res.code === 200) {
       ElMessage.success('拆分成功')
+      splitDialogVisible.value = false
       clearSelection()
       await loadData()
     } else {
       ElMessage.error(res.msg || '拆分失败')
     }
-  } catch (e: any) {
-    if (e !== 'cancel') console.error(e)
+  } finally {
+    splitSubmitting.value = false
   }
 }
 
-async function handleMerge() {
-  if (selectedRows.value.length < 2) {
-    ElMessage.warning('合并至少选择 2 个房间')
+// ============== 合并 dialog 逻辑 ==============
+
+const mergeDialogVisible = ref(false)
+const mergeSubmitting = ref(false)
+const mergeForm = reactive({
+  parkId: undefined as string | undefined,
+  buildingId: undefined as string | undefined,
+  floorId: undefined as string | undefined,
+  floor: undefined as number | undefined,
+  roomType: 'OFFICE',
+  roomNo: '',
+  roomName: '',
+  areaCovered: 0,
+  buildArea: 0,
+  billableArea: 0,
+  unitPrice: undefined as number | undefined,
+  monthlyRent: 0,
+  reasons: '',
+  oldRoomIds: [] as string[],
+})
+
+async function confirmMerge() {
+  if (!mergeForm.roomNo?.trim()) {
+    ElMessage.warning('新房间号不能为空')
     return
   }
+  if (!mergeForm.oldRoomIds || mergeForm.oldRoomIds.length < 2) {
+    ElMessage.warning('至少选择 2 个房间')
+    return
+  }
+  mergeSubmitting.value = true
   try {
-    const { value: roomNo } = await ElMessageBox.prompt('请输入新房间号', '合并房间', {
-      confirmButtonText: '下一步',
-      cancelButtonText: '取消',
-      inputPattern: /.+/,
-      inputErrorMessage: '新房间号不能为空',
-    })
-    const { value: reasons } = await ElMessageBox.prompt('请输入合并原因 (可选)', '合并原因', {
-      confirmButtonText: '确认合并',
-      cancelButtonText: '取消',
-    })
-    const first = selectedRows.value[0]
     const res: any = await mergeRooms({
-      parkId: first.parkId,
-      buildingId: first.buildingId,
-      floorId: first.floorId,
-      floor: first.floor,
-      roomNo,
-      roomName: roomNo,
-      roomType: first.roomType,
-      areaCovered: first.areaCovered,
-      buildArea: first.buildArea,
-      billableArea: first.billableArea,
-      unitPrice: first.unitPrice,
-      monthlyRent: first.monthlyRent,
-      reasons: reasons || undefined,
-      oldRoomIds: selectedRows.value.map((r) => r.id!),
+      parkId: mergeForm.parkId,
+      buildingId: mergeForm.buildingId,
+      floorId: mergeForm.floorId,
+      floor: mergeForm.floor,
+      roomNo: mergeForm.roomNo,
+      roomName: mergeForm.roomName || mergeForm.roomNo,
+      roomType: mergeForm.roomType,
+      areaCovered: mergeForm.areaCovered,
+      buildArea: mergeForm.buildArea,
+      billableArea: mergeForm.billableArea,
+      unitPrice: mergeForm.unitPrice,
+      monthlyRent: mergeForm.monthlyRent,
+      reasons: mergeForm.reasons || undefined,
+      oldRoomIds: mergeForm.oldRoomIds,
     })
     if (res.code === 200) {
       ElMessage.success('合并成功')
+      mergeDialogVisible.value = false
       clearSelection()
       await loadData()
     } else {
       ElMessage.error(res.msg || '合并失败')
     }
-  } catch (e: any) {
-    if (e !== 'cancel') console.error(e)
+  } finally {
+    mergeSubmitting.value = false
   }
 }
 
@@ -1404,6 +1507,118 @@ onMounted(async () => {
         >确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- ============ 拆分 dialog (csyh 模式: 子表 + 末房抹平尾差) ============ -->
+    <el-dialog
+      v-model="splitDialogVisible"
+      title="房源拆分"
+      width="900px"
+      :close-on-click-modal="false"
+      @close="splitDialogOld = null"
+    >
+      <div v-if="splitDialogOld" class="form-bg-box">
+        <el-form-item label="原房间号">{{ splitDialogOld.roomNo }}</el-form-item>
+        <el-form-item label="建筑面积">{{ splitDialogOld.areaCovered ?? 0 }} ㎡</el-form-item>
+        <el-form-item label="套内面积">{{ splitDialogOld.buildArea ?? 0 }} ㎡</el-form-item>
+      </div>
+      <el-form label-width="100px">
+        <el-form-item label="拆分数量">
+          <el-input-number v-model="splitForm.num" :min="2" :max="99" controls-position="right" style="width: 180px" />
+          <el-button type="primary" plain style="margin-left: 12px" @click="generateSplitPreview">拆 分</el-button>
+        </el-form-item>
+        <div v-if="splitForm.roomList.length" class="subtable-card">
+          <div class="subtable-card-title">
+            拆分后房间
+            <el-button link type="primary" size="small" @click="resetSplitPreview">重置成平均</el-button>
+          </div>
+          <el-table :data="splitForm.roomList" border size="small" class="form-subtable">
+            <el-table-column type="index" label="序号" width="60" align="center" />
+            <el-table-column label="新房间号">
+              <template #default="{ row }">
+                <el-input v-model="row.roomNo" size="small" placeholder="新房间号" />
+              </template>
+            </el-table-column>
+            <el-table-column label="新房间名称">
+              <template #default="{ row }">
+                <el-input v-model="row.roomName" size="small" placeholder="新房间名称" />
+              </template>
+            </el-table-column>
+            <el-table-column label="建筑面积(㎡)">
+              <template #default="{ row }">
+                <el-input-number v-model="row.areaCovered" :precision="2" :min="0" size="small" controls-position="right" style="width: 100%" />
+              </template>
+            </el-table-column>
+            <el-table-column label="套内面积(㎡)">
+              <template #default="{ row }">
+                <el-input-number v-model="row.buildArea" :precision="2" :min="0" size="small" controls-position="right" style="width: 100%" />
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <el-form-item label="拆分说明" style="margin-top: 16px">
+          <el-input v-model="splitForm.reasons" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="请输入拆分说明 (可选)" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="splitDialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="splitSubmitting" @click="confirmSplit">确认拆分</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- ============ 合并 dialog (csyh 模式: 已选择子表 + 合并后表单) ============ -->
+    <el-dialog
+      v-model="mergeDialogVisible"
+      title="房源合并"
+      width="900px"
+      :close-on-click-modal="false"
+    >
+      <div class="subtable-card">
+        <div class="subtable-card-title">已选择房源 ({{ mergeForm.oldRoomIds.length }})</div>
+        <el-table :data="selectedRows" border size="small" class="form-subtable">
+          <el-table-column prop="roomNo" label="原房间号" />
+          <el-table-column prop="roomName" label="原房间名称" />
+          <el-table-column label="建筑面积(㎡)">
+            <template #default="{ row }">{{ row.areaCovered ?? '-' }}</template>
+          </el-table-column>
+          <el-table-column label="套内面积(㎡)">
+            <template #default="{ row }">{{ row.buildArea ?? '-' }}</template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <el-form label-width="100px" style="margin-top: 16px">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="新房间号" required>
+              <el-input v-model="mergeForm.roomNo" placeholder="新房间号" maxlength="64" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="新房间名称">
+              <el-input v-model="mergeForm.roomName" placeholder="新房间名称 (默认同房号)" maxlength="64" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="新建筑面积">
+              <el-input-number v-model="mergeForm.areaCovered" :precision="2" :min="0" style="width: 100%" />
+              <span class="hint-text">(已自动 sum = {{ mergeForm.areaCovered }} ㎡，可修改)</span>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="新套内面积">
+              <el-input-number v-model="mergeForm.buildArea" :precision="2" :min="0" style="width: 100%" />
+              <span class="hint-text">(已自动 sum = {{ mergeForm.buildArea }} ㎡，可修改)</span>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="合并说明" style="margin-top: 8px">
+          <el-input v-model="mergeForm.reasons" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="请输入合并说明 (可选)" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="mergeDialogVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="mergeSubmitting" @click="confirmMerge">确认合并</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1495,6 +1710,39 @@ onMounted(async () => {
 
 .room-detail-tabs :deep(.el-table) {
   font-size: 13px;
+}
+
+/* ============ 拆分/合并 dialog 样式 (csyh 移植) ============ */
+.form-bg-box {
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 2px;
+  padding: 16px 24px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 32px;
+  white-space: nowrap;
+}
+.subtable-card {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  margin-bottom: 16px;
+}
+.subtable-card-title {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-weight: 600;
+}
+.form-subtable :deep(.el-table) {
+  font-size: 13px;
+}
+.hint-text {
+  margin-left: 8px;
+  color: #909399;
+  font-size: 12px;
 }
 
 .room-detail-tabs :deep(.common-pagination) {
