@@ -29,7 +29,7 @@
         <el-form-item label="名称" prop="name"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="Endpoint" prop="endpoint"><el-input v-model="form.endpoint" placeholder="http://localhost:9000" /></el-form-item>
         <el-form-item label="Access Key" prop="accessKey"><el-input v-model="form.accessKey" /></el-form-item>
-        <el-form-item label="Secret Key" prop="secretKey"><el-input v-model="form.secretKey" type="password" show-password /></el-form-item>
+        <el-form-item label="Secret Key" prop="secretKey"><el-input v-model="form.secretKey" type="password" /></el-form-item>
         <el-form-item label="默认Bucket"><el-input v-model="form.defaultBucket" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
       </el-form>
@@ -54,7 +54,12 @@ const isEdit = ref(false)
 const editId = ref<number | null>(null)
 const formRef = ref()
 const form = reactive({ name: '', endpoint: '', accessKey: '', secretKey: '', defaultBucket: '', remark: '' })
-const rules = { name: [{ required: true, message: '请输入名称' }], endpoint: [{ required: true, message: '请输入Endpoint' }] }
+const rules = {
+  name: [{ required: true, message: '请输入名称' }],
+  endpoint: [{ required: true, message: '请输入Endpoint' }],
+  accessKey: [{ required: true, message: '请输入 Access Key' }],
+  secretKey: [{ required: true, message: '请输入 Secret Key' }]
+}
 
 onMounted(() => fetchData())
 

@@ -104,9 +104,9 @@
     </el-dialog>
 
     <el-dialog v-model="pwdDialogVisible" title="重置密码" width="400px">
-      <el-form :model="pwdForm" label-width="80px">
-        <el-form-item label="新密码">
-          <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="请输入新密码" />
+      <el-form ref="pwdFormRef" :model="pwdForm" :rules="pwdRules" label-width="80px">
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="至少 6 位" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -161,8 +161,15 @@ const menuTreeRef = ref()
 const menuUserId = ref<string | null>(null)
 
 const pwdDialogVisible = ref(false)
+const pwdFormRef = ref()
 const pwdForm = reactive({ newPassword: '' })
 const pwdUserId = ref<string | null>(null)
+const pwdRules = {
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码至少 6 位', trigger: 'blur' }
+  ]
+}
 
 async function loadData() {
   loading.value = true
@@ -269,14 +276,16 @@ function handleResetPwd(row: any) {
 }
 
 async function handlePwdSubmit() {
-  if (!pwdForm.newPassword) {
-    ElMessage.warning('请输入新密码')
-    return
-  }
+  const valid = await pwdFormRef.value?.validate().catch(() => false)
+  if (!valid) return
   if (pwdUserId.value) {
-    await resetPassword(pwdUserId.value, pwdForm.newPassword)
-    ElMessage.success('密码重置成功')
-    pwdDialogVisible.value = false
+    try {
+      await resetPassword(pwdUserId.value, pwdForm.newPassword)
+      ElMessage.success('密码重置成功')
+      pwdDialogVisible.value = false
+    } catch (e) {
+      ElMessage.error('密码重置失败')
+    }
   }
 }
 
