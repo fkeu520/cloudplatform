@@ -25,6 +25,9 @@
     <el-card class="table-card">
       <el-table :data="tableData" v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
+        <el-table-column label="园区" width="120">
+          <template #default="scope">{{ parkMap[scope.row.parkId] || scope.row.parkId }}</template>
+        </el-table-column>
         <el-table-column prop="userName" label="操作人" width="120" />
         <el-table-column prop="oldRoomName" label="原房源" min-width="150" />
         <el-table-column prop="newRoomName" label="新房源" min-width="150" />
@@ -57,7 +60,6 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import { getRoomSplitMergePage } from '@/api/room-split-merge'
 import { getParkList } from '@/api/park'
 
@@ -77,16 +79,6 @@ function handleSearch() { pageNum.value = 1; loadData() }
 function handleReset() { searchForm.parkId=undefined; searchForm.type=undefined; searchForm.status=undefined; handleSearch() }
 function handleSizeChange(v: number) { pageSize.value = v; loadData() }
 function handlePageChange(v: number) { pageNum.value = v; loadData() }
-function resetForm() { Object.assign(formData, { ...defaultForm }) }
-function handleAdd() { resetForm(); dialogVisible.value = true }
-async function handleSubmit() {
-  const valid = await formRef.value?.validate().catch(() => false); if (!valid) return
-  submitting.value = true
-  try {
-    const res: any = await createRoomSplitMerge(formData)
-    if (res.code === 200) { ElMessage.success('新增成功'); dialogVisible.value=false; loadData() } else ElMessage.error(res.message||'新增失败')
-  } finally { submitting.value = false }
-}
 
 async function loadParkOptions() {
   try { const res: any = await getParkList(); if (res.code === 200) { parkOptions.value = res.data || []; parkOptions.value.forEach((p: any) => parkMap.value[String(p.id)] = p.parkName) } } catch { /* ignore */ }
