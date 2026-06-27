@@ -76,6 +76,15 @@ platform:
       # true:  解析失败抛 DataScopeViolationException, 阻止执行 (写操作零越权)
       # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
       write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true}
+      # ============ gray-release-infrastructure PR5: 维度灰度 ============
+      # 总开关 enabled=true 时, 控制谁真正走新逻辑. 不在范围内的仍走老逻辑 (回退路径不变)
+      dimension: ${PLATFORM_DATA_SCOPE_UPGRADE_DIMENSION:all}
+      # dimension=tenant 时生效, CSV 白名单 (例 "1,2,3")
+      tenants: ${PLATFORM_DATA_SCOPE_UPGRADE_TENANTS:}
+      # dimension=user 时生效, CSV 白名单
+      users: ${PLATFORM_DATA_SCOPE_UPGRADE_USERS:}
+      # dimension=percent 时生效, 0-100 灰度比例 (基于 userId hash, 同 user 始终命中同一分支)
+      percent: ${PLATFORM_DATA_SCOPE_UPGRADE_PERCENT:100}
 
 # 日志级别
 logging:

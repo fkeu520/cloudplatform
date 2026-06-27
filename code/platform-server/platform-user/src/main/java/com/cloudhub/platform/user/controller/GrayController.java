@@ -71,6 +71,35 @@ public class GrayController {
                 .description("PR4 写严格模式. false=WARN 放行, true=抛 DataScopeViolationException")
                 .restartRequired(false)
                 .build());
+        // ============ gray-release-infrastructure PR5: 维度灰度 ============
+        list.add(GraySwitchVO.builder()
+                .key("platform.data-scope.upgrade.dimension")
+                .group("M5 P0-2 数据权限升级 (维度)")
+                .value(toggleProperties.getDataScope().getUpgrade().getDimension())
+                .description("PR5 维度策略: all/tenant/user/percent, 控制 enabled=true 时谁走新逻辑")
+                .restartRequired(false)
+                .build());
+        list.add(GraySwitchVO.builder()
+                .key("platform.data-scope.upgrade.tenants")
+                .group("M5 P0-2 数据权限升级 (维度)")
+                .value(toggleProperties.getDataScope().getUpgrade().getTenants())
+                .description("PR5 dimension=tenant 白名单, CSV 格式 (例 1,2,3)")
+                .restartRequired(false)
+                .build());
+        list.add(GraySwitchVO.builder()
+                .key("platform.data-scope.upgrade.users")
+                .group("M5 P0-2 数据权限升级 (维度)")
+                .value(toggleProperties.getDataScope().getUpgrade().getUsers())
+                .description("PR5 dimension=user 白名单, CSV 格式")
+                .restartRequired(false)
+                .build());
+        list.add(GraySwitchVO.builder()
+                .key("platform.data-scope.upgrade.percent")
+                .group("M5 P0-2 数据权限升级 (维度)")
+                .value(toggleProperties.getDataScope().getUpgrade().getPercent())
+                .description("PR5 dimension=percent 比例 0-100, 基于 userId hash 一致性")
+                .restartRequired(false)
+                .build());
         return Result.ok(list);
     }
 
@@ -110,7 +139,7 @@ public class GrayController {
         /** 分组 (便于 UI 折叠显示) */
         private String group;
         /** 当前值 (从 PlatformToggleProperties 读, Nacos 热生效) */
-        private Boolean value;
+        private Object value;
         /** 描述 (关闭影响 + 配套文档) */
         private String description;
         /** 是否需重启 (当前实现所有都 false, 未来加 Bean 重建型开关需 true) */

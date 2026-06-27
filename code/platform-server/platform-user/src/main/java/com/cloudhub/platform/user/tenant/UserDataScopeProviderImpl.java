@@ -2,6 +2,7 @@ package com.cloudhub.platform.user.tenant;
 
 import com.cloudhub.platform.common.config.DataScopeContext;
 import com.cloudhub.platform.common.config.DataScopeProvider;
+import com.cloudhub.platform.common.config.GrayMatcher;
 import com.cloudhub.platform.common.config.PlatformToggleProperties;
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.user.domain.entity.Dept;
@@ -50,6 +51,9 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
     /** gray-release-infrastructure PR2: 灰度开关统一持有类 (Nacos 热生效, 无需重启) */
     private final PlatformToggleProperties toggleProperties;
 
+    /** gray-release-infrastructure PR5: 维度灰度匹配器 (all/tenant/user/percent) */
+    private final GrayMatcher grayMatcher;
+
     /**
      * v7.1 数据权限升级灰度开关 (PR1-4 共用, 决策 3 v1.1)
      * <p>
@@ -57,11 +61,12 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
      * true: 走 v7.1 行为 (PR1 启用 MySQL 8 CTE + 租户过滤)
      * <p>
      * gray-release-infrastructure PR2: 从 PlatformToggleProperties 读取 (Nacos 热生效, 无需重启)
+     * gray-release-infrastructure PR5: 经 GrayMatcher 判断维度 (all/tenant/user/percent)
      * 紧急回滚: Nacos 推送 platform.data-scope.upgrade.enabled=false → /actuator/refresh
      * 配套: doc/项目进度.md v7.1 §7.2
      */
-    private boolean isUpgradeEnabled() {
-        return toggleProperties.getDataScope().getUpgrade().isEnabled();
+    private boolean isUpgradeEnabled(Long userId, Long tenantId) {
+        return grayMatcher.shouldUseUpgrade(userId, tenantId);
     }
 
     @Override
@@ -108,13 +113,15 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
 
         // 5. 收集子部门 ID 列表 (scope=3, 决策 2 v1.1: A 递归 CTE)
         //    PR1 灰度: upgradeEnabled → CTE; 否则老 DFS (fallback)
+        //    PR5 维度: GrayMatcher.shouldUseUpgrade(userId, tenantId) 决定走 CTE 还是 DFS
+        Long currentTenantId = TenantContextHolder.getTenantId();
         String childDeptIds = null;
         if (maxDataScope == 3 && userDeptId != null) {
-            childDeptIds = collectChildDeptIds(userDeptId);
+            childDeptIds = collectChildDeptIds(userDeptId, isUpgradeEnabled(userId, currentTenantId));
         }
 
         log.debug("DataScopeProvider: userId={}, maxScope={}, userDeptId={}, customDeptIds={}, childDeptIds={}, upgradeEnabled={}",
-                userId, maxDataScope, userDeptId, customDeptIds, childDeptIds, isUpgradeEnabled());
+                userId, maxDataScope, userDeptId, customDeptIds, childDeptIds, isUpgradeEnabled(userId, TenantContextHolder.getTenantId()));
 
         return DataScopeContext.builder()
                 .maxDataScope(maxDataScope)
@@ -132,9 +139,10 @@ public class UserDataScopeProviderImpl implements DataScopeProvider {
 
     /**
      * 灰度分支: 根据 upgradeEnabled 选择 CTE 或老 DFS
+     * PR5: 参数显式传入, 支持维度灰度 (per-user/per-tenant 决策)
      */
-    private String collectChildDeptIds(Long rootDeptId) {
-        if (isUpgradeEnabled()) {
+    private String collectChildDeptIds(Long rootDeptId, boolean upgradeEnabled) {
+        if (upgradeEnabled) {
             return collectChildDeptIdsByCte(rootDeptId);
         }
         return collectChildDeptIdsByRecursive(rootDeptId);

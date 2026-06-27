@@ -1,6 +1,7 @@
 package com.cloudhub.platform.user.tenant;
 
 import com.cloudhub.platform.common.config.DataScopeContext;
+import com.cloudhub.platform.common.config.GrayMatcher;
 import com.cloudhub.platform.common.config.PlatformToggleProperties;
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.user.domain.entity.Dept;
@@ -61,13 +62,17 @@ class UserDataScopeProviderImplTest {
      */
     private PlatformToggleProperties toggleProperties;
 
+    /** gray-release-infrastructure PR5: 维度灰度匹配器 (依赖 toggleProperties) */
+    private GrayMatcher grayMatcher;
+
     /** gray-release-infrastructure PR2: 手工 new (避免 @InjectMocks 把 toggleProperties 注入成 null) */
     private UserDataScopeProviderImpl provider;
 
     @BeforeEach
     void setUp() {
         toggleProperties = new PlatformToggleProperties();
-        provider = new UserDataScopeProviderImpl(userMapper, roleMapper, deptMapper, toggleProperties);
+        grayMatcher = new GrayMatcher(toggleProperties);
+        provider = new UserDataScopeProviderImpl(userMapper, roleMapper, deptMapper, toggleProperties, grayMatcher);
     }
 
     @AfterEach
