@@ -7,20 +7,23 @@ import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.message.channel.ChannelSenderRegistry;
 import com.cloudhub.platform.message.domain.entity.MessageRecord;
 import com.cloudhub.platform.message.model.MessageSendRequest;
+import com.cloudhub.platform.message.model.SendMessageRequest;
 import com.cloudhub.platform.message.model.SendTestRequest;
 import com.cloudhub.platform.message.service.MessageRecordService;
 import com.cloudhub.platform.message.service.MessageSendService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 
 @Tag(name = "消息发送", description = "消息发送与记录查询")
 @RequiredArgsConstructor
+@Validated
 @RestController
 @RequestMapping("/message/record")
 public class MessageRecordController {
@@ -60,35 +63,27 @@ public class MessageRecordController {
 
     @Operation(summary = "发送消息")
     @PostMapping("/send")
-    public Result<Void> send(@RequestBody Map<String, Object> params) {
-        String channelCode = (String) params.get("channelCode");
-        String title = (String) params.getOrDefault("title", "");
-        String content = (String) params.getOrDefault("content", "");
-        String receiverAddress = (String) params.getOrDefault("receiverAddress", "");
-        Long templateId = params.get("templateId") != null ? Long.valueOf(params.get("templateId").toString()) : null;
-        Integer tenantId = params.get("tenantId") != null ? Integer.valueOf(params.get("tenantId").toString()) : null;
-        String tenantName = (String) params.getOrDefault("tenantName", null);
-
+    public Result<Void> send(@Valid @RequestBody SendMessageRequest request) {
         MessageRecord record = new MessageRecord();
-        record.setTitle(title);
-        record.setContent(content);
-        record.setChannelCode(channelCode);
-        record.setTemplateId(templateId);
-        record.setReceiverAddress(receiverAddress);
-        record.setTenantId(tenantId);
-        record.setTenantName(tenantName);
+        record.setTitle(request.getTitle() != null ? request.getTitle() : "");
+        record.setContent(request.getContent());
+        record.setChannelCode(request.getChannelCode());
+        record.setReceiverAddress(request.getReceiverAddress());
+        record.setTemplateId(request.getTemplateId());
+        record.setTenantId(request.getTenantId());
+        record.setTenantName(request.getTenantName());
         record.setSendStatus(0);
         record.setRetryCount(0);
         record.setMaxRetries(3);
         messageRecordService.save(record);
 
-        kafkaTemplate.send("message-send", new MessageSendRequest(record.getId(), channelCode, title, content, receiverAddress, templateId));
+        kafkaTemplate.send("message-send", new MessageSendRequest(record.getId(), request.getChannelCode(), record.getTitle(), request.getContent(), request.getReceiverAddress(), request.getTemplateId()));
         return Result.ok();
     }
 
     @Operation(summary = "发送测试消息")
     @PostMapping("/test-send")
-    public Result<Void> testSend(@RequestBody SendTestRequest request) {
+    public Result<Void> testSend(@Valid @RequestBody SendTestRequest request) {
         MessageRecord record = new MessageRecord();
         record.setTitle("测试消息");
         record.setContent(request.getContent());

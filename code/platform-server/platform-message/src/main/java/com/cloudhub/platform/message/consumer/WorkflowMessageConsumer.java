@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -39,10 +40,11 @@ public class WorkflowMessageConsumer {
             return;
         }
 
+        // WF2-11: HTML 转义, 防止 XSS (任务名称/流程名称可能包含 HTML)
         String content = "您有一条新的待办任务需要处理：\n" +
-                "任务名称：" + message.getTaskName() + "\n" +
-                "流程名称：" + (message.getProcessDefinitionName() != null ? message.getProcessDefinitionName() : "-") + "\n" +
-                "流程实例：" + message.getProcessInstanceId();
+                "任务名称：" + HtmlUtils.htmlEscape(message.getTaskName()) + "\n" +
+                "流程名称：" + (message.getProcessDefinitionName() != null ? HtmlUtils.htmlEscape(message.getProcessDefinitionName()) : "-") + "\n" +
+                "流程实例：" + HtmlUtils.htmlEscape(message.getProcessInstanceId());
 
         for (String recipient : recipients) {
             MessageRecord record = new MessageRecord();

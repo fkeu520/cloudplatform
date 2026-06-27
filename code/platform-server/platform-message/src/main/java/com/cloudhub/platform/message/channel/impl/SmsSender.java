@@ -14,6 +14,27 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+/**
+ * 短信发送器 - 通过阿里云 SMS API 发送短信
+ * <p>
+ * <b>安全风险:</b> 本实现直接读取 {@code message_channel.config_json} 中的明文密钥
+ * ({@code accessKeyId}/{@code accessKeySecret}), 配置以 JSON 明文存储在数据库中.
+ * 生产环境应集成 KMS (密钥管理服务) 或使用阿里云 STS 临时凭证, 禁止明文存密钥.
+ * </p>
+ *
+ * <h3>迁移方案 (KMS):</h3>
+ * <ol>
+ *   <li>在 message_channel 的 config_json 中增加字段 {@code kmsKeyId}
+ *       (或 {@code secretName}) 指向 KMS 中的加密密钥</li>
+ *   <li>修改 {@link #loadConfig()} 从 KMS 解密, 不再 parse config_json 中的明文 key</li>
+ *   <li>或改用阿里云 STS: config_json 存储 roleArn, 运行时 AssumeRole 获取临时凭证</li>
+ * </ol>
+ *
+ * @deprecated 当前实现存在安全风险, 明文密钥存储在数据库中.
+ * 请在 config_json 中删除明文 accessKeySecret, 改用 KMS/STS.
+ * 详情见 MessageChannel 配置文档.
+ */
+@Deprecated
 @Slf4j
 @Component
 @RequiredArgsConstructor

@@ -30,6 +30,9 @@ public class MessageRetryService {
 
         for (MessageRecord record : pending) {
             log.info("重试发送消息: recordId={}, retry={}/{}", record.getId(), record.getRetryCount(), record.getMaxRetries());
+            record.setRetryCount(record.getRetryCount() + 1);
+            record.setSendStatus(1);
+            messageRecordService.updateById(record);
             kafkaTemplate.send("message-send", new MessageSendRequest(
                 record.getId(), record.getChannelCode(), record.getTitle(),
                 record.getContent(), record.getReceiverAddress(), record.getTemplateId()));
