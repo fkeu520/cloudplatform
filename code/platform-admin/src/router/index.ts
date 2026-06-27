@@ -83,6 +83,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '数据权限配置', icon: 'fas fa-shield-alt', parent: 'system' }
       },
       {
+        path: 'system/config/gray',
+        name: 'GrayRelease',
+        component: () => import('@/views/system/config/Gray.vue'),
+        meta: { title: '灰度开关中心', icon: 'fas fa-toggle-on', parent: 'system' }
+      },
+      {
         path: 'system/log',
         name: 'OperLog',
         component: () => import('@/views/system/log/Index.vue'),
