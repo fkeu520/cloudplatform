@@ -42,7 +42,7 @@ public class AuthService {
             throw new BizException("登录失败，密码格式异常");
         }
 
-        String url = userServiceUrl + "/user/internal/validate";
+            String url = userServiceUrl + "/user/internal/validate";
         Map<String, String> body = Map.of("username", username, "password", password);
         try {
             Map<String, Object> result = restTemplate.postForObject(url, body, Map.class);
@@ -52,8 +52,15 @@ public class AuthService {
             }
             Map<String, Object> userData = (Map<String, Object>) result.get("data");
             String userId = String.valueOf(userData.get("id"));
-            Number tenantNum = (Number) userData.get("tenantId");
-            Long tenantId = tenantNum != null ? tenantNum.longValue() : 0L;
+            // AU2-8: JacksonConfig 全局 Long→String 序列化后 tenantId 可能是 String 或 Number
+            Object tenantIdObj = userData.get("tenantId");
+            Long tenantId = null;
+            if (tenantIdObj instanceof Number) {
+                tenantId = ((Number) tenantIdObj).longValue();
+            } else if (tenantIdObj instanceof String) {
+                try { tenantId = Long.parseLong((String) tenantIdObj); }
+                catch (NumberFormatException e) { log.warn("tenantId 解析失败: {}", tenantIdObj); }
+            }
             return generateAuthVO(userId, tenantId, userData);
         } catch (BizException e) {
             throw e;
@@ -97,8 +104,15 @@ public class AuthService {
             }
             Map<String, Object> userData = (Map<String, Object>) result.get("data");
             String userId = String.valueOf(userData.get("id"));
-            Number tenantNum = (Number) userData.get("tenantId");
-            Long tenantId = tenantNum != null ? tenantNum.longValue() : 0L;
+            // AU2-8: JacksonConfig 全局 Long→String 序列化后 tenantId 可能是 String 或 Number
+            Object tenantIdObj = userData.get("tenantId");
+            Long tenantId = null;
+            if (tenantIdObj instanceof Number) {
+                tenantId = ((Number) tenantIdObj).longValue();
+            } else if (tenantIdObj instanceof String) {
+                try { tenantId = Long.parseLong((String) tenantIdObj); }
+                catch (NumberFormatException e) { log.warn("tenantId 解析失败: {}", tenantIdObj); }
+            }
             return generateAuthVO(userId, tenantId, userData);
         } catch (BizException e) {
             throw e;
