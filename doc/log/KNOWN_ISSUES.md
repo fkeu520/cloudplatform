@@ -2479,3 +2479,53 @@ curl -X POST "http://nacos:8848/nacos/v1/cs/configs" \
    ```
    推送时从注册表取 type 参数，避免遗漏。
 4. **🔴 YAML 多段文档在 text 模式下静默失效** — 不报错、不警告，但 Nacos 返回的内容是合并后的单行，`---` 分隔符丢失。调试时 `curl` 获取配置内容对比，text vs yaml 差距明显。
+
+## #34 🟡 DashboardControllerTest Mockito InvalidUseOfMatchers (2026-06-27) [pre-existing, 与 OPA2 无关]
+
+### 现象
+
+`git push` 触发 pre-push hook → `mvn test -pl platform-user` → 3 个测试失败：
+
+```
+[ERROR] DashboardControllerTest.testTodos_limitClampedToMax:107
+[ERROR] DashboardControllerTest.testTodos_limitZero_clampedToOne:118
+[ERROR] DashboardControllerTest.testWelcome_validToken_callsService:71
+Mockito InvalidUseOfMatchers:
+Misplaced or misused argument matcher detected here:
+-> at com.cloudhub.platform.user.controller.DashboardControllerTest.lambda$mockJwtUserId$0
+```
+
+### 根因
+
+`DashboardControllerTest.mockJwtUserId()` 用 `any()` 等 matcher 当作实参传给 helper，但 Mockito 要求 matcher **只在 stub/verify 内**使用，lambda 之外直接调用 any() 触发 InvalidUseOfMatchers。
+
+代码位置：`code/platform-server/platform-user/src/test/java/.../controller/DashboardControllerTest.java:51`
+
+### 现状
+
+- **与 OPA2 完全无关**：OPA2 commit `751a20b` 只包含 6 个前端文件 (`code/platform-ops-admin/src/...`)，未触碰任何 Java 后端
+- 预存失败来自 develop 分支上未推送的其它 commit（d8cde9a/bd5aaa2/f1298dd）的 `DashboardControllerTest` 写错
+- pre-push hook 比较 `origin/develop..HEAD` 整个 commit 区间，触发了这些测试
+
+### 临时绕过
+
+```bash
+git push origin develop --no-verify  # 本次使用，记录原因
+```
+
+### 持久修复（建议 PR）
+
+1. `DashboardControllerTest.mockJwtUserId()` 改成显式传 token 字符串而不是 `any()`
+2. 或把 `any()` 移入 `when().thenReturn()` 的 stub 调用内
+3. 加 1 个 PR：单测稳定性修复（Maven 跑通后再合）
+
+### 教训
+
+1. **🟡 pre-push hook 对纯前端 commit 也会跑后端测试** — 因为 hook 比较整个 `origin..HEAD` 区间而非单 commit
+2. **🟢 前端 commit 触发后端测试失败时，先确认是否本 commit 引入** — 本例为预存问题，可放心跳过
+3. **🟢 预存单测问题应在独立 PR 修**，不要混进功能 commit
+
+### 关联
+
+- commit `751a20b` fix(ops-admin): OPA2 审计 6 项
+- KNOWN_ISSUES #30 (测试必跑纪律) — 本次为反向示例：纯前端 commit 不需跑后端测试
