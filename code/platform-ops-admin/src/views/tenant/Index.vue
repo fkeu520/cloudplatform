@@ -87,7 +87,7 @@
             <el-input v-model="form.adminUsername" placeholder="默认：admin" />
           </el-form-item>
           <el-form-item label="管理员密码" prop="adminPassword">
-            <el-input v-model="form.adminPassword" type="password" show-password placeholder="默认：123456" />
+            <el-input v-model="form.adminPassword" type="password" show-password placeholder="请设置管理员密码" />
           </el-form-item>
           <el-form-item label="管理员昵称">
             <el-input v-model="form.adminNickname" placeholder="默认同账号" />
@@ -143,7 +143,7 @@
           <el-input v-model="newAdmin.username" placeholder="管理员登录账号" />
         </el-form-item>
         <el-form-item label="密码" required>
-          <el-input v-model="newAdmin.password" type="password" show-password placeholder="默认：123456" />
+          <el-input v-model="newAdmin.password" type="password" show-password placeholder="请设置管理员密码" />
         </el-form-item>
         <el-form-item label="昵称">
           <el-input v-model="newAdmin.nickname" placeholder="默认同账号" />

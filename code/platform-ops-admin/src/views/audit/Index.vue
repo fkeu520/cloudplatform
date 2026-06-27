@@ -66,7 +66,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { loginLogPage, operLogPage, searchElk } from '../../api/audit'
+import { ElMessage } from 'element-plus'
+import { loginLogPage, operLogPage, searchElk as searchElkApi } from '../../api/audit'
 
 const activeTab = ref('login')
 const loginLogs = ref<any[]>([])
@@ -90,8 +91,18 @@ async function fetchOperLogs() {
   try { const res = await operLogPage({ ...operQuery.value, pageNum: 1, pageSize: 100 }); operLogs.value = res.data.records || [] } finally { operLoading.value = false }
 }
 
-async function searchElkFn() {
+async function searchElk() {
+  if (!elkQuery.value.keyword.trim()) {
+    ElMessage.warning('请输入搜索关键词')
+    return
+  }
   elkLoading.value = true
-  try { const res = await searchElk({ keyword: elkQuery.value.keyword, from: 0, size: 20 }); elkResult.value = JSON.stringify(res.data, null, 2) } finally { elkLoading.value = false }
+  try {
+    const res = await searchElkApi({ keyword: elkQuery.value.keyword, from: 0, size: 20 })
+    elkResult.value = JSON.stringify(res.data, null, 2)
+  } catch (e) {
+    ElMessage.error('ELK 日志检索失败')
+    elkResult.value = ''
+  } finally { elkLoading.value = false }
 }
 </script>
