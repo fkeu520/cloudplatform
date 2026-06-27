@@ -2,11 +2,12 @@ import request from './request'
 
 /**
  * 灰度开关视图对象
+ * value 类型: PR1-4 用 boolean; PR5 新增 dimension/tenants/users (String) / percent (Integer)
  */
 export interface GraySwitchVO {
   key: string
   group: string
-  value: boolean
+  value: boolean | string | number
   description: string
   restartRequired: boolean
   queryTime?: string

@@ -47,16 +47,27 @@
             default-expand-all
           >
             <el-table-column prop="key" label="配置键" min-width="280" />
-            <el-table-column label="当前值" width="120" align="center">
+            <el-table-column label="当前值" width="180" align="center">
               <template #default="{ row }">
                 <el-tag v-if="row.children" type="info" size="small">{{ row.children.length }} 项</el-tag>
-                <el-switch
-                  v-else
-                  :model-value="row.value"
-                  disabled
-                  active-color="#67c23a"
-                  inactive-color="#dcdfe6"
-                />
+                <template v-else>
+                  <!-- PR5 维度灰度: String / Integer 显示原文 -->
+                  <el-tag
+                    v-if="typeof row.value === 'string' || typeof row.value === 'number'"
+                    :type="dimTagType(row.key)"
+                    size="small"
+                  >
+                    {{ row.value === '' || row.value === null ? '(空)' : row.value }}
+                  </el-tag>
+                  <!-- Boolean 仍用 switch 显示 -->
+                  <el-switch
+                    v-else
+                    :model-value="row.value"
+                    disabled
+                    active-color="#67c23a"
+                    inactive-color="#dcdfe6"
+                  />
+                </template>
               </template>
             </el-table-column>
             <el-table-column prop="restartRequired" label="重启" width="80" align="center">
@@ -237,6 +248,13 @@ function opTypeColor(opType: string): 'success' | 'info' | 'warning' | 'danger' 
     default:
       return 'info'
   }
+}
+
+/** PR5: 维度灰度字段用 warning 标签, 让运维一眼识别 */
+function dimTagType(key: string): 'info' | 'warning' {
+  return key.includes('dimension') || key.includes('tenants') || key.includes('users') || key.includes('percent')
+    ? 'warning'
+    : 'info'
 }
 
 async function loadHistory() {

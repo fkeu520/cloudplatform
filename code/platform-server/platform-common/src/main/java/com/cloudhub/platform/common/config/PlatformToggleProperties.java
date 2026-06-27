@@ -85,6 +85,38 @@ public class PlatformToggleProperties {
              * 紧急回滚: 设环境变量 PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启.
              */
             private boolean writeStrict = true;
+
+            // ============ gray-release-infrastructure PR5: 维度灰度 ============
+
+            /**
+             * 灰度维度策略. 控制 upgrade.enabled=true 时, 谁真正走新逻辑.
+             * <ul>
+             *   <li>all: 所有用户/租户 (默认, 与 enabled=true 一致)</li>
+             *   <li>tenant: 仅 tenants 白名单内的租户走新逻辑</li>
+             *   <li>user: 仅 users 白名单内的用户走新逻辑</li>
+             *   <li>percent: 按 userId hash 取模, 落在 [0, percent) 内的走新逻辑 (灰度比例)</li>
+             * </ul>
+             * 注意: 不在白名单内的仍走老逻辑 (DFS), 保证回退路径不变.
+             */
+            private String dimension = "all";
+
+            /**
+             * 租户白名单 (dimension=tenant 时生效).
+             * CSV 格式: "1,2,3", 留空表示不限 (等价 all).
+             */
+            private String tenants = "";
+
+            /**
+             * 用户白名单 (dimension=user 时生效).
+             * CSV 格式: "100,101,102", 留空表示不限 (等价 all).
+             */
+            private String users = "";
+
+            /**
+             * 灰度比例 0-100 (dimension=percent 时生效).
+             * 例如 percent=10 表示 10% 用户走新逻辑 (基于 userId hash 一致性, 同 user 始终命中同一分支).
+             */
+            private Integer percent = 100;
         }
     }
 }
