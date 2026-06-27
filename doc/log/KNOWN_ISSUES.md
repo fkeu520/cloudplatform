@@ -41,6 +41,7 @@
 | 28 | 🟢 已解决 | 测试 | Mockito 5.x MockedStatic + Java 17 `class redefinition failed` (加 `-XX:+EnableDynamicAgentLoading` JVM 参数) | 2026-06-15 |
 | 29 | 🟢 已解决 | CI/CD | CI `paths` 触发器漏 `**/db/migration/**.sql` — 加 V3*.sql 触发规则, 部署后 Flyway 启动才发现 | 2026-06-17 |
 | 30 | ⚠️ 长期纪律 | 流程 | **未跑测试就 commit**: 2026-06-24 P0 #2 + #3 三连 commit 都没本地验证, 第一次 CI 编译失败才补 commit (d388ee9)。强制 5 步流程见本节 | 2026-06-24 |
+| 33 | 🟢 已解决 | Nacos/配置 | Nacos API 推送配置文件须显式指定 type=yaml (否则默认为 text) | 2026-06-26 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -2438,3 +2439,43 @@ if (params.containsKey("houseStructure")) r.setHouseStructure(ServiceUtils.toInt
 - `code/platform-server/park-space/src/main/java/.../RoomService.java:146-181` - 修复位置
 - `code/platform-server/park-space/src/test/java/.../RoomServiceTest.java:235-275` - 回归测试
 - V37/V40/V49 SQL 迁移: 新增字段源头（10 字段分 3 个版本陆续添加）
+
+---
+
+## #33 🟢 Nacos API 推送配置文件须显式指定 type=yaml (2026-06-26)
+
+### 现象
+
+通过 Nacos Open API (`POST /nacos/v1/cs/configs`) 推送 `common.yml` 时，Nacos UI 显示为纯文本模式（无 YAML 语法高亮），配置内容被当作单行文本存储，导致多段 YAML 结构丢失。
+
+具体 API 调用：
+```bash
+curl -X POST "http://nacos:8848/nacos/v1/cs/configs" \
+  -d "dataId=common.yml&group=DEFAULT_GROUP&content=..."
+```
+
+### 根因
+
+Nacos Open API `POST /nacos/v1/cs/configs` **默认 type=text**。即使 `dataId` 以 `.yml` 结尾，Nacos 也不会自动推断配置格式。必须**显式**传递 `&type=yaml` 参数，否则 YAML 内容被当作纯文本存储，多段 YAML 结构（如 `gateway.rate-limit`, `resilience4j` 等）被扁平化合并。
+
+### 修复
+
+在 API 参数末尾追加 `&type=yaml`：
+```bash
+curl -X POST "http://nacos:8848/nacos/v1/cs/configs" \
+  -d "dataId=common.yml&group=DEFAULT_GROUP&content=...&type=yaml"
+```
+
+### 教训
+
+1. **🔴 Nacos API 没有 content-type 推断** — 不传 type 默认 text，即使 dataId 是 .yml / .yaml / .json。与 Spring Cloud Config 不同，Nacos 不会按后缀推断格式。**每次推送都必须显式指定 type**。
+2. **🟢 Nacos UI 是验证格式的最佳方式** — 推送后打开 Nacos 配置列表，查看 common.yml 是否有 YAML 语法高亮（彩色缩进）。纯黑色背景 = type=text，彩色代码 = type=yaml。
+3. **🔴 批量推送脚本应在 dataId 注册表里附带 type** — 如：
+   ```
+   dataId              group           type
+   common.yml          DEFAULT_GROUP   yaml
+   application.yml     DEFAULT_GROUP   yaml
+   platform-auth.yml   DEFAULT_GROUP   yaml
+   ```
+   推送时从注册表取 type 参数，避免遗漏。
+4. **🔴 YAML 多段文档在 text 模式下静默失效** — 不报错、不警告，但 Nacos 返回的内容是合并后的单行，`---` 分隔符丢失。调试时 `curl` 获取配置内容对比，text vs yaml 差距明显。
