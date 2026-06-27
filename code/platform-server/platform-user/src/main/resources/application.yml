@@ -139,6 +139,11 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+  endpoint:
+    health:
+      # gray-release-infrastructure PR6: 暴露 /actuator/health/gray 详情
+      # (GrayHealthIndicator 返回所有 platform.* 开关当前值)
+      show-details: always
   metrics:
     tags:
       application: ${spring.application.name}
