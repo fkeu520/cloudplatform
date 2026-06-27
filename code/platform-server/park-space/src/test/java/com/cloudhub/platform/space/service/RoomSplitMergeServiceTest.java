@@ -172,6 +172,113 @@ class RoomSplitMergeServiceTest {
         assertEquals(2, result.getData().size());
     }
 
+    /**
+     * Bug 回归测试: split 创建多个新房间时, new_room_id 应为逗号分隔的 String (V51 修复路径)
+     * <p>之前 DB 列是 bigint, 存逗号分隔字符串会触发 "Data truncated for column 'new_room_id'" 错误.
+     * V51 migration 将列类型改为 varchar(500) 后, 此场景必须可写入.
+     */
+    @Test
+    void split_multiRoom_newRoomIdShouldBeCommaJoinedString() {
+        RoomSplitDTO dto = new RoomSplitDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setOldRoomId(1L);
+        dto.setReasons("多房间拆分");
+        dto.setNum(3);
+
+        // 3 个新房间, area 验证末房抹平尾差 (csyh 移植 + 用户要求)
+        SplitRoomItem item1 = new SplitRoomItem();
+        item1.setRoomNo("B-101"); item1.setRoomName("B-101-name");
+        item1.setAreaCovered(new java.math.BigDecimal("33.33"));
+        item1.setBuildArea(new java.math.BigDecimal("25.00"));
+        SplitRoomItem item2 = new SplitRoomItem();
+        item2.setRoomNo("B-102"); item2.setRoomName("B-102-name");
+        item2.setAreaCovered(new java.math.BigDecimal("33.33"));
+        item2.setBuildArea(new java.math.BigDecimal("25.00"));
+        SplitRoomItem item3 = new SplitRoomItem();
+        item3.setRoomNo("B-103"); item3.setRoomName("B-103-name");
+        // 末房抹平: 100 - 33.33 * 2 = 33.34 (前端已计算)
+        item3.setAreaCovered(new java.math.BigDecimal("33.34"));
+        item3.setBuildArea(new java.math.BigDecimal("25.00"));
+        dto.setRoomList(List.of(item1, item2, item3));
+
+        Room oldRoom = new Room(); oldRoom.setId(1L); oldRoom.setRoomName("A-101");
+        oldRoom.setStatus(0); oldRoom.setRoomType("OFFICE"); oldRoom.setFloor(1);
+
+        when(roomMapper.selectById(1L)).thenReturn(oldRoom);
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        doNothing().when(roomService).batchSoftDelete(List.of(1L));
+        when(roomService.insertAndGetId(any(Room.class)))
+                .thenReturn(200L).thenReturn(201L).thenReturn(202L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        Result<List<Room>> result = roomSplitMergeService.split(dto);
+
+        assertEquals(200, result.getCode());
+        assertEquals(3, result.getData().size());
+
+        // 核心断言: mapper.insert 收到的 record.newRoomId 必须是逗号分隔字符串
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        org.mockito.Mockito.verify(roomSplitMergeMapper).insert(captor.capture());
+        RoomSplitMerge saved = captor.getValue();
+        assertEquals("200,201,202", saved.getNewRoomId(),
+                "split 多房间应拼接逗号分隔的 newRoomId (V51 修复)");
+        assertEquals("B-101-name,B-102-name,B-103-name", saved.getNewRoomName());
+        assertEquals("A-101", saved.getOldRoomName());
+        assertEquals(3, saved.getNum());
+        assertEquals(1, saved.getType(), "split 记录 type 应为 1 (拆分)");
+    }
+
+    /**
+     * 合并时 area 字段从前端传入 (含自动 sum + 用户修改)
+     */
+    @Test
+    void merge_areaOverrideFromFrontend_shouldPersist() {
+        RoomMergeDTO dto = new RoomMergeDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setRoomNo("A-201");
+        dto.setRoomName("合并房间");
+        dto.setRoomType("OFFICE");
+        // 用户在合并 dialog 中修改了面积 (前端预填 sum, 后端仅持久化)
+        dto.setAreaCovered(new java.math.BigDecimal("123.45"));
+        dto.setBuildArea(new java.math.BigDecimal("98.76"));
+        dto.setOldRoomIds(List.of(1L, 2L));
+
+        Room old1 = new Room(); old1.setId(1L); old1.setRoomName("A-101");
+        old1.setAreaCovered(new java.math.BigDecimal("60.00"));
+        old1.setBuildArea(new java.math.BigDecimal("48.00"));
+        old1.setStatus(0);
+        Room old2 = new Room(); old2.setId(2L); old2.setRoomName("A-102");
+        old2.setAreaCovered(new java.math.BigDecimal("60.00"));
+        old2.setBuildArea(new java.math.BigDecimal("48.00"));
+        old2.setStatus(0);
+
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(roomMapper.selectBatchIds(List.of(1L, 2L))).thenReturn(List.of(old1, old2));
+        doNothing().when(roomService).batchSoftDelete(List.of(1L, 2L));
+        when(roomService.insertAndGetId(any(Room.class))).thenReturn(100L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        Result<Room> result = roomSplitMergeService.merge(dto);
+
+        assertEquals(200, result.getCode());
+        assertEquals(new java.math.BigDecimal("123.45"), result.getData().getAreaCovered(),
+                "合并后面积 = 前端传入值 (sum 123.45, 不应回退为 sum of old)");
+        assertEquals(new java.math.BigDecimal("98.76"), result.getData().getBuildArea());
+
+        // 记录: oldRoomId 应为 "1,2"
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        org.mockito.Mockito.verify(roomSplitMergeMapper).insert(captor.capture());
+        RoomSplitMerge saved = captor.getValue();
+        assertEquals("1,2", saved.getOldRoomId(),
+                "merge 多房间 oldRoomId 应为逗号分隔 (V51 修复)");
+        assertEquals("100", saved.getNewRoomId(), "merge 单房间 newRoomId 为单值字符串");
+        assertEquals(0, saved.getType(), "merge 记录 type 应为 0 (合并)");
+    }
+
     @Test
     void restoreMerge_valid_shouldSucceed() {
         RoomSplitMerge record = new RoomSplitMerge();
