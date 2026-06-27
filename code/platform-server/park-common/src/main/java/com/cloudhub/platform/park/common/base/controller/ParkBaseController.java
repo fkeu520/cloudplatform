@@ -9,6 +9,7 @@ import com.cloudhub.platform.park.common.base.model.query.CommonQuery;
 import com.cloudhub.platform.park.common.base.model.vo.CommonVO;
 import com.cloudhub.platform.park.common.base.response.R;
 import com.cloudhub.platform.park.common.base.response.TableDataInfo;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 
@@ -46,16 +47,20 @@ import java.util.List;
 
  * @see com.cloudhub.platform.park.common.base.controller.IBaseController 接口契约
  */
+@Slf4j
 public abstract class ParkBaseController<D, V extends CommonVO> implements IBaseController<D, V> {
 
     // ========== 用户上下文 (W3 阶段接入 LoginContextHolder) ==========
 
     /**
-     * 获取当前登录用户
+     * 获取当前登录用户 (ParkUser, 兼容老调用)
      * <p>从 {@link LoginContextHolder} 获取基础字段,
      * 完整 ParkUser (deptId/orgId/email 等) 需 W3 阶段从 platform-user 接口获取.</p>
+     * <p>PC2-8: ParkUser 与 LoginUser 字段重复, 推荐新代码直接使用 {@link #currentLoginUser()}.</p>
      * @return 当前 ParkUser (含基础字段), 未登录返回 null
+     * @deprecated 推荐使用 {@link #currentLoginUser()} 直接返回 LoginUser, 避免两套上下文互转
      */
+    @Deprecated
     protected ParkUser currentUser() {
         LoginUser loginUser = LoginContextHolder.get();
         if (loginUser == null) return null;
@@ -66,6 +71,14 @@ public abstract class ParkBaseController<D, V extends CommonVO> implements IBase
         u.setRoles(loginUser.getRoles());
         u.setPermissions(loginUser.getPermissions());
         return u;
+    }
+
+    /**
+     * PC2-8: 直接返回 LoginUser, 避免 ParkUser ↔ LoginUser 互转损失字段
+     * <p>推荐新业务代码使用此方法.</p>
+     */
+    protected LoginUser currentLoginUser() {
+        return LoginContextHolder.get();
     }
 
     /**

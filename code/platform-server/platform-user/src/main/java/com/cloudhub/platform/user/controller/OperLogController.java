@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.common.util.JwtUtil;
+import com.cloudhub.platform.common.exception.BizException;
+import com.cloudhub.platform.park.common.security.context.LoginContextHolder;
 import com.cloudhub.platform.user.domain.entity.OperLog;
 import com.cloudhub.platform.user.service.OperLogService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -84,22 +86,73 @@ public class OperLogController {
 
     @Operation(summary = "删除操作日志")
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest request) {
+        // U2-7: 租户隔离 + ADMIN 权限校验
+        requireAdmin();
+        Long tenantId = resolveTenantId(request);
+        if (tenantId != null) {
+            OperLog log = operLogService.getById(id);
+            if (log != null && log.getTenantId() != null && !log.getTenantId().equals(tenantId)) {
+                throw new BizException("无权删除其他租户的操作日志");
+            }
+        }
         operLogService.removeById(id);
         return Result.ok();
     }
 
     @Operation(summary = "批量删除操作日志")
     @DeleteMapping("/batch")
-    public Result<Void> batchDelete(@RequestBody List<Long> ids) {
+    public Result<Void> batchDelete(@RequestBody List<Long> ids, HttpServletRequest request) {
+        // U2-7: 租户隔离 + ADMIN 权限校验
+        requireAdmin();
+        Long tenantId = resolveTenantId(request);
+        if (tenantId != null && ids != null && !ids.isEmpty()) {
+            List<OperLog> logs = operLogService.listByIds(ids);
+            for (OperLog log : logs) {
+                if (log.getTenantId() != null && !log.getTenantId().equals(tenantId)) {
+                    throw new BizException("无权删除其他租户的操作日志: id=" + log.getId());
+                }
+            }
+        }
         operLogService.removeByIds(ids);
         return Result.ok();
     }
 
     @Operation(summary = "清空操作日志")
     @DeleteMapping("/clear")
-    public Result<Void> clear() {
-        operLogService.remove(new QueryWrapper<>());
+    public Result<Void> clear(HttpServletRequest request) {
+        // U2-3: 限制仅 ADMIN + 仅清空当前租户, 不能直接清空全表
+        requireAdmin();
+        Long tenantId = resolveTenantId(request);
+        if (tenantId == null) {
+            throw new BizException("清空操作日志必须指定租户上下文");
+        }
+        operLogService.remove(new QueryWrapper<OperLog>().eq("tenant_id", tenantId));
         return Result.ok();
+    }
+
+    /**
+     * 要求当前用户是 ADMIN 角色
+     */
+    private void requireAdmin() {
+        if (!LoginContextHolder.getRoles().contains("admin")) {
+            throw new BizException("无权操作, 仅管理员可执行");
+        }
+    }
+
+    /**
+     * 从 JWT 解析当前租户 ID
+     */
+    private Long resolveTenantId(HttpServletRequest request) {
+        Long tid = LoginContextHolder.getTenantId();
+        if (tid != null && tid > 0) return tid;
+        try {
+            String auth = request.getHeader("Authorization");
+            if (auth != null && auth.startsWith("Bearer ")) {
+                Long parsed = JwtUtil.getTenantId(auth.substring(7));
+                if (parsed != null && parsed > 0) return parsed;
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

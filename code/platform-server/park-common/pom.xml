@@ -76,8 +76,9 @@
             <artifactId>commons-lang3</artifactId>
         </dependency>
 
-        <!-- TransmittableThreadLocal (W3 阶段引入, 解决 @Async 线程池上下文丢失)
-             W2 阶段先用 JDK ThreadLocal, 待离线模式可联网后切换 -->
+        <!-- TransmittableThreadLocal (PC2-4: 解决 @Async 子线程上下文丢失)
+             注: 离线模式下 jar 不可用, 默认注释. 待 217 可联网时启用.
+             启用步骤: 取消注释 + 在 LoginContextHolder 把 ThreadLocal 改成 TransmittableThreadLocal -->
         <!-- <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>transmittable-thread-local</artifactId>

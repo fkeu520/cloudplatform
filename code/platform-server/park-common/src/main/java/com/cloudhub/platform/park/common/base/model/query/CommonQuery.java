@@ -3,6 +3,7 @@ package com.cloudhub.platform.park.common.base.model.query;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.util.Set;
 
 /**
  * 通用查询条件 (csyh CommonQueryVO / ParkIdKeyWordPageQuery 翻译)
@@ -15,6 +16,19 @@ import java.io.Serializable;
 public class CommonQuery implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * PC2-3: orderBy 白名单 (防 SQL 注入)
+     * <p>子模块可继承扩展 (如 RoomQuery.ALLOWED_ORDER_BY = {createTime, updateTime, roomNo})</p>
+     */
+    public static final Set<String> ALLOWED_ORDER_BY = Set.of(
+            "id", "createTime", "updateTime"
+    );
+
+    /**
+     * PC2-3: orderDirection 白名单
+     */
+    public static final Set<String> ALLOWED_ORDER_DIRECTION = Set.of("asc", "desc");
 
     /** 页码 (从 1 开始, 默认 1) */
     private Integer pageNum = 1;
@@ -33,4 +47,20 @@ public class CommonQuery implements Serializable {
 
     /** 排序方向 (默认 desc) */
     private String orderDirection = "desc";
+
+    /**
+     * PC2-3: 安全获取 orderBy, 不在白名单时返回默认 "id"
+     * <p>注: Set.of(...) 的 contains(null) 抛 NPE, 需先 null 检查.</p>
+     */
+    public String safeOrderBy() {
+        return orderBy != null && ALLOWED_ORDER_BY.contains(orderBy) ? orderBy : "id";
+    }
+
+    /**
+     * PC2-3: 安全获取 orderDirection, 不在白名单时返回 "desc"
+     */
+    public String safeOrderDirection() {
+        return orderDirection != null && ALLOWED_ORDER_DIRECTION.contains(orderDirection)
+                ? orderDirection : "desc";
+    }
 }
