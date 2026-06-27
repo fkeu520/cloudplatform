@@ -19,6 +19,8 @@ import java.util.Map;
 public class ConfigService {
 
     private final ConfigMapper configMapper;
+    /** gray-release-infrastructure PR4: platform.* 配置变更自动写审计 */
+    private final GrayService grayService;
 
     public PageResult<Config> page(String keyword, Integer configType, int pageNum, int pageSize) {
         LambdaQueryWrapper<Config> w = new LambdaQueryWrapper<>();
@@ -73,12 +75,23 @@ public class ConfigService {
         Config c = configMapper.selectById(id);
         if (c == null) throw new BizException("参数不存在");
 
+        // gray-release-infrastructure PR4: platform.* 变更前记录 oldValue
+        String oldValue = null;
+        boolean isGraySwitch = c.getConfigKey() != null && c.getConfigKey().startsWith("platform.");
+        if (isGraySwitch) oldValue = c.getConfigValue();
+
         if (params.containsKey("configName")) c.setConfigName((String) params.get("configName"));
         if (params.containsKey("configKey")) c.setConfigKey((String) params.get("configKey"));
         if (params.containsKey("configValue")) c.setConfigValue((String) params.get("configValue"));
         if (params.containsKey("configType")) c.setConfigType(((Number) params.get("configType")).intValue());
         if (params.containsKey("remark")) c.setRemark((String) params.get("remark"));
         configMapper.updateById(c);
+
+        // gray-release-infrastructure PR4: 写审计 (仅 platform.* 配置, 同事务保证一致性)
+        if (isGraySwitch && params.containsKey("configValue")) {
+            grayService.writeAuditFromConfigUpdate(c, oldValue,
+                    "admin", "经 ConfigController.update 修改");
+        }
     }
 
     @Transactional

@@ -1,15 +1,23 @@
 package com.cloudhub.platform.user.controller;
 
 import com.cloudhub.platform.common.config.PlatformToggleProperties;
+import com.cloudhub.platform.common.result.PageResult;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.user.domain.entity.GrayAudit;
+import com.cloudhub.platform.user.service.GrayService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
@@ -34,6 +42,7 @@ import java.util.List;
 public class GrayController {
 
     private final PlatformToggleProperties toggleProperties;
+    private final GrayService grayService;
 
     @Operation(summary = "列出所有灰度开关")
     @GetMapping("/list")
@@ -66,6 +75,29 @@ public class GrayController {
     }
 
     /**
+     * PR4: 修改灰度开关 (upsert sys_config + 写 sys_gray_audit, 同事务)
+     */
+    @Operation(summary = "修改灰度开关 + 自动写审计")
+    @PostMapping("/switch")
+    public Result<Void> switchGray(@Valid @RequestBody GraySwitchRequest req) {
+        grayService.toggle(req.getKey(), req.getValue(), req.getReason(),
+                req.getOperatorId(), req.getOperatorName());
+        return Result.ok();
+    }
+
+    /**
+     * PR4: 审计历史分页查询
+     */
+    @Operation(summary = "灰度开关审计历史")
+    @GetMapping("/audit/page")
+    public Result<PageResult<GrayAudit>> auditPage(
+            @RequestParam(name = "switchKey", required = false) String switchKey,
+            @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
+            @RequestParam(name = "pageSize", defaultValue = "20") int pageSize) {
+        return Result.ok(grayService.history(switchKey, pageNum, pageSize));
+    }
+
+    /**
      * 灰度开关视图对象
      */
     @Data
@@ -85,5 +117,20 @@ public class GrayController {
         private Boolean restartRequired;
         /** 查询时间 (前端刷新按钮显示) */
         private LocalDateTime queryTime;
+    }
+
+    /**
+     * PR4: 修改开关请求体
+     */
+    @Data
+    public static class GraySwitchRequest {
+        @NotBlank(message = "开关 key 不能为空")
+        private String key;
+        @NotBlank(message = "新值不能为空")
+        private String value;
+        @NotBlank(message = "变更原因必填 (审计要求)")
+        private String reason;
+        private Long operatorId;
+        private String operatorName;
     }
 }

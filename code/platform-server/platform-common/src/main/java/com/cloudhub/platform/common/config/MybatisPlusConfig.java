@@ -40,7 +40,9 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         "sys_menu", "sys_role_menu", "sys_user_role", "sys_user_menu",
         "sys_dept", "sys_post", "sys_storage_config",
         "sys_gateway_route", "sys_app",
-        "sys_oper_log", "sys_login_log"
+        "sys_oper_log", "sys_login_log",
+        // gray-release-infrastructure PR4: 灰度审计表无 tenant_id
+        "sys_gray_audit"
     );
 
     /**
