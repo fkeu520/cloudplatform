@@ -23,7 +23,7 @@ public interface AppMapper extends BaseMapper<App> {
      * <ol>
      *   <li>用户通过 sys_role_menu 或 sys_user_menu 间接授权的 menu.app_id</li>
      *   <li>按 sys_app.status=1 + sys_menu.status=1 + deleted=0 过滤</li>
-     *   <li>如果 tenantId 不为空, 额外按 sys_tenant_app 过滤租户授权</li>
+     *   <li>始终按 sys_tenant_app 过滤租户授权 (fail-closed: tenantId 为 null 时返回空)</li>
      *   <li>结果去重 + 按 sort 排序</li>
      * </ol>
      * </p>
@@ -37,7 +37,7 @@ public interface AppMapper extends BaseMapper<App> {
      * </p>
      *
      * @param userId   用户 ID (从 JWT 解析, 必传)
-     * @param tenantId 租户 ID (从 TenantContextHolder 取, 可空 — 空时不过滤租户授权)
+     * @param tenantId 租户 ID (从 TenantContextHolder 取, 始终过滤 — null 时返回空列表, fail-closed)
      * @return 用户有权限的应用列表 (按 sort 排序)
      */
     List<App> selectUserApps(@Param("userId") Long userId, @Param("tenantId") Long tenantId);

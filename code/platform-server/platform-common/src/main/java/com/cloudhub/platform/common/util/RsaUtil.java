@@ -25,6 +25,29 @@ public class RsaUtil {
     private static final String RSA_ALGORITHM = "RSA";
     private static final int KEY_SIZE = 2048;
 
+    /**
+     * RSA/ECB/PKCS1Padding 加密变换。
+     *
+     * <p><b>安全风险：</b>PKCS1Padding 存在已知的填充预言机攻击
+     * (Bleichenbacher attack, CVE-2006-4339)，攻击者可利用 RSA 解密
+     * 的失败响应逐字节恢复明文。本工具类用于密码传输加密：前端使用
+     * 公钥加密密码，后端使用私钥解密。密码长度极短（通常 &le; 32 字节），
+     * 在 HTTPS 传输前提下风险可控。</p>
+     *
+     * <p><b>迁移路径：</b>如需更高安全等级，应替换为 OAEP 填充：</p>
+     * <pre>{@code
+     * private static final String CIPHER_TRANSFORMATION = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
+     * }</pre>
+     * <p>注意：切换至 OAEP 后，前端加密脚本需同步更新填充模式，
+     * 否则后端解密将抛出 {@code BadPaddingException}。
+     * OAEP 需要更低的数据长度上限（2048 位密钥下约 190 字节），
+     * 对密码传输场景无影响。</p>
+     *
+     * <p>本常量仅用于 {@link Cipher#getInstance(String)} 的加密/解密操作。
+     * 密钥生成仍使用 {@link #RSA_ALGORITHM}（即 "RSA" 算法名）。</p>
+     */
+    private static final String CIPHER_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
+
     /** 缓存密钥对（生产环境应从安全存储读取） */
     private static final Map<String, KeyPair> KEY_PAIR_CACHE = new ConcurrentHashMap<>();
     private static final String DEFAULT_KEY_ID = "default";
@@ -109,7 +132,7 @@ public class RsaUtil {
             if (keyPair == null) {
                 throw new RuntimeException("密钥对不存在: " + keyId);
             }
-            Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
+            Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, keyPair.getPrivate());
             byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
             return new String(decryptedBytes, StandardCharsets.UTF_8);
@@ -134,7 +157,7 @@ public class RsaUtil {
             X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
             KeyFactory factory = KeyFactory.getInstance(RSA_ALGORITHM);
             PublicKey publicKey = factory.generatePublic(spec);
-            Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
+            Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, publicKey);
             byte[] encryptedBytes = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(encryptedBytes);

@@ -52,6 +52,7 @@ public class GatewayRouteService {
         return gatewayRouteMapper.selectById(id);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void create(Map<String, Object> params) {
         GatewayRoute route = new GatewayRoute();
         route.setRouteId((String) params.get("routeId"));
@@ -66,6 +67,7 @@ public class GatewayRouteService {
         syncToGateway();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void update(Long id, Map<String, Object> params) {
         GatewayRoute route = gatewayRouteMapper.selectById(id);
         if (route == null) throw new BizException("路由不存在");
@@ -79,6 +81,7 @@ public class GatewayRouteService {
         syncToGateway();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         gatewayRouteMapper.deleteById(id);
         syncToGateway();

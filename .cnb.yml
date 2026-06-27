@@ -105,6 +105,13 @@
       docker:
         image: maven:3.9-eclipse-temurin-21
       stages:
+        # 在 npm 命令执行前的步骤中添加
+        - name: 安装 Node.js
+          run: |
+            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+            apt-get install -y nodejs
+            node -v
+            npm -v
         - name: build all
           script: |
             # 编译后端

@@ -81,7 +81,11 @@
 | P0-A: ChannelSenderRegistry HashMap → ConcurrentHashMap (1 行) | 编码 | 0.5h |
 | P0-B: RateLimitFilter Redis 化（Lua 脚本 + ReactiveRedisTemplate + 灰度开关 + 降级路径） | 编码 | 1.5h |
 | P0-B: 3 个 Lua 脚本单测 | 测试 | 0.5h |
-| **当日合计** | | **9.5h** |
+| P1-A: 调查 6 模块 bootstrap/import 现状，识别差异 | 评审 | 0.5h |
+| P1-A: 5 模块删 bootstrap.yml（auth/gateway/ops/user/workflow） + 6 个 commits | 编码 | 0.5h |
+| P1-A: workflow 补 nacos.config.enabled=false，gateway/workflow/message 补 config.import | 编码 | 0.5h |
+| P1-A: 9 模块 application.yml 一致性校验 + mvn compile 5 模块 | 测试 | 0.5h |
+| **当日合计** | | **11.5h** |
 
 ---
 

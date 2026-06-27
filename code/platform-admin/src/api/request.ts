@@ -28,8 +28,10 @@ request.interceptors.response.use(
       ElMessage.error('登录已过期，请重新登录')
       router.push('/login')
     } else {
+      // A2-4: 移除 ElMessage 弹窗，避免与组件 catch 双重提示
+      // 错误信息由组件 catch 自行处理，或通过浏览器控制台查看
       const msg = error.response?.data?.message || error.message || '请求失败'
-      ElMessage.error(msg)
+      console.warn('[API Error]', msg)
     }
     return Promise.reject(error)
   }

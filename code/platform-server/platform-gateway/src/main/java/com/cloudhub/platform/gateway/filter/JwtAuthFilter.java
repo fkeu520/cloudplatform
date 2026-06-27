@@ -59,10 +59,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 log.warn("[JwtAuth] Token无效, path={}", path);
                 return unauthorized(exchange, "Token无效或已过期");
             }
-            String userId = JwtUtil.getUserId(token);
-            String username = JwtUtil.getUsername(token);
-            Long tenantId = JwtUtil.getTenantId(token);
-            Integer userType = JwtUtil.getUserType(token);
+            JwtUtil.JwtClaims claims = JwtUtil.getAll(token);
+            String userId = claims.userId();
+            String username = claims.username();
+            Long tenantId = claims.tenantId();
+            Integer userType = claims.userType();
             log.debug("[JwtAuth] Token有效, userId={}, username={}, tenantId={}, userType={}",
                     userId, username, tenantId, userType);
 

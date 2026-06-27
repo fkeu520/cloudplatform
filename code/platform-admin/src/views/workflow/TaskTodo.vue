@@ -187,9 +187,23 @@ async function handleUnclaim(row: any) {
 }
 
 async function handleTransferSubmit() {
-  await transferTask(transferTaskId.value, transferUserId.value, username)
-  ElMessage.success('转办成功')
-  transferVisible.value = false
-  fetchTodo()
+  // A2-6: 转办用户 ID 格式校验
+  const userId = transferUserId.value.trim()
+  if (!userId) {
+    ElMessage.warning('请输入转交人用户 ID')
+    return
+  }
+  if (!/^\d+$/.test(userId)) {
+    ElMessage.warning('用户 ID 格式不正确，请输入数字')
+    return
+  }
+  try {
+    await transferTask(transferTaskId.value, userId, username)
+    ElMessage.success('转办成功')
+    transferVisible.value = false
+    fetchTodo()
+  } catch {
+    ElMessage.error('转办失败，请重试')
+  }
 }
 </script>

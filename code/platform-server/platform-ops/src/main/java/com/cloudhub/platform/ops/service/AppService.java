@@ -48,7 +48,7 @@ public class AppService {
      * 三种 userType 透明处理 (普通用户 / 租户管理员 / 运营管理员).</p>
      *
      * @param userId   用户 ID (从 JWT 解析)
-     * @param tenantId 租户 ID (从 TenantContextHolder 取, 可空)
+     * @param tenantId 租户 ID (从 TenantContextHolder 取, 始终过滤 — null 时返回空列表, fail-closed)
      * @param userType 用户类型 (0=普通用户 1=租户管理员 2=运营管理员)
      * @return 用户有权限的应用列表, 按 sort 排序, 启用状态过滤
      */

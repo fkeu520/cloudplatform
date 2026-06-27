@@ -24,11 +24,11 @@ public class MonitorController {
     private static final Map<String, String[]> HEALTH_ENDPOINTS = new LinkedHashMap<>();
 
     static {
-        HEALTH_ENDPOINTS.put("platform-user", new String[]{"http://platform-user:8081/user/v3/api-docs"});
-        HEALTH_ENDPOINTS.put("platform-auth", new String[]{"http://platform-auth:8082/auth/v3/api-docs"});
-        HEALTH_ENDPOINTS.put("platform-workflow", new String[]{"http://platform-workflow:8084/workflow/v3/api-docs"});
-        HEALTH_ENDPOINTS.put("platform-message", new String[]{"http://platform-message:8085/message/site/unread-count"});
-        HEALTH_ENDPOINTS.put("platform-ops", new String[]{"http://localhost:8087/ops/v3/api-docs"});
+        HEALTH_ENDPOINTS.put("platform-user", new String[]{"http://platform-user:8081/actuator/health"});
+        HEALTH_ENDPOINTS.put("platform-auth", new String[]{"http://platform-auth:8082/actuator/health"});
+        HEALTH_ENDPOINTS.put("platform-workflow", new String[]{"http://platform-workflow:8084/actuator/health"});
+        HEALTH_ENDPOINTS.put("platform-message", new String[]{"http://platform-message:8085/actuator/health"});
+        HEALTH_ENDPOINTS.put("platform-ops", new String[]{"http://localhost:8087/actuator/health"});
     }
 
     private final RestTemplate restTemplate;

@@ -8,6 +8,7 @@ import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ public class TenantAppService {
         ).stream().map(TenantApp::getAppId).collect(Collectors.toList());
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public void authorizeApps(Long tenantId, List<Long> appIds) {
         tenantAppMapper.delete(new LambdaQueryWrapper<TenantApp>().eq(TenantApp::getTenantId, tenantId));
         if (appIds == null || appIds.isEmpty()) return;
