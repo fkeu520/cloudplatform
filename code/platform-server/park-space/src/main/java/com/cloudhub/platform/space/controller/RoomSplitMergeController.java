@@ -10,6 +10,7 @@ import com.cloudhub.platform.space.service.RoomSplitMergeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @Tag(name = "房间拆分合并", description = "park-space 业务 - 拆分合并操作及记录")
+@Validated
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/room-split-merge")
@@ -52,13 +54,13 @@ public class RoomSplitMergeController {
 
     @Operation(summary = "合并房间")
     @PostMapping("/merge")
-    public Result<Room> merge(@RequestBody RoomMergeDTO dto) {
+    public Result<Room> merge(@RequestBody @Validated RoomMergeDTO dto) {
         return roomSplitMergeService.merge(dto);
     }
 
     @Operation(summary = "拆分房间")
     @PostMapping("/split")
-    public Result<List<Room>> split(@RequestBody RoomSplitDTO dto) {
+    public Result<List<Room>> split(@RequestBody @Validated RoomSplitDTO dto) {
         return roomSplitMergeService.split(dto);
     }
 
