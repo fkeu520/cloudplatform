@@ -44,7 +44,7 @@
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="160" />
         <el-table-column prop="lastLoginTime" label="最后登录" width="160" />
-        <el-table-column label="操作" width="auto" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <TableActions :buttons="[
               { label: '编辑', props: { type: 'primary' }, handler: () => handleEdit(scope.row), permission: 'system:user:edit' },

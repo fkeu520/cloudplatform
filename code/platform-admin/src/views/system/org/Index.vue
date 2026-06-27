@@ -70,7 +70,7 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="auto">
+          <el-table-column label="操作" width="200">
             <template #default="scope">
               <el-button size="small" @click="handleEditEmployee(scope.row)">编辑</el-button>
               <el-button size="small" @click="handleRemoveEmployee(scope.row)">移除</el-button>
