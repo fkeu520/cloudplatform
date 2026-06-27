@@ -26,6 +26,9 @@ public class RoomSplitMerge extends BaseEntity {
     /** 0=合并 1=拆分 2=还原 */
     private Integer type;
 
+    /** 冗余状态字段, 与 type 同值, 兼容旧前端读 status (V51+) */
+    private Integer status;
+
     /** 原房源 ID (逗号分隔, 支持多个) */
     private String oldRoomId;
 

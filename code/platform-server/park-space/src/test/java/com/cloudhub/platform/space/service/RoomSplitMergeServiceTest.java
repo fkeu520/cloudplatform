@@ -347,6 +347,193 @@ class RoomSplitMergeServiceTest {
         assertThrows(BizException.class, () -> roomSplitMergeService.restore(100L, 0));
     }
 
+    // ========== areaId 继承测试 (Bug 2 回归) ==========
+
+    @Test
+    void merge_shouldInheritAreaIdFromFirstOldRoom() {
+        RoomMergeDTO dto = new RoomMergeDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setRoomNo("A-201");
+        dto.setRoomName("合并房间");
+        dto.setRoomType("OFFICE");
+        dto.setAreaCovered(new java.math.BigDecimal("100"));
+        dto.setBuildArea(new java.math.BigDecimal("80"));
+        dto.setOldRoomIds(List.of(1L, 2L));
+        dto.setReasons("合并测试");
+
+        Room old1 = new Room(); old1.setId(1L); old1.setRoomName("A-101");
+        old1.setStatus(0); old1.setAreaId(10L);
+        old1.setRentingSelling(0); old1.setLeasePrice(new java.math.BigDecimal("2"));
+        old1.setSalePrice(new java.math.BigDecimal("10000"));
+        Room old2 = new Room(); old2.setId(2L); old2.setRoomName("A-102");
+        old2.setStatus(0); old2.setAreaId(10L);
+
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(roomMapper.selectBatchIds(List.of(1L, 2L))).thenReturn(List.of(old1, old2));
+        doNothing().when(roomService).batchSoftDelete(List.of(1L, 2L));
+        when(roomService.insertAndGetId(any(Room.class))).thenReturn(100L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.merge(dto);
+
+        // 断言 insertAndGetId 收到的 Room 继承了 areaId
+        org.mockito.ArgumentCaptor<Room> roomCaptor =
+                org.mockito.ArgumentCaptor.forClass(Room.class);
+        verify(roomService).insertAndGetId(roomCaptor.capture());
+        Room newRoom = roomCaptor.getValue();
+        assertEquals(10L, newRoom.getAreaId(), "合并后的房间应继承第一个旧房间的 areaId");
+        // 继承更多字段
+        assertEquals(Integer.valueOf(0), newRoom.getRentingSelling(), "合并应继承 rentingSelling");
+        assertEquals(new java.math.BigDecimal("2"), newRoom.getLeasePrice(), "合并应继承 leasePrice");
+        assertEquals(new java.math.BigDecimal("10000"), newRoom.getSalePrice(), "合并应继承 salePrice");
+    }
+
+    @Test
+    void split_shouldInheritAreaIdAndExtraFieldsFromOldRoom() {
+        RoomSplitDTO dto = new RoomSplitDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setOldRoomId(1L);
+        dto.setNum(2);
+        dto.setReasons("拆分继承测试");
+
+        SplitRoomItem item1 = new SplitRoomItem();
+        item1.setRoomNo("B-101"); item1.setRoomName("B-101-name");
+        item1.setAreaCovered(new java.math.BigDecimal("50"));
+        SplitRoomItem item2 = new SplitRoomItem();
+        item2.setRoomNo("B-102"); item2.setRoomName("B-102-name");
+        item2.setAreaCovered(new java.math.BigDecimal("50"));
+        dto.setRoomList(List.of(item1, item2));
+
+        Room oldRoom = new Room(); oldRoom.setId(1L); oldRoom.setRoomName("A-101");
+        oldRoom.setStatus(0); oldRoom.setRoomType("OFFICE"); oldRoom.setFloor(1);
+        oldRoom.setAreaId(10L);
+        oldRoom.setKitId(100L); oldRoom.setPurposeId(200L);
+        oldRoom.setHouseStructure(1);
+        oldRoom.setRentingSelling(2); oldRoom.setLeasePrice(new java.math.BigDecimal("3.5"));
+        oldRoom.setSalePrice(new java.math.BigDecimal("20000"));
+
+        when(roomMapper.selectById(1L)).thenReturn(oldRoom);
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        doNothing().when(roomService).batchSoftDelete(List.of(1L));
+        when(roomService.insertAndGetId(any(Room.class)))
+                .thenReturn(200L).thenReturn(201L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.split(dto);
+
+        // 断言 insertAndGetId 两次调用都收到继承的字段
+        org.mockito.ArgumentCaptor<Room> roomCaptor =
+                org.mockito.ArgumentCaptor.forClass(Room.class);
+        verify(roomService, times(2)).insertAndGetId(roomCaptor.capture());
+        List<Room> createdRooms = roomCaptor.getAllValues();
+        for (Room r : createdRooms) {
+            assertEquals(10L, r.getAreaId(), "拆分出的每个房间都应继承 areaId");
+            assertEquals(Long.valueOf(100L), r.getKitId(), "拆分应继承 kitId");
+            assertEquals(Long.valueOf(200L), r.getPurposeId(), "拆分应继承 purposeId");
+            assertEquals(Integer.valueOf(1), r.getHouseStructure(), "拆分应继承 houseStructure");
+            assertEquals(Integer.valueOf(2), r.getRentingSelling(), "拆分应继承 rentingSelling");
+            assertEquals(new java.math.BigDecimal("3.5"), r.getLeasePrice(), "拆分应继承 leasePrice");
+            assertEquals(new java.math.BigDecimal("20000"), r.getSalePrice(), "拆分应继承 salePrice");
+        }
+    }
+
+    // ========== type/status 双写测试 (Bug 1 回归) ==========
+
+    @Test
+    void mergeRecord_shouldSyncStatusWithType() {
+        RoomMergeDTO dto = new RoomMergeDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setRoomNo("A-201");
+        dto.setRoomName("合并房间");
+        dto.setRoomType("OFFICE");
+        dto.setOldRoomIds(List.of(1L, 2L));
+
+        Room old1 = new Room(); old1.setId(1L); old1.setRoomName("A-101"); old1.setStatus(0);
+        Room old2 = new Room(); old2.setId(2L); old2.setRoomName("A-102"); old2.setStatus(0);
+
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        when(roomMapper.selectBatchIds(List.of(1L, 2L))).thenReturn(List.of(old1, old2));
+        doNothing().when(roomService).batchSoftDelete(List.of(1L, 2L));
+        when(roomService.insertAndGetId(any(Room.class))).thenReturn(100L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.merge(dto);
+
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        verify(roomSplitMergeMapper).insert(captor.capture());
+        RoomSplitMerge saved = captor.getValue();
+        assertEquals(0, saved.getType(), "merge 记录 type=0");
+        assertEquals(Integer.valueOf(0), saved.getStatus(), "merge 记录 status 应与 type 同步为 0");
+    }
+
+    @Test
+    void splitRecord_shouldSyncStatusWithType() {
+        RoomSplitDTO dto = new RoomSplitDTO();
+        dto.setParkId(1L);
+        dto.setBuildingId(1L);
+        dto.setOldRoomId(1L);
+        dto.setNum(2);
+
+        SplitRoomItem item1 = new SplitRoomItem();
+        item1.setRoomNo("B-101"); item1.setRoomName("B-101-name");
+        SplitRoomItem item2 = new SplitRoomItem();
+        item2.setRoomNo("B-102"); item2.setRoomName("B-102-name");
+        dto.setRoomList(List.of(item1, item2));
+
+        Room oldRoom = new Room(); oldRoom.setId(1L); oldRoom.setRoomName("A-101");
+        oldRoom.setStatus(0); oldRoom.setRoomType("OFFICE"); oldRoom.setFloor(1);
+
+        when(roomMapper.selectById(1L)).thenReturn(oldRoom);
+        when(roomMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
+        doNothing().when(roomService).batchSoftDelete(List.of(1L));
+        when(roomService.insertAndGetId(any(Room.class)))
+                .thenReturn(200L).thenReturn(201L);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.split(dto);
+
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        verify(roomSplitMergeMapper).insert(captor.capture());
+        RoomSplitMerge saved = captor.getValue();
+        assertEquals(1, saved.getType(), "split 记录 type=1");
+        assertEquals(Integer.valueOf(1), saved.getStatus(), "split 记录 status 应与 type 同步为 1");
+    }
+
+    @Test
+    void restoreRecord_shouldSyncStatusWithType() {
+        // ---- restoreMerge ----
+        RoomSplitMerge mergeRec = new RoomSplitMerge();
+        mergeRec.setId(1L); mergeRec.setType(0);
+        mergeRec.setOldRoomId("10,11"); mergeRec.setOldRoomName("A-101,A-102");
+        mergeRec.setNewRoomId("100"); mergeRec.setNewRoomName("合并房间");
+        mergeRec.setParkId(1L); mergeRec.setTenantId(1L);
+
+        Room mergedRoom = new Room(); mergedRoom.setId(100L); mergedRoom.setStatus(0);
+        Room old1 = new Room(); old1.setId(10L); old1.setDeleted(1); old1.setStatus(0);
+        Room old2 = new Room(); old2.setId(11L); old2.setDeleted(1); old2.setStatus(0);
+
+        when(roomSplitMergeMapper.listByNewRoomId("100")).thenReturn(List.of(mergeRec));
+        when(roomMapper.selectById(100L)).thenReturn(mergedRoom);
+        when(roomMapper.selectById(10L)).thenReturn(old1);
+        when(roomMapper.selectById(11L)).thenReturn(old2);
+        when(roomSplitMergeMapper.insert(any(RoomSplitMerge.class))).thenReturn(1);
+
+        roomSplitMergeService.restore(100L, 0);
+
+        org.mockito.ArgumentCaptor<RoomSplitMerge> captor =
+                org.mockito.ArgumentCaptor.forClass(RoomSplitMerge.class);
+        verify(roomSplitMergeMapper, atLeastOnce()).insert(captor.capture());
+        List<RoomSplitMerge> saved = captor.getAllValues();
+        // restoreMerge 只 insert 1 次
+        assertEquals(2, saved.get(0).getType(), "还原记录 type=2");
+        assertEquals(Integer.valueOf(2), saved.get(0).getStatus(), "还原记录 status 应与 type 同步为 2");
+    }
+
     @Test
     void merge_mergedRoom_shouldThrow() {
         RoomMergeDTO dto = new RoomMergeDTO();
