@@ -50,6 +50,33 @@ jwt:
   secret: ${JWT_SECRET:cloudhub-platform-secret-key-2024-change-in-production}
   expire-time: 604800  # 7天（秒）
 
+# ================================================
+# 灰度开关 (gray-release-infrastructure PR1)
+# 配置后可经 Nacos 推送生效, 各服务通过 @Value/${...} 读取
+# 默认值与各服务 application.yml 一致, 本段为单一真源
+# 关联: doc/log/项目进度.md §灰度基础设施
+# ================================================
+platform:
+  # ============ M4 P0-1 多租户拦截器 (M5 决策, 默认开启) ============
+  tenant:
+    interceptor:
+      # 总开关: false 时不装配 TenantLineInnerInterceptor Bean (MybatisPlusConfig.java:95)
+      # 关闭后所有 SQL 不再自动拼接 tenant_id, 业务回到 v3.1 之前行为
+      # 注意: 关闭期间任何跨租户请求都会越权, 仅限止血场景
+      enabled: ${PLATFORM_TENANT_INTERCEPTOR_ENABLED:true}
+  # ============ M5 P0-2 数据权限升级 (决策 3 v1.1, 默认关闭) ============
+  data-scope:
+    upgrade:
+      # 总开关: false 走 v7.0 行为 (SELECT only + 解析失败放行 + Provider=null 退化无限制)
+      #         true 走 v7.1 增强 (CTE + 8 个 @DataScope + 3 个 Provider 桩 + UPDATE/DELETE 拦截)
+      # 灰度策略: 先单服务开启 (docker-compose env) → 监控 → 全量
+      enabled: ${PLATFORM_DATA_SCOPE_UPGRADE_ENABLED:false}
+      # 写严格模式 (PR4, 默认 true 安全降级)
+      # false: SQL 解析失败/禁用语法 (FORCE INDEX) 记 WARN 放行, 业务可用但无 data scope
+      # true:  解析失败抛 DataScopeViolationException, 阻止执行 (写操作零越权)
+      # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
+      write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true}
+
 # 日志级别
 logging:
   level:
