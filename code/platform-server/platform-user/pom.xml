@@ -138,6 +138,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Park Common (业务公共层, 含 LoginContextHolder 用于审计日志权限校验 U2-3) -->
+        <dependency>
+            <groupId>com.cloudhub</groupId>
+            <artifactId>park-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

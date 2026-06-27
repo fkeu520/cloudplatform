@@ -8,6 +8,7 @@ import com.cloudhub.platform.user.domain.entity.Role;
 import com.cloudhub.platform.user.domain.entity.RoleMenu;
 import com.cloudhub.platform.user.mapper.RoleMapper;
 import com.cloudhub.platform.user.mapper.RoleMenuMapper;
+import com.cloudhub.platform.user.mapper.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class RoleService {
 
     private final RoleMapper roleMapper;
     private final RoleMenuMapper roleMenuMapper;
+    private final UserRoleMapper userRoleMapper;
 
     /**
      * 分页查询角色
@@ -164,6 +166,8 @@ public class RoleService {
         roleMapper.deleteById(id);
         // 删除角色菜单关联
         roleMenuMapper.deleteByRoleId(id);
+        // U2-5: 删除角色用户关联, 避免 sys_user_role 产生孤立记录
+        userRoleMapper.deleteByRoleId(id);
     }
 
     /**

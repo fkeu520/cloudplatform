@@ -36,7 +36,12 @@ public final class LoginContextHolder {
     private LoginContextHolder() {}
 
     /**
-     * W2: 简单 ThreadLocal, W3 切换到 TransmittableThreadLocal (TTL 解决线程池场景)
+     * PC2-4: TODO 当前为 JDK ThreadLocal, @Async / 线程池场景会丢失上下文.
+     * <p>升级路径: 启用 park-common/pom.xml 中的 transmittable-thread-local 依赖,
+     * 把本字段改为 {@code new TransmittableThreadLocal<>()},
+     * 并把业务线程池用 {@code TtlExecutors.getTtlExecutorService()} 包装.</p>
+     * <p>为何未启用: 当前离线模式无外网, TTL jar 未在本地 Maven 缓存中.
+     * 待 217 部署机器可联网时取消 pom 注释, 升级本类即可.</p>
      */
     private static final ThreadLocal<LoginUser> CONTEXT = new ThreadLocal<>();
 

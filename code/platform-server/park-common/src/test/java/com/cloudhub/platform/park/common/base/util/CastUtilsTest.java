@@ -86,4 +86,30 @@ class CastUtilsTest {
         assertFalse(CastUtils.isNotEmpty(null));
         assertTrue(CastUtils.isNotEmpty("x"));
     }
+
+    // ========== PC2-5: trim 对齐 ConvertUtil ==========
+
+    @Test
+    void pc25_toLong_shouldTrimWhitespace() {
+        assertEquals(123L, CastUtils.toLong("  123  "), "PC2-5: 前后空格应被 trim");
+        assertEquals(123L, CastUtils.toLong("  123  ", 0L), "PC2-5: 重载也应 trim");
+    }
+
+    @Test
+    void pc25_toInt_shouldTrimWhitespace() {
+        assertEquals(42, CastUtils.toInt("  42  "));
+        assertEquals(42, CastUtils.toInt("  42  ", -1));
+    }
+
+    @Test
+    void pc25_toDouble_shouldTrimWhitespace() {
+        assertEquals(3.14, CastUtils.toDouble("  3.14  "), 0.001);
+    }
+
+    @Test
+    void pc25_toBigDecimal_shouldTrimWhitespace() {
+        BigDecimal bd = CastUtils.toBigDecimal("  123.45  ");
+        assertNotNull(bd);
+        assertEquals(0, new BigDecimal("123.45").compareTo(bd));
+    }
 }

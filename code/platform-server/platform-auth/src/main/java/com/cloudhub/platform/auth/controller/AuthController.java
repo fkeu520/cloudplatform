@@ -16,7 +16,19 @@ import java.util.Map;
 @RequestMapping("/auth")
 public class AuthController {
 
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final AuthService authService;
+
+    /**
+     * AU2-7: 剥除 "Bearer " 前缀, 返回纯 JWT
+     */
+    private String stripBearer(String header) {
+        if (header == null) return null;
+        String h = header.trim();
+        if (h.startsWith(BEARER_PREFIX)) return h.substring(BEARER_PREFIX.length());
+        return h;
+    }
 
     @Operation(summary = "获取RSA公钥（前端加密密码用）")
     @GetMapping("/public-key")
@@ -50,21 +62,21 @@ public class AuthController {
 
     @Operation(summary = "刷新Token")
     @PostMapping("/refresh")
-    public Result<?> refresh(@RequestHeader("Authorization") String token) {
-        return Result.ok(authService.refreshToken(token));
+    public Result<?> refresh(@RequestHeader(value = "Authorization", required = false) String token) {
+        return Result.ok(authService.refreshToken(stripBearer(token)));
     }
 
     @Operation(summary = "验证Token有效性")
     @GetMapping("/validate")
-    public Result<?> validate(@RequestHeader("Authorization") String token) {
-        authService.validateToken(token);
+    public Result<?> validate(@RequestHeader(value = "Authorization", required = false) String token) {
+        authService.validateToken(stripBearer(token));
         return Result.ok("Token有效");
     }
 
     @Operation(summary = "退出登录")
     @PostMapping("/logout")
-    public Result<?> logout(@RequestHeader("Authorization") String token) {
-        authService.logout(token);
+    public Result<?> logout(@RequestHeader(value = "Authorization", required = false) String token) {
+        authService.logout(stripBearer(token));
         return Result.ok();
     }
 }

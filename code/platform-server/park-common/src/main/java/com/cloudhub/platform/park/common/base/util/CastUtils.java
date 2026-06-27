@@ -38,50 +38,57 @@ public final class CastUtils {
         if (obj == null) return null;
         if (obj instanceof Long l) return l;
         if (obj instanceof Number n) return n.longValue();
-        return NumberUtils.toLong(obj.toString());
+        // PC2-5: 对齐 ConvertUtil.toLong, 先 trim 避免前后空格导致 NumberFormatException
+        return NumberUtils.toLong(obj.toString().trim());
     }
 
     public static long toLong(Object obj, long defaultValue) {
         if (obj == null) return defaultValue;
         if (obj instanceof Long l) return l;
         if (obj instanceof Number n) return n.longValue();
-        return NumberUtils.toLong(obj.toString(), defaultValue);
+        // PC2-5: trim 对齐 ConvertUtil
+        return NumberUtils.toLong(obj.toString().trim(), defaultValue);
     }
 
     public static Integer toInt(Object obj) {
         if (obj == null) return null;
         if (obj instanceof Integer i) return i;
         if (obj instanceof Number n) return n.intValue();
-        return NumberUtils.toInt(obj.toString());
+        // PC2-5: trim 对齐 ConvertUtil
+        return NumberUtils.toInt(obj.toString().trim());
     }
 
     public static int toInt(Object obj, int defaultValue) {
         if (obj == null) return defaultValue;
         if (obj instanceof Integer i) return i;
         if (obj instanceof Number n) return n.intValue();
-        return NumberUtils.toInt(obj.toString(), defaultValue);
+        // PC2-5: trim 对齐 ConvertUtil
+        return NumberUtils.toInt(obj.toString().trim(), defaultValue);
     }
 
     public static Double toDouble(Object obj) {
         if (obj == null) return null;
         if (obj instanceof Double d) return d;
         if (obj instanceof Number n) return n.doubleValue();
-        return NumberUtils.toDouble(obj.toString());
+        // PC2-5: trim 对齐 ConvertUtil
+        return NumberUtils.toDouble(obj.toString().trim());
     }
 
     public static double toDouble(Object obj, double defaultValue) {
         if (obj == null) return defaultValue;
         if (obj instanceof Double d) return d;
         if (obj instanceof Number n) return n.doubleValue();
-        return NumberUtils.toDouble(obj.toString(), defaultValue);
+        // PC2-5: trim 对齐 ConvertUtil
+        return NumberUtils.toDouble(obj.toString().trim(), defaultValue);
     }
 
     public static BigDecimal toBigDecimal(Object obj) {
         if (obj == null) return null;
         if (obj instanceof BigDecimal bd) return bd;
         if (obj instanceof Number n) return new BigDecimal(n.toString());
-        String s = obj.toString();
-        if (s == null || s.isEmpty()) return null;
+        // PC2-5: trim 对齐 ConvertUtil
+        String s = obj.toString().trim();
+        if (s.isEmpty()) return null;
         try {
             return new BigDecimal(s);
         } catch (NumberFormatException e) {

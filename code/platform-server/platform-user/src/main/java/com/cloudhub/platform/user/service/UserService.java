@@ -404,6 +404,12 @@ public class UserService {
 
     /**
      * 分配角色
+     * <p>U2-6 语义: 调用前先清空用户所有角色, 再批量插入新角色.</p>
+     * <ul>
+     *   <li>roleIds = null 或 [] → 清空用户所有角色 (符合管理后台 "重置" 操作)</li>
+     *   <li>roleIds = [1, 2, 3] → 替换为这些角色</li>
+     * </ul>
+     * <p>@Transactional 保证 delete + insert 原子性.</p>
      */
     @Transactional
     public void assignRoles(Long userId, Object roleIdsObj) {
