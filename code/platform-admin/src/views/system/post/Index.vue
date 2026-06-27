@@ -38,7 +38,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="auto" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <TableActions :buttons="[
               { label: '编辑', props: { type: 'primary' }, handler: () => handleEdit(scope.row), permission: 'system:post:edit' },
