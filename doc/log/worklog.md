@@ -89,12 +89,18 @@
 
 ---
 
-## 2026-06-27 (Fri) [待填]
+## 2026-06-27 (Sat)
 
 | 工作内容 | 类型 | 工时 |
 |---------|------|------|
-| ... | ... | ... |
-| **当日合计** | | **0h** |
+| PR1-7 灰度发布基础设施代码/配置合并到 develop | 编码 | 4h |
+| PR7 修复 AuthService (Number→String ClassCastException) | 编码 | 1h |
+| Nacos common.yml 补灰度维度字段 (dimension/tenants/users/percent) | 运维 | 0.5h |
+| Nacos POST API type=yaml 第一次忘写→重推 | 运维 | 0.5h |
+| 分析 217 登录故障链 (JWT_SECRET→RSA→Jackson) | 调试 | 1.5h |
+| 分析镜像依赖，只拉 4 个必要镜像节省时间 | 运维 | 0.5h |
+| 记录经验教训到 KNOWN_ISSUES #35 | 文档 | 0.5h |
+| **当日合计** | | **8.5h** |
 
 ---
 
