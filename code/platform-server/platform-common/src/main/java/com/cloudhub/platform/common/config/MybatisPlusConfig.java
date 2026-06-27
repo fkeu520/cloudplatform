@@ -13,17 +13,23 @@ import net.sf.jsqlparser.expression.LongValue;
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.Set;
 
 @Slf4j
 @Configuration
+@RequiredArgsConstructor
 public class MybatisPlusConfig implements MetaObjectHandler {
+
+    /** gray-release-infrastructure PR2: 灰度开关统一持有类 (Nacos 热生效) */
+    private final PlatformToggleProperties toggleProperties;
 
     /** C9: 多租户忽略表 (不含 tenant_id 列) */
     private static final Set<String> IGNORE_TABLES = Set.of(
@@ -34,22 +40,24 @@ public class MybatisPlusConfig implements MetaObjectHandler {
         "sys_menu", "sys_role_menu", "sys_user_role", "sys_user_menu",
         "sys_dept", "sys_post", "sys_storage_config",
         "sys_gateway_route", "sys_app",
-        "sys_oper_log", "sys_login_log"
+        "sys_oper_log", "sys_login_log",
+        // gray-release-infrastructure PR4: 灰度审计表无 tenant_id
+        "sys_gray_audit"
     );
 
     /**
      * 多租户拦截器 Bean · 启用版本（默认行为）<br>
-     * 通过 {@code platform.tenant.interceptor.enabled=true} 控制，缺失时默认 {@code true}。<br>
+     * 通过 {@link PlatformToggleProperties} 控制 tenant.interceptor.enabled 字段, 缺失时默认 {@code true}。<br>
      * 关闭时回落到 {@link #mybatisPlusInterceptorDisabled()}（仅保留分页拦截器）。<br>
-     * 决策依据: 见 {@code doc/P0-1-回滚开关设计.md} 方案 A。
+     * 决策依据: 见 {@code doc/P0-1-回滚开关设计.md} 方案 A。<br>
+     * gray-release-infrastructure PR2: {@code @RefreshScope} 让本 Bean 在 platform.* 变更时自动重建.
      */
     @Bean
+    @RefreshScope
     @ConditionalOnProperty(name = "platform.tenant.interceptor.enabled", havingValue = "true", matchIfMissing = true)
-    public MybatisPlusInterceptor mybatisPlusInterceptor(
-            // M5 P0-2 PR4: 写严格开关 (默认 true, fail-closed)
-            //   false: SQL 解析失败时记 WARN 放行 (PR1-3 行为, 安全降级)
-            //   true:  SQL 解析失败时抛 DataScopeViolationException (fail-closed)
-            @Value("${platform.data-scope.upgrade.write-strict:true}") boolean writeStrict) {
+    public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        // 从 PlatformToggleProperties 取值 (Nacos 热生效, 无需重启)
+        boolean writeStrict = toggleProperties.getDataScope().getUpgrade().isWriteStrict();
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new TenantLineHandler() {
             @Override

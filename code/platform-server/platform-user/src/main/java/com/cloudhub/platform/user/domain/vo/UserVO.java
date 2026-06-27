@@ -29,6 +29,7 @@ public class UserVO {
     private String statusDesc;
     private Integer userType;
     private String userTypeDesc;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Long tenantId;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createTime;
