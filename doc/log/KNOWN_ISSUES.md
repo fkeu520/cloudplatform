@@ -44,9 +44,11 @@
 | 33 | 🟢 已解决 | Nacos/配置 | Nacos API 推送配置文件须显式指定 type=yaml (否则默认为 text) | 2026-06-26 |
 | 34 | 🟢 已解决 | 测试 | DashboardControllerTest Mockito InvalidUseOfMatchers 预存失败 | 2026-06-25 |
 | 35 | 🟢 已解决 | 序列化 | JacksonConfig 全局 Long→String 致 restTemplate 消费端 ClassCastException | 2026-06-25 |
-| 36 | 🔴 复发 | 部署/配置 | 2026-06-25 仅修 auth 缺 JWT_SECRET, 2026-06-29 发现 platform-gateway 也缺, 详情见 #36.1 | 2026-06-29 |
-| 36.1 | 🔴 待修复 (今日 CI/CD) | 部署/配置 | platform-gateway 漏注 JWT_SECRET, 与 auth 不一致, 登录后 Dashboard 立即 401 | 2026-06-29 |
-| 36.2 | 🟡 待跟进 (短期方案已落地) | 菜单串扰 | platform-ops-admin (8090) 加载 platform-user /menu/tree (无过滤) → 显示 admin-platform 全量菜单 | 2026-06-29 |
+| 36 | 🟢 已解决 | 部署/配置 | JWT_SECRET 缺失链式修复: auth→gateway→7 后端服务全补, 静态块强制校验 | 2026-06-29 |
+| 36.1 | 🟢 已解决 | 部署/配置 | platform-gateway 漏注 JWT_SECRET, 与 auth 不一致 | 2026-06-29 |
+| 36.2 | 🟢 已解决 (长期方案可再议) | 菜单串扰 | platform-ops-admin (8090) 加载 admin 菜单 → menu_category 隔离 + filterAdminMenu() | 2026-06-29 |
+| 36.3 | 🟢 已解决 | 测试 | H2 tenant-test-schema.sql 缺 menu_category 列, TenantIsolationTest 失败 | 2026-06-29 |
+| 36.4 | 🟢 已解决 | 菜单过滤 | admin 后端 5 个菜单端点 (/tree/nav/user/permissions/role) 返回 ops-admin 菜单 | 2026-06-29 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
