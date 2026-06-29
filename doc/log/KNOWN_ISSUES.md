@@ -44,7 +44,8 @@
 | 33 | 🟢 已解决 | Nacos/配置 | Nacos API 推送配置文件须显式指定 type=yaml (否则默认为 text) | 2026-06-26 |
 | 34 | 🟡 待修 (非 P0) | 测试 | DashboardControllerTest Mockito InvalidUseOfMatchers 预存失败 | 2026-06-25 |
 | 35 | 🟢 已解决 | 序列化 | JacksonConfig 全局 Long→String 致 restTemplate 消费端 ClassCastException | 2026-06-25 |
-| 36 | 🟢 已解决 | 部署/配置 | 217 部署缺 JWT_SECRET/RSA 环境变量致登录全崩 | 2026-06-25 |
+| 36 | 🔴 复发 | 部署/配置 | 2026-06-25 仅修 auth 缺 JWT_SECRET, 2026-06-29 发现 platform-gateway 也缺, 详情见 #36.1 | 2026-06-29 |
+| 36.1 | 🔴 待修复 (今日 CI/CD) | 部署/配置 | platform-gateway 漏注 JWT_SECRET, 与 auth 不一致, 登录后 Dashboard 立即 401 | 2026-06-29 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -2617,4 +2618,100 @@ PR7 (150e883) 三处修复：
 - commit `2d242eb` chore(audit): 审计遗留改动综合入档
 - commit `150e883` fix(auth): JacksonConfig 全局 Long→String 后 tenantId 兼容 (PR7)
 - KNOWN_ISSUES #35 — 同一次部署的连锁故障
+
+---
+
+## #36.1 🔴 platform-gateway 漏注 JWT_SECRET (2026-06-29) [待修复, 今日 CI/CD]
+
+### 现象
+
+- 浏览器 `admin / 123456` 登录成功 → 拿到 token
+- Vue 路由跳转到 `/dashboard`
+- Dashboard.vue `onMounted` → `GET /api/dashboard/welcome`
+- DevTools Network: **HTTP/1.1 401 Unauthorized**, `Content-Length: 0`, Request Headers 中 **`Authorization: Bearer xxx` 存在**
+- 浏览器响应拦截器 (`request.ts:24-37`) 触发 `store.logout() + router.push('/login')` → 看似"永远登不进 dashboard"
+
+### 直接根因
+
+`platform-gateway` 容器**没有** `JWT_SECRET` 环境变量, 启动时加载 `JwtUtil.java:21-23`:
+
+```java
+private static final String SECRET = System.getenv("JWT_SECRET") != null
+        ? System.getenv("JWT_SECRET")
+        : System.getProperty("jwt.secret", "cloudhub-platform-secret-key-2024-change-in-production");
+```
+
+- gateway `JVM.SECRET = "cloudhub-platform-secret-key-2024-change-in-production"` (走默认值)
+- auth `JVM.SECRET = "cloudhub-platform-jwt-secret-2024-production-min-32-chars"` (由 #36 修复时 Ubuntu 直接 sed 注入, **未回 Windows 仓库**)
+
+HS256 用 SECRET 派生 SecretKey, 两边**派生出不同的 key** → `JwtUtil.validate()` 在 gateway 端 parse token 抛 `SignatureException` → 返回 `false` → `JwtAuthFilter.java:58` 拒绝 → `unauthorized()` 写 401 空响应。
+
+### 间接根因 (设计层)
+
+1. **`${JWT_SECRET:-default}` 模式没在 Windows 仓库的 platform-auth / platform-gateway 两个 service 中同时声明** — Ubuntu 端手动 sed 改了一个, 漏了另一个
+2. **Ubuntu 端 yml 改动未 commit/push 回 Windows** (HANDOFF_2026-06-10 §问题 12 教训复发) — 这种漂移 git status 显示不出来, 下次部署会再次踩
+3. **`scripts/ci/` 没有 JWT_SECRET 一致性检查** — CI `paths` 不触发 yml 改动, 镜像也不重建, 没有任何反馈
+
+### 修复 (Windows 侧 commit, 待 push + 217 pull)
+
+`docker-compose.yml`:
+```diff
+@@ platform-auth (line ~400) @@
+       - USER_SERVICE_URL=http://platform-user:8081
++      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
+       - JAVA_OPTS=...
+
+@@ platform-gateway (line ~462) @@
+-      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
++      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
+```
+
+两个 service 的 `${JWT_SECRET:-default}` 完全一致 — shell env 设了就走 env, 没设就走 default, **跨环境两边永远同值**。
+
+### 验证
+
+部署后:
+```bash
+ssh hugh@192.168.0.217
+cd /opt/platform
+git pull && docker compose up -d platform-auth platform-gateway
+
+# 1. 两个 service 的 env 必须完全相同
+docker inspect platform-auth --format '{{range .Config.Env}}{{println .}}{{end}}' | grep ^JWT_SECRET
+docker inspect platform-gateway --format '{{range .Config.Env}}{{println .}}{{end}}' | grep ^JWT_SECRET
+# 期望: 两行输出字符串完全相同
+
+# 2. 业务验证
+TOKEN=$(curl -s -X POST http://localhost:8083/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"123456"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8083/dashboard/welcome | head -1
+# 期望: HTTP/1.1 200
+
+# 3. 浏览器重登, dashboard 正常显示
+```
+
+### 预期影响 (部署后)
+
+- ⚠️ **所有现存 token 失效** — auth 容器重启后 SECRET 不变 (default 值没换), 但 deploy 触发容器重新创建, 容器内 static `JwtUtil.SECRET` 重新计算 → 新 token 才能 pass → 用户需重新登录
+- 部署 5 分钟 (yml 不触发 CI 镜像重建, 只需 `docker compose up -d`)
+
+### 教训
+
+1. **🔴 Ubuntu 上任何 yml 改动必须同 commit 推回 Windows** — HANDOFF_2026-06-10 §问题 12 是这个教训, 但未入体系, 又复发; 建议未来在 `/opt/platform` 加 `git remote add windows <path>` 或 pre-push hook 强制同步
+2. **🟡 JWT_SECRET 这种"两边读同一值"的场景, 应该用 `${VAR:-default}` 形式** — 而不是直接 `VAR=value` — 让 docker-compose 把两个 service 自动绑定到同一 source of truth, 减少漂移
+3. **🟡 缺失的 CI 检查**: `scripts/ci/check-jwt-secret-alignment.sh` (尚未创建, 见待办)
+4. **🟡 Windows 仓库发现的"仅一个 service 有 JWT_SECRET"状态本身就是个 smell** — README/CONTRIBUTING 应声明"所有需要 JwtUtil 的 service 必须显式声明 JWT_SECRET"
+
+### 关联
+
+- KNOWN_ISSUES #36 — 复发源头, 2026-06-25 修复不完整
+- KNOWN_ISSUES #35 — 同期 JacksonConfig Long→String 修复, PR7 同次部署
+- HANDOFF_2026-06-10 §问题 12 — Ubuntu yml 改动未 commit 教训
+
+### 待办 (后续 sprint)
+
+- [ ] 新建 `scripts/ci/check-jwt-secret-alignment.sh` (建议 commit 3, 本次未做)
+- [ ] 5 个服务 yml 第 99 行 `jwt.secret: cloudhub-platform-secret-key-2024` 与 `JwtUtil.java:23` 默认值末尾 19 字符不一致 (平台隐患, 不触发本次 401 但风险高)
+- [ ] `/opt/platform` 加 pre-push hook 强制 yml 改动同时 `git -C /opt/platform diff` 输出供复核
 - `code/platform-admin/src/api/crypto.ts:7` — `CACHE_TTL_MS = 300000`
