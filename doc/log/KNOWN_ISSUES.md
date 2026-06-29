@@ -42,7 +42,7 @@
 | 29 | 🟢 已解决 | CI/CD | CI `paths` 触发器漏 `**/db/migration/**.sql` — 加 V3*.sql 触发规则, 部署后 Flyway 启动才发现 | 2026-06-17 |
 | 30 | ⚠️ 长期纪律 | 流程 | **未跑测试就 commit**: 2026-06-24 P0 #2 + #3 三连 commit 都没本地验证, 第一次 CI 编译失败才补 commit (d388ee9)。强制 5 步流程见本节 | 2026-06-24 |
 | 33 | 🟢 已解决 | Nacos/配置 | Nacos API 推送配置文件须显式指定 type=yaml (否则默认为 text) | 2026-06-26 |
-| 34 | 🟡 待修 (非 P0) | 测试 | DashboardControllerTest Mockito InvalidUseOfMatchers 预存失败 | 2026-06-25 |
+| 34 | 🟢 已解决 | 测试 | DashboardControllerTest Mockito InvalidUseOfMatchers 预存失败 | 2026-06-25 |
 | 35 | 🟢 已解决 | 序列化 | JacksonConfig 全局 Long→String 致 restTemplate 消费端 ClassCastException | 2026-06-25 |
 | 36 | 🔴 复发 | 部署/配置 | 2026-06-25 仅修 auth 缺 JWT_SECRET, 2026-06-29 发现 platform-gateway 也缺, 详情见 #36.1 | 2026-06-29 |
 | 36.1 | 🔴 待修复 (今日 CI/CD) | 部署/配置 | platform-gateway 漏注 JWT_SECRET, 与 auth 不一致, 登录后 Dashboard 立即 401 | 2026-06-29 |
