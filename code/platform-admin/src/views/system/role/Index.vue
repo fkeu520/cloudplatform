@@ -122,28 +122,84 @@
       </template>
     </el-dialog>
 
-    <!-- 权限配置弹窗 -->
-    <el-dialog v-model="authDialogVisible" title="菜单权限配置" width="400px">
-      <el-tree
-        ref="menuTreeRef"
-        :data="menuTreeData"
-        show-checkbox
-        node-key="id"
-        :default-expand-all="true"
-        :check-strictly="true"
-        :props="{ label: 'name', children: 'children' }"
-      />
+    <!-- 权限配置弹窗 (参考 Linear + Notion: 默认收缩, max-height + 滚动, 搜索 + 计数 + 全选/清空) -->
+    <el-dialog v-model="authDialogVisible" title="菜单权限配置" width="560px" align-center>
+      <!-- 头部: 角色信息 + 选中计数 -->
+      <div class="auth-dialog-header">
+        <div class="auth-role-info">
+          <el-icon><Key /></el-icon>
+          <span class="auth-role-name">{{ currentRoleName || '角色' }}</span>
+        </div>
+        <div class="auth-summary">
+          <span class="auth-counter">已选 <strong>{{ selectedMenuIds.length }}</strong> 项</span>
+          <span class="auth-divider">/</span>
+          <span class="auth-total">共 {{ totalMenuCount }} 项</span>
+        </div>
+      </div>
+
+      <!-- 搜索 + 工具栏 -->
+      <div class="auth-toolbar">
+        <el-input
+          v-model="authSearchKeyword"
+          placeholder="搜索菜单 / 权限标识"
+          clearable
+          size="default"
+          class="auth-search"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <div class="auth-actions">
+          <el-button text :icon="Expand" size="small" @click="expandAllMenu">展开</el-button>
+          <el-button text :icon="Fold" size="small" @click="collapseAllMenu">收起</el-button>
+          <el-button text size="small" @click="selectAllMenu">全选</el-button>
+          <el-button text size="small" @click="clearAllMenu">清空</el-button>
+        </div>
+      </div>
+
+      <!-- 菜单树 (max-height + 内部滚动, 只展开第一层) -->
+      <div class="auth-tree-wrapper">
+        <el-tree
+          v-if="filteredMenuTree.length > 0"
+          ref="menuTreeRef"
+          :data="filteredMenuTree"
+          show-checkbox
+          node-key="id"
+          :default-expanded-keys="defaultExpandedMenuIds"
+          :check-strictly="true"
+          :props="{ label: 'name', children: 'children' }"
+          :filter-node-method="filterMenuNode"
+          class="auth-tree"
+          empty-text="未找到匹配菜单"
+        >
+          <template #default="{ node, data }">
+            <div class="auth-tree-node">
+              <span class="auth-tree-label">{{ node.label }}</span>
+              <el-tag v-if="data.type === 2 && data.perms" size="small" type="info" effect="plain" class="auth-tree-perm">
+                {{ data.perms }}
+              </el-tag>
+              <el-tag v-else-if="data.type === 1" size="small" type="success" effect="plain" class="auth-tree-type">
+                菜单
+              </el-tag>
+            </div>
+          </template>
+        </el-tree>
+        <el-empty v-else description="加载中..." :image-size="60" />
+      </div>
+
       <template #footer>
         <el-button @click="authDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleAuthSubmit">保存</el-button>
+        <el-button type="primary" :loading="authSubmitting" @click="handleAuthSubmit">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Key, Search, Expand, Fold } from '@element-plus/icons-vue'
 import TableActions from '@/components/TableActions.vue'
 import {
   getRolePage,
@@ -186,6 +242,7 @@ const searchForm = reactive({
 
 const dialogVisible = ref(false)
 const authDialogVisible = ref(false)
+const authSubmitting = ref(false)
 const dialogTitle = ref('')
 const isEdit = ref(false)
 const currentId = ref<number | null>(null)
@@ -194,6 +251,49 @@ const menuTreeRef = ref()
 const menuTreeData = ref<any[]>([])
 const deptTree = ref<any[]>([])
 const customDeptIdList = ref<number[]>([])
+
+// 权限弹窗辅助状态 (用于交互改进)
+const authSearchKeyword = ref('')
+const currentRoleName = ref('')
+// 默认只展开第一层菜单 (避免一进去全展开, 列表太长)
+const defaultExpandedMenuIds = ref<number[]>([])
+
+const selectedMenuIds = computed<number[]>(() => {
+  return menuTreeRef.value?.getCheckedKeys() ?? []
+})
+
+// 总菜单数 (递归统计, 用于 "共 N 项")
+const totalMenuCount = computed<number>(() => {
+  const count = (nodes: any[]): number => {
+    return nodes.reduce((sum, n) => sum + 1 + (n.children ? count(n.children) : 0), 0)
+  }
+  return count(menuTreeData.value)
+})
+
+// 过滤后的菜单树 (用于搜索)
+const filteredMenuTree = computed<any[]>(() => {
+  if (!authSearchKeyword.value.trim()) return menuTreeData.value
+  const kw = authSearchKeyword.value.trim().toLowerCase()
+  const filter = (nodes: any[]): any[] => {
+    const result: any[] = []
+    for (const n of nodes) {
+      const matchSelf = n.name?.toLowerCase().includes(kw) || n.perms?.toLowerCase().includes(kw)
+      const children = n.children ? filter(n.children) : []
+      if (matchSelf || children.length > 0) {
+        result.push({ ...n, children: children.length > 0 ? children : n.children })
+      }
+    }
+    return result
+  }
+  return filter(menuTreeData.value)
+})
+
+// 节点过滤方法 (el-tree 的 filter-node-method, 仅当树为空搜索结果时由 el-tree 自己过滤)
+const filterMenuNode = (value: string, data: any): boolean => {
+  if (!value) return true
+  const kw = value.toLowerCase()
+  return data.name?.toLowerCase().includes(kw) || data.perms?.toLowerCase().includes(kw)
+}
 
 const formData = reactive<Partial<Role>>({
   code: '',
@@ -328,37 +428,88 @@ function handleCustomDeptChange(value: number | number[]) {
 
 async function handleAuth(row: Role) {
   currentId.value = row.id!
+  currentRoleName.value = row.name || '角色'
+  authSearchKeyword.value = ''
   const [menuRes, roleMenuRes]: [any, any] = await Promise.all([
     getMenuTree(),
     getRoleMenuIds(row.id!)
   ])
   if (menuRes.code === 200) {
     menuTreeData.value = menuRes.data
+    // 默认只展开第一层 (根级菜单, 即 parent_id=0)
+    defaultExpandedMenuIds.value = (menuRes.data || [])
+      .filter((m: any) => !m.parentId || m.parentId === 0)
+      .map((m: any) => m.id)
   }
   authDialogVisible.value = true
   if (roleMenuRes.code === 200) {
     setTimeout(() => {
       if (menuTreeRef.value) {
-        menuTreeRef.value.setCheckedKeys([])
-        menuTreeRef.value.setCheckedKeys(roleMenuRes.data)
+        menuTreeRef.value.setCheckedKeys(roleMenuRes.data || [])
       }
     }, 300)
   }
+}
+
+// ============ 权限弹窗辅助操作 ============
+function expandAllMenu() {
+  const allIds: number[] = []
+  const walk = (nodes: any[]) => {
+    for (const n of nodes) {
+      allIds.push(n.id)
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(menuTreeData.value)
+  allIds.forEach(id => menuTreeRef.value?.store?.nodesMap[id]?.expand())
+}
+
+function collapseAllMenu() {
+  const allNodes = menuTreeRef.value?.store?.nodesMap
+  if (!allNodes) return
+  Object.values(allNodes).forEach((n: any) => n.collapse())
+  // 展开默认第一层
+  setTimeout(() => {
+    defaultExpandedMenuIds.value.forEach((id: number) => {
+      allNodes[id]?.expand()
+    })
+  }, 50)
+}
+
+function selectAllMenu() {
+  const allIds: number[] = []
+  const walk = (nodes: any[]) => {
+    for (const n of nodes) {
+      allIds.push(n.id)
+      if (n.children) walk(n.children)
+    }
+  }
+  walk(filteredMenuTree.value)
+  menuTreeRef.value?.setCheckedKeys(allIds, false)
+}
+
+function clearAllMenu() {
+  menuTreeRef.value?.setCheckedKeys([])
 }
 
 async function handleAuthSubmit() {
   const checkedKeys = menuTreeRef.value?.getCheckedKeys()
   const halfCheckedKeys = menuTreeRef.value?.getHalfCheckedKeys()
   const menuIds = [...checkedKeys, ...halfCheckedKeys]
-  const res: any = await assignRoleMenus(currentId.value!, menuIds)
-  if (res.code === 200) {
-    ElMessage.success('权限分配成功')
-    authDialogVisible.value = false
-    
-    const permRes = await getUserPermissions()
-    if (permRes.data) {
-      userStore.setPermissions(permRes.data)
+  authSubmitting.value = true
+  try {
+    const res: any = await assignRoleMenus(currentId.value!, menuIds)
+    if (res.code === 200) {
+      ElMessage.success('权限分配成功')
+      authDialogVisible.value = false
+
+      const permRes = await getUserPermissions()
+      if (permRes.data) {
+        userStore.setPermissions(permRes.data)
+      }
     }
+  } finally {
+    authSubmitting.value = false
   }
 }
 
@@ -419,5 +570,131 @@ onMounted(() => {
   color: #909399;
   margin-top: 4px;
   line-height: 1.4;
+}
+
+/* ============ 权限配置弹窗 (Linear + Notion 风格) ============ */
+.auth-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 16px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.auth-role-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--el-text-color-primary);
+}
+.auth-role-info .el-icon {
+  color: var(--el-color-primary);
+  font-size: 18px;
+}
+.auth-role-name {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.auth-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.auth-counter strong {
+  color: var(--el-color-primary);
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0 2px;
+}
+.auth-divider {
+  color: var(--el-text-color-placeholder);
+}
+.auth-total {
+  color: var(--el-text-color-secondary);
+}
+
+.auth-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.auth-search {
+  flex: 1;
+  max-width: 280px;
+}
+.auth-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.auth-tree-wrapper {
+  max-height: 480px;
+  overflow-y: auto;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 8px 4px;
+  background: var(--el-fill-color-blank);
+  transition: border-color 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+.auth-tree-wrapper:focus-within {
+  border-color: var(--el-color-primary-light-5);
+}
+.auth-tree {
+  background: transparent;
+}
+.auth-tree :deep(.el-tree-node__content) {
+  height: 32px;
+  border-radius: 4px;
+  margin: 1px 0;
+  transition: background-color 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+.auth-tree :deep(.el-tree-node__content:hover) {
+  background-color: var(--el-fill-color-light);
+}
+.auth-tree :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  background-color: var(--el-color-primary-light-9);
+}
+.auth-tree :deep(.el-checkbox) {
+  margin-right: 6px;
+}
+
+.auth-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding-right: 8px;
+}
+.auth-tree-label {
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.auth-tree-perm,
+.auth-tree-type {
+  margin-left: auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+
+/* 滚动条美化 (Webkit) */
+.auth-tree-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.auth-tree-wrapper::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 3px;
+}
+.auth-tree-wrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--el-text-color-placeholder);
 }
 </style>
