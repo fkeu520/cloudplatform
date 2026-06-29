@@ -664,12 +664,12 @@ services:
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kefu-docs
       - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
-      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
     volumes:
       - kefu-vector-index:/app/data/vector_index
     depends_on:
-      platform-mysql:
+      mysql:
         condition: service_healthy
     logging: *default-logging
 
