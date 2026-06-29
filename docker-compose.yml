@@ -397,6 +397,7 @@ services:
       - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
       - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
       - USER_SERVICE_URL=http://platform-user:8081
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
@@ -459,7 +460,7 @@ services:
       - NACOS_SERVER_ADDR=nacos:8848
       - REDIS_HOST=redis
       - CORS_ORIGINS=*
-      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       nacos:
