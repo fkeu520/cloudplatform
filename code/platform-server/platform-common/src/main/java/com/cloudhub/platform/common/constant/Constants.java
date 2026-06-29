@@ -89,4 +89,26 @@ public class Constants {
         private final int code;
         private final String desc;
     }
+
+    // ========== 菜单所属平台 (前台枚举, deploy-time fix) ==========
+    //
+    // 设计:
+    // - 几个平台与代码强绑定 (admin-platform / ops-admin 是两套独立前端 + 后端 endpoint),
+    //   平台枚举写在代码 (java enum) 而非 Nacos 配置。
+    // - sys_menu.menu_category 列承载实际分类, 此 enum 与 DB 列值一一对应。
+    // - 加新平台 (如 'tenant-portal'): 1) 加 enum entry, 2) sys_menu.menu_category = 'tenant-portal'
+    //   行 INSERT, 3) 新后端 endpoint 硬编码该 enum.code()。0 个 Nacos config。
+    //
+    // 关联: KNOWN_ISSUES #36.2 (长期方案), 2026-06-29
+
+    @Getter
+    @AllArgsConstructor
+    public enum MenuCategory {
+        ADMIN("admin", "管理后台 (platform-admin)"),
+        OPS_ADMIN("ops-admin", "运营后台 (platform-ops-admin)"),
+        COMMON("common", "跨平台通用菜单");
+
+        private final String code;
+        private final String desc;
+    }
 }

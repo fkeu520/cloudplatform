@@ -114,26 +114,29 @@ public class OpsUserController {
     /**
      * 获取菜单树 (ops-admin 平台)
      *
-     * <p>OPA2-4 后继修复 (#36.2): 不再代理 platform-user /menu/tree。
-     * 原实现会把 admin-platform 全量 sys_menu (角色/部门/... N 个) 一并返回,
-     * 导致 ops-admin (8090) 左侧菜单出现 admin-platform 的菜单项, 用户串扰。</p>
+     * <p>V40+#36.2 长期方案落地: 代理 platform-user /menu/by-category?category=ops-admin,
+     * platform-user 端按 sys_menu.menu_category = 'ops-admin' 严格过滤。</p>
      *
-     * <p>当前处理: 返回空, ops-admin Layout.vue 收到空 data 后走前端 FALLBACK_MENUS
-     * (8 个硬编码 ops 菜单: 租户/存储/网关/审计/ops-user/monitor/message/record/ops-entry)。
-     * 短期方案: 隔离 OK; 长期方案入后续 sprint — 新增 sys_app `ops-admin` + sys_menu 行
-     * 后改回 {@code /menu/user?appId=<ops-admin-id>}。</p>
+     * <p>设计: 平台枚举写在 {@link com.cloudhub.platform.common.constant.Constants.MenuCategory},
+     * 部署时确定, 与"几个平台跟代码强绑定"原则一致。不读 Nacos, 不读 header, 不引入动态配置。</p>
      */
     @SuppressWarnings("unchecked")
-    @Operation(summary = "获取菜单树 (ops-admin, 临时返回空, 详见 #36.2)")
+    @Operation(summary = "获取菜单树 (ops-admin, 调用 /menu/by-category)")
     @GetMapping("/menu/tree")
     public Map<String, Object> getMenuTree() {
-        return java.util.Collections.emptyMap();
+        return restTemplate.getForObject(
+                userServiceUrl + "/menu/by-category?category="
+                        + com.cloudhub.platform.common.constant.Constants.MenuCategory.OPS_ADMIN.getCode(),
+                Map.class);
     }
 
     @SuppressWarnings("unchecked")
-    @Operation(summary = "获取菜单列表 (ops-admin, 临时返回空, 详见 #36.2)")
+    @Operation(summary = "获取菜单列表 (ops-admin, 调用 /menu/by-category)")
     @GetMapping("/menu/list")
     public Map<String, Object> getMenuList() {
-        return java.util.Collections.emptyMap();
+        return restTemplate.getForObject(
+                userServiceUrl + "/menu/by-category?category="
+                        + com.cloudhub.platform.common.constant.Constants.MenuCategory.OPS_ADMIN.getCode(),
+                Map.class);
     }
 }

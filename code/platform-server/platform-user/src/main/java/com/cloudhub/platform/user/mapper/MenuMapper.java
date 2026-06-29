@@ -51,4 +51,17 @@ public interface MenuMapper extends BaseMapper<Menu> {
             "WHERE um.user_id = #{userId} AND m.deleted = 0 AND m.status = 1 " +
             "ORDER BY m.sort ASC")
     List<Menu> selectEnabledByUserMenuIds(@Param("userId") Long userId);
+
+    /**
+     * 按 menu_category 列出所有启用菜单 (平台菜单隔离, V40+ 使用)
+     *
+     * <p>前端平台调用 {@code GET /menu/by-category?category=ops-admin} 时拿到
+     * 单纯 ops-admin 菜单, 不会串到 admin-platform 的 sys_menu 行。</p>
+     *
+     * <p>sys_menu 行 menu_category 是 deploy-time fix (写在 V40 SQL 中), 本查询
+     * 只是一个简单 WHERE, 不引入 Nacos / 平台 header 等动态因素。</p>
+     */
+    @Select("SELECT * FROM sys_menu WHERE menu_category = #{category} " +
+            "AND deleted = 0 AND status = 1 ORDER BY sort ASC")
+    List<Menu> selectByCategory(@Param("category") String category);
 }
