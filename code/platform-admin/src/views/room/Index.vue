@@ -1841,6 +1841,10 @@ onMounted(async () => {
   white-space: normal;
 }
 
+.page-table :deep(.el-table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) .cell) {
+  font-variant-numeric: tabular-nums;
+}
+
 .common-pagination {
   margin-top: 24px;
   display: flex;

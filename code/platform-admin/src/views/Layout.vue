@@ -463,7 +463,8 @@ onBeforeUnmount(() => {
 }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.username { color: #333; }
+.user-info :deep(.el-avatar) { box-shadow: 0 0 0 1px rgba(0,0,0,0.1); }
+.username { color: #333; font-variant-numeric: tabular-nums; }
 .el-aside { background-color: #304156; }
 .sidebar-menu { border-right: none; }
 .el-main { background: #f5f7fa; }
@@ -475,7 +476,7 @@ onBeforeUnmount(() => {
 }
 .notify-badge { line-height: 1; }
 .notify-badge :deep(.el-badge__content) { top: 4px; right: 4px; font-size: 10px; padding: 0 4px; height: 16px; line-height: 16px; border: none; }
-.notify-wrapper { position: relative; display: inline-flex; align-items: center; }
+.notify-wrapper { position: relative; display: inline-flex; align-items: center; min-width: 40px; min-height: 40px; justify-content: center; }
 .notify-panel { max-height: 400px; overflow-y: auto; }
 .notify-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #ebeef5; font-weight: 600; font-size: 14px; }
 .notify-section { margin-top: 4px; }

@@ -423,8 +423,16 @@ onMounted(() => {
 .stat-icon.purple { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #666; }
 .stat-icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
 .stat-content { flex: 1; }
-.stat-value { font-size: 28px; font-weight: bold; color: #333; margin: 0; }
+.stat-value { font-size: 28px; font-weight: bold; color: #333; margin: 0; font-variant-numeric: tabular-nums; }
 .stat-label { font-size: 14px; color: #999; margin: 4px 0 0 0; }
+
+.stats-grid > .stat-card {
+  animation: fadeInUp 0.4s cubic-bezier(0.2, 0, 0, 1) both;
+}
+.stats-grid > .stat-card:nth-child(1) { animation-delay: 0ms; }
+.stats-grid > .stat-card:nth-child(2) { animation-delay: 80ms; }
+.stats-grid > .stat-card:nth-child(3) { animation-delay: 160ms; }
+.stats-grid > .stat-card:nth-child(4) { animation-delay: 240ms; }
 
 /* 两栏 (待办 + 消息) */
 .two-col {
@@ -433,6 +441,8 @@ onMounted(() => {
   gap: 20px;
   margin-bottom: 20px;
 }
+.two-col > .info-card:nth-child(1) { animation: fadeInUp 0.4s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: 150ms; }
+.two-col > .info-card:nth-child(2) { animation: fadeInUp 0.4s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: 230ms; }
 .info-card { min-height: 240px; }
 .card-header {
   display: flex;
@@ -455,7 +465,7 @@ onMounted(() => {
 .msg-meta { font-size: 11px; color: #909399; margin-top: 2px; }
 
 /* 快捷入口 */
-.shortcut-card { margin-bottom: 20px; }
+.shortcut-card { margin-bottom: 20px; animation: fadeInUp 0.4s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: 310ms; }
 .shortcut-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -469,8 +479,18 @@ onMounted(() => {
   padding: 16px 8px;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  animation: fadeInUp 0.35s cubic-bezier(0.2, 0, 0, 1) both;
+  transition-property: transform, background;
+  transition-duration: 0.2s;
 }
+.shortcut-item:nth-child(1) { animation-delay: 0ms; }
+.shortcut-item:nth-child(2) { animation-delay: 40ms; }
+.shortcut-item:nth-child(3) { animation-delay: 80ms; }
+.shortcut-item:nth-child(4) { animation-delay: 120ms; }
+.shortcut-item:nth-child(5) { animation-delay: 160ms; }
+.shortcut-item:nth-child(6) { animation-delay: 200ms; }
+.shortcut-item:nth-child(7) { animation-delay: 240ms; }
+.shortcut-item:nth-child(8) { animation-delay: 280ms; }
 .shortcut-item:hover { background: #f5f7fa; transform: translateY(-2px); }
 .shortcut-icon { font-size: 22px; color: #409eff; }
 .shortcut-label { font-size: 12px; color: #606266; text-align: center; }
@@ -482,6 +502,8 @@ onMounted(() => {
   gap: 20px;
   margin-bottom: 20px;
 }
+.bottom-row > .business-card { animation: fadeInUp 0.4s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: 390ms; }
+.bottom-row > .notice-card { animation: fadeInUp 0.4s cubic-bezier(0.2, 0, 0, 1) both; animation-delay: 470ms; }
 .business-card, .notice-card { min-height: 200px; }
 
 .business-grid {
@@ -528,6 +550,11 @@ onMounted(() => {
   text-align: center;
   color: #909399;
   font-size: 13px;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 1200px) {

@@ -8,4 +8,24 @@ html, body, #app {
   width: 100%;
   height: 100%;
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button:not(.el-button--text):not(.el-button--link):active {
+  transform: scale(0.96) !important;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
 }
