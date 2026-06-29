@@ -389,22 +389,27 @@ async function handleEdit(row: Role) {
   currentId.value = row.id!
   // 编辑时加载部门树 (dataScope=5 时用)
   loadDeptTree()
-  const res: any = await getRoleById(row.id!)
-  if (res.code === 200) {
-    const role = res.data
-    formData.code = role.code
-    formData.name = role.name
-    formData.sort = role.sort
-    formData.remark = role.remark
-    formData.status = role.status
-    formData.dataScope = role.dataScope ?? 1
-    formData.customDeptIds = role.customDeptIds ?? ''
-    if (formData.customDeptIds) {
-      customDeptIdList.value = formData.customDeptIds
-        .split(',')
-        .map(s => Number(s.trim()))
-        .filter(n => !isNaN(n))
+  try {
+    const res: any = await getRoleById(row.id!)
+    if (res.code === 200) {
+      const role = res.data
+      formData.code = role.code
+      formData.name = role.name
+      formData.sort = role.sort
+      formData.remark = role.remark
+      formData.status = role.status
+      formData.dataScope = role.dataScope ?? 1
+      formData.customDeptIds = role.customDeptIds ?? ''
+      if (formData.customDeptIds) {
+        customDeptIdList.value = formData.customDeptIds
+          .split(',')
+          .map(s => Number(s.trim()))
+          .filter(n => !isNaN(n))
+      }
     }
+  } catch (e) {
+    ElMessage.error('获取角色详情失败')
+    return
   }
   dialogVisible.value = true
 }

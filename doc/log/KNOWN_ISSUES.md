@@ -25,7 +25,7 @@
 | 13 | 🟢 已解决 | Git/部署 | `.gitignore` 精确排除 + init.sql 进 git + Flyway 改 true | 2026-06-04 |
 | 14 | 🟢 已解决 | 部署 | 今日未执行 drop platform_message + 重启验证 Flyway 重建, 留给明天 | 2026-06-04 |
 | 15 | 🟢 已解决 (PR1 部署成功) | 数据权限 (M5) | PR1 (e64e3f7) 部署遇 Flyway 启动失败, 临时禁用 Flyway 跑通业务验证 (KNOWN_ISSUES #14 同一根因) | 2026-06-05 |
-| 15 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
+| 15 | 🟢 已解决 (PR4) | 数据权限 (M5) | UPDATE/DELETE 写操作零 data_scope 防护, 销售员可越权改他人数据 | 2026-06-05 |
 | 16 | 🟢 已解决 | 数据权限 (M5) | write-strict 默认 true (fail-closed): DataScopeInnerInterceptor 解析失败抛 DataScopeViolationException | 2026-06-05 |
 | 17 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 业务层 @DataScope 覆盖率仅 2/10 (Role/Dept/Menu/Post/Org/Dict/OperLog/TenantApp 8 个 Service.list 无防护) | 2026-06-05 |
 | 18 | 🔴 待修复 (P0 必修) | 数据权限 (M5) | 跨模块 Provider 缺位, ops/workflow/message 服务的 @DataScope 静默退化为无限制 | 2026-06-05 |
@@ -733,7 +733,7 @@ docker exec platform-mysql mysql -uroot -proot123456 platform -e "SELECT version
 
 ---
 
-## #15 🔴 UPDATE/DELETE 写操作零 data_scope 防护 (2026-06-05) [P0 必修]
+## #15 🟢 UPDATE/DELETE 写操作零 data_scope 防护 (2026-06-05) [P0 必修] — PR4 已实现, 待部署验证
 
 ### 现象
 
