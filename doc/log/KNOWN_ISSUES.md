@@ -46,6 +46,7 @@
 | 35 | 🟢 已解决 | 序列化 | JacksonConfig 全局 Long→String 致 restTemplate 消费端 ClassCastException | 2026-06-25 |
 | 36 | 🔴 复发 | 部署/配置 | 2026-06-25 仅修 auth 缺 JWT_SECRET, 2026-06-29 发现 platform-gateway 也缺, 详情见 #36.1 | 2026-06-29 |
 | 36.1 | 🔴 待修复 (今日 CI/CD) | 部署/配置 | platform-gateway 漏注 JWT_SECRET, 与 auth 不一致, 登录后 Dashboard 立即 401 | 2026-06-29 |
+| 36.2 | 🟡 待跟进 (短期方案已落地) | 菜单串扰 | platform-ops-admin (8090) 加载 platform-user /menu/tree (无过滤) → 显示 admin-platform 全量菜单 | 2026-06-29 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -2714,4 +2715,99 @@ curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8083/dashboard/welcom
 - [ ] 新建 `scripts/ci/check-jwt-secret-alignment.sh` (建议 commit 3, 本次未做)
 - [ ] 5 个服务 yml 第 99 行 `jwt.secret: cloudhub-platform-secret-key-2024` 与 `JwtUtil.java:23` 默认值末尾 19 字符不一致 (平台隐患, 不触发本次 401 但风险高)
 - [ ] `/opt/platform` 加 pre-push hook 强制 yml 改动同时 `git -C /opt/platform diff` 输出供复核
-- `code/platform-admin/src/api/crypto.ts:7` — `CACHE_TTL_MS = 300000`
+
+---
+
+## #36.2 🟡 platform-ops-admin 菜单串扰 (2026-06-29) [短期方案已落地, 长期见待办]
+
+### 现象
+
+- 浏览器登录 ops-admin (8090), 左侧菜单出现 admin-platform 的菜单项 (角色管理/部门管理/用户管理/菜单管理 等)
+- 这些 admin 菜单对 opsadmin 用户无效, 点击报 404 或访问被拒
+- 用户期望: ops-admin 左侧只显示 8 个 ops 菜单 (租户/存储/网关/审计/ops-user/monitor/message/record/ops-entry)
+
+### 直接根因
+
+2026-06-27 commit `751a20b` (OPA2 审计 6 项 菜单):
+
+- 改前: `platform-ops-admin/src/views/Layout.vue` 8 个 ops 菜单**硬编码**在 template, 不依赖后端
+- 改后: 删除硬编码, `onMounted` 调用 `getMenuTree()` (来自 `@/api/menu`) 拉后端
+
+`platform-ops-admin/src/api/menu.ts:17-19`:
+```ts
+export function getMenuTree() {
+  return request.get('/ops-user/menu/tree')
+}
+```
+
+→ 路由到 platform-ops → `OpsUserController.java:114-119 getMenuTree()`:
+```java
+@GetMapping("/menu/tree")
+public Map<String, Object> getMenuTree() {
+    return restTemplate.getForObject(userServiceUrl + "/menu/tree", Map.class);
+}
+```
+
+→ 代理到 platform-user → `MenuController.java /menu/tree` → `MenuService.tree()` → **`menuMapper.selectList(...)` 无 appId 过滤** → 返回 sys_menu 全表 (admin 角色/部门/用户... N 个)
+
+→ ops-admin 的 `Layout.vue` `processMenus()` 拿到全量, `flat.length > 0` → 用后端数据, **FALLBACK_MENUS 永远走不到** → 用户看到 admin 菜单
+
+### 短期修复 (本次 commit)
+
+`OpsUserController.getMenuTree()` 与 `getMenuList()` 都改为返回 `emptyMap()` (Java `Collections.emptyMap()`):
+
+```java
+return java.util.Collections.emptyMap();
+```
+
+`ops-admin Layout.vue` 的 fallback 逻辑:
+```js
+const menus = res.data || []  // 空 → []
+if (Array.isArray(menus) && menus.length > 0) { ... 走后端 }
+menuItems.value = FALLBACK_MENUS  // → 8 个 ops 菜单
+```
+
+修复后 ops-admin 收到空响应, 自动走 FALLBACK_MENUS (硬编码 8 个 ops 菜单), admin 菜单消失。
+
+### 长期方案 (后续 sprint)
+
+1. **新建 sys_app 条目**: `id=5` (5 未占用, 现存 1-4 + 6), `appCode='ops-admin'`, `appName='运营管理'`, `appType=1`, Flyway 迁移 + `sys_tenant_app` 给 tenant 1 授权 (opsadmin 用户)
+2. **新建 sys_menu 8 行** (以 FALLBACK_MENUS 的 path 为准), `app_id = 5`, 通过 V40 SQL INSERT
+3. **OpsUserController** 改代理路径: `/menu/tree` → `/menu/user?appId=5` (MenuService 已支持 appId 过滤)
+4. **删除 FALLBACK_MENUS**, 改 Layout.vue 直接渲染 `menuItems.value`, 由后端按 opsadmin 角色精确控制可见性
+
+### 验证 (本次 commit)
+
+部署 217 后:
+```bash
+# 重启 platform-ops 容器
+docker compose up -d platform-ops
+sleep 8
+
+# 1. ops-admin 收到空菜单响应
+TOKEN=$(curl -s -X POST http://localhost:8083/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"opsadmin","password":"123456"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
+curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8083/ops-user/menu/tree
+# 期望: {} (空 Map, emptyMap)
+
+# 2. browser 端 ops-admin (8090) 登录后左侧只显示 8 个 ops 菜单
+# 3. 期待 — 进入 admin-platform (8080) 左侧只显示 system/user-center/workflow/notification/park-space 5 个 tab
+```
+
+### 教训
+
+1. **🟡 跨平台 endpoint 必须按平台过滤** — `/menu/tree` 无 appId 是设计如此 (管理后台自身用), 但被 ops-admin Layout 调用就破坏了隔离边界; 跨平台 endpoint 应该自带 appContext
+2. **🟢 当前 fallback 机制仍有价值** — 后端缺失/异常时, FALLBACK 兜底保证运维可访问; 但 fallback 永远只能兜底"默认用户", 不能反映真实权限 → 必须有 DB 行才能按权限过滤
+3. **🟢 同一个菜单权限出现"无配置"时易漏发现** — 这次的 ops 8 菜单从初始 commit (2026-05-28) 就没有 sys_menu 行, 靠前端 hardcoded 撑了 1 个月 — 任何 admin/sys_admin/审计改动都可能踩到
+
+### 关联
+
+- HANDOFF_2026-06-10 §问题 12 — Ubuntu yml 改动未 commit 教训 (同类: 改动没入体系)
+- KNOWN_ISSUES #34 — DashboardControllerTest Mockito (同期 audit 类问题)
+- 2026-06-27 `751a20b` OPA2 审计引入 (改硬编码→后端拉取 但 endpoint 选错)
+
+### 待办 (后续 sprint)
+
+- [ ] 长期方案: sys_app.ops-admin + sys_menu 8 行 (本次未做, 用户已同意"先不"长期)
+- [ ] 评估 admin-platform 用户的 opsadmin 反向隔离 (opsadmin 用户进 admin platform 的菜单白名单)
