@@ -370,37 +370,42 @@ async function handleEdit(row: UserPageVO) {
   isEdit.value = true
   dialogTitle.value = '编辑用户'
   currentId.value = row.id
-  const res: any = await getUserById(row.id)
-  if (res.code === 200) {
-    const user = res.data
-    formData.username = user.username
-    formData.nickname = user.nickname
-    formData.mobile = user.mobile
-    formData.email = user.email
-    formData.gender = user.gender
-    formData.status = user.status
-    // IDs 来自 @JsonFormat(Shape.STRING) 已是字符串，保持 string 类型
-    // 避免 Number() 转换导致 19 位雪花 ID 精度丢失 + el-select === 类型不匹配
-    formData.orgId = user.orgId || null
-    formData.deptId = user.deptId || null
-    formData.postId = user.postId || null
-    // 保存显示名称，供 ensureInList 在异步加载后使用
-    currentNames.orgName = user.orgName || ''
-    currentNames.deptName = user.deptName || ''
-    currentNames.postName = user.postName || ''
-    // 后端 UserVO.roleIds 为 Long[]，JS 中为 string[]
-    formData.roleIds = (user.roleIds as string[]) || []
-    // 确保当前值存在于选项列表中（防止 API 返回的 ID 与选项列表不匹配）
-    ensureInList(orgList, formData.orgId, currentNames.orgName)
-    ensureInList(deptList, formData.deptId, currentNames.deptName)
-    ensureInList(postList, formData.postId, currentNames.postName)
-    // 加载级联列表
-    if (user.orgId) {
-      loadDepts(user.orgId)
+  try {
+    const res: any = await getUserById(row.id)
+    if (res.code === 200) {
+      const user = res.data
+      formData.username = user.username
+      formData.nickname = user.nickname
+      formData.mobile = user.mobile
+      formData.email = user.email
+      formData.gender = user.gender
+      formData.status = user.status
+      // IDs 来自 @JsonFormat(Shape.STRING) 已是字符串，保持 string 类型
+      // 避免 Number() 转换导致 19 位雪花 ID 精度丢失 + el-select === 类型不匹配
+      formData.orgId = user.orgId || null
+      formData.deptId = user.deptId || null
+      formData.postId = user.postId || null
+      // 保存显示名称，供 ensureInList 在异步加载后使用
+      currentNames.orgName = user.orgName || ''
+      currentNames.deptName = user.deptName || ''
+      currentNames.postName = user.postName || ''
+      // 后端 UserVO.roleIds 为 Long[]，JS 中为 string[]
+      formData.roleIds = (user.roleIds as string[]) || []
+      // 确保当前值存在于选项列表中（防止 API 返回的 ID 与选项列表不匹配）
+      ensureInList(orgList, formData.orgId, currentNames.orgName)
+      ensureInList(deptList, formData.deptId, currentNames.deptName)
+      ensureInList(postList, formData.postId, currentNames.postName)
+      // 加载级联列表
+      if (user.orgId) {
+        loadDepts(user.orgId)
+      }
+      if (user.deptId) {
+        loadPosts(user.deptId)
+      }
     }
-    if (user.deptId) {
-      loadPosts(user.deptId)
-    }
+  } catch (e) {
+    ElMessage.error('获取用户详情失败')
+    return
   }
   dialogVisible.value = true
 }
