@@ -35,7 +35,10 @@ public class MenuService {
      */
     public List<Map<String, Object>> tree() {
         List<Menu> all = menuMapper.selectList(
-                new LambdaQueryWrapper<Menu>().eq(Menu::getDeleted, 0).orderByAsc(Menu::getSort)
+                new LambdaQueryWrapper<Menu>()
+                        .eq(Menu::getDeleted, 0)
+                        .eq(Menu::getMenuCategory, "admin")
+                        .orderByAsc(Menu::getSort)
         );
         return buildTree(all, 0L);
     }
@@ -61,6 +64,7 @@ public class MenuService {
                         .eq(Menu::getDeleted, 0)
                         .eq(Menu::getStatus, 1)
                         .eq(Menu::getType, 1)
+                        .eq(Menu::getMenuCategory, "admin")
                         .orderByAsc(Menu::getSort)
         );
         return buildTree(all, 0L);
@@ -139,6 +143,8 @@ public class MenuService {
             } else {
                 menus = menuMapper.selectEnabledByAppIds(authorizedAppIds);
             }
+            // V40+ 菜单隔离：仅返回 admin 类别菜单（ops-admin 菜单不串入 admin 后端）
+            menus = filterAdminMenu(menus);
             return buildTree(menus, 0L);
         } else if (userType == 2) {
             // 运营管理员：不能访问管理后台，返回空
@@ -146,6 +152,8 @@ public class MenuService {
         } else {
             // 普通用户：通过角色 + 直接授权菜单，再过滤租户已授权应用
             List<Menu> menus = menuMapper.selectByUserId(userId);
+            // V40+ 菜单隔离：仅返回 admin 类别菜单
+            menus = filterAdminMenu(menus);
             if (!authorizedAppIds.isEmpty()) {
                 menus = menus.stream()
                         .filter(m -> m.getAppId() == null || authorizedAppIds.contains(m.getAppId()))
@@ -208,13 +216,17 @@ public class MenuService {
         } else {
             // 普通用户 / 运营管理员: 通过角色+直接授权获取
             menus = menuMapper.selectByUserId(userId);
-            if (tenantId != null) {
-                List<Long> appIds = menuMapper.selectAuthorizedAppIds(tenantId);
-                if (!appIds.isEmpty()) {
-                    menus = menus.stream()
-                            .filter(m -> m.getAppId() == null || appIds.contains(m.getAppId()))
-                            .collect(Collectors.toList());
-                }
+        }
+        // V40+ 菜单隔离：权限也仅返回 admin 类别
+        menus = filterAdminMenu(menus);
+
+        if (userType == 0 && tenantId != null) {
+            // 普通用户: 再过滤租户已授权应用
+            List<Long> appIds = menuMapper.selectAuthorizedAppIds(tenantId);
+            if (!appIds.isEmpty()) {
+                menus = menus.stream()
+                        .filter(m -> m.getAppId() == null || appIds.contains(m.getAppId()))
+                        .collect(Collectors.toList());
             }
         }
 
@@ -229,6 +241,8 @@ public class MenuService {
      */
     public List<Map<String, Object>> getRoleMenus(Long roleId) {
         List<Menu> menus = menuMapper.selectByRoleId(roleId);
+        // V40+ 菜单隔离：角色菜单也仅返回 admin 类别
+        menus = filterAdminMenu(menus);
         return buildTree(menus, 0L);
     }
 
@@ -304,6 +318,17 @@ public class MenuService {
     }
 
     // ========== 内部工具方法 ==========
+
+    /**
+     * V40+ 菜单隔离: 只保留 admin 类别菜单, 排除 ops-admin 等非 admin 菜单
+     * 确保 admin-platform 的旧端点 (/menu/tree, /menu/user, /menu/nav) 不返回 ops-admin 菜单
+     */
+    private List<Menu> filterAdminMenu(List<Menu> menus) {
+        if (menus == null || menus.isEmpty()) return menus;
+        return menus.stream()
+                .filter(m -> m.getMenuCategory() == null || "admin".equals(m.getMenuCategory()))
+                .collect(Collectors.toList());
+    }
 
     private List<Map<String, Object>> buildTree(List<Menu> menus, Long parentId) {
         return menus.stream()

@@ -45,6 +45,9 @@ public class Menu {
     /** 所属应用ID（关联 sys_app.id），用于多租户应用级权限过滤 */
     private Long appId;
 
+    /** 平台类别：admin | ops-admin | common（V40+ 菜单隔离） */
+    private String menuCategory;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

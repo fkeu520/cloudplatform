@@ -139,6 +139,7 @@ CREATE TABLE sys_menu (
     perms VARCHAR(100),
     status TINYINT DEFAULT 1,
     app_id BIGINT,
+    menu_category VARCHAR(32) DEFAULT 'admin',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP,
     deleted TINYINT DEFAULT 0,
