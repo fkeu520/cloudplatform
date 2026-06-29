@@ -174,6 +174,12 @@ spring:
                 name: platform-message-cb
                 fallbackUri: forward:/fallback/message
 
+        # 鏅鸿兘闂瓟
+        - id: platform-kefu
+          uri: http://platform-kefu:8000
+          predicates:
+            - Path=/api/kefu/**
+
         # 缃戝叧鑷韩绠＄悊鎺ュ彛
         - id: platform-gateway-self
           uri: lb://platform-gateway
