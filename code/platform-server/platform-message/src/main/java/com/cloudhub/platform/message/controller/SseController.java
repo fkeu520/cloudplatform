@@ -51,8 +51,9 @@ public class SseController {
             try {
                 userId = Long.parseLong(paramUserId);
             } catch (NumberFormatException ignored) {}
-            // WF2-2: paramUserId 必须等于当前用户, 禁止越权订阅他人消息
-            if (userId != null && !userId.equals(currentUserId)) {
+            // WF2-2: 仅当已有用户身份时才校验一致, 无身份时信任 query param
+            // (EventSource 不能发 Authorization 头, gateway 负责保护 /api/message 路径)
+            if (userId != null && currentUserId != null && !userId.equals(currentUserId)) {
                 throw new com.cloudhub.platform.common.exception.BizException("无权订阅其他用户的消息");
             }
         }
