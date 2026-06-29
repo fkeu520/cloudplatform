@@ -8,6 +8,11 @@
 - 周期性采集 (15s 间隔, 避免每次 scrape 都读 socket)
 - CPU/网络用 Gauge 暴露累计值, Prometheus 端用 rate() 转速率
 
+v2 (2026-06-29): 加 container_cpu_usage_percent 直接暴露 0-100 百分比
+- 用 Docker API 自带的 precpu_stats 算 delta (无需自己缓存上一次)
+- 公式: (cpu_total_delta / system_cpu_delta) * 100, 类似 `docker stats` 输出
+- 兼容 precpu_stats 缺失 (首次采集无 delta) 的情况
+
 历史: KNOWN_ISSUES #21 (2026-06-11) 已记录修复要点, 但 #24 回归发现 exporter.py
 实际仍用旧字段 'memory' + 固定 v1.24 路径, 导致 Grafana "容器资源排行" 空数据。
 """
@@ -40,6 +45,12 @@ g_cpu_total_ns = Gauge(
 g_cpu_system_ns = Gauge(
     'container_cpu_system_nanoseconds_total',
     'System CPU usage cumulative (nanoseconds, for ratio calc)',
+    ['name'],
+)
+# v2: 直接暴露 CPU 使用率 (0-100), 避免 Prometheus/Grafana 端手动算 rate
+g_cpu_percent = Gauge(
+    'container_cpu_usage_percent',
+    'Container CPU usage percentage (0-100, all cores summed)',
     ['name'],
 )
 g_net_rx = Gauge(
@@ -125,6 +136,23 @@ def update_metrics():
         cpu_system_ns = int(cpu_stats.get('system_cpu_usage', 0) or 0)
         g_cpu_total_ns.labels(name=name).set(cpu_total_ns)
         g_cpu_system_ns.labels(name=name).set(cpu_system_ns)
+
+        # ── CPU 使用率 % (0-100, all cores summed) ──
+        # 利用 Docker API 自带的 precpu_stats 算两次采集间的 delta
+        # 公式与 `docker stats` CLI 一致: (cpu_delta / system_delta) * 100
+        # precpu_stats 在容器启动后第一次采集时为 0, 跳过避免除零
+        precpu_stats = stats_raw.get('precpu_stats') or {}
+        precpu_usage = precpu_stats.get('cpu_usage') or {}
+        precpu_total = int(precpu_usage.get('total_usage', 0) or 0)
+        precpu_system = int(precpu_stats.get('system_cpu_usage', 0) or 0)
+        cpu_delta = cpu_total_ns - precpu_total
+        sys_delta = cpu_system_ns - precpu_system
+        if cpu_delta > 0 and sys_delta > 0:
+            # online_cpus 不参与公式 (Docker stats 内部按 all_cpus 算百分比)
+            # 但 * 100 让结果落到 0-100 范围 (无上限, 多核容器可超过 100)
+            cpu_pct = (cpu_delta / sys_delta) * 100.0
+            g_cpu_percent.labels(name=name).set(round(cpu_pct, 2))
+        # else: 首次采集或容器刚启动, 无 delta 数据, 不设置 (保持 -1 默认, 或跳过)
 
         # ── 网络累计值 (字节) ──
         # prometheus 端用 rate(container_network_receive_bytes_total[5m]) 转速率

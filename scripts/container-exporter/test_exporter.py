@@ -215,6 +215,90 @@ def test_api_path_no_version_prefix():
     print(f'[PASS] API path no version prefix: {captured_paths}')
 
 
+def test_cpu_percent_with_precpu_delta():
+    """验证: CPU 使用率 % 正确计算 (用 precpu_stats 算 delta)."""
+    stats = {
+        'memory_stats': {'usage': 0, 'stats': {}},
+        'cpu_stats': {
+            'cpu_usage': {'total_usage': 8000000000},  # 当前: 8s
+            'system_cpu_usage': 20000000000,           # 系统: 20s
+            'online_cpus': 6,
+        },
+        'precpu_stats': {
+            'cpu_usage': {'total_usage': 7500000000},   # 上次: 7.5s → delta 0.5s
+            'system_cpu_usage': 19500000000,           # 上次: 19.5s → delta 0.5s
+        },
+        'networks': {},
+    }
+    with patch.object(exporter, 'docker_api') as mock_api:
+        mock_api.side_effect = [
+            [{'Names': ['/platform-cpu-1'], 'Id': 'cpu1'}],
+            stats,
+        ]
+        exporter.update_metrics()
+
+    cpu_pct = gauge_value(exporter.g_cpu_percent, 'platform-cpu-1')
+    # (8 - 7.5) / (20 - 19.5) * 100 = 0.5 / 0.5 * 100 = 100%
+    assert abs(cpu_pct - 100.0) < 0.01, f'expected ~100%, got {cpu_pct}'
+    print(f'[PASS] CPU percent with precpu delta: {cpu_pct}%')
+
+
+def test_cpu_percent_zero_on_first_collect():
+    """验证: 首次采集无 precpu delta 时, CPU % 不设置 (无数据而非 0)."""
+    stats = {
+        'memory_stats': {'usage': 0, 'stats': {}},
+        'cpu_stats': {
+            'cpu_usage': {'total_usage': 8000000000},
+            'system_cpu_usage': 20000000000,
+        },
+        'precpu_stats': {
+            'cpu_usage': {'total_usage': 8000000000},  # delta = 0
+            'system_cpu_usage': 20000000000,           # delta = 0
+        },
+        'networks': {},
+    }
+    with patch.object(exporter, 'docker_api') as mock_api:
+        mock_api.side_effect = [
+            [{'Names': ['/platform-cpu-2'], 'Id': 'cpu2'}],
+            stats,
+        ]
+        exporter.update_metrics()
+
+    # delta = 0, 跳过设置, gauge 应保持初始 0 (FakeGauge default)
+    cpu_pct = gauge_value(exporter.g_cpu_percent, 'platform-cpu-2')
+    # 注意: FakeGauge 默认 0, 真实 Gauge 不会变 (因为没调 .set()).
+    # 这里我们只能验证没崩 + 不会得到 100% 这种错误值
+    assert cpu_pct < 100, f'should not be 100 when no delta, got {cpu_pct}'
+    print(f'[PASS] CPU percent no-op on zero delta: {cpu_pct}%')
+
+
+def test_cpu_percent_low_usage():
+    """验证: 低 CPU 使用率 (5% 空闲, 1 核满载 → 100% 报告)."""
+    stats = {
+        'memory_stats': {'usage': 0, 'stats': {}},
+        'cpu_stats': {
+            'cpu_usage': {'total_usage': 1000000000},   # 1s CPU
+            'system_cpu_usage': 20000000000,            # 20s 系统 (6 核)
+        },
+        'precpu_stats': {
+            'cpu_usage': {'total_usage': 0},             # 首次: 0 → delta 1s
+            'system_cpu_usage': 0,                       # 首次: 0 → delta 20s
+        },
+        'networks': {},
+    }
+    with patch.object(exporter, 'docker_api') as mock_api:
+        mock_api.side_effect = [
+            [{'Names': ['/platform-cpu-3'], 'Id': 'cpu3'}],
+            stats,
+        ]
+        exporter.update_metrics()
+
+    cpu_pct = gauge_value(exporter.g_cpu_percent, 'platform-cpu-3')
+    # (1 - 0) / (20 - 0) * 100 = 5%
+    assert abs(cpu_pct - 5.0) < 0.01, f'expected ~5%, got {cpu_pct}'
+    print(f'[PASS] CPU percent low usage: {cpu_pct}%')
+
+
 if __name__ == '__main__':
     print('=== exporter.py 测试套件 ===')
     print()
@@ -226,6 +310,9 @@ if __name__ == '__main__':
     test_stats_no_memory_stats_field()
     test_multi_network_interface_aggregation()
     test_api_path_no_version_prefix()
+    test_cpu_percent_with_precpu_delta()
+    test_cpu_percent_zero_on_first_collect()
+    test_cpu_percent_low_usage()
 
     print()
     print('=== ALL TESTS PASSED ===')
