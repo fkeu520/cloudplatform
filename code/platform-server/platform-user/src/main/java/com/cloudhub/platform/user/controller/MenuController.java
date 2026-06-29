@@ -35,6 +35,21 @@ public class MenuController {
     }
 
     /**
+     * 按 menu_category 列出菜单树 (V40+ 平台菜单隔离端点)
+     *
+     * <p>使用场景: platform-ops-admin 的 OpsUserController.getMenuTree() 代理
+     * 此端点, category 硬编码 "ops-admin" (见 Constants.MenuCategory.OPS_ADMIN)。</p>
+     *
+     * <p>与 /menu/tree 不同: 该端点不过滤 NULL 行或全表, 仅返回 menu_category = X 的行,
+     * 物理隔离 admin-platform 与 ops-admin 的菜单。</p>
+     */
+    @Operation(summary = "按平台类别获取菜单树 (admin / ops-admin / common)")
+    @GetMapping("/by-category")
+    public Result<List<Map<String, Object>>> byCategory(@RequestParam String category) {
+        return Result.ok(menuService.listByCategory(category));
+    }
+
+    /**
      * 获取当前用户菜单树 (W3 P0-5 新增 appId 参数支持)
      *
      * <p>逻辑:

@@ -34,54 +34,38 @@
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { logout as logoutApi } from '@/api/auth'
+import { getMenuTree } from '@/api/menu'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-// OPA2-4: 数据驱动菜单，后端按用户权限过滤后返回
+// OPA2-4 + V40+#36.2: 数据驱动菜单, 后端按 menu_category='ops-admin' 过滤后返回
 interface MenuItem { index: string; icon: string; label: string }
 const menuItems = ref<MenuItem[]>([])
 
-const FALLBACK_MENUS: MenuItem[] = [
-  { index: '/tenant',    icon: 'fas fa-building',   label: '租户管理' },
-  { index: '/storage',   icon: 'fas fa-database',   label: '对象存储' },
-  { index: '/gateway',   icon: 'fas fa-plug',       label: '服务网关' },
-  { index: '/audit',     icon: 'fas fa-clipboard-list', label: '日志审计' },
-  { index: '/ops-user',  icon: 'fas fa-users-cog',  label: '用户管理' },
-  { index: '/message/record', icon: 'fas fa-bell',  label: '消息记录' },
-  { index: '/monitor',   icon: 'fas fa-heartbeat',  label: '系统监控' },
-  { index: '/ops-entry', icon: 'fas fa-tools',      label: '运维管理' },
-]
-
 onMounted(async () => {
   try {
-    const { getMenuTree } = await import('@/api/menu')
     const res: any = await getMenuTree()
     const menus = res.data || []
-    if (Array.isArray(menus) && menus.length > 0) {
-      // 扁平化后端菜单树为平铺菜单项（仅保留 leaf-level 且有 path 的）
-      const flat: MenuItem[] = []
-      function walk(items: any[]) {
-        for (const m of items) {
-          if (m.path && m.path !== '/' && (!m.children || m.children.length === 0)) {
-            flat.push({ index: m.path, icon: m.icon ? `fas fa-${m.icon}` : 'fas fa-circle', label: m.name })
-          }
-          if (m.children?.length) walk(m.children)
+    // 扁平化后端菜单树为平铺菜单项 (仅保留 leaf-level 且有 path 的)
+    const flat: MenuItem[] = []
+    function walk(items: any[]) {
+      for (const m of items) {
+        if (m.path && m.path !== '/' && (!m.children || m.children.length === 0)) {
+          flat.push({ index: m.path, icon: m.icon ? `fas fa-${m.icon}` : 'fas fa-circle', label: m.name })
         }
+        if (m.children?.length) walk(m.children)
       }
-      walk(menus)
-      menuItems.value = flat.length > 0 ? flat : FALLBACK_MENUS
-      return
     }
+    walk(menus)
+    menuItems.value = flat
   } catch {
-    // 静默降级
+    // 后端菜单接口异常 → 留空, 由 el-menu 显示 "暂无菜单权限"
+    menuItems.value = []
   }
-  // 后端菜单为空或接口异常 → 使用完整静态菜单（管理员默认全量）
-  menuItems.value = FALLBACK_MENUS
 })
 
 async function handleLogout() {

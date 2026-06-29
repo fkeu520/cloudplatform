@@ -41,6 +41,18 @@ public class MenuService {
     }
 
     /**
+     * 按 menu_category 列出菜单 (扁平, 用于 ops-admin / future 平台)
+     *
+     * <p>V40+#36.2 长期方案: 平台 enum 写在 {@link com.cloudhub.platform.common.constant.Constants.MenuCategory},
+     * sys_menu.menu_category 列承载实际值, 此方法不做任何动态拼接,
+     * 严格按 category 字符串相等过滤。</p>
+     */
+    public List<Map<String, Object>> listByCategory(String category) {
+        List<Menu> all = menuMapper.selectByCategory(category);
+        return buildTree(all, 0L);
+    }
+
+    /**
      * 获取菜单树（仅菜单类型，用于左侧导航）
      */
     public List<Map<String, Object>> navTree() {
