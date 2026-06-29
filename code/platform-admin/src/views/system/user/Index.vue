@@ -338,7 +338,7 @@ async function loadDepts(orgId: string) {
   if (res.code === 200) {
     deptList.value = res.data || []
     // loadDepts 完成后，确保当前 deptId 仍在列表中（API 可能不包含已选择的项）
-    ensureInList(deptList, formData.deptId, currentNames.deptName)
+    ensureInList(deptList.value, formData.deptId, currentNames.deptName)
   }
 }
 
@@ -354,7 +354,7 @@ async function loadPosts(deptId: string) {
   const res: any = await getPostByDeptId(deptId)
   if (res.code === 200) {
     postList.value = res.data || []
-    ensureInList(postList, formData.postId, currentNames.postName)
+    ensureInList(postList.value, formData.postId, currentNames.postName)
   }
 }
 
@@ -392,9 +392,9 @@ async function handleEdit(row: UserPageVO) {
       // 后端 UserVO.roleIds 为 Long[]，JS 中为 string[]
       formData.roleIds = (user.roleIds as string[]) || []
       // 确保当前值存在于选项列表中（防止 API 返回的 ID 与选项列表不匹配）
-      ensureInList(orgList, formData.orgId, currentNames.orgName)
-      ensureInList(deptList, formData.deptId, currentNames.deptName)
-      ensureInList(postList, formData.postId, currentNames.postName)
+      ensureInList(orgList.value, formData.orgId, currentNames.orgName)
+      ensureInList(deptList.value, formData.deptId, currentNames.deptName)
+      ensureInList(postList.value, formData.postId, currentNames.postName)
       // 加载级联列表
       if (user.orgId) {
         loadDepts(user.orgId)
