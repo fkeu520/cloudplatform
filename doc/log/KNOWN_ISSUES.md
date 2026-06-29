@@ -49,6 +49,7 @@
 | 36.2 | 🟢 已解决 (长期方案可再议) | 菜单串扰 | platform-ops-admin (8090) 加载 admin 菜单 → menu_category 隔离 + filterAdminMenu() | 2026-06-29 |
 | 36.3 | 🟢 已解决 | 测试 | H2 tenant-test-schema.sql 缺 menu_category 列, TenantIsolationTest 失败 | 2026-06-29 |
 | 36.4 | 🟢 已解决 | 菜单过滤 | admin 后端 5 个菜单端点 (/tree/nav/user/permissions/role) 返回 ops-admin 菜单 | 2026-06-29 |
+| 37 | 🟢 已解决 | 角色管理 | 角色管理页操作列空白: docker/fix_perms.sql 手动脚本未在 217 部署链路中自动执行, sys_menu 缺 38-45 操作权限菜单, sys_role_menu role=1 也未关联 → getUserPermissions 不含 system:role:edit/add/del → TableActions 过滤所有按钮 → 操作列空 | 2026-06-29 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -2813,3 +2814,52 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8083/ops-user/menu/tr
 
 - [ ] 长期方案: sys_app.ops-admin + sys_menu 8 行 (本次未做, 用户已同意"先不"长期)
 - [ ] 评估 admin-platform 用户的 opsadmin 反向隔离 (opsadmin 用户进 admin platform 的菜单白名单)
+
+---
+
+## #37 🟢 角色管理操作列空白 (2026-06-29)
+
+### 现象
+
+- 浏览器登录 admin / 123456, 进入「系统管理 → 角色管理」
+- 列表正常显示 (角色数据正确, 4 张统计卡正常)
+- 但「操作」列空白 — 看不到 "编辑" / "权限" / "删除" 按钮
+- 新增角色按钮 (顶部) 正常显示, 因为它用的是 `v-permission="'system:role:add'"` 指令 (从 Layout 全局权限 store 读)
+
+### 根因 (双层)
+
+**层 1 (前端)**: 表格操作列用 `<TableActions :buttons="[{label:'编辑', permission:'system:role:edit', ...}]">` 渲染, TableActions 调用 `userStore.hasPermission('system:role:edit')` 判断是否显示按钮.
+
+**层 2 (后端)**: `userStore.hasPermission` 依赖 `permissions.value`, 该 ref 由 `getUserPermissions()` 填充. 后端从 `sys_role_menu` join `sys_user_role` 拉当前用户角色的菜单 perms, 用作 permissions 列表.
+
+**根因**: 217 上 `sys_menu` 表缺 id 38-45 (system:role/menu 的 view/add/edit/del 操作权限), `sys_role_menu` 也未把 role=1 关联到这些菜单. 因此 admin 用户拉到的 permissions 列表不含 `system:role:edit/add/del` 和 `system:menu:edit/add/del`. TableActions 过滤掉所有 action 按钮.
+
+**根因之根因**: `docker/fix_perms.sql` 是手动补数据的脚本, 历史上不在 Flyway migration 链路里, 217 部署只跑 V1-V40 的 migrations, 所以这个手动脚本从来没被执行过.
+
+### 217 立即修复 (本次)
+
+执行 `scripts/diag/fix-role-action-perms-on-217.sh`:
+- INSERT IGNORE sys_menu id 38-45
+- INSERT IGNORE sys_role_menu role=1 → menu 38-45
+
+验证: `fix_perms applied: 8 menus inserted, 0 missing perms after fix`
+
+### 长期修复 (V41 migration)
+
+新建 `code/platform-server/platform-user/src/main/resources/db/migration/V41__fix_admin_role_action_perms.sql`:
+- 与 fix_perms.sql 内容对齐
+- INSERT IGNORE → idempotent (重复执行不报错)
+- 分给所有 `code LIKE '%ADMIN%'` 的角色 (兜底 SUPER_ADMIN + 未来运维角色)
+- 217 Flyway disabled → 不自动跑, 但新环境 / 重置后会正确生效
+
+### 教训
+
+1. **手动 SQL 脚本必须转化为 migration** — `docker/fix_perms.sql` 是手工脚本, 不在迁移链路, 注定会被遗忘. 长期方案永远是 Flyway migration (即使当前 Flyway disabled, 也是 ground truth)
+2. **V26 migration 缺失**: 看 `ls platform-user/src/main/resources/db/migration/` 只有 V25 / V27, 跳过 V26. 说明历史上 fix_perms.sql 应该是 V26 但只到了 docker/ 目录
+3. **前端权限检查失败应 fail-loud**: 当前 `hasPermission('xxx')` 返 false 时按钮直接消失, 无控制台 warn. 建议 dev 模式下, 按钮被过滤时 `console.warn('[TableActions] 权限 xxx 未匹配, button xxx 隐藏')` 便于排查
+
+### 关联
+
+- `docker/fix_perms.sql` — 手工脚本, V41 是其 migration 化
+- `scripts/diag/fix-role-action-perms-on-217.sh` — 217 立即修复 (本次)
+- `code/platform-server/platform-user/src/main/resources/db/migration/V41__fix_admin_role_action_perms.sql` — 长期 fix
