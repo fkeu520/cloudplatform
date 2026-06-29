@@ -241,6 +241,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - SPRING_PROFILES_ACTIVE=docker
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
@@ -274,6 +275,7 @@ services:
     ports:
       - "8091:8091"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -302,6 +304,7 @@ services:
     ports:
       - "8092:8092"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -330,6 +333,7 @@ services:
     ports:
       - "8093:8093"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -358,6 +362,7 @@ services:
     ports:
       - "8085:8085"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
@@ -421,6 +426,7 @@ services:
     ports:
       - "8084:8084"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - SPRING_PROFILES_ACTIVE=docker
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
@@ -483,6 +489,7 @@ services:
     ports:
       - "8087:8087"
     environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
