@@ -70,7 +70,7 @@
           <span class="user-info">
             <!-- F7: 使用用户头像（如有），否则用空白默认头像避免 CDN 破图 -->
             <el-avatar :size="32" :src="avatarSrc" @error="onAvatarError">{{ avatarInitial }}</el-avatar>
-            <span class="username">{{ userStore.userInfo?.username || '管理员' }}</span>
+            <span class="username">{{ userStore.userInfo?.nickname || displayName || userStore.userInfo?.username || '管理员' }}</span>
           </span>
           <template #dropdown>
             <el-dropdown-menu>
@@ -147,6 +147,8 @@ const activeApp = ref<string>('')          // 当前选中的 app (顶部 tab)
 const appsLoaded = ref<boolean>(false)     // app 列表是否已加载 (用于空状态判断)
 
 const username = localStorage.getItem('username') || 'admin'
+// 页面刷新后 userStore.userInfo 为 null, 用 localStorage 中存储的 nickname/username 做 fallback
+const displayName = localStorage.getItem('nickname') || localStorage.getItem('username') || ''
 
 // F7: 头像——优先使用用户头像 URL，否则显示首字
 const avatarSrc = computed(() => userStore.userInfo?.avatar || '')

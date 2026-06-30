@@ -92,6 +92,7 @@ const handleLogin = async () => {
 
     if (userInfo) {
       localStorage.setItem('userId', String(userInfo.id || ''))
+      localStorage.setItem('nickname', userInfo.nickname || '')
       userStore.setUserInfo(userInfo)
       userStore.setPermissions(userInfo.perms || [])
     }
