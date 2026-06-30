@@ -67,6 +67,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             log.debug("[JwtAuth] Token有效, userId={}, username={}, tenantId={}, userType={}",
                     userId, username, tenantId, userType);
 
+            // Phase 1F Step 4: 通过 JwtUtil.getAll() 解析嵌入的权限列表 (之前用 claims.get() 错误)
+            JwtUtil.JwtClaims jwtClaims = JwtUtil.getAll(token);
+            java.util.List<String> permsList = jwtClaims.permissions();
+            String permsHeader = permsList == null ? "" : String.join(",", permsList);
+            log.debug("[JwtAuth] 写入 X-User-Permissions count={}", permsList == null ? 0 : permsList.size());
+
             // 将用户上下文传递到后续服务（通过 Header）
             // 业务服务侧可通过 park-common 的 ParkAuthFilter 读取并写入 LoginContextHolder
             ServerHttpRequest mutated = exchange.getRequest().mutate()
@@ -74,6 +80,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                     .header("X-User-Name", username == null ? "" : username)
                     .header("X-Tenant-Id", tenantId == null ? "" : String.valueOf(tenantId))
                     .header("X-User-Type", userType == null ? "" : String.valueOf(userType))
+                    .header("X-User-Permissions", permsHeader)
                     .build();
             return chain.filter(exchange.mutate().request(mutated).build());
         } catch (Exception e) {

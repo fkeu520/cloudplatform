@@ -57,6 +57,8 @@ public class ParkAuthFilter extends OncePerRequestFilter {
     public static final String HEADER_USER_NAME = "X-User-Name";
     public static final String HEADER_TENANT_ID = "X-Tenant-Id";
     public static final String HEADER_USER_TYPE = "X-User-Type";
+    /** Phase 1F Step 4: gateway 从 JWT claims.permissions 注入 CSV 权限字符串 (逗号分隔, e.g. "user:add,user:edit,...") */
+    public static final String HEADER_USER_PERMISSIONS = "X-User-Permissions";
 
     /** 内部调用标识 (跳过鉴权) */
     public static final String HEADER_FROM_IN = "from=in";
@@ -100,7 +102,9 @@ public class ParkAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 解析 Header 构造 LoginUser (W2.3 阶段: 仅基础字段, 权限集合为空)
+     * 解析 Header 构造 LoginUser
+     * <p>Phase 1F Step 4 修复: 从 {@link #HEADER_USER_PERMISSIONS} (gateway 注入的 CSV 字符串)
+     * 解析权限集合, 这样业务模块的 @RequiresPermissions 切面就能校验真实用户权限.</p>
      */
     private LoginUser parseLoginUser(String userIdStr, HttpServletRequest request) {
         Long userId = parseLong(userIdStr);
@@ -108,13 +112,25 @@ public class ParkAuthFilter extends OncePerRequestFilter {
         Long tenantId = parseLong(request.getHeader(HEADER_TENANT_ID));
         Integer userType = parseInt(request.getHeader(HEADER_USER_TYPE));
 
+        // Phase 1F Step 4: 解析 X-User-Permissions (CSV) → Set<String>
+        String permsHeader = request.getHeader(HEADER_USER_PERMISSIONS);
+        java.util.Set<String> permissions;
+        if (permsHeader == null || permsHeader.isBlank()) {
+            permissions = Collections.emptySet();
+        } else {
+            permissions = new java.util.HashSet<>();
+            for (String p : permsHeader.split(",")) {
+                String trimmed = p.trim();
+                if (!trimmed.isEmpty()) permissions.add(trimmed);
+            }
+        }
+
         return LoginUser.builder()
                 .userId(userId)
                 .username(username)
                 .tenantId(tenantId)
                 .userType(userType)
-                // W2.3 阶段 permissions 为空, 业务模块需要时手动调用 LoginContextHolder.populatePermissions()
-                .permissions(Collections.emptySet())
+                .permissions(permissions)
                 .build();
     }
 

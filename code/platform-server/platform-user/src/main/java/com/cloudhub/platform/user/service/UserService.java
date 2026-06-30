@@ -94,7 +94,11 @@ public class UserService {
 
         Long tenantId = user.getTenantId() != null ? user.getTenantId().longValue() : 0L;
         Integer userType = user.getUserType();
-        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, userType, tokenExpireSeconds);
+        // Phase 1F Step 4: 把合并后的 permissions 一并嵌入 JWT, 业务服务 ParkAuthFilter 不再需要跨服务调用
+        // 复用 toUserVO 的合并逻辑, 字段 perms 已经在 user vo 上
+        java.util.List<String> perms = getMergedPerms(user.getId());
+        log.debug("登录注入 permissions: userId={}, permCount={}", user.getId(), perms.size());
+        String token = JwtUtil.generate(user.getId().toString(), username, tenantId, userType, perms, tokenExpireSeconds);
         long expireTime = System.currentTimeMillis() + tokenExpireSeconds * 1000;
 
         // 更新最后登录信息
