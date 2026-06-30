@@ -51,6 +51,9 @@ on:
       - 'scripts/container-exporter/**'
       - 'scripts/container-exporter/Dockerfile'
       - 'scripts/container-exporter/Dockerfile.*'
+      # CI 自身变更 (docker-compose.yml, ci.yml) 必须能触发构建
+      - 'docker-compose.yml'
+      - '.github/workflows/**'
   pull_request:
     branches: [develop, master]
     paths:
