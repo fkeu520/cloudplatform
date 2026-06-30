@@ -244,14 +244,16 @@ jobs:
             docker push $img
           done
 
-          # platform-kefu 后端 (Python FastAPI, 不属于 platform-server)
+          # 前端镜像 (回到 GITHUB_WORKSPACE 后才能引用 ./code/platform-kefu)
+          cd "$GITHUB_WORKSPACE"
+
+          # platform-kefu 后端 (Python FastAPI)
           img="ghcr.io/${{ github.repository }}/platform-kefu:latest"
           echo "Building $img"
           docker build -t $img "./code/platform-kefu"
           docker push $img
 
-          # 前端镜像
-          cd "$GITHUB_WORKSPACE"
+          # 其他前端镜像 (platform-admin / ops-admin / platform-kefu-frontend)
           for fe in platform-admin platform-ops-admin platform-kefu-frontend; do
             img="ghcr.io/${{ github.repository }}/${fe}:latest"
             echo "Building $img"
