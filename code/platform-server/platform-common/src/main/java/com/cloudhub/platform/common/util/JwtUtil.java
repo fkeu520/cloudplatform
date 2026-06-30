@@ -37,8 +37,12 @@ public class JwtUtil {
 
     /**
      * JWT 载荷记录 — 封装 Token 中的全部自定义字段
+     * <p>permissions 字段 (Phase 1F Step 4): 登录时从 sys_role_menu + sys_user_menu 合并,
+     * 静态嵌入 JWT claims, 业务服务通过 {@code JwtUtil.getAll(token).permissions()} 直接获取,
+     * 无需跨服务 HTTP 调用 + Redis 缓存
+     * (热更新走 Redis 黑名单 — 角色变化时把旧 token 加入 blacklist map, ParkAuthFilter 校验).</p>
      */
-    public record JwtClaims(String userId, String username, Long tenantId, Integer userType) {}
+    public record JwtClaims(String userId, String username, Long tenantId, Integer userType, java.util.List<String> permissions) {}
 
     /**
      * 解析 Token 并返回全部载荷字段（只调用一次 parse）
@@ -48,11 +52,14 @@ public class JwtUtil {
      */
     public static JwtClaims getAll(String token) {
         Claims claims = parse(token);
+        @SuppressWarnings("unchecked")
+        java.util.List<String> perms = claims.get("permissions", java.util.List.class);
         return new JwtClaims(
                 claims.getSubject(),
                 claims.get("username", String.class),
                 claims.get("tenantId", Long.class),
-                claims.get("userType", Integer.class)
+                claims.get("userType", Integer.class),
+                perms == null ? java.util.List.of() : perms
         );
     }
 
@@ -80,9 +87,19 @@ public class JwtUtil {
     }
 
     /**
-     * 生成 Token（含用户名、租户ID、用户类型）
+     * 生成 Token（含用户名、租户ID、用户类型 + 权限列表）
+     * <p>主入口 — Phase 1F Step 4 修复后, 调用方 (UserService.login) 传入合并后的 permissions,
+     * 业务服务 JwtAuthFilter 会自动写入 X-User-Permissions header 供 ParkAuthFilter 消费.</p>
+     *
+     * @param subject     用户ID
+     * @param username    用户名
+     * @param tenantId    租户ID
+     * @param userType    用户类型 (0=普通 1=租户管理员 2=运营管理员)
+     * @param permissions 合并后的权限列表 (sys_role_menu + sys_user_menu 去重), 允许 null
+     * @param expireSec   过期秒数
      */
-    public static String generate(String subject, String username, Long tenantId, Integer userType, long expireSec) {
+    public static String generate(String subject, String username, Long tenantId, Integer userType,
+                                   java.util.List<String> permissions, long expireSec) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", subject);
         if (username != null) {
@@ -94,6 +111,9 @@ public class JwtUtil {
         if (userType != null) {
             claims.put("userType", userType);
         }
+        if (permissions != null && !permissions.isEmpty()) {
+            claims.put("permissions", permissions);
+        }
         return Jwts.builder()
                 .claims(claims)
                 .subject(subject)
@@ -101,6 +121,15 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + expireSec * 1000))
                 .signWith(KEY)
                 .compact();
+    }
+
+    /**
+     * 生成 Token 兼容重载 — Phase 1F Step 4 之前的老调用 (AppControllerTest 等)
+     * <p>不嵌 permissions, 业务端 LoginUser.permissions 为空集 (切面会拒绝所有 @RequiresPermissions).
+     * 新代码应该用 {@link #generate(String, String, Long, Integer, java.util.List, long)}.</p>
+     */
+    public static String generate(String subject, String username, Long tenantId, Integer userType, long expireSec) {
+        return generate(subject, username, tenantId, userType, java.util.List.of(), expireSec);
     }
 
     /**

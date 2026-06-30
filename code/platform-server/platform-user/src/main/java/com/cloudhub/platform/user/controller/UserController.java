@@ -4,6 +4,7 @@ import com.cloudhub.platform.common.annotation.Log;
 import com.cloudhub.platform.common.config.DataScopeContext;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.Result;
+import com.cloudhub.platform.park.common.security.annotation.RequiresPermissions;
 import com.cloudhub.platform.user.domain.entity.User;
 import com.cloudhub.platform.user.domain.vo.LoginVO;
 import com.cloudhub.platform.user.domain.vo.UserPageVO;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "�û�����", description = "�û�CRUD/��¼/��ɫ����/�������")
+@Tag(name = "用户管理", description = "用户CRUD/登录/角色/权限")
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/user")
@@ -134,9 +135,16 @@ public class UserController {
         return Result.ok(userService.getById(id));
     }
 
+    /**
+     * Phase 1F Step 4 smoke test: 新增用户需 user:add 权限
+     * <p>链路: JwtAuthFilter (gateway) → JWT claims.permissions → X-User-Permissions header →
+     *    ParkAuthFilter (park-common) → LoginUser.permissions → @RequiresPermissions 切面校验.
+     * <p>如果用户没有 user:add 权限 (sys_role_menu + sys_user_menu 取并集), 此端点直接返回 403.</p>
+     */
     @Operation(summary = "新增用户")
     @Log(title = "用户管理", businessType = 1)
     @PostMapping
+    @RequiresPermissions("user:add")
     public Result<Void> create(@RequestBody @Validated Map<String, Object> params) {
         userService.create(params);
         return Result.ok();
