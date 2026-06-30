@@ -115,6 +115,21 @@ spring:
                 retries: 3
                 statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
 
+        # 企业档案 (Phase 1 park-enterprise, 2026-06-30 补)
+        - id: park-enterprise
+          uri: lb://park-enterprise
+          predicates:
+            - Path=/enterprise/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: park-enterprise-cb
+                fallbackUri: forward:/fallback/enterprise
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE
+
         # 鍥尯鍚堝悓 (W3.2b)
         - id: park-contract
           uri: lb://park-contract
