@@ -288,15 +288,23 @@ const router = createRouter({
 const WHITE_LIST = ['/login']
 
 /** 将嵌套菜单树展平为 path 集合，用于路由守卫权限检查 */
-function flattenMenuPaths(menus: any[]): string[] {
+function flattenMenuPaths(menus: any[], parentPath = ''): string[] {
   const paths: string[] = []
-  function walk(items: any[]) {
+  function walk(items: any[], parent: string) {
     for (const item of items) {
-      if (item.path && item.path !== '/') paths.push(item.path)
-      if (item.children?.length) walk(item.children)
+      let fullPath = item.path
+      if (fullPath) {
+        // 不以 / 开头 = 相对路径，拼接父路径
+        if (!fullPath.startsWith('/')) {
+          const normalizedParent = parent.replace(/\/+$/, '')
+          fullPath = normalizedParent ? normalizedParent + '/' + fullPath : '/' + fullPath
+        }
+        paths.push(fullPath)
+      }
+      if (item.children?.length) walk(item.children, fullPath || parent)
     }
   }
-  walk(menus)
+  walk(menus, parentPath)
   return paths
 }
 

@@ -10,17 +10,18 @@ INSERT IGNORE INTO `sys_menu`
     (`id`, `parent_id`, `name`, `path`, `component`, `type`, `icon`, `sort`, `perms`, `status`,
      `app_id`, `menu_category`, `create_time`, `update_time`)
 VALUES
-    (510, 0, '智能问答', '/kefu/', 'Layout', 1, 'fas fa-comment-dots', 180, 'kefu:menu', 1,
+    (510, 0, '智能问答', '/kefu', 'Layout', 1, 'fas fa-comment-dots', 180, 'kefu:menu', 1,
      7, 'admin', NOW(), NOW());
 
 -- kefu 子菜单: 对话 / 知识库 / 仪表盘 (parent_id=510, type=2)
+-- 使用完整路径 (与现有菜单约定一致, 如 /system/user)
 INSERT IGNORE INTO `sys_menu`
     (`id`, `parent_id`, `name`, `path`, `component`, `type`, `icon`, `sort`, `perms`, `status`,
      `app_id`, `menu_category`, `create_time`, `update_time`)
 VALUES
-    (511, 510, '对话',    'chat',      'kefu/Chat',      2, 'fas fa-comments',  1, 'kefu:chat',      1, 7, 'admin', NOW(), NOW()),
-    (512, 510, '知识库',  'knowledge', 'kefu/Knowledge', 2, 'fas fa-book',      2, 'kefu:knowledge', 1, 7, 'admin', NOW(), NOW()),
-    (513, 510, '仪表盘',  'dashboard', 'kefu/Dashboard', 2, 'fas fa-chart-bar', 3, 'kefu:dashboard', 1, 7, 'admin', NOW(), NOW());
+    (511, 510, '对话',    '/kefu/chat',      'kefu/Chat',      2, 'fas fa-comments',  1, 'kefu:chat',      1, 7, 'admin', NOW(), NOW()),
+    (512, 510, '知识库',  '/kefu/knowledge', 'kefu/Knowledge', 2, 'fas fa-book',      2, 'kefu:knowledge', 1, 7, 'admin', NOW(), NOW()),
+    (513, 510, '仪表盘',  '/kefu/dashboard', 'kefu/Dashboard', 2, 'fas fa-chart-bar', 3, 'kefu:dashboard', 1, 7, 'admin', NOW(), NOW());
 
 -- kefu 知识库按钮权限 (parent_id=512, type=3)
 INSERT IGNORE INTO `sys_menu`

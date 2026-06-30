@@ -94,19 +94,19 @@
           active-text-color="#409eff"
         >
           <template v-for="item in menuList" :key="item.path || item.id">
-            <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.path">
+            <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.fullPath">
               <template #title>
                 <i v-if="item.iconClass" :class="item.iconClass" style="margin-right:6px;width:16px;text-align:center" />
                 <span>{{ item.name }}</span>
               </template>
               <template v-for="child in item.children" :key="child.path || child.id">
-                <el-menu-item :index="child.path">
+                <el-menu-item :index="child.fullPath">
                   <i v-if="child.iconClass" :class="child.iconClass" style="margin-right:6px;width:16px;text-align:center" />
                   <span>{{ child.name }}</span>
                 </el-menu-item>
               </template>
             </el-sub-menu>
-            <el-menu-item v-else :index="item.path">
+            <el-menu-item v-else :index="item.fullPath">
               <i v-if="item.iconClass" :class="item.iconClass" style="margin-right:6px;width:16px;text-align:center" />
               <span>{{ item.name }}</span>
             </el-menu-item>
@@ -340,7 +340,7 @@ const loadPermissions = async () => {
   } catch { /* ignore */ }
 }
 
-const processMenus = (menus: any[]): any[] => {
+const processMenus = (menus: any[], parentPath = ''): any[] => {
   return menus.map(item => {
     if (item.icon) {
       item.iconClass = item.icon.startsWith('fa') ? item.icon : (faIconMap[item.icon] || '')
@@ -348,7 +348,18 @@ const processMenus = (menus: any[]): any[] => {
       item.iconClass = ''
     }
     delete item.icon
-    if (item.children && item.children.length > 0) item.children = processMenus(item.children)
+    // 计算完整路径: 相对路径拼接父路径, 绝对路径直接使用
+    if (item.path) {
+      if (!item.path.startsWith('/')) {
+        const normalizedParent = parentPath.replace(/\/+$/, '')
+        item.fullPath = normalizedParent ? normalizedParent + '/' + item.path : '/' + item.path
+      } else {
+        item.fullPath = item.path
+      }
+    } else {
+      item.fullPath = parentPath
+    }
+    if (item.children && item.children.length > 0) item.children = processMenus(item.children, item.fullPath)
     return item
   })
 }
