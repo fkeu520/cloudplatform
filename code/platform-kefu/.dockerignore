@@ -1,0 +1,16 @@
+# platform-kefu exclude runtime data + cache
+data/
+__pycache__/
+*.pyc
+.env
+.env.local
+*.db
+*.db-wal
+*.db-shm
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
