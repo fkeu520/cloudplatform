@@ -193,7 +193,9 @@ spring:
         - id: platform-kefu
           uri: http://platform-kefu:8000
           predicates:
-            - Path=/api/kefu/**
+            - Path=/kefu/**
+          filters:
+            - RewritePath=/kefu/(?<segment>.*), /api/kefu/${segment}
 
         # 缃戝叧鑷韩绠＄悊鎺ュ彛
         - id: platform-gateway-self
