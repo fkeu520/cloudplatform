@@ -230,6 +230,44 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/massif/Index.vue'),
         meta: { title: '地块管理', icon: 'fas fa-map', parent: 'space' }
       },
+      // ========== 企业档案 (park-enterprise Phase 1) ==========
+      {
+        path: 'enterprise/page',
+        name: 'EnterpriseIndex',
+        component: () => import('@/views/park/enterprise/Index.vue'),
+        meta: { title: '企业列表', icon: 'fas fa-list', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/tag',
+        name: 'EnterpriseTag',
+        component: () => import('@/views/park/enterprise/Tag.vue'),
+        meta: { title: '企业标签', icon: 'fas fa-tags', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/bind',
+        name: 'EnterpriseBind',
+        component: () => import('@/views/park/enterprise/Bind.vue'),
+        meta: { title: '企业绑定', icon: 'fas fa-link', parent: 'enterprise' }
+      },
+      // ========== 智能问答 (kefu) - iframe 嵌入 kefu-frontend 8060 ==========
+      {
+        path: 'kefu/chat',
+        name: 'KefuChat',
+        component: () => import('@/views/kefu/Chat.vue'),
+        meta: { title: '对话', icon: 'fas fa-comments', parent: 'kefu', appCode: 'investment-center' }
+      },
+      {
+        path: 'kefu/knowledge',
+        name: 'KefuKnowledge',
+        component: () => import('@/views/kefu/Knowledge.vue'),
+        meta: { title: '知识库', icon: 'fas fa-book', parent: 'kefu', appCode: 'investment-center' }
+      },
+      {
+        path: 'kefu/dashboard',
+        name: 'KefuDashboard',
+        component: () => import('@/views/kefu/Dashboard.vue'),
+        meta: { title: '仪表盘', icon: 'fas fa-chart-bar', parent: 'kefu', appCode: 'investment-center' }
+      },
       // ========== W3.6 Room 子表 (park-space 后端 V35, append-only) ==========
       {
         path: 'room-split-merge/page',
