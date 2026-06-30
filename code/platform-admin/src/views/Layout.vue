@@ -82,7 +82,7 @@
       </div>
     </el-header>
 
-    <el-container>
+    <el-container class="layout-inner">
       <!-- 左侧: 当前 app 下的菜单 (动态加载) -->
       <el-aside width="220px">
         <el-menu
@@ -434,6 +434,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .layout-container { height: 100%; }
+.layout-inner { flex: 1; min-height: 0; }
 .layout-header {
   display: flex;
   align-items: center;
