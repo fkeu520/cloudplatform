@@ -354,6 +354,35 @@ services:
       retries: 3
     logging: *default-logging
 
+  # ============ 园区企业档案 (csyh 业务融合 Phase 1) ============
+  park-enterprise:
+    image: ghcr.io/fkeu520/cloudplatform/park-enterprise:latest
+    container_name: park-enterprise
+    restart: unless-stopped
+    ports:
+      - "8094:8094"
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=platform
+      - MYSQL_PASSWORD=platform123
+      - REDIS_HOST=redis
+      - NACOS_HOST=nacos
+      - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=8
+      - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
+      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8094/enterprise/v3/api-docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *default-logging
+
   # ============ 消息中心 ============
   platform-message:
     image: ghcr.io/fkeu520/cloudplatform/platform-message:latest
