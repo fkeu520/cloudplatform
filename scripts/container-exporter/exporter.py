@@ -67,6 +67,7 @@ g_net_tx = Gauge(
 DOCKER_SOCK = '/var/run/docker.sock'
 PLATFORM_PREFIXES = (
     'platform-',         # 项目服务: platform-user / platform-message 等
+    'park-',             # 园区服务: park-space / park-property / park-contract / park-enterprise
     'node-exporter',     # 宿主机监控
     'cadvisor',          # 历史 cAdvisor 容器 (兼容)
     'container-exporter',# 当前 exporter 自身 (避免自监控)
