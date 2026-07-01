@@ -273,6 +273,31 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/park/enterprise/Focus.vue'),
         meta: { title: '关注标签', icon: 'fas fa-bookmark', parent: 'enterprise' }
       },
+      // ========== park-enterprise Phase 3 云企库 (手动维护, csyh 迁移) ==========
+      {
+        path: 'enterprise/cloud-data',
+        name: 'EnterpriseCloudData',
+        component: () => import('@/views/park/enterprise/CloudDataList.vue'),
+        meta: { title: '云企库数据', icon: 'fas fa-cloud', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/reg-type',
+        name: 'EnterpriseRegType',
+        component: () => import('@/views/park/enterprise/EntRegType.vue'),
+        meta: { title: '注册类型', icon: 'fas fa-folder-open', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/national-economy',
+        name: 'EnterpriseNationalEconomy',
+        component: () => import('@/views/park/enterprise/NationalEconomy.vue'),
+        meta: { title: '国民经济分类', icon: 'fas fa-sitemap', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/overview',
+        name: 'EnterpriseOverview',
+        component: () => import('@/views/park/enterprise/EnterpriseOverview.vue'),
+        meta: { title: '企业概览', icon: 'fas fa-chart-pie', parent: 'enterprise' }
+      },
       // ========== 智能问答 (kefu) - iframe 嵌入 kefu-frontend 8060 ==========
       {
         path: 'kefu/chat',
