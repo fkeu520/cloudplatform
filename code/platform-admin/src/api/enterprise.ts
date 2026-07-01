@@ -59,3 +59,71 @@ export function deleteEnterprise(id: string) {
 export function toggleEnterpriseStatus(id: string, status: number) {
   return request({ url: `/enterprise/${id}/status`, method: 'patch', data: { status } })
 }
+
+// ==================== V54: 企业行业类型 API ====================
+
+export interface EnterpriseIndustry {
+  id?: string
+  tenantId?: number
+  code?: string         // 行业代码 (GB/T 4754-2017)
+  category?: string     // 门类
+  categoryBig?: string  // 大类
+  categoryMiddle?: string
+  categorySmall?: string
+  status?: number       // 1=启用 0=停用
+  createTime?: string
+}
+
+export function getIndustryPage(params: {
+  current?: number
+  size?: number
+  keyword?: string
+  category?: string
+  status?: number
+}) {
+  return request({ url: '/enterprise/industry/page', method: 'get', params })
+}
+
+export function getIndustryById(id: string) {
+  return request({ url: `/enterprise/industry/${id}`, method: 'get' })
+}
+
+export function createIndustry(data: Partial<EnterpriseIndustry>) {
+  return request({ url: '/enterprise/industry', method: 'post', data })
+}
+
+export function updateIndustry(id: string, data: Partial<EnterpriseIndustry>) {
+  return request({ url: `/enterprise/industry/${id}`, method: 'put', data })
+}
+
+export function deleteIndustry(id: string) {
+  return request({ url: `/enterprise/industry/${id}`, method: 'delete' })
+}
+
+// ==================== V56: 企业评分规则 API ====================
+
+export interface Rating {
+  id?: string
+  tenantId?: number
+  parkId?: number
+  level?: number        // 1=优 2=良 3=中 4=差
+  overdueMin?: number
+  overdueMax?: number
+  debtsMin?: number
+  debtsMax?: number
+  dateNum?: number
+  dateUnit?: string     // day/month/year
+  status?: number
+}
+
+export function getRatingList(tenantId?: number) {
+  return request({ url: '/enterprise/rating/list', method: 'get', params: { tenantId } })
+}
+
+export function saveRatingBatch(ratings: Rating[]) {
+  return request({ url: '/enterprise/rating/save', method: 'put', data: ratings })
+}
+
+export function resetRatingDefault(tenantId?: number) {
+  return request({ url: '/enterprise/rating/reset', method: 'post', params: { tenantId } })
+}
