@@ -261,6 +261,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/park/enterprise/Rating.vue'),
         meta: { title: '评分规则', icon: 'fas fa-star', parent: 'enterprise' }
       },
+      {
+        path: 'enterprise/customer',
+        name: 'EnterpriseCustomer',
+        component: () => import('@/views/park/enterprise/Customer.vue'),
+        meta: { title: '客户信息', icon: 'fas fa-user-tie', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/focus',
+        name: 'EnterpriseFocus',
+        component: () => import('@/views/park/enterprise/Focus.vue'),
+        meta: { title: '关注标签', icon: 'fas fa-bookmark', parent: 'enterprise' }
+      },
       // ========== 智能问答 (kefu) - iframe 嵌入 kefu-frontend 8060 ==========
       {
         path: 'kefu/chat',

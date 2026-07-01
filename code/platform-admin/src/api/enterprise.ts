@@ -127,3 +127,141 @@ export function saveRatingBatch(ratings: Rating[]) {
 export function resetRatingDefault(tenantId?: number) {
   return request({ url: '/enterprise/rating/reset', method: 'post', params: { tenantId } })
 }
+
+// ==================== V58: 客户信息 API ====================
+
+export interface CustomerInformation {
+  id?: string
+  enterpriseId?: number
+  code?: string
+  customerType?: number        // 1=潜在 2=意向 3=已签约
+  area?: number
+  settleAddress?: string
+  url?: string
+  name?: string                // 负责人
+  phone?: string
+  managerPhone?: string
+  email?: string
+  registTime?: string
+  registMoney?: number
+  rentalStandard?: string
+  industrialField?: number      // 1-6
+  industrialFieldOther?: string
+  mainBusiness?: string
+  companyStrengths?: string     // 多选 1-10, 逗号分隔
+  companyStrengthsOther?: string
+  validIntellectualProperty?: number
+  inventionPatents?: number
+  utilityModelPatent?: number
+  industrialDesignPatents?: number
+  trademark?: number
+  softwareCopyright?: number
+  newPlantVariety?: number
+  integratedCircuitLayout?: number
+  purchaseForeignPatents?: number
+  otherPatents?: number
+  businessIncome?: number
+  lastYearTax?: number
+  totalInvestmentAmount?: number
+  totalFinancingAmount?: number
+  companyDifficulties?: string
+  companyDifficultiesOther?: string
+  supportingServices?: string
+  technicalConsultingServices?: string
+  managementServices?: string
+  managementServicesOther?: string
+  technologyPlatformServices?: string
+  technologyPlatformServicesOther?: string
+  investmentServices?: string
+  investmentServicesOther?: string
+  suggest?: string
+  structuralLoad?: number
+  floorHeight?: number
+  capacitance?: number
+  supplyAndDrainage?: string
+  freshAirSmokeExhaust?: number
+  elevatorLength?: number
+  elevatorWidth?: number
+  elevatorHeight?: number
+  elevatorLoad?: number
+  status?: number
+}
+
+export function getCustomerPage(params: {
+  current?: number
+  size?: number
+  customerType?: number
+  status?: number
+}) {
+  return request({ url: '/enterprise/customer/page', method: 'get', params })
+}
+
+export function getCustomerById(id: string) {
+  return request({ url: `/enterprise/customer/${id}`, method: 'get' })
+}
+
+export function createCustomer(data: Partial<CustomerInformation>) {
+  return request({ url: '/enterprise/customer', method: 'post', data })
+}
+
+export function updateCustomer(id: string, data: Partial<CustomerInformation>) {
+  return request({ url: `/enterprise/customer/${id}`, method: 'put', data })
+}
+
+export function deleteCustomer(id: string) {
+  return request({ url: `/enterprise/customer/${id}`, method: 'delete' })
+}
+
+// ==================== V57: 关注标签 + 内容 API ====================
+
+export interface Focus {
+  id?: string
+  name?: string
+  sorting?: number
+  status?: number
+}
+
+export interface FocusItem {
+  id?: string
+  focusId?: number
+  name?: string
+  sorting?: number
+  status?: number
+}
+
+export function getFocusPage(params: {
+  current?: number
+  size?: number
+  keyword?: string
+  status?: number
+}) {
+  return request({ url: '/enterprise/focus/page', method: 'get', params })
+}
+
+export function createFocus(data: Partial<Focus>) {
+  return request({ url: '/enterprise/focus', method: 'post', data })
+}
+
+export function updateFocus(id: string, data: Partial<Focus>) {
+  return request({ url: `/enterprise/focus/${id}`, method: 'put', data })
+}
+
+export function deleteFocus(id: string) {
+  return request({ url: `/enterprise/focus/${id}`, method: 'delete' })
+}
+
+export function getFocusItemByFocusId(focusId: number | string) {
+  return request({ url: `/enterprise/focus-item/by-focus/${focusId}`, method: 'get' })
+}
+
+export function createFocusItem(data: Partial<FocusItem>) {
+  return request({ url: '/enterprise/focus-item', method: 'post', data })
+}
+
+export function updateFocusItem(id: string, data: Partial<FocusItem>) {
+  return request({ url: `/enterprise/focus-item/${id}`, method: 'put', data })
+}
+
+export function deleteFocusItem(id: string) {
+  return request({ url: `/enterprise/focus-item/${id}`, method: 'delete' })
+}
