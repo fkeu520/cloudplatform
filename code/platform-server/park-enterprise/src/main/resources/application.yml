@@ -43,6 +43,12 @@ spring:
           min-idle: 1
           max-wait: 2s
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 50MB
+
   config:
     import:
       - optional:nacos:common.yml
@@ -97,6 +103,21 @@ knife4j:
 logging:
   level:
     com.cloudhub.platform: DEBUG
+
+# ──────────────────────────────────────────────
+# 云企库第三方数据集成 (Phase 3, csyh pai-enterprise 迁移)
+# 11 模块: Overview/BusinessRisk/BusinessSituation/EntDetail/
+#           EnterpriseImage/EnterpriseRecruit/EnterpriseSearch/
+#           EntRegType/JudicialRisk/Knowledge/NationalEconomy
+# ──────────────────────────────────────────────
+cloud:
+  enterprise:
+    enabled: ${CLOUD_ENTERPRISE_ENABLED:false}
+    base-uri: ${CLOUD_ENTERPRISE_BASE_URI:http://link.flyrise.cn/cloud-enterprisedb-api/v2}
+    auth-uri: ${CLOUD_ENTERPRISE_AUTH_URI:http://link.flyrise.cn/auth-api/oauth/token}
+    client-id: ${CLOUD_ENTERPRISE_CLIENT_ID:}
+    client-secret: ${CLOUD_ENTERPRISE_CLIENT_SECRET:}
+    read-timeout: 10000
 
 platform:
   tenant:
