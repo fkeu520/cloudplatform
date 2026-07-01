@@ -254,7 +254,7 @@ const routes: RouteRecordRaw[] = [
         path: 'kefu/chat',
         name: 'KefuChat',
         component: () => import('@/views/kefu/Chat.vue'),
-        meta: { title: '对话', icon: 'fas fa-comments', parent: 'kefu', appCode: 'investment-center' }
+        meta: { title: '对话', icon: 'fas fa-comments', parent: 'kefu', appCode: 'knowledge' }
       },
       {
         path: 'kefu/knowledge',
