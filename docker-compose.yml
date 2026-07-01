@@ -268,6 +268,8 @@ services:
     logging: *default-logging
 
   # ============ 园区空间 (W3.1) ============
+  # v7.11 内存分级: 堆 384M (17 entities + 25 migrations + 4-level 树, 实测 RSS ~500M)
+  # 注意: docker compose (非 swarm) 不支持 deploy.resources.limits, 用 -Xmx JVM 硬限
   park-space:
     image: ghcr.io/fkeu520/cloudplatform/park-space:latest
     container_name: park-space
@@ -283,7 +285,7 @@ services:
       - NACOS_HOST=nacos
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=5
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+      - JAVA_OPTS=${JAVA_OPTS_PARK_SPACE:--Xmx384m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -297,6 +299,7 @@ services:
     logging: *default-logging
 
   # ============ 园区物业 (W3.2a) ============
+  # v7.11 内存分级: 堆 160M (当前空架子, 后续按业务调整)
   park-property:
     image: ghcr.io/fkeu520/cloudplatform/park-property:latest
     container_name: park-property
@@ -312,7 +315,7 @@ services:
       - NACOS_HOST=nacos
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=6
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+      - JAVA_OPTS=${JAVA_OPTS_PARK_PROPERTY:--Xmx160m -Xms80m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -326,6 +329,7 @@ services:
     logging: *default-logging
 
   # ============ 园区合同 (W3.2b) ============
+  # v7.11 内存分级: 堆 160M (1 entity, 极简)
   park-contract:
     image: ghcr.io/fkeu520/cloudplatform/park-contract:latest
     container_name: park-contract
@@ -341,7 +345,7 @@ services:
       - NACOS_HOST=nacos
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=7
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+      - JAVA_OPTS=${JAVA_OPTS_PARK_CONTRACT:--Xmx160m -Xms80m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
@@ -355,6 +359,7 @@ services:
     logging: *default-logging
 
   # ============ 园区企业档案 (csyh 业务融合 Phase 1) ============
+  # v7.11 内存分级: 堆 256M (3 entities, 列表查询为主)
   park-enterprise:
     image: ghcr.io/fkeu520/cloudplatform/park-enterprise:latest
     container_name: park-enterprise
@@ -370,7 +375,7 @@ services:
       - NACOS_HOST=nacos
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=8
       - MYBATIS_PLUS_SNOWFLAKE_DATACENTER_ID=1
-      - JAVA_OPTS=${JAVA_OPTS:--Xmx256m -Xms128m -XX:+UseG1GC}
+      - JAVA_OPTS=${JAVA_OPTS_PARK_ENTERPRISE:--Xmx256m -Xms128m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
         condition: service_healthy
