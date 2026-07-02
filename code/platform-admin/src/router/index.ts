@@ -367,12 +367,25 @@ function flattenMenuPaths(menus: any[], parentPath = ''): string[] {
           fullPath = normalizedParent ? normalizedParent + '/' + fullPath : '/' + fullPath
         }
         paths.push(fullPath)
+        // 添加父路径前缀，使子路由（enterprise/detail/:id 等）能被放行
+        const prefix = fullPath.substring(0, fullPath.lastIndexOf('/'))
+        if (prefix && prefix !== '/' && !paths.includes(prefix)) {
+          paths.push(prefix)
+        }
       }
       if (item.children?.length) walk(item.children, fullPath || parent)
     }
   }
   walk(menus, parentPath)
   return paths
+}
+
+/** 判断目标 path 是否被允许（精确匹配 or 路径前缀匹配） */
+function isPathAllowed(targetPath: string, allowedPaths: string[]): boolean {
+  return allowedPaths.some(p =>
+    targetPath === p ||
+    targetPath.startsWith(p.endsWith('/') ? p : p + '/')
+  )
 }
 
 router.beforeEach(async (to, _from, next) => {
@@ -393,7 +406,7 @@ router.beforeEach(async (to, _from, next) => {
     // 首次加载时菜单为空 → 放行（Layout.vue onMounted 加载后自动处理）
     if (userStore.menus.length > 0 && to.path !== '/dashboard') {
       const allowedPaths = flattenMenuPaths(userStore.menus)
-      if (!allowedPaths.includes(to.path)) {
+      if (!isPathAllowed(to.path, allowedPaths)) {
         if (import.meta.env.DEV) console.warn('[Router Guard] 无权限访问:', to.path)
         ElMessage.warning('您没有该页面的访问权限')
         next('/dashboard')
