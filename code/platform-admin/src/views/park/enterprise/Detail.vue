@@ -359,8 +359,7 @@ function goBack() {
 }
 
 function goCustomerProfile() {
-  // 跳转到客户画像页 (后续实现, 现在跳转到客户管理页)
-  router.push({ name: 'EnterpriseCustomer' })
+  router.push({ name: 'EnterpriseProfile', query: { enterpriseId: enterpriseId.value } })
 }
 
 // ─── Dialogs (placeholder) ───

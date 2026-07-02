@@ -244,6 +244,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '企业详情', icon: 'fas fa-building', parent: 'enterprise' }
       },
       {
+        path: 'enterprise/profile',
+        name: 'EnterpriseProfile',
+        component: () => import('@/views/park/enterprise/Profile.vue'),
+        meta: { title: '客户画像', icon: 'fas fa-user-chart', parent: 'enterprise' }
+      },
+      {
+        path: 'enterprise/integration',
+        name: 'EnterpriseIntegration',
+        component: () => import('@/views/park/enterprise/Integration.vue'),
+        meta: { title: '集成设置', icon: 'fas fa-plug', parent: 'enterprise' }
+      },
+      {
         path: 'enterprise/tag',
         name: 'EnterpriseTag',
         component: () => import('@/views/park/enterprise/Tag.vue'),
