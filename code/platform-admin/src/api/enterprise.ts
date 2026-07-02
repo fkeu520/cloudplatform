@@ -10,21 +10,55 @@ export interface Enterprise {
   id?: string
   name?: string          // 企业名称 (必填)
   alias?: string         // 简称
-  creditCode?: string    // 统一社会信用代码
+  historyNames?: string  // 曾用名
+  historyNameList?: string
+  engName?: string       // 英文名
   taxNumber?: string     // 纳税人识别号
+  creditCode?: string    // 统一社会信用代码
   industry?: string      // 行业
   category?: string      // 国民经济行业分类
+  categoryBig?: string   // 大类
+  categoryMiddle?: string // 中类
+  categorySmall?: string // 小类
   legalPersonName?: string  // 法人
+  type?: number          // 法人类型
+  companyOrgType?: string
   regCapital?: string    // 注册资本
   regCapitalCurrency?: string
+  actualCapital?: string // 实收资本
+  actualCapitalCurrency?: string
+  regNumber?: string     // 注册号
+  orgNumber?: string     // 组织机构代码
+  estiblishTime?: string // 成立日期
+  fromTime?: string
+  toTime?: string
+  approvedTime?: string
+  revokeDate?: string
+  cancelDate?: string
+  base?: string          // 省份
+  city?: string          // 市
+  district?: string      // 区
   regLocation?: string   // 注册地址
+  regInstitute?: string  // 登记机关
   regStatus?: string     // 经营状态
+  isMicroEnt?: number
   staffNumRange?: string // 人员规模
+  socialStaffNum?: number
   businessScope?: string // 经营范围
   phoneNumber?: string   // 联系电话
   email?: string
   websiteList?: string
+  tags?: string          // 标签列表
+  percentileScore?: number // 评分
+  bondNum?: string
+  bondName?: string
+  usedBondName?: string
+  bondType?: string
   logo?: string
+  originId?: string
+  isSync?: number
+  isFill?: number
+  tenantId?: number
   status?: number        // 1=启用 0=停用
   createTime?: string
   createBy?: string
@@ -33,6 +67,10 @@ export interface Enterprise {
 
 export function getEnterprisePage(params: {
   keyword?: string
+  creditCode?: string
+  industry?: string
+  regStatus?: string
+  hasBind?: number
   status?: number
   pageNum?: number
   pageSize?: number
@@ -58,6 +96,30 @@ export function deleteEnterprise(id: string) {
 
 export function toggleEnterpriseStatus(id: string, status: number) {
   return request({ url: `/enterprise/${id}/status`, method: 'patch', data: { status } })
+}
+
+// ==================== 批量操作 + Excel ====================
+
+export function batchUpdateStatus(ids: string[], status: number) {
+  return request({ url: '/enterprise/batch/status', method: 'put', data: { ids, status } })
+}
+
+export function batchDeleteEnterprise(ids: string[]) {
+  return request({ url: '/enterprise/batch', method: 'delete', data: { ids } })
+}
+
+export function exportEnterpriseExcel(params?: any) {
+  return request({ url: '/enterprise/excel/export', method: 'get', params, responseType: 'blob' })
+}
+
+export function downloadTemplateExcel() {
+  return request({ url: '/enterprise/excel/template', method: 'get', responseType: 'blob' })
+}
+
+export function importEnterpriseExcel(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request({ url: '/enterprise/excel/import', method: 'post', data: formData, headers: { 'Content-Type': 'multipart/form-data' } })
 }
 
 // ==================== V54: 企业行业类型 API ====================

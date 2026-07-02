@@ -238,6 +238,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '企业列表', icon: 'fas fa-list', parent: 'enterprise' }
       },
       {
+        path: 'enterprise/detail/:id',
+        name: 'EnterpriseDetail',
+        component: () => import('@/views/park/enterprise/Detail.vue'),
+        meta: { title: '企业详情', icon: 'fas fa-building', parent: 'enterprise' }
+      },
+      {
         path: 'enterprise/tag',
         name: 'EnterpriseTag',
         component: () => import('@/views/park/enterprise/Tag.vue'),
