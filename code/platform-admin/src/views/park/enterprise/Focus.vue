@@ -1,129 +1,106 @@
 <template>
   <div class="page-container">
-    <el-card class="search-card">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item label="标签名称">
-          <el-input v-model="searchForm.keyword" placeholder="请输入标签名" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部" clearable style="width:120px">
-            <el-option label="启用" :value="1" />
-            <el-option label="停用" :value="0" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-          <el-button type="success" @click="handleAdd">新增标签</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+    <div class="breadcrumb-bar">
+      <el-breadcrumb separator="/">
+        <el-breadcrumb-item :to="{ name: 'EnterpriseIndex' }">企业档案</el-breadcrumb-item>
+        <el-breadcrumb-item>关注标签</el-breadcrumb-item>
+      </el-breadcrumb>
+    </div>
 
-    <el-card class="table-card">
-      <el-table :data="tableData" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="ID" width="170" :show-overflow-tooltip="true" />
-        <el-table-column prop="name" label="标签名称" min-width="200" />
-        <el-table-column prop="sorting" label="排序" width="80" />
-        <el-table-column label="启用状态" width="100">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 1 ? 'success' : 'info'" size="small">
-              {{ scope.row.status === 1 ? '启用' : '停用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160" />
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="scope">
-            <el-button type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button type="info" size="small" @click="handleManageItems(scope.row)">管理内容</el-button>
-            <el-button type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div class="pagination">
-        <el-pagination
-          v-model:current-page="pageNum"
-          v-model:page-size="pageSize"
-          :total="total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
-        />
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+      <div>
+        <h2 style="font-size:20px;font-weight:700;margin:0">关注标签</h2>
+        <p style="font-size:13px;color:#909399;margin:4px 0 0">管理企业关注标签分类体系，支持按标签分类快速筛选和关注企业动态</p>
       </div>
-    </el-card>
+      <div style="display:flex;gap:8px">
+        <el-button @click="openCategoryDialog">+ 新增分类</el-button>
+        <el-button type="primary" @click="openTagDialog">+ 新增标签</el-button>
+      </div>
+    </div>
 
-    <!-- 新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" @close="resetForm" top="5vh">
-      <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="标签名称" prop="name">
-          <el-input v-model="formData.name" maxlength="64" placeholder="e.g. 高新技术企业" />
+    <!-- 分类 Tabs -->
+    <div class="cat-tabs">
+      <div class="cat-tab" :class="{ active: activeCategory === 'all' }" @click="activeCategory = 'all'">
+        全部 <span style="opacity:0.7">({{ allTagsCount }})</span>
+      </div>
+      <div v-for="cat in categories" :key="cat.id" class="cat-tab"
+        :class="{ active: activeCategory === String(cat.id) }"
+        @click="activeCategory = String(cat.id)">
+        {{ cat.icon }} {{ cat.name }} <span style="opacity:0.7">({{ catItemsCount(cat) }})</span>
+      </div>
+    </div>
+
+    <!-- 标签 Grid -->
+    <div v-if="filteredCategories.length > 0">
+      <div v-for="cat in filteredCategories" :key="cat.id" class="cat-card">
+        <div class="cat-card-header">
+          <div>
+            <span class="cat-card-name">{{ cat.icon }} {{ cat.name }}</span>
+            <span class="cat-card-count">{{ catItemsCount(cat) }} 个标签</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <el-button size="small" @click="editCategory(cat)">✏️ 编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteCategory(cat)">🗑️ 删除</el-button>
+            <el-button size="small" @click="openTagDialogFor(cat)">+ 标签</el-button>
+          </div>
+        </div>
+        <div class="cat-card-body">
+          <div class="tag-group">
+            <div v-for="tag in getCatItems(cat)" :key="tag.id" class="tag-item">
+              <span>{{ tag.name }}</span>
+              <button class="tag-remove" @click="deleteTag(tag)" title="移除">×</button>
+            </div>
+            <div v-if="getCatItems(cat).length === 0" class="empty-tags">暂无标签</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <el-empty v-else description="暂无关注分类" />
+
+    <!-- 分类弹窗 -->
+    <el-dialog v-model="catDialogVisible" :title="catDialogTitle" width="450px" top="25vh">
+      <el-form :model="catForm" label-width="90px">
+        <el-form-item label="分类名称" prop="name">
+          <el-input v-model="catForm.name" maxlength="32" placeholder="如：科技创新" />
+        </el-form-item>
+        <el-form-item label="图标">
+          <el-input v-model="catForm.icon" maxlength="8" placeholder="如：💡" />
         </el-form-item>
         <el-form-item label="排序">
-          <el-input-number v-model="formData.sorting" :min="0" :max="999" controls-position="right" style="width:100%" />
-        </el-form-item>
-        <el-form-item label="启用状态">
-          <el-radio-group v-model="formData.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">停用</el-radio>
-          </el-radio-group>
+          <el-input-number v-model="catForm.sort" :min="0" :max="999" controls-position="right" style="width:100%" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button @click="catDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmCategory">{{ isEditCat ? '保存' : '新增' }}</el-button>
       </template>
     </el-dialog>
 
-    <!-- 管理内容弹窗 -->
-    <el-dialog v-model="itemsDialogVisible" :title="`管理内容 - ${currentFocus?.name || ''}`" width="700px" top="3vh">
-      <el-button type="success" size="small" @click="handleAddItem" style="margin-bottom: 12px">新增内容</el-button>
-      <el-table :data="itemsData" v-loading="itemsLoading" border>
-        <el-table-column prop="id" label="ID" width="120" />
-        <el-table-column prop="name" label="内容名称" />
-        <el-table-column prop="sorting" label="排序" width="80" />
-        <el-table-column label="状态" width="80">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 1 ? 'success' : 'info'" size="small">
-              {{ scope.row.status === 1 ? '启用' : '停用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180">
-          <template #default="scope">
-            <el-button type="primary" size="small" @click="handleEditItem(scope.row)">编辑</el-button>
-            <el-button type="danger" size="small" @click="handleDeleteItem(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-dialog>
-
-    <!-- 内容新增/编辑 -->
-    <el-dialog v-model="itemDialogVisible" :title="itemDialogTitle" width="500px" append-to-body>
-      <el-form :model="itemFormData" label-width="100px" :rules="itemRules" ref="itemFormRef">
-        <el-form-item label="内容名称" prop="name">
-          <el-input v-model="itemFormData.name" maxlength="64" />
+    <!-- 标签弹窗 -->
+    <el-dialog v-model="tagDialogVisible" :title="tagDialogTitle" width="450px" top="25vh">
+      <el-form :model="tagForm" label-width="100px">
+        <el-form-item label="所属分类">
+          <el-select v-model="tagForm.categoryId" style="width:100%">
+            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标签名称" prop="name">
+          <el-input v-model="tagForm.name" maxlength="32" placeholder="如：高新技术企业" />
         </el-form-item>
         <el-form-item label="排序">
-          <el-input-number v-model="itemFormData.sorting" :min="0" :max="999" controls-position="right" style="width:100%" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="itemFormData.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">停用</el-radio>
-          </el-radio-group>
+          <el-input-number v-model="tagForm.sort" :min="0" :max="999" controls-position="right" style="width:100%" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="itemDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmitItem">确定</el-button>
+        <el-button @click="tagDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmTag">{{ isEditTag ? '保存' : '新增' }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getFocusPage, createFocus, updateFocus, deleteFocus,
@@ -131,86 +108,214 @@ import {
   type Focus, type FocusItem
 } from '@/api/enterprise'
 
+interface Category extends Focus {
+  icon?: string
+  sort?: number
+  items: FocusItem[]
+}
+
+// ─── State ───
+const activeCategory = ref('all')
+const categories = ref<Category[]>([])
 const loading = ref(false)
-const tableData = ref<Focus[]>([])
-const total = ref(0)
-const pageNum = ref(1)
-const pageSize = ref(10)
-const searchForm = reactive({ keyword: '', status: undefined as number | undefined })
 
-const dialogVisible = ref(false)
-const dialogTitle = ref('新增标签')
-const formData = reactive<Focus>({ id: undefined, name: '', sorting: 0, status: 1 })
-const formRef = ref()
-const rules = { name: [{ required: true, message: '请输入标签名称', trigger: 'blur' }] }
+// ─── Category Dialog ───
+const catDialogVisible = ref(false)
+const catDialogTitle = ref('新增分类')
+const isEditCat = ref(false)
+const editingCatId = ref<number | null>(null)
+const catForm = reactive({ name: '', icon: '📌', sort: 0 })
 
-// 内容管理
-const itemsDialogVisible = ref(false)
-const itemsLoading = ref(false)
-const itemsData = ref<FocusItem[]>([])
-const currentFocus = ref<Focus | null>(null)
+// ─── Tag Dialog ───
+const tagDialogVisible = ref(false)
+const tagDialogTitle = ref('新增标签')
+const isEditTag = ref(false)
+const editingTagId = ref<string | null>(null)
+const tagForm = reactive({ categoryId: undefined as number | undefined, name: '', sort: 0 })
 
-const itemDialogVisible = ref(false)
-const itemDialogTitle = ref('新增内容')
-const itemFormData = reactive<FocusItem>({ id: undefined, focusId: undefined, name: '', sorting: 0, status: 1 })
-const itemFormRef = ref()
-const itemRules = { name: [{ required: true, message: '请输入内容名称', trigger: 'blur' }] }
+// ─── Computed ───
+const allTagsCount = computed(() => {
+  let count = 0
+  for (const cat of categories.value) {
+    count += cat.items.length
+  }
+  return count
+})
 
-const loadData = async () => {
+const filteredCategories = computed(() => {
+  if (activeCategory.value === 'all') return categories.value
+  return categories.value.filter(c => String(c.id) === activeCategory.value)
+})
+
+function catItemsCount(cat: Category) {
+  return cat.items.length
+}
+
+function getCatItems(cat: Category) {
+  return cat.items || []
+}
+
+// ─── Lifecycle ───
+onMounted(loadData)
+
+async function loadData() {
   loading.value = true
   try {
-    const res: any = await getFocusPage({ current: pageNum.value, size: pageSize.value, keyword: searchForm.keyword || undefined, status: searchForm.status })
-    tableData.value = res.data?.records || []
-    total.value = res.data?.total || 0
-  } finally { loading.value = false }
+    const res: any = await getFocusPage({ current: 1, size: 50 })
+    if (res.code === 200) {
+      const records: Focus[] = res.data?.records || []
+      const enriched: Category[] = []
+      for (const f of records) {
+        try {
+          const r: any = await getFocusItemByFocusId(f.id!)
+          enriched.push({ ...f, items: r.data || [], icon: getIconFor(f.id), sort: f.sorting || 0 })
+        } catch {
+          enriched.push({ ...f, items: [], icon: getIconFor(f.id), sort: f.sorting || 0 })
+        }
+      }
+      categories.value = enriched
+    }
+  } catch { /* ignore */ }
+  finally { loading.value = false }
 }
 
-const handleSearch = () => { pageNum.value = 1; loadData() }
-const handleReset = () => { searchForm.keyword = ''; searchForm.status = undefined; pageNum.value = 1; loadData() }
-const handleSizeChange = (s: number) => { pageSize.value = s; loadData() }
-const handlePageChange = (p: number) => { pageNum.value = p; loadData() }
-
-const handleAdd = () => { Object.assign(formData, { id: undefined, name: '', sorting: 0, status: 1 }); dialogTitle.value = '新增标签'; dialogVisible.value = true }
-const handleEdit = (row: Focus) => { Object.assign(formData, row); dialogTitle.value = '编辑标签'; dialogVisible.value = true }
-const handleDelete = async (row: Focus) => {
-  try { await ElMessageBox.confirm(`确认删除标签 [${row.name}]?`, '提示', { type: 'warning' }); await deleteFocus(row.id!); ElMessage.success('删除成功'); loadData() } catch (e) {}
-}
-const handleSubmit = async () => {
-  try { await formRef.value.validate(); if (formData.id) { await updateFocus(formData.id, formData); ElMessage.success('更新成功') } else { await createFocus(formData); ElMessage.success('新增成功') }; dialogVisible.value = false; loadData() } catch (e: any) { if (e?.message) ElMessage.error(e.message) }
+function getIconFor(id?: number): string {
+  const icons: Record<number, string> = {
+    1: '💡', 2: '🏭', 3: '🚀', 4: '👥', 5: '🌍', 6: '📋'
+  }
+  return icons[id || 0] || '📌'
 }
 
-const handleManageItems = async (row: Focus) => {
-  currentFocus.value = row
-  itemsDialogVisible.value = true
-  itemsLoading.value = true
+// ─── Category CRUD ───
+function openCategoryDialog() {
+  isEditCat.value = false
+  editingCatId.value = null
+  catDialogTitle.value = '新增分类'
+  Object.assign(catForm, { name: '', icon: '📌', sort: 0 })
+  catDialogVisible.value = true
+}
+
+function editCategory(cat: Category) {
+  isEditCat.value = true
+  editingCatId.value = Number(cat.id)
+  catDialogTitle.value = '编辑分类'
+  Object.assign(catForm, { name: cat.name || '', icon: cat.icon || '📌', sort: cat.sort || 0 })
+  catDialogVisible.value = true
+}
+
+async function confirmCategory() {
+  if (!catForm.name) { ElMessage.warning('请输入分类名称'); return }
   try {
-    const res: any = await getFocusItemByFocusId(row.id!)
-    itemsData.value = res.data || []
-  } finally { itemsLoading.value = false }
+    if (isEditCat.value && editingCatId.value) {
+      await updateFocus(String(editingCatId.value), { name: catForm.name, sorting: catForm.sort })
+      ElMessage.success('分类已更新')
+    } else {
+      await createFocus({ name: catForm.name, sorting: catForm.sort, status: 1 })
+      ElMessage.success('分类已添加')
+    }
+    catDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '操作失败')
+  }
 }
 
-const handleAddItem = () => { Object.assign(itemFormData, { id: undefined, focusId: currentFocus.value?.id, name: '', sorting: 0, status: 1 }); itemDialogTitle.value = '新增内容'; itemDialogVisible.value = true }
-const handleEditItem = (row: FocusItem) => { Object.assign(itemFormData, row); itemDialogTitle.value = '编辑内容'; itemDialogVisible.value = true }
-const handleDeleteItem = async (row: FocusItem) => {
-  try { await ElMessageBox.confirm(`确认删除内容 [${row.name}]?`, '提示', { type: 'warning' }); await deleteFocusItem(row.id!); ElMessage.success('删除成功'); if (currentFocus.value) handleManageItems(currentFocus.value) } catch (e) {}
+function deleteCategory(cat: Category) {
+  ElMessageBox.confirm(`确认删除分类「${cat.name}」及其所有标签？`, '提示', { type: 'warning' })
+    .then(async () => {
+      try {
+        await deleteFocus(cat.id!)
+        ElMessage.success('已删除')
+        loadData()
+      } catch { /* ignore */ }
+    })
+    .catch(() => {})
 }
-const handleSubmitItem = async () => {
+
+// ─── Tag CRUD ───
+function openTagDialog() {
+  isEditTag.value = false
+  editingTagId.value = null
+  tagDialogTitle.value = '新增标签'
+  Object.assign(tagForm, { categoryId: categories.value[0]?.id, name: '', sort: 0 })
+  tagDialogVisible.value = true
+}
+
+function openTagDialogFor(cat: Category) {
+  isEditTag.value = false
+  editingTagId.value = null
+  tagDialogTitle.value = `新增标签 - ${cat.name}`
+  Object.assign(tagForm, { categoryId: Number(cat.id), name: '', sort: 0 })
+  tagDialogVisible.value = true
+}
+
+async function confirmTag() {
+  if (!tagForm.name) { ElMessage.warning('请输入标签名称'); return }
+  if (!tagForm.categoryId) { ElMessage.warning('请选择所属分类'); return }
   try {
-    await itemFormRef.value.validate()
-    if (itemFormData.id) { await updateFocusItem(itemFormData.id, itemFormData); ElMessage.success('更新成功') }
-    else { await createFocusItem(itemFormData); ElMessage.success('新增成功') }
-    itemDialogVisible.value = false
-    if (currentFocus.value) handleManageItems(currentFocus.value)
-  } catch (e: any) { if (e?.message) ElMessage.error(e.message) }
+    if (isEditTag.value && editingTagId.value) {
+      await updateFocusItem(editingTagId.value, { name: tagForm.name, sorting: tagForm.sort })
+      ElMessage.success('标签已更新')
+    } else {
+      await createFocusItem({ focusId: tagForm.categoryId, name: tagForm.name, sorting: tagForm.sort, status: 1 })
+      ElMessage.success('标签已添加')
+    }
+    tagDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '操作失败')
+  }
 }
 
-const resetForm = () => { formRef.value?.resetFields() }
-onMounted(loadData)
+function deleteTag(tag: FocusItem) {
+  ElMessageBox.confirm(`确认移除标签「${tag.name}」？`, '提示', { type: 'warning' })
+    .then(async () => {
+      try {
+        await deleteFocusItem(tag.id!)
+        ElMessage.success('已移除')
+        loadData()
+      } catch { /* ignore */ }
+    })
+    .catch(() => {})
+}
 </script>
 
 <style scoped>
 .page-container { padding: 16px; }
-.search-card { margin-bottom: 16px; }
-.table-card { margin-bottom: 16px; }
-.pagination { display: flex; justify-content: flex-end; margin-top: 16px; }
+.breadcrumb-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.breadcrumb-bar :deep(.el-breadcrumb) { font-size: 13px; }
+
+.cat-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.cat-tab {
+  padding: 6px 16px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  border: 1.5px solid #e4e7ed; background: #fff; color: #909399;
+  transition: all .2s; font-weight: 500;
+}
+.cat-tab:hover { background: #ecf5ff; border-color: #409EFF; color: #409EFF; }
+.cat-tab.active { background: #409EFF; color: #fff; border-color: #409EFF; }
+
+.cat-card { border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.cat-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: #f5f7fa; border-bottom: 1px solid #e4e7ed;
+}
+.cat-card-name { font-size: 14px; font-weight: 600; }
+.cat-card-count { font-size: 12px; color: #909399; margin-left: 8px; }
+.cat-card-body { padding: 12px 16px; }
+
+.tag-group { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px 4px 14px; border-radius: 16px; font-size: 12px;
+  background: #ecf5ff; color: #409EFF; border: 1px solid transparent; transition: all .2s;
+}
+.tag-item:hover { border-color: #409EFF; }
+.tag-remove {
+  width: 16px; height: 16px; border-radius: 50%; border: none;
+  background: rgba(0,0,0,0.1); cursor: pointer; font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: #409EFF; flex-shrink: 0; padding: 0; line-height: 1;
+}
+.tag-remove:hover { background: #F56C6C; color: #fff; }
+.empty-tags { font-size: 12px; color: #C0C4CC; padding: 8px 0; }
 </style>
