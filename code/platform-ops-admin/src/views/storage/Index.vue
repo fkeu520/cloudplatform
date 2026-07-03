@@ -18,7 +18,7 @@
           <template #default="{ row }">
             <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button type="success" link @click="handleTest(row)">测试</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button type="danger" link @click="openDeleteStepUp(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -38,6 +38,11 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- v8 P0-3: 删除存储配置二次验证 -->
+    <StepUpDialog v-model="stepUpDeleteVisible" scope="storage:delete"
+                  description="删除存储配置 (会断开所有 MinIO 连接)"
+                  :on-success="onStepUpDeleteSuccess" />
   </div>
 </template>
 
@@ -45,6 +50,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { page, create, update, remove, testConnection } from '../../api/storage'
+import StepUpDialog from '../../components/StepUpDialog.vue'
 
 const list = ref<any[]>([])
 const loading = ref(false)
@@ -72,6 +78,23 @@ function handleAdd() { isEdit.value = false; editId.value = null; Object.assign(
 function handleEdit(row: any) { isEdit.value = true; editId.value = row.id; Object.assign(form, row); dialogVisible.value = true }
 async function handleDelete(row: any) { await ElMessageBox.confirm('确定删除？', '提示'); await remove(row.id); ElMessage.success('已删除'); fetchData() }
 async function handleTest(row: any) { const res = await testConnection(row.id); ElMessage.success(res.data ? '连接成功' : '连接失败') }
+
+// v8 P0-3: 删存储配置走 StepUpDialog
+const stepUpDeleteVisible = ref(false)
+const stepUpDeleteTarget = ref<any>(null)
+function openDeleteStepUp(row: any) {
+  stepUpDeleteTarget.value = row
+  stepUpDeleteVisible.value = true
+}
+async function onStepUpDeleteSuccess(stepUpToken: string) {
+  const row = stepUpDeleteTarget.value
+  if (!row) return
+  try {
+    await remove(row.id, stepUpToken)
+    ElMessage.success('已删除')
+    fetchData()
+  } catch { /* request 拦截器已提示 */ }
+}
 
 async function handleSubmit() {
   const valid = await formRef.value.validate().catch(() => false)
