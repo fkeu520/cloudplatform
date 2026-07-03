@@ -72,15 +72,12 @@ if [ -n "$JAVA_CHANGES" ]; then
                 echo -e "${CYAN}[pre-push]${NC} Running tests for ${MODULE}..."
                 cd "$PROJECT_ROOT/code/platform-server"
                 # 2026-07-03 P0-3 修复: 用系统 mvn 替代 ./mvnw.cmd
-                # 原因: mvnw.cmd 首次执行需从 repo.maven.apache.org 下载 Maven wrapper (无网络环境失败)
+                # 原因 1: mvnw.cmd 首次执行需从 repo.maven.apache.org 下载 Maven wrapper (无网络环境失败)
+                # 原因 2: 所有模块 (auth/ops/user/common) 都依赖 platform-common, 必须用 -am 编译依赖
+                #         否则 test 运行时找不到 platform-common-1.0.0-SNAPSHOT.jar -> junit-jupiter 失败
                 # 已用 mvn 3.9.15 验证 131 个测试全过
                 MVN_CMD="${MVN_CMD:-mvn}"
-                if [ "$MODULE" = "platform-user" ]; then
-                    # platform-user depends on platform-common, build both
-                    $MVN_CMD test -pl "$MODULE" -am "-Dsurefire.failIfNoSpecifiedTests=false" -q 2>/dev/null
-                else
-                    $MVN_CMD test -pl "$MODULE" "-Dsurefire.failIfNoSpecifiedTests=false" -q 2>/dev/null
-                fi
+                $MVN_CMD test -pl "$MODULE" -am "-Dsurefire.failIfNoSpecifiedTests=false" -q 2>/dev/null
                 MAVEN_EXIT=$?
                 cd "$PROJECT_ROOT"
                 if [ $MAVEN_EXIT -ne 0 ]; then
