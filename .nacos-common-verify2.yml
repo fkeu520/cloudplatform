@@ -1,0 +1,77 @@
+# 云枢中台 - Nacos common.yml
+#
+# 范围: 9 个微服务共享配置 (覆盖 application.yml 中非模块特异 key)
+# 维护: 修改后约 30s (Nacos 长轮询) 自动生效, 无需重启
+# 优先级: Nacos 公共配置 > application.yml
+# 缺失 key 走 application.yml 默认值 (本文件提供完整覆盖, 避免 yml 默认值依赖)
+#
+# 2026-06-26 创建: 阶段 A (开 nacos.config.enabled=true 前提 + 当前 yml 已有配置入 Nacos)
+# 阶段 B (未来): JwtUtil/Resilience4j 抽 @ConfigurationProperties 后才能动态化 JWT 过期/熔断参数
+
+# ============ 1. 网关限流 (P0-B, RateLimitFilter @Value) ============
+gateway:
+  rate-limit:
+    enabled: true              # 灰度开关; false 时 RateLimitFilter 走老逻辑
+    max-per-minute: 200        # 每 IP 每分钟最大请求数
+    window-ms: 60000           # 滑动窗口大小
+
+# ============ 2. 多租户拦截器开关 (紧急回滚) ============
+platform:
+  tenant:
+    interceptor:
+      enabled: true
+  data-scope:
+    upgrade:
+      enabled: false           # M5 P0-2 默认 false, 验证通过后用户切 true
+      write-strict: true       # PR4 写严格模式 (false=warn 放行, true=fail-closed)
+      # PR5: 灰度维度 (默认 dimension=all 全量, 可根据租户/用户/百分比等级灰度)
+      dimension: all           # 灰度维度: all | tenant | user | percent
+      tenants: ""              # CSV tenant ID (多租户维度时生效)
+      users: ""                # CSV user ID (用户维度时生效)
+      percent: 0               # 灰度百分比 0-100 (dimension=percent 时生效)
+
+# ============ 3. 链路追踪采样率 (M6 P1-1) ============
+management:
+  tracing:
+    sampling:
+      probability: 0.1
+
+# ============ 4. Resilience4j 网关韧性 (M6 P3-6) ============
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        sliding-window-type: COUNT_BASED
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - org.springframework.cloud.gateway.support.TimeoutException
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+# ============ 5. JWT 过期时间 (P1-B @Value) ============
+jwt:
+  expire-time: 604800          # 7天(秒), 可在 Nacos 改后 @RefreshScope 自动生效
+
+# ============ 6. 日志级别 (P1-B, Spring Boot Environment 自动读取) ============
+logging:
+  level:
+    com.cloudhub.platform: INFO
+
+# ============ 7. v8 P0-3 Step-up 二次鉴权 (高敏操作) ============
+# 配套: doc/plan/v8-P0-tenant-protection-plan.md ADR-008
+# 配套: v3.1 第 0.3 节 + 附录 E.2 (step-up token 5min 单次有效)
+# 缺失时, application.yml 默认 300s/3次/300s
+stepup:
+  ttl-seconds: 300                # token 有效期 (秒), v3.1 明确 5min
+  max-issues-per-window: 3         # 单用户 5min 内最多申请 3 次 (防爆破)
+  rate-limit-seconds: 300          # 频率限制窗口 (秒)
