@@ -1,6 +1,7 @@
 package com.cloudhub.platform.user.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.annotation.RequireStepUp;
 import com.cloudhub.platform.common.config.DataScopeContext;
 import com.cloudhub.platform.common.exception.BizException;
 import com.cloudhub.platform.common.result.Result;
@@ -161,6 +162,7 @@ public class UserController {
 
     @Operation(summary = "删除用户")
     @Log(title = "用户管理", businessType = 3)
+    @RequireStepUp(scope = "user:delete", description = "删除用户 (含关联数据)")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable(name = "id") Long id) {
         userService.delete(id);
@@ -169,6 +171,7 @@ public class UserController {
 
     @Operation(summary = "修改密码")
     @Log(title = "用户管理", businessType = 2)
+    @RequireStepUp(scope = "user:password", description = "修改密码 (登出所有设备)")
     @PostMapping("/{id}/password")
     public Result<Void> changePassword(
             @PathVariable(name = "id") Long id,

@@ -1,6 +1,7 @@
 package com.cloudhub.platform.ops.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.annotation.RequireStepUp;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.TenantAppService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,8 @@ public class TenantAppController {
 
     @Log(title = "租户应用授权", businessType = 2)
     @Operation(summary = "为租户授权应用（全量覆盖）")
+    @RequireStepUp(scope = "tenant:app:authorize",
+                   description = "为租户授权应用 (全量覆盖, 不可恢复)")
     @PostMapping("/{tenantId}/authorize")
     public Result<Void> authorizeApps(@PathVariable Long tenantId, @RequestBody List<Long> appIds) {
         tenantAppService.authorizeApps(tenantId, appIds);

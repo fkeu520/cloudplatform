@@ -1,6 +1,7 @@
 package com.cloudhub.platform.ops.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.annotation.RequireStepUp;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +61,7 @@ public class TenantController {
 
     @Log(title = "租户管理", businessType = 3)
     @Operation(summary = "删除租户")
+    @RequireStepUp(scope = "tenant:delete", description = "删除租户 (含所有数据, 不可恢复)")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         tenantService.delete(id);
@@ -68,6 +70,7 @@ public class TenantController {
 
     @Log(title = "租户管理", businessType = 2)
     @Operation(summary = "切换租户状态（启用/禁用）")
+    @RequireStepUp(scope = "tenant:disable", description = "停用/启用租户")
     @PutMapping("/{id}/status")
     public Result<Void> toggleStatus(@PathVariable Long id) {
         tenantService.toggleStatus(id);
@@ -112,6 +115,8 @@ public class TenantController {
 
     @Log(title = "租户管理", businessType = 2)
     @Operation(summary = "重置租户管理员密码")
+    @RequireStepUp(scope = "tenant:admin:reset-pwd",
+                   description = "重置租户管理员密码 (会强制下线)")
     @PostMapping("/{id}/admin/{userId}/reset-password")
     public Result<Void> resetAdminPassword(
             @PathVariable Long id,
