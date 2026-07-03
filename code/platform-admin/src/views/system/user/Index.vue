@@ -50,7 +50,7 @@
               { label: '编辑', props: { type: 'primary' }, handler: () => handleEdit(scope.row), permission: 'system:user:edit' },
               { label: '重置密码', props: { type: 'warning' }, handler: () => handleResetPwd(scope.row), permission: 'system:user:edit' },
               { label: scope.row.statusDesc === '启用' ? '禁用' : '启用', props: { type: scope.row.statusDesc === '启用' ? 'danger' : 'success' }, handler: () => handleToggleStatus(scope.row), permission: 'system:user:edit' },
-              { label: '删除', props: { type: 'danger' }, handler: () => handleDelete(scope.row), permission: 'system:user:del' }
+              { label: '删除', props: { type: 'danger' }, handler: () => openDeleteStepUp(scope.row), permission: 'system:user:del' }
             ]" />
           </template>
         </el-table-column>
@@ -160,22 +160,31 @@
       </el-form>
       <template #footer>
         <el-button @click="pwdDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="pwdSubmitting" @click="handlePwdSubmit">确定</el-button>
+        <el-button type="primary" @click="openResetPwdStepUp">下一步 (二次验证)</el-button>
       </template>
     </el-dialog>
+
+    <!-- v8 P0-3: Step-up 二次鉴权弹窗 -->
+    <StepUpDialog v-model="stepUpDeleteVisible" scope="user:delete"
+                  description="删除用户 (含关联数据, 不可恢复)"
+                  :on-success="onStepUpDeleteSuccess" />
+    <StepUpDialog v-model="stepUpResetPwdVisible" scope="user:reset-pwd"
+                  description="重置用户密码 (会强制下线)"
+                  :on-success="onStepUpResetPwdSuccess" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById, resetUserPassword } from '@/api/user'
+import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById, resetUserPassword, changePassword } from '@/api/user'
 import { getRoleList } from '@/api/role'
 import { getOrgTree } from '@/api/org'
 import { getDeptList } from '@/api/dept'
 import { getPostByDeptId } from '@/api/post'
 import { rsaEncrypt } from '@/api/crypto'
 import TableActions from '@/components/TableActions.vue'
+import StepUpDialog from '@/components/StepUpDialog.vue'
 import type { User, UserPageVO } from '@/api/user'
 import type { Role } from '@/api/role'
 
@@ -438,6 +447,49 @@ async function handleDelete(row: UserPageVO) {
   } catch {
     // cancelled
   }
+}
+
+// v8 P0-3: 高敏操作前弹出 StepUpDialog 二次鉴权
+const stepUpDeleteVisible = ref(false)
+const stepUpDeleteTarget = ref<UserPageVO | null>(null)
+const stepUpResetPwdVisible = ref(false)
+const stepUpChangePwdVisible = ref(false)
+
+function openDeleteStepUp(row: UserPageVO) {
+  stepUpDeleteTarget.value = row
+  stepUpDeleteVisible.value = true
+}
+
+function openResetPwdStepUp() {
+  // 先做密码长度校验
+  if (!pwdForm.newPassword || pwdForm.newPassword.length < 6) {
+    ElMessage.warning('新密码至少 6 位')
+    return
+  }
+  stepUpResetPwdVisible.value = true
+}
+
+async function onStepUpDeleteSuccess(stepUpToken: string) {
+  const row = stepUpDeleteTarget.value
+  if (!row) return
+  try {
+    const res: any = await deleteUser(row.id, stepUpToken)
+    if (res.code === 200) {
+      ElMessage.success('删除成功')
+      loadData()
+    }
+  } catch { /* request 拦截器已提示 */ }
+}
+
+async function onStepUpResetPwdSuccess(stepUpToken: string) {
+  if (!pwdTarget.value) return
+  try {
+    const res: any = await resetUserPassword(pwdTarget.value.id, pwdForm.newPassword, stepUpToken)
+    if (res.code === 200) {
+      ElMessage.success(`用户 [${pwdTarget.value.username}] 密码已重置`)
+      pwdDialogVisible.value = false
+    }
+  } catch { /* request 拦截器已提示 */ }
 }
 
 // 重置密码弹窗

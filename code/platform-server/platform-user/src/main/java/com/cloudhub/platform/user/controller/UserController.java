@@ -188,6 +188,7 @@ public class UserController {
 
     @Operation(summary = "重置密码")
     @Log(title = "用户管理", businessType = 2)
+    @RequireStepUp(scope = "user:reset-pwd", description = "重置用户密码 (登出所有设备)")
     @PostMapping("/{id}/reset-password")
     public Result<Void> resetPassword(
             @PathVariable(name = "id") Long id,
