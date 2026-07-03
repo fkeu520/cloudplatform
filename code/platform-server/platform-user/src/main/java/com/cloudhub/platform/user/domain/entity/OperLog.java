@@ -30,4 +30,10 @@ public class OperLog extends BaseEntity {
     private LocalDateTime operTime;
     private Long costTime;
     private Long tenantId;
+
+    /** v8 P0-3: 本次操作使用的 step-up token ID (高敏操作审计) */
+    private Long stepUpTokenId;
+
+    /** v8 P0-3: 本操作是否需要 step-up (1=需要) */
+    private Integer requiresStepUp;
 }

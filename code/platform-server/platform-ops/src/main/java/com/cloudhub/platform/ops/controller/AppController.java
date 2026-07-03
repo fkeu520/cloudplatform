@@ -1,6 +1,7 @@
 package com.cloudhub.platform.ops.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.annotation.RequireStepUp;
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.common.util.JwtUtil;
@@ -105,6 +106,7 @@ public class AppController {
 
     @Log(title = "应用管理", businessType = 3)
     @Operation(summary = "删除应用")
+    @RequireStepUp(scope = "app:delete", description = "删除应用 (会断开所有租户授权)")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         appService.delete(id);

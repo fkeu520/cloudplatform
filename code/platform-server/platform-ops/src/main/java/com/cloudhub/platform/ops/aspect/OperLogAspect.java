@@ -87,6 +87,16 @@ public class OperLogAspect {
             operLog.setCostTime(costTime);
             operLog.setOperTime(LocalDateTime.now());
 
+            // v8 P0-3: 读 StepUpAspect 写入的 request 属性
+            Object stepUpTokenIdAttr = request.getAttribute("stepUpTokenId");
+            if (stepUpTokenIdAttr instanceof Long) {
+                operLog.setStepUpTokenId((Long) stepUpTokenIdAttr);
+            }
+            Object requiresStepUpAttr = request.getAttribute("requiresStepUp");
+            if (Boolean.TRUE.equals(requiresStepUpAttr)) {
+                operLog.setRequiresStepUp(1);
+            }
+
             if (controllerLog != null) {
                 operLog.setTitle(controllerLog.title());
                 operLog.setBusinessType(controllerLog.businessType());

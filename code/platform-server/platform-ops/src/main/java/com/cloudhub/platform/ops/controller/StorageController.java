@@ -1,6 +1,7 @@
 package com.cloudhub.platform.ops.controller;
 
 import com.cloudhub.platform.common.annotation.Log;
+import com.cloudhub.platform.common.annotation.RequireStepUp;
 import com.cloudhub.platform.common.result.Result;
 import com.cloudhub.platform.ops.service.StorageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,6 +58,7 @@ public class StorageController {
 
     @Log(title = "存储配置", businessType = 3)
     @Operation(summary = "删除存储配置")
+    @RequireStepUp(scope = "storage:delete", description = "删除存储配置 (会断开所有 MinIO 连接)")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         storageService.delete(id);
