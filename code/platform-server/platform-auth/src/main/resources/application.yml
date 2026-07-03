@@ -97,6 +97,16 @@ platform:
       # 紧急回滚: PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT=false 重启
       write-strict: ${PLATFORM_DATA_SCOPE_UPGRADE_WRITE_STRICT:true}
 
+# ============ v8 P0-3 Step-up 二次鉴权 (高敏操作) ============
+# 配套: doc/plan/v8-P0-tenant-protection-plan.md ADR-008
+# 配套: v3.1 第 0.3 节 + 附录 E.2 (step-up token 5min 单次有效)
+# 优先: Nacos common.yml > 此处默认值
+# 缺失时, Service 内部 @Value 默认值兜底
+stepup:
+  ttl-seconds: 300                # token 有效期 (秒), v3.1 明确 5min
+  max-issues-per-window: 3         # 单用户 5min 内最多申请 3 次 (防爆破)
+  rate-limit-seconds: 300          # 频率限制窗口 (秒)
+
 # ============ 链路追踪 (M6 P1-1) ============
 management:
   tracing:
