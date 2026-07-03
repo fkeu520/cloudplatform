@@ -113,7 +113,7 @@
       </el-checkbox-group>
       <template #footer>
         <el-button @click="authDialogVisible=false">取消</el-button>
-        <el-button type="primary" :loading="authSubmitting" @click="handleAuthSubmit">保存授权</el-button>
+        <el-button type="primary" @click="openAuthStepUp">下一步 (二次验证)</el-button>
       </template>
     </el-dialog>
 
@@ -186,6 +186,9 @@
     <StepUpDialog v-model="stepUpResetPwdVisible" scope="tenant:admin:reset-pwd"
                   description="重置租户管理员密码 (会强制下线)"
                   :on-success="onStepUpResetPwdSuccess" />
+    <StepUpDialog v-model="stepUpAuthVisible" scope="tenant:app:authorize"
+                  description="为租户全量覆盖授权应用"
+                  :on-success="onStepUpAuthSuccess" />
   </div>
 </template>
 
@@ -220,6 +223,7 @@ const rules = {
 
 const authDialogVisible = ref(false)
 const authSubmitting = ref(false)
+const authStepUpVisible = ref(false)
 const allApps = ref<any[]>([])
 const authAppIds = ref<number[]>([])
 const authTenantId = ref<number>(0)
@@ -333,6 +337,19 @@ async function handleAuthSubmit() {
     ElMessage.success('授权已保存')
     authDialogVisible.value = false
   } finally { authSubmitting.value = false }
+}
+
+// v8 P0-3: 应用授权是高敏操作, 二次验证
+const stepUpAuthVisible = ref(false)
+function openAuthStepUp() {
+  authStepUpVisible.value = true
+}
+async function onStepUpAuthSuccess(stepUpToken: string) {
+  try {
+    await authorizeApps(authTenantId.value, authAppIds.value, stepUpToken)
+    ElMessage.success('授权已保存')
+    authDialogVisible.value = false
+  } catch { /* request 拦截器已提示 */ }
 }
 
 const adminDialogVisible = ref(false)
