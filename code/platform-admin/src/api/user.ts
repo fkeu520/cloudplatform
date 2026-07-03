@@ -90,10 +90,11 @@ export function updateUser(id: string, data: Partial<User>) {
   })
 }
 
-export function deleteUser(id: string) {
+export function deleteUser(id: string, stepUpToken?: string) {
   return request({
     url: `/user/${id}`,
-    method: 'delete'
+    method: 'delete',
+    headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
   })
 }
 
@@ -101,6 +102,15 @@ export function toggleUserStatus(id: string) {
   return request({
     url: `/user/${id}/toggle-status`,
     method: 'post'
+  })
+}
+
+export function changePassword(id: string, oldPassword: string, newPassword: string, stepUpToken?: string) {
+  return request({
+    url: `/user/${id}/password`,
+    method: 'post',
+    data: { oldPassword, newPassword },
+    headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
   })
 }
 
@@ -112,10 +122,11 @@ export function assignUserRoles(id: string, roleIds: string[]) {
   })
 }
 
-export function resetUserPassword(id: string, newPassword: string) {
+export function resetUserPassword(id: string, newPassword: string, stepUpToken?: string) {
   return request({
     url: `/user/${id}/reset-password`,
     method: 'post',
-    data: { newPassword }
+    data: { newPassword },
+    headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
   })
 }
