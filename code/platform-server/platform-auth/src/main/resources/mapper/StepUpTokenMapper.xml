@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.cloudhub.platform.auth.domain.mapper.StepUpTokenMapper">
+
+    <!-- 基础字段映射 -->
+    <resultMap id="BaseResultMap" type="com.cloudhub.platform.auth.domain.StepUpToken">
+        <id     column="id"               property="id"/>
+        <result column="token_hash"       property="tokenHash"/>
+        <result column="user_id"          property="userId"/>
+        <result column="tenant_id"        property="tenantId"/>
+        <result column="scope"            property="scope"/>
+        <result column="single_use"       property="singleUse"/>
+        <result column="used"             property="used"/>
+        <result column="issued_at"        property="issuedAt"/>
+        <result column="expires_at"       property="expiresAt"/>
+        <result column="consumed_at"      property="consumedAt"/>
+        <result column="client_ip"        property="clientIp"/>
+        <result column="user_agent"       property="userAgent"/>
+        <result column="revoked"          property="revoked"/>
+        <result column="revoked_at"       property="revokedAt"/>
+        <result column="revoke_reason"    property="revokeReason"/>
+    </resultMap>
+
+    <!-- 根据 token 哈希查 -->
+    <select id="selectByHash" resultMap="BaseResultMap">
+        SELECT id, token_hash, user_id, tenant_id, scope, single_use, used,
+               issued_at, expires_at, consumed_at, client_ip, user_agent,
+               revoked, revoked_at, revoke_reason
+        FROM sys_step_up_token
+        WHERE token_hash = #{tokenHash}
+        LIMIT 1
+    </select>
+
+    <!-- 撤销某用户所有未使用的 token (改密码 / 主动踢下) -->
+    <update id="revokeAllUnused">
+        UPDATE sys_step_up_token
+        SET revoked = 1,
+            revoked_at = #{now},
+            revoke_reason = #{reason}
+        WHERE user_id = #{userId}
+          AND used = 0
+          AND revoked = 0
+    </update>
+
+</mapper>
