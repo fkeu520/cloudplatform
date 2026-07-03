@@ -34,7 +34,7 @@
             <el-button type="success" link @click="handleAdmins(row)">管理员</el-button>
             <el-button type="success" link @click="handleOrgs(row)">组织</el-button>
             <el-button type="warning" link @click="handleAuthorize(row)">授权应用</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button type="danger" link @click="openDeleteDialog(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -124,7 +124,7 @@
         <el-table-column prop="nickname" label="昵称" width="120" />
         <el-table-column prop="mobile" label="手机号" width="120" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button type="warning" link @click="handleResetPassword(row)">重置密码</el-button>
             <el-popconfirm title="确定移除该管理员？" @confirm="handleDeleteAdmin(row)">
@@ -172,9 +172,20 @@
       </el-form>
       <template #footer>
         <el-button @click="resetPwdDialogVisible=false">取消</el-button>
-        <el-button type="primary" :loading="resetPwdSubmitting" @click="handleResetPasswordSubmit">确定</el-button>
+        <el-button type="primary" @click="openResetPwdStepUp">下一步 (二次验证)</el-button>
       </template>
     </el-dialog>
+
+    <!-- v8 P0-3: Step-up 二次鉴权弹窗 (删除租户 / 停用租户 / 重置密码) -->
+    <StepUpDialog v-model="stepUpDeleteVisible" scope="tenant:delete"
+                  description="删除租户 (含所有数据, 不可恢复)"
+                  :on-success="onStepUpDeleteSuccess" />
+    <StepUpDialog v-model="stepUpDisableVisible" scope="tenant:disable"
+                  description="停用/启用该租户"
+                  :on-success="onStepUpDisableSuccess" />
+    <StepUpDialog v-model="stepUpResetPwdVisible" scope="tenant:admin:reset-pwd"
+                  description="重置租户管理员密码 (会强制下线)"
+                  :on-success="onStepUpResetPwdSuccess" />
   </div>
 </template>
 
@@ -184,6 +195,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { page, create, update, remove, toggleStatus, listOrgs, listAdmins, createAdmin, deleteAdmin, resetAdminPassword } from '../../api/tenant'
 import { list as listApps } from '../../api/app'
 import { getAuthorizedAppIds, authorizeApps } from '../../api/tenantApp'
+import StepUpDialog from '../../components/StepUpDialog.vue'
 
 const list = ref<any[]>([])
 const total = ref(0)
@@ -239,6 +251,22 @@ function handleEdit(row: any) {
   dialogVisible.value = true
 }
 
+// v8 P0-3: 高敏操作前弹出 StepUpDialog 二次鉴权
+const stepUpDeleteVisible = ref(false)
+const stepUpDeleteTarget = ref<any>(null)
+const stepUpDisableVisible = ref(false)
+const stepUpDisableTarget = ref<any>(null)
+
+function openDeleteDialog(row: any) {
+  stepUpDeleteTarget.value = row
+  stepUpDeleteVisible.value = true
+}
+
+function openDisableDialog(row: any) {
+  stepUpDisableTarget.value = row
+  stepUpDisableVisible.value = true
+}
+
 async function handleDelete(row: any) {
   await ElMessageBox.confirm('确定删除该租户吗？', '提示')
   await remove(row.id)
@@ -248,6 +276,26 @@ async function handleDelete(row: any) {
 async function handleToggleStatus(row: any) {
   await toggleStatus(row.id)
   ElMessage.success('状态已更新'); fetchData()
+}
+
+async function onStepUpDeleteSuccess(stepUpToken: string) {
+  const row = stepUpDeleteTarget.value
+  if (!row) return
+  try {
+    await remove(row.id, stepUpToken)
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch (e) { /* request 拦截器已提示 */ }
+}
+
+async function onStepUpDisableSuccess(stepUpToken: string) {
+  const row = stepUpDisableTarget.value
+  if (!row) return
+  try {
+    await toggleStatus(row.id, stepUpToken)
+    ElMessage.success('状态已更新')
+    fetchData()
+  } catch (e) { /* request 拦截器已提示 */ }
 }
 
 async function handleSubmit() {
@@ -370,11 +418,38 @@ async function handleResetPasswordSubmit() {
   if (!valid) return
   resetPwdSubmitting.value = true
   try {
+    // v8 P0-3: 重置密码是高敏操作, 需要 step-up token
+    // (这里直接调用原接口, 不走 StepUpDialog 流程是因为新密码已在表单里)
+    // 业务侧要求: 提交新密码前先弹 StepUpDialog 验证, 验证通过后再带 X-Step-Up-Token 调接口
+    // 简化: 改用 StepUpDialog 包一层 (见下)
     await resetAdminPassword(adminTenantId.value, resetPwdTarget.value.id, resetPwdForm.newPassword)
     ElMessage.success(`管理员 [${resetPwdTarget.value.username}] 密码已重置`)
     resetPwdDialogVisible.value = false
   } finally {
     resetPwdSubmitting.value = false
   }
+}
+
+// v8 P0-3: 重置密码用 StepUpDialog 流程
+const stepUpResetPwdVisible = ref(false)
+function openResetPwdStepUp() {
+  // 先做表单校验
+  resetPwdFormRef.value?.validate().then((valid: boolean) => {
+    if (valid) {
+      stepUpResetPwdVisible.value = true
+    }
+  })
+}
+async function onStepUpResetPwdSuccess(stepUpToken: string) {
+  try {
+    await resetAdminPassword(
+      adminTenantId.value,
+      resetPwdTarget.value.id,
+      resetPwdForm.newPassword,
+      stepUpToken
+    )
+    ElMessage.success(`管理员 [${resetPwdTarget.value.username}] 密码已重置`)
+    resetPwdDialogVisible.value = false
+  } catch { /* request 拦截器已提示 */ }
 }
 </script>

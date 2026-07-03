@@ -25,12 +25,16 @@ export function update(id: string, data: Record<string, any>) {
   return request.put(`/tenant/${id}`, data)
 }
 
-export function remove(id: string) {
-  return request.delete(`/tenant/${id}`)
+export function remove(id: string, stepUpToken?: string) {
+  return request.delete(`/tenant/${id}`, {
+    headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
+  })
 }
 
-export function toggleStatus(id: string) {
-  return request.post(`/tenant/${id}/toggle-status`)
+export function toggleStatus(id: string, stepUpToken?: string) {
+  return request.post(`/tenant/${id}/toggle-status`, null, {
+    headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
+  })
 }
 
 export function listOrgs(id: string) {
@@ -49,6 +53,8 @@ export function deleteAdmin(tenantId: string, userId: number) {
   return request.delete(`/tenant/${tenantId}/admin/${userId}`)
 }
 
-export function resetAdminPassword(tenantId: string, userId: number, newPassword: string) {
-  return request.post(`/tenant/${tenantId}/admin/${userId}/reset-password`, { newPassword })
+export function resetAdminPassword(tenantId: string, userId: number, newPassword: string, stepUpToken?: string) {
+  return request.post(`/tenant/${tenantId}/admin/${userId}/reset-password`, { newPassword }, {
+    headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
+  })
 }
