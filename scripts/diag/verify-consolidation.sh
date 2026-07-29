@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # 217 验证脚本: 合并 app (用户中心/流程中心/消息中心 → 系统管理) 后的状态检查
 # 用法: bash scripts/diag/verify-consolidation.sh
 # 退出码: 0=全部通过, 1=DB 异常, 2=API 异常
@@ -125,7 +125,7 @@ if [ -z "$TENANT_ADMIN" ]; then
 fi
 note "测试账号: $TENANT_ADMIN / 123456"
 
-LOGIN_RES=$(curl -s -X POST "http://192.168.0.217:8083/auth/login" \
+LOGIN_RES=$(curl -s -X POST "http://192.168.0.142:8083/auth/login" \
     -H "Content-Type: application/json" \
     -d "{\"username\":\"$TENANT_ADMIN\",\"password\":\"123456\"}" 2>/dev/null)
 
@@ -137,7 +137,7 @@ fi
 ok "登录成功"
 
 # 拿 app 列表
-APPS_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "http://192.168.0.217:8083/app/user" 2>/dev/null)
+APPS_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "http://192.168.0.142:8083/app/user" 2>/dev/null)
 APP_COUNT=$(echo "$APPS_RES" | jq -r '.data | length' 2>/dev/null)
 
 if [ "$APP_COUNT" = "0" ]; then
@@ -161,7 +161,7 @@ echo
 
 # ============ 7) 菜单 API 验证 (合并后菜单应该全在 app 1) ============
 echo "--- 7) /menu/user 验证 ---"
-MENU_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "http://192.168.0.217:8083/menu/user?appId=1" 2>/dev/null)
+MENU_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "http://192.168.0.142:8083/menu/user?appId=1" 2>/dev/null)
 ROOT_MENU_COUNT=$(echo "$MENU_RES" | jq -r '.data | length' 2>/dev/null)
 note "app 1 下根菜单数: $ROOT_MENU_COUNT"
 
@@ -175,7 +175,7 @@ echo
 echo "========================================="
 echo "  下一步: 浏览器硬刷新 + 登录"
 echo "========================================="
-note "1. Ctrl+Shift+R 硬刷新 http://192.168.0.217:8080"
+note "1. Ctrl+Shift+R 硬刷新 http://192.168.0.142:8080"
 note "2. 用 $TENANT_ADMIN / 123456 登录"
 note "3. 顶部 tabs 应该看到 1 个'系统管理' (合并了用户中心/流程中心/基础配置/消息中心)"
 note "4. 左侧菜单应该有: 用户管理/角色管理/菜单管理/组织/部门/岗位/字典/参数/流程/消息 等"

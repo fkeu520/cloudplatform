@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # 217 一站式部署: app 合并 + Park 模块
 # 用法: bash scripts/diag/deploy-consolidate-park-on-217.sh
 set -euo pipefail
@@ -78,7 +78,7 @@ echo "========================================="
 ok "全部完成!"
 echo
 echo "下一步验证:"
-echo "  1) 浏览器打开 http://192.168.0.217:8080"
+echo "  1) 浏览器打开 http://192.168.0.142:8080"
 echo "  2) 用 admin/123456 登录"
 echo "  3) 检查顶部 tab: 应该只有"系统管理"1 个 tab"
 echo "  4) 左侧菜单应该包含: 用户/角色/菜单/组织/部门/岗位/字典/参数/园区/日志 等"

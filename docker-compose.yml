@@ -715,6 +715,21 @@ services:
       - "8060:80"
     logging: *default-logging
 
+  # ============ Cloudflare Tunnel (公网 https://cloud.hugh.sryze.cc) ============
+  # 2026-07-29 新增: 替代被 ISP 阻断的入站 443, 通过出站 QUIC/HTTP2 隧道把公网请求
+  # 转发到 localhost:8080(/api/ → 8083 网关, /ops/ → 8090 运营后台, 其他 → 8080 UI)
+  # 配置目录: /opt/platform/cloudflared/{credentials.json,config.yml}
+  # tunnel-id: 99ce2ade-60c1-4159-b9a9-d94c686c1c2e (参见 CF Zero Trust 仪表盘)
+  platform-cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: platform-cloudflared
+    restart: unless-stopped
+    network_mode: host
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    logging: *default-logging
+
 volumes:
   mysql-data:
   redis-data:

@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # 217 一站式部署验证: park-space W3.3-W3.6 (15 个新实体)
 # 用法: bash scripts/diag/deploy-park-space-w36-on-217.sh
 #
@@ -205,7 +205,7 @@ echo "  - 17 个端点全部 200"
 echo "  - park-space 健康状态: $HEALTH"
 echo
 echo "🔗 下一步验证 (浏览器):"
-echo "  1) http://192.168.0.217:8080 (管理后台)"
+echo "  1) http://192.168.0.142:8080 (管理后台)"
 echo "  2) admin / 123456 登录"
 echo "  3) 顶部 tab: 系统管理"
 echo "  4) 左侧菜单 → 空间中心 → 区域/楼层/配套/规划用途/土地性质"

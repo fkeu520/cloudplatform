@@ -92,7 +92,7 @@ echo "=== 其他变更 ==="
 [ "$CI_CHANGED" -eq 1 ] && echo "  - CI 配置改了 → 下次 push 才会生效"
 
 echo
-echo "=== 217 部署命令 ==="
+echo "=== 142 部署命令 ==="
 if [ ${#AFFECTED[@]} -eq 0 ]; then
   echo "  # 本次无 service 改动, 无需 pull"
 elif [ "$INFRA_CHANGED" -eq 1 ]; then

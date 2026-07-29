@@ -1,11 +1,11 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # =============================================================================
-# v8 P0-3 Step-up Token 部署脚本 (Ubuntu 217)
+# v8 P0-3 Step-up Token 部署脚本 (Ubuntu 142)
 # =============================================================================
 # 配套: doc/decision/v8-P0-3-step-up-token.md
 # 用法:
 #   1. 先在 Windows 端: git push origin develop (等 CI 通过)
-#   2. SSH 到 192.168.0.217
+#   2. SSH 到 192.168.0.142
 #   3. cd /opt/platform
 #   4. bash scripts/deploy-p0-3-step-up.sh
 #
@@ -13,7 +13,7 @@
 #   - Ubuntu 26.04, docker compose v2+, 6 核 14GB 872GB SSD
 #   - 数据库已建 (platform/platform123)
 #   - Nacos 已跑 (nacos/nacos)
-#   - SSH 凭据: hugh@192.168.0.217
+#   - SSH 凭据: hugh@192.168.0.142
 #
 # 风险: 部署会重启所有容器, 约 1-2 分钟服务不可用
 # =============================================================================
@@ -154,7 +154,7 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║  部署完成                                                     ║${NC}"
 echo -e "${CYAN}║                                                              ║${NC}"
 echo -e "${CYAN}║  下一步 (5 端到端验证场景):                                ║${NC}"
-echo -e "${CYAN}║  1. 浏览器打开 http://192.168.0.217:8090 (ops-admin)        ║${NC}"
+echo -e "${CYAN}║  1. 浏览器打开 http://192.168.0.142:8090 (ops-admin)        ║${NC}"
 echo -e "${CYAN}║  2. 登录 (admin / 123456)                                   ║${NC}"
 echo -e "${CYAN}║  3. 租户管理 -> 删租户 -> 触发 step-up 弹窗             ║${NC}"
 echo -e "${CYAN}║  4. 输对密码 -> 删除成功 -> 再次点删除 (弹窗又出现)   ║${NC}"
