@@ -1,4 +1,4 @@
-# v8 P0-3 Step-up Token 二次鉴权 - 设计与决策
+﻿# v8 P0-3 Step-up Token 二次鉴权 - 设计与决策
 
 | 项 | 值 |
 |---|---|
@@ -264,14 +264,14 @@ stepup:
 ### 7.2 部署时推送
 
 ```bash
-# 1. SSH 到 Ubuntu 217
-ssh hugh@192.168.0.217
+# 1. SSH 到 Ubuntu 142
+ssh hugh@192.168.0.142
 
 # 2. Nacos 控制台 -> 配置管理 -> common.yml -> 编辑
 # 3. 粘本文件 7 段 -> 发布
 
 # 4. 验证 (Nacos 长轮询 30s 自动生效)
-curl http://192.168.0.217:8082/actuator/configprops | jq '.stepup'
+curl http://192.168.0.142:8082/actuator/configprops | jq '.stepup'
 ```
 
 ---
@@ -349,8 +349,8 @@ curl http://192.168.0.217:8082/actuator/configprops | jq '.stepup'
 git push origin develop
 # (等 CI 通过)
 
-# 2. SSH 拉代码 (Ubuntu 217)
-ssh hugh@192.168.0.217
+# 2. SSH 拉代码 (Ubuntu 142)
+ssh hugh@192.168.0.142
 cd /opt/platform
 git pull
 docker compose pull
@@ -361,19 +361,19 @@ docker ps | grep platform-auth
 docker logs platform-auth 2>&1 | grep -E "Started|stepup"
 
 # 4. 验证 step-up 端点
-curl -X POST http://192.168.0.217:8082/auth/step-up/issue \
+curl -X POST http://192.168.0.142:8082/auth/step-up/issue \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <jwt>" \
   -d '{"password":"<rsa-encrypted>","scope":"tenant:delete"}'
 # 期望: { "code": 200, "data": { "stepUpToken": "xxx", "expiresAt": "..." } }
 
 # 5. 验证高敏端点
-curl -X DELETE http://192.168.0.217:8082/tenant/2 \
+curl -X DELETE http://192.168.0.142:8082/tenant/2 \
   -H "Authorization: Bearer <jwt>" \
   -H "X-Step-Up-Token: <上一步的 token>"
 # 期望: { "code": 200 }
 # 再调一次 (不带 token)
-curl -X DELETE http://192.168.0.217:8082/tenant/2 \
+curl -X DELETE http://192.168.0.142:8082/tenant/2 \
   -H "Authorization: Bearer <jwt>"
 # 期望: { "code": 403, "message": "缺少 X-Step-Up-Token 头" }
 ```

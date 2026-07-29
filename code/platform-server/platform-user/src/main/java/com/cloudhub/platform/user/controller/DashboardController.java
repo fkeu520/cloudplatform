@@ -1,4 +1,4 @@
-package com.cloudhub.platform.user.controller;
+﻿package com.cloudhub.platform.user.controller;
 
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.result.Result;
@@ -127,7 +127,7 @@ public class DashboardController {
      * 系统资源 (CPU/内存/磁盘, 仅 userType=2 运营管理员可见)
      *
      * <p>W3 阶段: 从 container-exporter Prometheus API 拉取.
-     * 数据源: http://192.168.0.217:9100/metrics (node-exporter) 或 container-exporter.</p>
+     * 数据源: http://192.168.0.142:9100/metrics (node-exporter) 或 container-exporter.</p>
      */
     @Operation(summary = "系统资源监控 (仅运营管理员可见)")
     @GetMapping("/system-stats")

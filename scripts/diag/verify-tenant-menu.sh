@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # 217 一站式验证脚本: 拉新镜像 + 重启 + 验证 V25/V27 + 验证菜单数据
 # 用法: bash scripts/diag/verify-tenant-menu.sh
 # 退出码: 0=全部通过, 1=CI 还没绿, 2=数据未修复, 3=API 失败
@@ -92,7 +92,7 @@ fi
 note "测试账号: $TENANT_ADMIN_USER / 123456"
 
 # 登录拿 token
-LOGIN_RES=$(curl -s -X POST "http://192.168.0.217:8083/auth/login" \
+LOGIN_RES=$(curl -s -X POST "http://192.168.0.142:8083/auth/login" \
     -H "Content-Type: application/json" \
     -d "{\"username\":\"$TENANT_ADMIN_USER\",\"password\":\"123456\"}")
 
@@ -104,7 +104,7 @@ fi
 ok "登录成功, 拿到 token"
 
 # 拿菜单
-MENU_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "http://192.168.0.217:8083/menu/user")
+MENU_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "http://192.168.0.142:8083/menu/user")
 MENU_COUNT=$(echo "$MENU_RES" | jq -r '.data | length' 2>/dev/null)
 
 if [ "$MENU_COUNT" = "5" ]; then
@@ -120,7 +120,7 @@ echo
 echo "========================================="
 echo "  下一步: 浏览器硬刷新 + 登录"
 echo "========================================="
-note "1. Ctrl+Shift+R 硬刷新 http://192.168.0.217:8080"
+note "1. Ctrl+Shift+R 硬刷新 http://192.168.0.142:8080"
 note "2. 用 $TENANT_ADMIN_USER / 123456 登录"
 note "3. 顶部 tabs 应该看到 5 个 app: 系统管理/用户中心/流程中心/消息中心/运营管理"
 note ""

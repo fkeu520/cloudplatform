@@ -107,7 +107,7 @@ logging:
 # ──────────────────────────────────────────────
 # 云企库第三方数据集成 (Phase 3, csyh pai-enterprise 迁移)
 # 注: 命名空间用 platform.cloud.* 而非 cloud.* — 顶层 cloud.* 会触发
-#     Spring Cloud Common 的 CloudEnvironmentPostProcessor, 217 启动失败
+#     Spring Cloud Common 的 CloudEnvironmentPostProcessor, 142 启动失败
 #     (2026-07-01 排错: 与 MybatisPlusInterceptor 初始化竞争导致 SqlSessionFactory 缺失)
 # 11 模块: Overview/BusinessRisk/BusinessSituation/EntDetail/
 #           EnterpriseImage/EnterpriseRecruit/EnterpriseSearch/

@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # ============================================
 # 2026-06-15 部署 + 验证 (workflow 外键修复 + container-exporter 修复)
 # ============================================
@@ -8,7 +8,7 @@
 #   1533f6b build(ci): 把 container-exporter 打包成镜像
 # 用法: bash scripts/ci/deploy-and-verify-2026-06-15.sh
 # 退出码: 0 = 全部通过, 1 = 至少一项不通过
-# 前提: 在 Ubuntu 192.168.0.217 上, cd /opt/platform, docker compose ps 正常
+# 前提: 在 Ubuntu 192.168.0.142 上, cd /opt/platform, docker compose ps 正常
 # ============================================
 
 set -e
@@ -222,5 +222,5 @@ if [ $FAIL -gt 0 ]; then
 fi
 
 echo -e "\n${GREEN}部署验证全部通过 (PASS=$PASS, WARN=$WARN)${NC}"
-echo "Grafana 容器资源排行: http://192.168.0.217:3000 (admin / 13040936a)"
+echo "Grafana 容器资源排行: http://192.168.0.142:3000 (admin / 13040936a)"
 exit 0

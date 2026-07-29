@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # =============================================================================
 # v8 P0-3 Step-up Token 验证脚本 (部署后跑)
 # =============================================================================
@@ -19,7 +19,7 @@ else
 fi
 
 # === 配置 ===
-GATEWAY_URL="${GATEWAY_URL:-http://192.168.0.217:8080}"
+GATEWAY_URL="${GATEWAY_URL:-http://192.168.0.142:8080}"
 ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASS="${ADMIN_PASS:-123456}"
 
@@ -191,7 +191,7 @@ echo ""
 echo -e "${YELLOW}[8/8]${NC} 验证 OperLog 表落 step_up_token_id (需 DB 访问)..."
 # 注: 此项验证需要直接访问 MySQL, 需要 mysql 客户端
 # 如果你的环境有 mysql 客户端, 取消下面注释
-# mysql -h 192.168.0.217 -u platform -pplatform123 platform -e "SELECT id, title, step_up_token_id, requires_step_up FROM sys_oper_log WHERE step_up_token_id IS NOT NULL ORDER BY oper_time DESC LIMIT 5;"
+# mysql -h 192.168.0.142 -u platform -pplatform123 platform -e "SELECT id, title, step_up_token_id, requires_step_up FROM sys_oper_log WHERE step_up_token_id IS NOT NULL ORDER BY oper_time DESC LIMIT 5;"
 echo -e "${YELLOW}  ⚠ 需手动验证 (跳过)${NC}"
 echo ""
 

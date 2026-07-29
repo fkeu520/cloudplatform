@@ -1,4 +1,6 @@
-# 已知问题与解决方案 (KNOWN_ISSUES)
+﻿# 已知问题与解决方案 (KNOWN_ISSUES)
+
+> **2026-07-23 服务器 IP 变更**: 开发/部署 Ubuntu 服务器 IP 由 `192.168.0.217` 迁移至 `192.168.0.142`。本文档内 IP 已批量更新。原始记录参见 git 历史。
 
 > **用途**: 统一记录云枢中台项目开发、部署、运维过程中遇到的**所有问题、根因、修复方案、复盘教训**。
 > **原则**: 一次踩坑、永久记录、避免复发。
@@ -1436,7 +1438,7 @@ v11.12.0 源码注释明确:
 
 ```bash
 # 1. Ubuntu 端 pull + 重启
-ssh hugh@192.168.0.217
+ssh hugh@192.168.0.142
 cd /opt/platform
 git pull
 docker compose up -d platform-logstash
@@ -1454,7 +1456,7 @@ curl -s "http://localhost:9200/_cat/indices/platform-logs-*?v"
 # 期望: 看到 platform-logs-YYYY.MM.dd 索引, 且 doc count > 0
 
 # 5. Kibana 验证
-open http://192.168.0.217:5601
+open http://192.168.0.142:5601
 # Discover → 选 platform-logs DataView → 应有新文档
 ```
 
@@ -1888,7 +1890,7 @@ Docker 29.5.3 的 stats 响应只有 `memory_stats`, 没有 `memory` 别名 → 
 
 ### 现象
 
-- 在 Ubuntu 217 全新部署 platform-workflow 后, 调用 POST /api/workflow/definition/deploy 部署请假流程
+- 在 Ubuntu 142 全新部署 platform-workflow 后, 调用 POST /api/workflow/definition/deploy 部署请假流程
 - 部署报 500: Caused by: org.xml.sax.SAXParseException: cvc-datatype-valid.1.2.1: '2121212212' is not a valid value for 'NCName'
 - 根因 #1: BpmnDesigner.vue 把用户输入的 ${day < 3} 直接拼到 XML, < 没转义 → Flowable 加载时 SAX 失败
 - 根因 #2: 业务方手动输入 processKey="2121212212" (纯数字), 违反 XML id 规则 (NCName 要求首字符 [A-Za-z_])
@@ -1940,9 +1942,9 @@ Docker 29.5.3 的 stats 响应只有 `memory_stats`, 没有 `memory` 别名 → 
 
 ### 验证
 
-待 Ubuntu 217 拉新镜像后:
+待 Ubuntu 142 拉新镜像后:
 - docker logs platform-workflow 2>&1 | grep InitBpmn 应有 [InitBpmn] xxx 部署成功: deploymentId=..., key=leave-approval
-- curl http://192.168.0.217:8080/api/workflow/definition/list 应有 leave-approval (VERSION_1)
+- curl http://192.168.0.142:8080/api/workflow/definition/list 应有 leave-approval (VERSION_1)
 - 业务方 (请假) 启动流程不再 500
 
 Commit: 99564dd feat(workflow): 启动时自动初始化基础流程定义
@@ -2676,7 +2678,7 @@ HS256 用 SECRET 派生 SecretKey, 两边**派生出不同的 key** → `JwtUtil
 
 部署后:
 ```bash
-ssh hugh@192.168.0.217
+ssh hugh@192.168.0.142
 cd /opt/platform
 git pull && docker compose up -d platform-auth platform-gateway
 

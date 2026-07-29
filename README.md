@@ -1,4 +1,4 @@
-# 云枢中台
+﻿# 云枢中台
 
 > 通用中台解决方案
 
@@ -51,7 +51,7 @@
 |------|------|
 | **可用性 > 可扩展性 > 性能** | 任何优化不得引入消息丢失、首请求延迟 |
 | **不锁死技术栈** | 依赖通过配置开关控制，不删 pom 依赖 |
-| **Windows 开发 / Ubuntu 部署** | 代码在 Windows 编辑提交, GitHub Actions CI 构建, Ubuntu 217 部署 |
+| **Windows 开发 / Ubuntu 部署** | 代码在 Windows 编辑提交, GitHub Actions CI 构建, Ubuntu 142 部署 |
 
 ---
 
@@ -97,7 +97,7 @@
 
 | 环境 | 主机 | 规格 | 状态 |
 |------|------|------|------|
-| **开发/演示** | Ubuntu 26.04 @ 192.168.0.217 | 6核 / 14GB / 872GB SSD | ✅ 22 容器全健康, 6.2 GB available |
+| **开发/演示** | Ubuntu 26.04 @ 192.168.0.142 | 6核 / 14GB / 872GB SSD | ✅ 22 容器全健康, 6.2 GB available |
 | **生产规划** | 3 节点 HA (K8s) | 12核48G × 3 | 📋 见 [`服务器配置清单.md`](doc/服务器配置清单.md) |
 
 ---
@@ -144,7 +144,7 @@ platform/
 ### Docker Compose 启动 (推荐)
 
 ```bash
-# 开发环境 (217 Ubuntu)
+# 开发环境 (142 Ubuntu)
 cd /opt/platform
 git pull
 docker compose pull              # 从 ghcr.io 拉最新镜像
@@ -161,13 +161,13 @@ docker stats --no-stream
 
 | 服务 | 地址 | 账号 |
 |------|------|------|
-| 管理后台 | http://192.168.0.217:8080 | zhangs / 123456 |
-| 运营后台 | http://192.168.0.217:8090 | admin / 123456 |
-| Grafana (监控) | http://192.168.0.217:3000 | - |
-| Prometheus | http://192.168.0.217:9090 | - |
-| Zipkin (链路) | http://192.168.0.217:9411 | - |
-| Kibana (日志) | http://192.168.0.217:5601 | - |
-| Nacos | http://192.168.0.217:8848 | nacos / nacos |
+| 管理后台 | http://192.168.0.142:8080 | admin / 123456 |
+| 运营后台 | http://192.168.0.142:8090 | admin / 123456 |
+| Grafana (监控) | http://192.168.0.142:3000 | admin / 13040936a |
+| Prometheus | http://192.168.0.142:9090 | - |
+| Zipkin (链路) | http://192.168.0.142:9411 | - |
+| Kibana (日志) | http://192.168.0.142:5601 | - |
+| Nacos | http://192.168.0.142:8848 | nacos / nacos |
 
 ---
 
@@ -221,7 +221,7 @@ docker stats --no-stream
 | **JVM (规划)** | Micrometer + /actuator/prometheus | 各微服务 | (需启用 prometheus 端点) |
 | **告警 (规划)** | Alertmanager | Prometheus | (需部署) |
 
-Grafana 访问: http://192.168.0.217:3000 (admin / 13040936a)
+Grafana 访问: http://192.168.0.142:3000 (admin / 13040936a)
 
 ---
 
@@ -234,7 +234,7 @@ Windows 编辑代码 → git push (双平台: Gitee + GitHub)
                  并行构建 (backend/frontend)
                  镜像推送到 ghcr.io
                         ↓
-               SSH 到 Ubuntu 217
+               SSH 到 Ubuntu 142
                git pull + docker compose pull
                docker compose up -d
 ```
@@ -256,7 +256,7 @@ Windows 编辑代码 → git push (双平台: Gitee + GitHub)
 
 | 场景 | CPU | 内存 | 磁盘 | 说明 |
 |------|-----|------|------|------|
-| **当前开发** (217) | 6 核 | 14 GB | 872 GB SSD | 22 容器, 6.2 GB available |
+| **当前开发** (142) | 6 核 | 14 GB | 872 GB SSD | 22 容器, 6.2 GB available |
 | **小规模生产** | 12 核 × 3 | 48 GB × 3 | 1 TB SSD × 3 | 3 节点 HA, 500 并发 |
 | **中等规模** | 16 核 × 3 | 64 GB × 3 | 2 TB × 3 | 1000+ 并发 |
 

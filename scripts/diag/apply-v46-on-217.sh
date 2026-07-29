@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 # ================================================================
 # Apply V46 on 217: 防御性补齐 sys_room 的 V36+V40 扩展字段
 #
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 MYSQL_USER="${MYSQL_USER:-root}"
-MYSQL_HOST="${MYSQL_HOST:-192.168.0.217}"
+MYSQL_HOST="${MYSQL_HOST:-192.168.0.142}"
 MYSQL_PORT="${MYSQL_PORT:-3306}"
 PARK_SPACE_DB="${PARK_SPACE_DB:-cloudhub_park_space}"
 

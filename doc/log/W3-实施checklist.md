@@ -1,4 +1,4 @@
-# W3+ 多服务功能实施 checklist
+﻿# W3+ 多服务功能实施 checklist
 
 > **背景**: 2026-06-16 W3 阶段中, 我作为 Sisyphus 模式 3 次未一次性规划完整, 导致 3 个连环问题:
 >
@@ -262,7 +262,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8083/dashboard/welcome
 ### 5.4 端到端验证:
 
 ```bash
-# 浏览器打开 http://192.168.0.217:8080
+# 浏览器打开 http://192.168.0.142:8080
 # - 登录
 # - 工作台 6 大模块加载
 # - 顶部 tabs 切换 app

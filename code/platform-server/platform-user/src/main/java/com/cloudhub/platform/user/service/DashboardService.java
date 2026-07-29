@@ -1,4 +1,4 @@
-package com.cloudhub.platform.user.service;
+﻿package com.cloudhub.platform.user.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -115,7 +115,7 @@ public class DashboardService {
      *
      * <p>W3 阶段返回 Mock 数据. W3+ 阶段:
      * <ol>
-     *   <li>HTTP GET http://192.168.0.217:9100/metrics (Prometheus node-exporter)</li>
+     *   <li>HTTP GET http://192.168.0.142:9100/metrics (Prometheus node-exporter)</li>
      *   <li>解析 Prometheus text format</li>
      *   <li>提取 node_cpu_seconds_total, node_memory_MemAvailable_bytes 等</li>
      *   <li>封装成统一格式返回</li>
