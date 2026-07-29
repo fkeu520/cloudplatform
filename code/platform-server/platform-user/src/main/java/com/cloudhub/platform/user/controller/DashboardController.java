@@ -1,4 +1,4 @@
-﻿package com.cloudhub.platform.user.controller;
+package com.cloudhub.platform.user.controller;
 
 import com.cloudhub.platform.common.config.TenantContextHolder;
 import com.cloudhub.platform.common.result.Result;
