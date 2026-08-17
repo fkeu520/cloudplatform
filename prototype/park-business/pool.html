@@ -18,6 +18,14 @@
     .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
     .stat-card .num{font-size:28px;font-weight:700;color:var(--color-ink)}
     .stat-card .sub{font-size:12px;color:var(--color-ink-tertiary);margin-top:4px}
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    .sort-asc::after{content:' ▲';font-size:10px;color:var(--color-primary)}
+    .sort-desc::after{content:' ▼';font-size:10px;color:var(--color-primary)}
+    th.sortable{cursor:pointer;user-select:none}
+    th.sortable:hover{color:var(--color-primary)}
+    .claimed-tag{display:inline-block;font-size:11px;padding:2px 6px;border-radius:4px;background:#e8f5e9;color:#2e7d32;margin-left:4px;vertical-align:middle}
+    tr.row-grayed td{opacity:0.5;text-decoration:line-through;color:var(--color-ink-tertiary)}
+    .btn-disabled{opacity:0.5;cursor:not-allowed;pointer-events:none}
   </style>
 </head>
 <body>
@@ -87,22 +95,22 @@
     <div class="card" style="padding:16px 20px;margin-bottom:16px">
       <div class="toolbar">
         <div class="search-box">
-          <input type="text" placeholder="企业名称 / 联系人">
-          <input type="text" placeholder="手机号码">
-          <select>
+          <input type="text" placeholder="企业名称 / 联系人" id="searchName" oninput="filterTable()">
+          <input type="text" placeholder="手机号码" id="searchPhone" oninput="filterTable()">
+          <select onchange="filterTable()">
             <option value="">全部来源</option>
-            <option value="1">自行录入</option>
-            <option value="2">小程序登记</option>
-            <option value="3">批量导入</option>
-            <option value="4">活动收集</option>
+            <option>自行录入</option>
+            <option>小程序登记</option>
+            <option>批量导入</option>
+            <option>活动收集</option>
           </select>
-          <select>
+          <select onchange="filterTable()">
             <option value="">全部状态</option>
-            <option value="0">待分配</option>
-            <option value="1">已分配</option>
+            <option>待分配</option>
+            <option>已分配</option>
           </select>
-          <button class="btn btn-primary">🔍 搜索</button>
-          <button class="btn btn-default">重置</button>
+          <button class="btn btn-primary" onclick="filterTable()">🔍 搜索</button>
+          <button class="btn btn-default" onclick="resetSearch()">重置</button>
         </div>
         <div class="search-actions">
           <button class="btn btn-default" onclick="parent.loadPage('park-business/pool-log.html','公海日志','park-business')">📋 公海日志</button>
@@ -127,13 +135,13 @@
           <thead>
             <tr>
               <th class="col-checkbox"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
-              <th>企业名称</th>
-              <th>联系人</th>
-              <th>手机号码</th>
-              <th>客户来源</th>
-              <th>入池时间</th>
-              <th>入池原因</th>
-              <th>状态</th>
+              <th class="sortable" onclick="sortTable('name')">企业名称</th>
+              <th class="sortable" onclick="sortTable('contact')">联系人</th>
+              <th class="sortable" onclick="sortTable('phone')">手机号码</th>
+              <th class="sortable" onclick="sortTable('source')">客户来源</th>
+              <th class="sortable" onclick="sortTable('poolTime')">入池时间</th>
+              <th class="sortable" onclick="sortTable('reason')">入池原因</th>
+              <th class="sortable" onclick="sortTable('status')">状态</th>
               <th style="width:140px">操作</th>
             </tr>
           </thead>
@@ -214,16 +222,8 @@
         </table>
       </div>
       <div class="pagination">
-        <div class="info">共 <span>128</span> 条记录，每页 10 条</div>
-        <div class="pages">
-          <button class="disabled">‹</button>
-          <button class="active">1</button>
-          <button>2</button>
-          <button>3</button>
-          <button>...</button>
-          <button>13</button>
-          <button>›</button>
-        </div>
+        <div class="info">共 <span id="totalCount">128</span> 条记录，每页 8 条</div>
+        <div class="pages" id="pageButtons"></div>
       </div>
     </div>
   </div>
@@ -348,37 +348,273 @@
   </div>
 
   <script>
-    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    // === Toast (复用 customer-detail 模式) ===
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
 
-    function openAddDialog(){ document.getElementById('addModal').classList.add('show') }
-    function openAssignDialog(){ document.getElementById('assignModal').classList.add('show') }
-    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+    // === Mock Data (16 条) ===
+    var mockData = [
+      {id:1,name:'深圳智云科技有限公司',contact:'张伟',phone:'138 8888 8881',source:'小程序登记',poolTime:'2026-08-10',reason:'无人跟进超期回收',status:'待分配'},
+      {id:2,name:'广州创芯电子有限公司',contact:'李芳',phone:'139 8888 8882',source:'自行录入',poolTime:'2026-08-11',reason:'新录入未分配',status:'待分配'},
+      {id:3,name:'东莞宏达机械制造有限公司',contact:'王强',phone:'137 8888 8883',source:'批量导入',poolTime:'2026-08-12',reason:'导入待分配',status:'待分配'},
+      {id:4,name:'佛山德盛金属制品有限公司',contact:'赵敏',phone:'136 8888 8884',source:'活动收集',poolTime:'2026-08-13',reason:'展会收集',status:'待分配'},
+      {id:5,name:'中山市恒通电器有限公司',contact:'陈刚',phone:'135 8888 8885',source:'小程序登记',poolTime:'2026-08-14',reason:'意向登记转公海',status:'待分配'},
+      {id:6,name:'珠海天工精密制造有限公司',contact:'黄丽',phone:'134 8888 8886',source:'自行录入',poolTime:'2026-08-09',reason:'新录入未分配',status:'待分配'},
+      {id:7,name:'惠州华阳电子科技有限公司',contact:'林峰',phone:'133 8888 8887',source:'批量导入',poolTime:'2026-08-08',reason:'导入待分配',status:'待分配'},
+      {id:8,name:'深圳前海云创科技有限公司',contact:'何静',phone:'132 8888 8888',source:'活动收集',poolTime:'2026-08-07',reason:'展会收集',status:'待分配'},
+      {id:9,name:'广州天域网络技术有限公司',contact:'马超',phone:'131 8888 8889',source:'小程序登记',poolTime:'2026-08-06',reason:'无人跟进超期回收',status:'已分配'},
+      {id:10,name:'东莞华强塑胶有限公司',contact:'梁敏',phone:'130 8888 8890',source:'自行录入',poolTime:'2026-08-05',reason:'新录入未分配',status:'待分配'},
+      {id:11,name:'佛山南海铝业有限公司',contact:'唐辉',phone:'159 8888 8891',source:'批量导入',poolTime:'2026-08-04',reason:'导入待分配',status:'待分配'},
+      {id:12,name:'中山市博达电器有限公司',contact:'冯雪',phone:'158 8888 8892',source:'活动收集',poolTime:'2026-08-03',reason:'展会收集',status:'已分配'},
+      {id:13,name:'深圳龙华生物科技有限公司',contact:'董磊',phone:'157 8888 8893',source:'小程序登记',poolTime:'2026-08-02',reason:'无人跟进超期回收',status:'待分配'},
+      {id:14,name:'广州天河软件技术有限公司',contact:'程琳',phone:'156 8888 8894',source:'自行录入',poolTime:'2026-08-01',reason:'新录入未分配',status:'待分配'},
+      {id:15,name:'东莞长安五金制品有限公司',contact:'宋涛',phone:'155 8888 8895',source:'批量导入',poolTime:'2026-07-31',reason:'导入待分配',status:'已分配'},
+      {id:16,name:'佛山顺德家具有限公司',contact:'韩雪',phone:'154 8888 8896',source:'活动收集',poolTime:'2026-07-30',reason:'展会收集',status:'待分配'}
+    ]
+
+    var currentPage = 1
+    var pageSize = 8
+    var sortCol = ''
+    var sortDir = ''
+    var filteredData = mockData.slice()
+
+    // === 渲染表格 ===
+    function renderPage(page){
+      var tbody = document.getElementById('dataTable')
+      tbody.innerHTML = ''
+      var start = (page - 1) * pageSize
+      var end = Math.min(start + pageSize, filteredData.length)
+      var pageData = filteredData.slice(start, end)
+
+      for(var i = 0; i < pageData.length; i++){
+        var d = pageData[i]
+        var tr = document.createElement('tr')
+        tr.setAttribute('data-id', d.id)
+        var statusClass = d.status === '已分配' ? 'badge-success' : 'badge-warn'
+        tr.innerHTML = '<td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>' +
+          '<td><a href="javascript:void(0)" onclick="parent.loadPage(\'park-business/customer-detail.html\',\'客户档案\',\'park-business\')" style="color:var(--color-primary)">' + d.name + '</a></td>' +
+          '<td>' + d.contact + '</td>' +
+          '<td>' + d.phone + '</td>' +
+          '<td><span class="badge badge-info">' + d.source + '</span></td>' +
+          '<td>' + d.poolTime + '</td>' +
+          '<td>' + d.reason + '</td>' +
+          '<td><span class="badge ' + statusClass + '">' + d.status + '</span></td>' +
+          '<td>' +
+            '<!-- {{perm:business:pool:assign}} -->' +
+            '<button class="btn btn-primary btn-sm" onclick="openAssignDialog()">分配</button> ' +
+            '<!-- {{perm:business:pool:claim}} -->' +
+            '<button class="btn btn-default btn-sm" onclick="claim(this)">认领</button>' +
+          '</td>'
+        tbody.appendChild(tr)
+      }
+      document.getElementById('totalCount').textContent = filteredData.length
+      updatePagination()
+      clearSelection()
+    }
+
+    // === 分页 ===
+    function updatePagination(){
+      var totalPages = Math.ceil(filteredData.length / pageSize) || 1
+      var container = document.getElementById('pageButtons')
+      container.innerHTML = ''
+
+      var prevBtn = document.createElement('button')
+      prevBtn.textContent = '‹'
+      if(currentPage <= 1) prevBtn.className = 'disabled'
+      else prevBtn.onclick = function(){ goToPage('prev') }
+      container.appendChild(prevBtn)
+
+      for(var p = 1; p <= totalPages; p++){
+        var btn = document.createElement('button')
+        btn.textContent = p
+        btn.onclick = (function(page){ return function(){ goToPage(page) } })(p)
+        if(p === currentPage) btn.className = 'active'
+        container.appendChild(btn)
+      }
+
+      var nextBtn = document.createElement('button')
+      nextBtn.textContent = '›'
+      if(currentPage >= totalPages) nextBtn.className = 'disabled'
+      else nextBtn.onclick = function(){ goToPage('next') }
+      container.appendChild(nextBtn)
+    }
+
+    function goToPage(page){
+      var totalPages = Math.ceil(filteredData.length / pageSize) || 1
+      if(page === 'prev'){ if(currentPage > 1) currentPage-- }
+      else if(page === 'next'){ if(currentPage < totalPages) currentPage++ }
+      else{ currentPage = page }
+      renderPage(currentPage)
+    }
+
+    // === 搜索/筛选 ===
+    function filterTable(){
+      var nameVal = (document.getElementById('searchName').value || '').trim().toLowerCase()
+      var phoneVal = (document.getElementById('searchPhone').value || '').trim().toLowerCase()
+      var sels = document.querySelectorAll('.search-box select')
+      var sourceVal = sels[0].value
+      var statusVal = sels[1].value
+
+      filteredData = mockData.filter(function(d){
+        if(nameVal && d.name.toLowerCase().indexOf(nameVal) === -1 && d.contact.toLowerCase().indexOf(nameVal) === -1) return false
+        if(phoneVal && d.phone.indexOf(phoneVal) === -1) return false
+        if(sourceVal && d.source !== sourceVal) return false
+        if(statusVal && d.status !== statusVal) return false
+        return true
+      })
+      currentPage = 1
+      renderPage(1)
+    }
+
+    function resetSearch(){
+      document.getElementById('searchName').value = ''
+      document.getElementById('searchPhone').value = ''
+      document.querySelectorAll('.search-box select').forEach(function(s){ s.value = '' })
+      filteredData = mockData.slice()
+      currentPage = 1
+      renderPage(1)
+      showToast('已重置筛选条件','info')
+    }
+
+    // === 排序 ===
+    function sortTable(col){
+      if(sortCol === col){ sortDir = sortDir === 'asc' ? 'desc' : 'asc' }
+      else{ sortCol = col; sortDir = 'asc' }
+
+      document.querySelectorAll('th.sortable').forEach(function(th){ th.classList.remove('sort-asc','sort-desc') })
+      var ths = document.querySelectorAll('th.sortable')
+      for(var i = 0; i < ths.length; i++){
+        if(ths[i].getAttribute('onclick') && ths[i].getAttribute('onclick').indexOf(col) > -1){
+          ths[i].classList.add('sort-' + sortDir)
+        }
+      }
+
+      filteredData.sort(function(a,b){
+        var va = a[col] || ''
+        var vb = b[col] || ''
+        var cmp = va.localeCompare(vb, 'zh-CN')
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+      renderPage(currentPage)
+      var colNames = {name:'企业名称',contact:'联系人',phone:'手机号码',source:'客户来源',poolTime:'入池时间',reason:'入池原因',status:'状态'}
+      showToast('已按' + (colNames[col]||col) + (sortDir === 'asc' ? '升序' : '降序') + '排序','info')
+    }
+
+    // === 批量操作 ===
+    var selectedEnterpriseIds = []
+
+    function updateBulkBar(){
+      var checks = document.querySelectorAll('.row-check:checked')
+      var count = checks.length
+      var bar = document.getElementById('bulkBar')
+      selectedEnterpriseIds = []
+      checks.forEach(function(cb){
+        var id = cb.closest('tr').getAttribute('data-id')
+        if(id) selectedEnterpriseIds.push(id)
+      })
+      if(count > 0){ bar.classList.add('show'); document.getElementById('selectedCount').textContent = count }
+      else{ bar.classList.remove('show') }
+      var all = document.getElementById('checkAll')
+      if(all) all.checked = count > 0 && count === document.querySelectorAll('.row-check').length
+    }
+
+    function clearSelection(){
+      document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = false })
+      if(document.getElementById('checkAll')) document.getElementById('checkAll').checked = false
+      selectedEnterpriseIds = []
+      updateBulkBar()
+    }
 
     function toggleAll(checkbox){
       document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = checkbox.checked })
       updateBulkBar()
     }
-    function updateBulkBar(){
-      var checked = document.querySelectorAll('.row-check:checked').length
-      var bar = document.getElementById('bulkBar')
-      if(checked > 0){ bar.classList.add('show'); document.getElementById('selectedCount').textContent = checked }
-      else{ bar.classList.remove('show') }
-      var all = document.getElementById('checkAll')
-      if(all) all.checked = checked > 0 && checked === document.querySelectorAll('.row-check').length
-    }
-    function clearSelection(){
-      document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = false })
-      document.getElementById('checkAll').checked = false
-      updateBulkBar()
-    }
-    function batchAssign(){ openAssignDialog() }
-    function claim(btn){
-      if(confirm('确认认领此客户到我的客户列表？')){
-        btn.closest('tr').style.opacity = '0.4'
-        btn.disabled = true
-        btn.textContent = '已认领'
+
+    // === M-12: 批量分配 ===
+    function batchAssign(){
+      if(selectedEnterpriseIds.length === 0) return showToast('请先选择要分配的客户','warning')
+      var titleEl = document.querySelector('#assignModal .modal-header h3')
+      titleEl.textContent = '批量分配 ' + selectedEnterpriseIds.length + ' 项'
+      document.getElementById('assignModal').classList.add('show')
+      var confirmBtn = document.querySelector('#assignModal .btn-primary')
+      confirmBtn.onclick = function(){
+        var assignee = document.querySelector('#assignModal select').value
+        if(!assignee) return showToast('请选择跟进人','danger')
+        var rows = document.querySelectorAll('.row-check:checked')
+        rows.forEach(function(cb){
+          var tr = cb.closest('tr')
+          var btns = tr.querySelectorAll('button')
+          btns.forEach(function(b){
+            var txt = b.textContent.trim()
+            if(txt === '分配'){ b.textContent = '已分配'; b.disabled = true; b.className = 'btn btn-disabled btn-sm' }
+            if(txt === '认领'){ b.disabled = true; b.className = 'btn btn-disabled btn-sm' }
+          })
+          tr.style.opacity = '0.6'
+        })
+        closeDialog('assignModal')
+        var assigneeText = assignee.replace(/（.*/,'').trim()
+        showToast('已分配 ' + selectedEnterpriseIds.length + ' 项到 ' + assigneeText,'success')
+        clearSelection()
       }
     }
+
+    // === M-13: 单条认领 ===
+    function claim(btn){
+      if(confirm('确认认领此客户到我的客户列表？')){
+        var tr = btn.closest('tr')
+        btn.textContent = '已认领'
+        btn.disabled = true
+        btn.className = 'btn btn-disabled btn-sm'
+        var nameCell = tr.querySelector('td:nth-child(2)')
+        if(nameCell){
+          var tag = document.createElement('span')
+          tag.className = 'claimed-tag'
+          tag.textContent = '已认领'
+          nameCell.appendChild(tag)
+        }
+        var assignBtn = tr.querySelector('td:last-child .btn-primary')
+        if(assignBtn){ assignBtn.disabled = true; assignBtn.className = 'btn btn-disabled btn-sm' }
+        setTimeout(function(){
+          tr.classList.add('fade-out')
+          setTimeout(function(){
+            var name = tr.querySelector('td:nth-child(2)').textContent.trim()
+            tr.parentNode.removeChild(tr)
+            showToast('已认领：' + name,'success')
+            var totalEl = document.getElementById('totalCount')
+            if(totalEl) totalEl.textContent = parseInt(totalEl.textContent) - 1
+          },300)
+        },1000)
+      }
+    }
+
+    // === M-18: 单条分配弹窗 ===
+    function openAssignDialog(){
+      document.querySelector('#assignModal .modal-header h3').textContent = '分配跟进人'
+      var confirmBtn = document.querySelector('#assignModal .btn-primary')
+      confirmBtn.onclick = function(){
+        var assignee = document.querySelector('#assignModal select').value
+        if(!assignee) return showToast('请选择跟进人','danger')
+        closeDialog('assignModal')
+        var assigneeText = assignee.replace(/（.*/,'').trim()
+        showToast('已分配到 ' + assigneeText,'success')
+      }
+      document.getElementById('assignModal').classList.add('show')
+    }
+
+    // === Modal ===
+    function openAddDialog(){ document.getElementById('addModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
+    // 初始渲染
+    renderPage(1)
   </script>
 </body>
 </html>
