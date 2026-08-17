@@ -35,7 +35,7 @@ class JwtAuthMiddleware(BaseHTTPMiddleware):
         secret = request.app.state.settings.jwt_secret
 
         try:
-            payload = jwt.decode(token, secret, algorithms=["HS256"])
+            payload = jwt.decode(token, secret, algorithms=["HS384", "HS256"])
             request.state.user = {
                 "userId": payload.get("sub"),
                 "username": payload.get("username"),
