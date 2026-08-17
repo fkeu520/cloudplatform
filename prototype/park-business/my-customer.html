@@ -20,6 +20,13 @@
     .stat-card{padding:20px}
     .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
     .stat-card .num{font-size:28px;font-weight:700}
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    .sort-asc::after{content:' ▲';font-size:10px;color:var(--color-primary)}
+    .sort-desc::after{content:' ▼';font-size:10px;color:var(--color-primary)}
+    th.sortable{cursor:pointer;user-select:none}
+    th.sortable:hover{color:var(--color-primary)}
+    tr.row-grayed td{opacity:0.5;text-decoration:line-through;color:var(--color-ink-tertiary)}
+    .btn-disabled{opacity:0.5;cursor:not-allowed;pointer-events:none}
   </style>
 </head>
 <body>
@@ -99,17 +106,17 @@
     <div class="card" style="padding:16px 20px;margin-bottom:16px">
       <div class="toolbar">
         <div class="search-box">
-          <input type="text" placeholder="企业名称 / 联系人">
-          <input type="text" placeholder="手机号码">
-          <select>
+          <input type="text" placeholder="企业名称 / 联系人" id="searchName" oninput="filterTable()">
+          <input type="text" placeholder="手机号码" id="searchPhone" oninput="filterTable()">
+          <select onchange="filterTable()">
             <option value="">全部来源</option>
             <option>自行录入</option>
             <option>小程序登记</option>
             <option>批量导入</option>
             <option>公海分配</option>
           </select>
-          <button class="btn btn-primary">🔍 搜索</button>
-          <button class="btn btn-default">重置</button>
+          <button class="btn btn-primary" onclick="filterTable()">🔍 搜索</button>
+          <button class="btn btn-default" onclick="resetSearch()">重置</button>
         </div>
         <div class="search-actions">
           <!-- {{perm:business:my-customer:add}} -->
@@ -133,13 +140,13 @@
           <thead>
             <tr>
               <th class="col-checkbox"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
-              <th>企业名称</th>
-              <th>联系人</th>
-              <th>手机号码</th>
-              <th>来源</th>
-              <th>线索状态</th>
-              <th>商机</th>
-              <th>最近跟进</th>
+              <th class="sortable" onclick="sortTable('name')">企业名称</th>
+              <th class="sortable" onclick="sortTable('contact')">联系人</th>
+              <th class="sortable" onclick="sortTable('phone')">手机号码</th>
+              <th class="sortable" onclick="sortTable('source')">来源</th>
+              <th class="sortable" onclick="sortTable('status')">线索状态</th>
+              <th class="sortable" onclick="sortTable('opp')">商机</th>
+              <th class="sortable" onclick="sortTable('lastFollow')">最近跟进</th>
               <th style="width:200px">操作</th>
             </tr>
           </thead>
@@ -221,15 +228,8 @@
         </table>
       </div>
       <div class="pagination">
-        <div class="info">共 <span>36</span> 条记录，每页 10 条</div>
-        <div class="pages">
-          <button class="disabled">‹</button>
-          <button class="active">1</button>
-          <button>2</button>
-          <button>3</button>
-          <button>4</button>
-          <button>›</button>
-        </div>
+        <div class="info">共 <span id="totalCount">36</span> 条记录，每页 8 条</div>
+        <div class="pages" id="pageButtons"></div>
       </div>
     </div>
   </div>
@@ -399,7 +399,22 @@
     </div>
   </div>
 
+  <style>
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    tr.row-done td{opacity:0.4;text-decoration:line-through;color:var(--color-ink-tertiary)}
+  </style>
   <script>
+    // === Toast ===
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
+
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
     function openAddLeadDialog(){ document.getElementById('addLeadModal').classList.add('show') }
     function openConvertDialog(){ document.getElementById('convertModal').classList.add('show') }
@@ -408,6 +423,8 @@
     function switchTab(el){
       document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active') })
       el.classList.add('active')
+      var label = el.textContent.trim()
+      showToast('已切换：' + label, 'info')
     }
 
     function toggleAll(checkbox){
@@ -425,10 +442,96 @@
       document.getElementById('checkAll').checked = false
       updateBulkBar()
     }
-    function batchAbandon(){ if(confirm('确认批量废弃选中的客户？')) clearSelection() }
-    function batchReturnPool(){ if(confirm('确认将选中的客户退回公海？')) clearSelection() }
-    function abandon(btn){ if(confirm('确认废弃此线索？\n废弃原因：联系不上、无意向、无法满足客户需求等')){ btn.closest('tr').style.opacity='0.4' } }
-    function returnPool(btn){ if(confirm('确认退回公海？')){ btn.closest('tr').style.opacity='0.4' } }
+
+    // === M-14: 批量废弃 + 状态联动 ===
+    function batchAbandon(){
+      var checks = document.querySelectorAll('.row-check:checked')
+      if(checks.length === 0) return showToast('请先选择要废弃的客户','warning')
+      if(!confirm('确认批量废弃选中的 ' + checks.length + ' 项客户？')) return
+      checks.forEach(function(cb){
+        var tr = cb.closest('tr')
+        if(tr){
+tr.classList.add('row-done')
+          var btns = tr.querySelectorAll('button')
+          btns.forEach(function(b){ b.disabled = true })
+        }
+      })
+      showToast('已废弃 ' + checks.length + ' 项客户','success')
+      setTimeout(function(){
+        checks.forEach(function(cb){
+          var tr = cb.closest('tr')
+          if(tr) tr.classList.add('fade-out')
+        })
+        setTimeout(function(){
+          checks.forEach(function(cb){
+            var tr = cb.closest('tr')
+            if(tr && tr.parentNode) tr.parentNode.removeChild(tr)
+          })
+          clearSelection()
+        }, 320)
+      }, 1200)
+    }
+
+    // === M-14: 批量退回公海 + 状态联动 ===
+    function batchReturnPool(){
+      var checks = document.querySelectorAll('.row-check:checked')
+      if(checks.length === 0) return showToast('请先选择要退回的客户','warning')
+      if(!confirm('确认将选中的 ' + checks.length + ' 项客户退回公海？')) return
+      checks.forEach(function(cb){
+        var tr = cb.closest('tr')
+        if(tr){
+tr.classList.add('row-done')
+          var btns = tr.querySelectorAll('button')
+          btns.forEach(function(b){ b.disabled = true })
+        }
+      })
+      showToast('已退回 ' + checks.length + ' 项到公海池','success')
+      setTimeout(function(){
+        checks.forEach(function(cb){
+          var tr = cb.closest('tr')
+          if(tr) tr.classList.add('fade-out')
+        })
+        setTimeout(function(){
+          checks.forEach(function(cb){
+            var tr = cb.closest('tr')
+            if(tr && tr.parentNode) tr.parentNode.removeChild(tr)
+          })
+          clearSelection()
+        }, 320)
+      }, 1200)
+    }
+
+    // === 单条废弃 ===
+    function abandon(btn){
+      if(!confirm('确认废弃此线索？\n废弃原因：联系不上、无意向、无法满足客户需求等')) return
+      var tr = btn.closest('tr')
+      if(!tr) return
+      tr.classList.add('row-done')
+      tr.querySelectorAll('button').forEach(function(b){ b.disabled = true })
+      showToast('线索已废弃','warning')
+      setTimeout(function(){
+        tr.classList.add('fade-out')
+        setTimeout(function(){
+          if(tr.parentNode) tr.parentNode.removeChild(tr)
+        }, 320)
+      }, 1000)
+    }
+
+    // === 单条退回公海 ===
+    function returnPool(btn){
+      if(!confirm('确认退回公海？')) return
+      var tr = btn.closest('tr')
+      if(!tr) return
+      tr.classList.add('row-done')
+      tr.querySelectorAll('button').forEach(function(b){ b.disabled = true })
+      showToast('客户已退回公海池','info')
+      setTimeout(function(){
+        tr.classList.add('fade-out')
+        setTimeout(function(){
+          if(tr.parentNode) tr.parentNode.removeChild(tr)
+        }, 320)
+      }, 1000)
+    }
   </script>
 </body>
 </html>

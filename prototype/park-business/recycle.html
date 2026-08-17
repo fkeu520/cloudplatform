@@ -227,17 +227,73 @@
     </div>
   </div>
 
+  <style>
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    .toast-bar{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:#34C759;color:#fff;display:flex;align-items:center;gap:12px;max-width:520px}
+    .toast-bar a{color:#fff;text-decoration:underline;font-weight:600}
+  </style>
   <script>
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
+
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
     function restore(btn){ document.getElementById('restoreModal').classList.add('show') }
+
+    // === M-15: 复原视觉反馈 + 跳转链接 ===
     function confirmRestore(){
+      var modal = document.getElementById('restoreModal')
+      var target = modal.querySelector('select').value
+      if(!target){ showToast('请选择目标位置','danger'); return }
       closeDialog('restoreModal')
-      alert('已复原到客户公海池')
-    }
-    function deleteForever(btn){
-      if(confirm('确认彻底删除？此操作不可恢复！')){
-        btn.closest('tr').style.opacity='0.4'
+      // 视觉反馈: 顶部 toast 提示条 5 秒
+      var bar = document.createElement('div')
+      bar.className = 'toast-bar'
+      bar.innerHTML = '✓ 已复原到' + (target==='pool'?'客户公海池':'原跟进人') +
+        ' &nbsp;|&nbsp; <a href="javascript:void(0)" onclick="parent.loadPage(\'park-business/pool.html\',\'公海池\',\'park-business\');document.body.removeChild(this.parentNode);">立即跳转到公海池 →</a>'
+      document.body.appendChild(bar)
+      setTimeout(function(){
+        if(bar.parentNode){
+          bar.style.opacity='0'
+          setTimeout(function(){ if(bar.parentNode) bar.parentNode.removeChild(bar) },300)
+        }
+      }, 5000)
+      // 行移除动画
+      var lastBtn = document.activeElement
+      var tr = null
+      if(lastBtn && lastBtn.closest){ tr = lastBtn.closest('tr') }
+      if(!tr){
+        // 兜底: 找最近点击过的"复原"按钮对应的行
+        var btns = document.querySelectorAll('button[onclick*="restore"]')
+        if(btns.length > 0) tr = btns[0].closest('tr')
       }
+      if(tr){
+        tr.classList.add('fade-out')
+        setTimeout(function(){
+          if(tr.parentNode) tr.parentNode.removeChild(tr)
+          var totalEl = document.getElementById('totalCount')
+          if(totalEl) totalEl.textContent = Math.max(0, parseInt(totalEl.textContent) - 1)
+        }, 320)
+      }
+    }
+
+    function deleteForever(btn){
+      if(!confirm('确认彻底删除？此操作不可恢复！')) return
+      var tr = btn.closest('tr')
+      if(!tr) return
+      showToast('客户已彻底删除','danger')
+      tr.classList.add('fade-out')
+      setTimeout(function(){
+        if(tr.parentNode) tr.parentNode.removeChild(tr)
+        var totalEl = document.getElementById('totalCount')
+        if(totalEl) totalEl.textContent = Math.max(0, parseInt(totalEl.textContent) - 1)
+      }, 320)
     }
     function closeDialog(id){ document.getElementById(id).classList.remove('show') }
   </script>
