@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关注标签 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:16px 24px 24px}
+
+    .page-desc{font-size:13px;color:var(--color-ink-secondary);margin-bottom:16px;line-height:1.6}
+
+    /* ─── Category Tabs ─── */
+    .cat-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+    .cat-tab{padding:8px 18px;border-radius:20px;font-size:13px;cursor:pointer;border:1.5px solid var(--color-divider);background:var(--color-canvas);color:var(--color-ink-secondary);transition:all .2s;font-weight:500}
+    .cat-tab:hover{background:var(--color-primary-pale);border-color:var(--color-primary);color:var(--color-primary)}
+    .cat-tab.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+
+    /* ─── Focus Items Grid ─── */
+    .focus-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .focus-card{background:var(--color-canvas);border-radius:12px;padding:16px;border:1px solid var(--color-divider);transition:all .2s;cursor:pointer}
+    .focus-card:hover{border-color:var(--color-primary);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+    .focus-card .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+    .focus-card .name{font-size:14px;font-weight:600;color:var(--color-ink)}
+    .focus-card .icon{font-size:20px;flex-shrink:0}
+    .focus-card .desc{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px;line-height:1.5}
+    .focus-card .meta{display:flex;gap:12px;font-size:11px;color:var(--color-ink-tertiary)}
+    .focus-card .meta span{display:flex;align-items:center;gap:4px}
+    .focus-card .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+    .focus-card .badge.active{background:#E8F5E9;color:#2E7D32}
+    .focus-card .badge.inactive{background:#f5f5f5;color:#999}
+    .focus-card .actions{display:flex;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--color-divider)}
+    .focus-card .actions .btn-icon{width:26px;height:26px;border-radius:6px;border:1px solid var(--color-divider);background:var(--color-canvas);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--color-ink-secondary);transition:all .15s}
+    .focus-card .actions .btn-icon:hover{background:var(--color-primary-pale);border-color:var(--color-primary);color:var(--color-primary)}
+    .focus-card .actions .btn-icon.danger:hover{background:#FFEBEE;border-color:var(--color-negative);color:var(--color-negative)}
+
+    /* ─── Category Card ─── */
+    .cat-card{background:var(--color-canvas);border-radius:12px;border:1px solid var(--color-divider);overflow:hidden;margin-bottom:16px}
+    .cat-card-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--color-canvas-grouped);border-bottom:1px solid var(--color-divider)}
+    .cat-card-header .name{font-size:14px;font-weight:600}
+    .cat-card-header .count{font-size:12px;color:var(--color-ink-tertiary)}
+
+    .btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary{background:var(--color-primary);color:#fff}
+    .btn-primary:hover{background:var(--color-primary-active)}
+    .btn-default{background:var(--color-canvas);color:var(--color-ink);border:1px solid var(--color-divider)}
+    .btn-default:hover{background:var(--color-canvas-grouped)}
+    .btn-danger{background:var(--color-negative);color:#fff;font-size:12px;padding:5px 12px}
+    .btn-sm{padding:5px 12px;font-size:12px}
+
+    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+    .search-box{display:flex;gap:8px;align-items:center}
+    .search-box input{padding:6px 12px;border:1px solid var(--color-divider);border-radius:8px;font-size:13px;font-family:inherit;width:200px}
+    .search-box input:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-pale)}
+
+    .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center}
+    .modal-overlay.show{display:flex}
+    .modal{background:var(--color-canvas);border-radius:16px;width:520px;max-height:80vh;overflow:hidden;box-shadow:var(--shadow-elevated)}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 0}
+    .modal-header h3{font-size:18px;font-weight:600}
+    .modal-header .close{width:32px;height:32px;border-radius:50%;border:none;background:var(--color-canvas-grouped);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--color-ink-secondary)}
+    .modal-body{padding:16px 24px 20px;overflow-y:auto;max-height:calc(80vh - 80px)}
+    .modal-footer{display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--color-divider)}
+    .form-row{display:flex;gap:16px;margin-bottom:14px}
+    .form-row .col{flex:1;min-width:0}
+    .form-row .col-3{flex:0 0 32%}
+    .form-row label{display:block;font-size:12px;font-weight:500;color:var(--color-ink-secondary);margin-bottom:4px}
+    .form-row label .required{color:var(--color-negative);margin-left:2px}
+    input[type="text"],input[type="number"],select{width:100%;padding:8px 12px;border:1px solid var(--color-divider);border-radius:8px;font-size:13px;font-family:inherit;background:var(--color-canvas);color:var(--color-ink)}
+    input:focus,select:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-pale)}
+    textarea{width:100%;padding:8px 12px;border:1px solid var(--color-divider);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;min-height:60px}
+
+    .tag-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .tag-item{display:inline-flex;align-items:center;gap:6px;padding:4px 12px 4px 14px;border-radius:16px;font-size:12px;background:var(--color-primary-pale);color:var(--color-primary);border:1px solid transparent;transition:all .2s}
+    .tag-item:hover{border-color:var(--color-primary)}
+    .tag-item .remove{width:16px;height:16px;border-radius:50%;border:none;background:rgba(0,0,0,0.1);cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--color-primary);flex-shrink:0;padding:0;line-height:1}
+    .tag-item .remove:hover{background:var(--color-negative);color:#fff}
+  </style>
+</head>
+<body>
+<div class="page-content">
+
+  <div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:4px">企业档案 &gt; 关注标签</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div>
+      <h2 style="font-size:22px;font-weight:700">关注标签</h2>
+      <p class="page-desc">管理企业关注标签分类体系，支持按标签分类快速筛选和关注企业动态</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-default" onclick="showModal('addCategory')">+ 新增分类</button>
+      <button class="btn btn-primary" onclick="showModal('addItem')">+ 新增标签</button>
+    </div>
+  </div>
+
+  <!-- ═══ Category Tabs ═══ -->
+  <div class="cat-tabs">
+    <div class="cat-tab active" onclick="switchCat(this,'all')">全部 <span style="opacity:0.7">(42)</span></div>
+    <div class="cat-tab" onclick="switchCat(this,'tech')">💡 科技创新 <span style="opacity:0.7">(8)</span></div>
+    <div class="cat-tab" onclick="switchCat(this,'policy')">📋 政策扶持 <span style="opacity:0.7">(7)</span></div>
+    <div class="cat-tab" onclick="switchCat(this,'finance')">💰 财务状况 <span style="opacity:0.7">(6)</span></div>
+    <div class="cat-tab" onclick="switchCat(this,'risk')">⚠️ 风险监控 <span style="opacity:0.7">(9)</span></div>
+    <div class="cat-tab" onclick="switchCat(this,'market')">📈 市场动态 <span style="opacity:0.7">(6)</span></div>
+    <div class="cat-tab" onclick="switchCat(this,'social')">🤝 社会责任 <span style="opacity:0.7">(6)</span></div>
+  </div>
+
+  <!-- ═══ All Categories View ═══ -->
+  <div id="allView">
+
+    <!-- Category: 科技创新 -->
+    <div class="cat-card" data-cat="tech">
+      <div class="cat-card-header">
+        <div><span class="name">💡 科技创新</span> <span class="count">8 个标签</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-default btn-sm" onclick="showModal('editCategory')">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('确认删除此分类？'))alert('已删除')">删除</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="tag-group">
+          <span class="tag-item">高新技术企业 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">专精特新 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">瞪羚企业 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">独角兽 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">科技型中小企业 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">创新型中小企业 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">企业技术中心 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">重点实验室 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category: 政策扶持 -->
+    <div class="cat-card" data-cat="policy">
+      <div class="cat-card-header">
+        <div><span class="name">📋 政策扶持</span> <span class="count">7 个标签</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-default btn-sm" onclick="showModal('editCategory')">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('确认删除此分类？'))alert('已删除')">删除</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="tag-group">
+          <span class="tag-item">税收优惠 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">财政补贴 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">产业扶持 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">人才引进 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">用地保障 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">融资支持 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</span>
+          <span class="tag-item">资质认定 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category: 财务状况 -->
+    <div class="cat-card" data-cat="finance">
+      <div class="cat-card-header">
+        <div><span class="name">💰 财务状况</span> <span class="count">6 个标签</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-default btn-sm" onclick="showModal('editCategory')">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('确认删除此分类？'))alert('已删除')">删除</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="tag-group">
+          <span class="tag-item">营收增长 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">盈利能力强 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">资产负债率低 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">现金流充裕 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">纳税信用A级 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">上市企业 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category: 风险监控 -->
+    <div class="cat-card" data-cat="risk">
+      <div class="cat-card-header">
+        <div><span class="name">⚠️ 风险监控</span> <span class="count">9 个标签</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-default btn-sm" onclick="showModal('editCategory')">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('确认删除此分类？'))alert('已删除')">删除</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="tag-group">
+          <span class="tag-item">经营异常 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">行政处罚 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">司法诉讼 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">失信被执行 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">股权冻结 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">欠税公告 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">环保处罚 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">劳动纠纷 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">注销/吊销 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category: 市场动态 -->
+    <div class="cat-card" data-cat="market">
+      <div class="cat-card-header">
+        <div><span class="name">📈 市场动态</span> <span class="count">6 个标签</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-default btn-sm" onclick="showModal('editCategory')">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('确认删除此分类？'))alert('已删除')">删除</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="tag-group">
+          <span class="tag-item">融资动态 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">投资并购 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">战略合作 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">新品发布 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">市场扩张 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">股价波动 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category: 社会责任 -->
+    <div class="cat-card" data-cat="social">
+      <div class="cat-card-header">
+        <div><span class="name">🤝 社会责任</span> <span class="count">6 个标签</span></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-default btn-sm" onclick="showModal('editCategory')">✏️ 编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('确认删除此分类？'))alert('已删除')">删除</button>
+        </div>
+      </div>
+      <div style="padding:14px 20px">
+        <div class="tag-group">
+          <span class="tag-item">ESG评级 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">公益捐赠 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">就业贡献 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">碳中和 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">乡村振兴 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+          <span class="tag-item">员工福利 <button class="remove" onclick="if(confirm('确认删除？'))this.parentElement.remove()">×</button></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Category View (single) ═══ -->
+  <div id="catView" style="display:none">
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" placeholder="搜索标签名称...">
+        <button class="btn btn-default btn-sm" onclick="alert('搜索功能演示')">搜索</button>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="showModal('addItem')">+ 新增标签</button>
+    </div>
+    <div class="focus-grid" id="focusGrid"></div>
+  </div>
+
+</div>
+
+<!-- ═══ Modal: Add Category ═══ -->
+<div class="modal-overlay" id="modalAddCategory">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>新增标签分类</h3>
+      <button class="close" onclick="hideModal('addCategory')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="col"><label>分类名称 <span class="required">*</span></label><input type="text" placeholder="如：科技创新"></div>
+        <div class="col"><label>分类图标</label><input type="text" placeholder="如：💡" style="width:80px"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>排序号</label><input type="number" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>分类描述</label><textarea placeholder="分类用途说明"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="hideModal('addCategory')">取消</button>
+      <button class="btn btn-primary" onclick="alert('分类已添加 ✓');hideModal('addCategory')">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Modal: Edit Category ═══ -->
+<div class="modal-overlay" id="modalEditCategory">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>编辑标签分类</h3>
+      <button class="close" onclick="hideModal('editCategory')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="col"><label>分类名称 <span class="required">*</span></label><input type="text" value="科技创新"></div>
+        <div class="col"><label>分类图标</label><input type="text" value="💡" style="width:80px"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>排序号</label><input type="number" value="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>分类描述</label><textarea>科技创新相关标签，关注企业技术实力和创新水平</textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="hideModal('editCategory')">取消</button>
+      <button class="btn btn-primary" onclick="alert('分类已更新 ✓');hideModal('editCategory')">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Modal: Add Item ═══ -->
+<div class="modal-overlay" id="modalAddItem">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>新增关注标签</h3>
+      <button class="close" onclick="hideModal('addItem')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="col"><label>所属分类 <span class="required">*</span></label>
+          <select><option selected>科技创新</option><option>政策扶持</option><option>财务状况</option><option>风险监控</option><option>市场动态</option><option>社会责任</option></select>
+        </div>
+        <div class="col"><label>标签名称 <span class="required">*</span></label><input type="text" placeholder="如：高新技术企业"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>排序号</label><input type="number" value="0"></div>
+        <div class="col"><label>状态</label>
+          <select><option selected>启用</option><option>禁用</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>标签描述</label><textarea placeholder="标签含义说明"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="hideModal('addItem')">取消</button>
+      <button class="btn btn-primary" onclick="alert('标签已添加 ✓');hideModal('addItem')">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const FOCUS_DATA = {
+    tech:    { name: '💡 科技创新', items: ['高新技术企业','专精特新','瞪羚企业','独角兽','科技型中小企业','创新型中小企业','企业技术中心','重点实验室'] },
+    policy:  { name: '📋 政策扶持', items: ['税收优惠','财政补贴','产业扶持','人才引进','用地保障','融资支持','资质认定'] },
+    finance: { name: '💰 财务状况', items: ['营收增长','盈利能力强','资产负债率低','现金流充裕','纳税信用A级','上市企业'] },
+    risk:    { name: '⚠️ 风险监控', items: ['经营异常','行政处罚','司法诉讼','失信被执行','股权冻结','欠税公告','环保处罚','劳动纠纷','注销/吊销'] },
+    market:  { name: '📈 市场动态', items: ['融资动态','投资并购','战略合作','新品发布','市场扩张','股价波动'] },
+    social:  { name: '🤝 社会责任', items: ['ESG评级','公益捐赠','就业贡献','碳中和','乡村振兴','员工福利'] }
+  };
+
+  function switchCat(el, cat) {
+    document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+
+    if (cat === 'all') {
+      document.getElementById('allView').style.display = 'block';
+      document.getElementById('catView').style.display = 'none';
+      return;
+    }
+    document.getElementById('allView').style.display = 'none';
+    document.getElementById('catView').style.display = 'block';
+
+    const data = FOCUS_DATA[cat];
+    const grid = document.getElementById('focusGrid');
+    grid.innerHTML = data.items.map((item, i) => `
+      <div class="focus-card">
+        <div class="header">
+          <div class="name">${item}</div>
+          <div class="icon">🏷️</div>
+        </div>
+        <div class="desc">关注企业是否具备此标签特征，及时获取动态通知</div>
+        <div class="meta">
+          <span>📌 ${data.name}</span>
+          <span>👥 关联 ${Math.floor(Math.random() * 50 + 10)} 家企业</span>
+        </div>
+        <div class="actions">
+          <button class="btn-icon" onclick="alert('编辑标签')" title="编辑">✏️</button>
+          <button class="btn-icon" onclick="alert('已切换状态')" title="启用/禁用">⏸️</button>
+          <button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function showModal(name) {
+    document.getElementById('modal' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('show');
+  }
+  function hideModal(name) {
+    document.getElementById('modal' + name.charAt(0).toUpperCase() + name.slice(1)).classList.remove('show');
+  }
+</script>
+</body>
+</html>

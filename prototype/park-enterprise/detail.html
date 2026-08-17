@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>企业详情 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:16px 24px 24px}
+    .tab-pane .section-title:first-child{margin-top:0}
+    .sub-tabs{display:flex;gap:8px;border-bottom:1px solid var(--color-divider);margin-bottom:16px;overflow-x:auto}
+    .sub-tab{padding:8px 16px;cursor:pointer;font-size:13px;color:var(--color-ink-secondary);border-bottom:2px solid transparent;white-space:nowrap}
+    .sub-tab:hover{color:var(--color-ink)}
+    .sub-tab.active{color:var(--color-primary);border-bottom-color:var(--color-primary);font-weight:500}
+    .sub-tab-pane{display:none}
+    .sub-tab-pane.active{display:block}
+    .top-info{position:relative}
+    .top-info .top-edit-btn{position:absolute;top:16px;right:24px}
+    .btn.perm-disabled{background:var(--color-canvas-grouped) !important;color:var(--color-ink-tertiary) !important;border:1px solid var(--color-divider) !important;cursor:not-allowed !important;pointer-events:none}
+    .btn.perm-disabled:hover{background:var(--color-canvas-grouped) !important}
+    .inline-dialog{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:1100}
+    .inline-dialog.show{display:flex}
+    .top-info .name .top-status-edit{display:inline-flex;gap:6px;margin-left:8px}
+  </style>
+</head>
+<body>
+  <!--
+  页面: park-enterprise/detail (企业详情)
+  层级: 第 3 层 - 内容页（不含框架）
+  版本: v1.1
+  日期: 2026-07-01
+
+  演示模式：
+  - 顶部"演示角色"下拉切换不同用户角色
+  - 不同角色看到的按钮状态不同（已授权=可点击 / 未授权=灰色禁用）
+  -->
+
+  <!-- 面包屑 -->
+  <div class="breadcrumb-bar">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">企业档案</span>
+    <span class="sep">/</span>
+    <span class="crumb" onclick="goBackToList()" style="cursor:pointer">企业列表</span>
+    <span class="sep">/</span>
+    <span class="crumb active" id="bcName">华为投资控股有限公司</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <span style="font-size:11px;color:var(--color-ink-tertiary)">演示角色：</span>
+      <select id="userRole" onchange="switchUserRole(this.value)" style="font-size:12px;padding:2px 8px;border:1px solid var(--color-divider);border-radius:6px;background:var(--color-canvas)">
+        <option value="admin">超级管理员（全权）</option>
+        <option value="viewer" selected>查看者（无编辑权）</option>
+        <option value="archive_mgr">档案管理员（可编辑基础）</option>
+        <option value="risk">风控专员（可编辑关注）</option>
+      </select>
+    </span>
+  </div>
+
+  <div class="page-content">
+    <!-- 顶部基本信息（精简区 ≤ 120px） -->
+    <div class="top-info">
+      <button class="btn btn-primary btn-sm top-edit-btn" data-perm="enterprise:detail:edit:base" onclick="openEditDialog('base')">✏️ 编辑基本信息</button>
+      <div class="name">
+        <span id="topName">华为投资控股有限公司</span>
+        <span class="badge badge-active">在营</span>
+        <span class="badge badge-info" id="topBindBadge">已绑定</span>
+      </div>
+      <div class="alias">简称：<span id="topAlias">华为投资</span> &nbsp;·&nbsp; 英文名：<span id="topEnglish">Huawei Investment Holding Co., Ltd.</span></div>
+      <div class="meta-row">
+        <div class="meta-item"><span class="meta-label">统一社会信用代码：</span><span class="meta-value" id="topCredit">91440300MA5DA7Q37H</span></div>
+        <div class="meta-item"><span class="meta-label">注册时间：</span><span class="meta-value" id="topEstiblish">1987-09-15</span></div>
+        <div class="meta-item"><span class="meta-label">法定代表人：</span><span class="meta-value" id="topLegal">任正非</span></div>
+        <div class="meta-item"><span class="meta-label">注册资本：</span><span class="meta-value" id="topCapital">364.5 亿人民币</span></div>
+        <div class="meta-item"><span class="meta-label">所属行业：</span><span class="meta-value" id="topIndustry">信息传输、软件和信息技术服务业</span></div>
+      </div>
+    </div>
+
+    <!-- Tab 栏 -->
+    <div class="tabs-bar">
+      <div class="tab active" data-tab="base" onclick="switchTab('base')">基本信息</div>
+      <div class="tab" data-tab="overview" onclick="switchTab('overview')">企业概览</div>
+      <div class="tab" data-tab="tag" onclick="switchTab('tag')">企业标签 <span class="badge-count">5</span></div>
+      <div class="tab" data-tab="customer" onclick="switchTab('customer')">客户信息 <span class="badge-count">3</span></div>
+      <div class="tab" data-tab="cloud" onclick="switchTab('cloud')">云企库数据 <span class="badge-count">25</span></div>
+      <div class="tab" data-tab="focus" onclick="switchTab('focus')">关注标签 <span class="badge-count">4</span></div>
+      <div class="tab" data-tab="register" onclick="switchTab('register')">工商信息</div>
+    </div>
+
+    <div class="tabs-content">
+      <!-- Tab 1: 基本信息 -->
+      <div class="tab-pane active" data-pane="base">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <h3 style="font-size:16px;font-weight:600">工商登记信息</h3>
+          <button class="btn btn-primary" data-perm="enterprise:detail:edit:base" onclick="openEditDialog('base')">✏️ 编辑基本信息</button>
+        </div>
+        <div class="section-title">工商登记</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">企业名称 <span class="field-source">sys_enterprise.name</span></div><div class="value">华为投资控股有限公司</div></div>
+          <div class="item"><div class="label">简称 <span class="field-source">alias</span></div><div class="value">华为投资</div></div>
+          <div class="item"><div class="label">曾用名</div><div class="value empty">无</div></div>
+          <div class="item"><div class="label">英文名 <span class="field-source">english_name</span></div><div class="value">Huawei Investment Holding</div></div>
+          <div class="item"><div class="label">统一社会信用代码 <span class="field-source">credit_code</span></div><div class="value mono">91440300MA5DA7Q37H</div></div>
+          <div class="item"><div class="label">注册号 <span class="field-source">reg_no</span></div><div class="value mono">4403011002001</div></div>
+          <div class="item"><div class="label">纳税人识别号</div><div class="value mono">91440300MA5DA7Q37H</div></div>
+          <div class="item"><div class="label">组织机构代码</div><div class="value mono">MA5DA7Q37</div></div>
+          <div class="item"><div class="label">工商登记机关</div><div class="value">深圳市市场监督管理局</div></div>
+        </div>
+        <div class="section-title">法人/资本</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">法定代表人 <span class="field-source">legal_person_name</span></div><div class="value">任正非</div></div>
+          <div class="item"><div class="label">法人类型 <span class="field-source">legal_type</span></div><div class="value">自然人</div></div>
+          <div class="item"><div class="label">企业类型 <span class="field-source">ent_type</span></div><div class="value">有限责任公司</div></div>
+          <div class="item"><div class="label">注册资本 <span class="field-source">reg_capital</span></div><div class="value">364.5 亿</div></div>
+          <div class="item"><div class="label">注册资本币种</div><div class="value">人民币</div></div>
+          <div class="item"><div class="label">实收资本</div><div class="value">364.5 亿</div></div>
+        </div>
+        <div class="section-title">期限/登记</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">成立日期 <span class="field-source">estiblish_time</span></div><div class="value">1987-09-15</div></div>
+          <div class="item"><div class="label">经营开始日期 <span class="field-source">from_time</span></div><div class="value">1987-09-15</div></div>
+          <div class="item"><div class="label">营业期限 <span class="field-source">business_term</span></div><div class="value">长期</div></div>
+          <div class="item"><div class="label">审核/年检日期</div><div class="value">2025-06-30</div></div>
+          <div class="item"><div class="label">经营状态 <span class="field-source">reg_status</span></div><div class="value"><span class="badge badge-active">在营</span></div></div>
+          <div class="item"><div class="label">经营状态码 <span class="field-source">reg_status_code</span></div><div class="value mono">1</div></div>
+        </div>
+        <div class="section-title">行业/规模</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">行业门类 <span class="field-source">industry_category</span></div><div class="value">I 信息传输、软件和信息技术服务业</div></div>
+          <div class="item"><div class="label">行业大类 <span class="field-source">industry_big</span></div><div class="value">I65 软件和信息技术服务业</div></div>
+          <div class="item"><div class="label">行业中类 <span class="field-source">industry_middle</span></div><div class="value">I6520 信息系统集成服务</div></div>
+          <div class="item"><div class="label">人员规模 <span class="field-source">staff_num_range</span></div><div class="value">10000+ 人</div></div>
+          <div class="item"><div class="label">参保人数 <span class="field-source">insurance_num</span></div><div class="value mono">207,000</div></div>
+          <div class="item"><div class="label">是否小微企业 <span class="field-source">is_small_micro</span></div><div class="value">否</div></div>
+        </div>
+        <div class="section-title">联系/经营</div>
+        <div class="descriptions cols-3">
+          <div class="item full"><div class="label">注册地址 <span class="field-source">reg_location</span></div><div class="value">广东省深圳市龙岗区坂田街道华为基地</div></div>
+          <div class="item"><div class="label">联系电话 <span class="field-source">phone_number</span></div><div class="value">0755-12345678</div></div>
+          <div class="item"><div class="label">邮箱 <span class="field-source">email</span></div><div class="value">contact@huawei.com</div></div>
+          <div class="item full"><div class="label">经营范围 <span class="field-source">business_scope</span></div><div class="value">一般经营项目：实业投资；创业投资；高科技产品的技术开发、技术咨询、技术服务、技术转让；教育培训；经济信息咨询（不含限制项目）；国内贸易；经营进出口业务等</div></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: 企业概览 -->
+      <div class="tab-pane" data-pane="overview">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <h3 style="font-size:16px;font-weight:600">企业运营概览</h3>
+          <button class="btn btn-primary" data-perm="enterprise:detail:edit:overview" onclick="openEditDialog('overview')">✏️ 编辑企业概览</button>
+        </div>
+        <div class="section-title">资产规模</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">总资产 <span class="field-source">total_assets</span></div><div class="value mono">¥ 1,250 亿</div></div>
+          <div class="item"><div class="label">净资产 <span class="field-source">net_assets</span></div><div class="value mono">¥ 680 亿</div></div>
+          <div class="item"><div class="label">负债率 <span class="field-source">debt_ratio</span></div><div class="value mono">45.6%</div></div>
+        </div>
+        <div class="section-title">营收/利润</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">营业收入 <span class="field-source">revenue</span></div><div class="value mono">¥ 7,042 亿 (2024)</div></div>
+          <div class="item"><div class="label">净利润 <span class="field-source">profit</span></div><div class="value mono">¥ 626 亿</div></div>
+          <div class="item"><div class="label">营收同比 <span class="field-source">yoy_revenue</span></div><div class="value" style="color:#34C759">↑ 9.6%</div></div>
+          <div class="item"><div class="label">利润同比 <span class="field-source">yoy_profit</span></div><div class="value" style="color:#34C759">↑ 12.3%</div></div>
+          <div class="item"><div class="label">毛利率</div><div class="value mono">42.5%</div></div>
+          <div class="item"><div class="label">净利率</div><div class="value mono">8.9%</div></div>
+        </div>
+        <div class="section-title">人员/知识产权</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">员工总数 <span class="field-source">staff_count</span></div><div class="value mono">207,000 人</div></div>
+          <div class="item"><div class="label">研发人员</div><div class="value mono">112,000 人 (54%)</div></div>
+          <div class="item"><div class="label">销售人员</div><div class="value mono">28,000 人 (13%)</div></div>
+          <div class="item"><div class="label">专利总数</div><div class="value mono">12.5 万件</div></div>
+          <div class="item"><div class="label">发明专利</div><div class="value mono">6.2 万件</div></div>
+          <div class="item"><div class="label">商标</div><div class="value mono">3,800 件</div></div>
+          <div class="item"><div class="label">软件著作权</div><div class="value mono">8,500 件</div></div>
+          <div class="item"><div class="label">行业地位</div><div class="value">全球第一</div></div>
+        </div>
+        <div class="section-title">财务/经营</div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">市场份额 <span class="field-source">market_share</span></div><div class="value mono">28%</div></div>
+          <div class="item"><div class="label">研发投入 <span class="field-source">rd_investment</span></div><div class="value mono">¥ 1,650 亿</div></div>
+          <div class="item"><div class="label">研发投入占比</div><div class="value mono">23.4%</div></div>
+          <div class="item"><div class="label">纳税等级</div><div class="value">A 级</div></div>
+          <div class="item"><div class="label">信用评级</div><div class="value">AAA</div></div>
+          <div class="item"><div class="label">评分 <span class="field-source">rating</span></div><div class="value"><span class="badge badge-active">优 (1)</span></div></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: 企业标签 -->
+      <div class="tab-pane" data-pane="tag">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <h3 style="font-size:16px;font-weight:600">企业标签（5）</h3>
+          <button class="btn btn-primary" data-perm="enterprise:detail:edit:tag" onclick="openEditDialog('tag')">➕ 添加标签</button>
+        </div>
+        <div class="tag-row" id="tagList" style="margin-top:0">
+          <span class="tag">🏢 500强企业 <span class="tag-remove" data-perm="enterprise:detail:edit:tag" onclick="removeTag(1)">×</span></span>
+          <span class="tag">⭐ VIP客户 <span class="tag-remove" data-perm="enterprise:detail:edit:tag" onclick="removeTag(2)">×</span></span>
+          <span class="tag">🚀 重点招商 <span class="tag-remove" data-perm="enterprise:detail:edit:tag" onclick="removeTag(3)">×</span></span>
+          <span class="tag">💎 高新技术 <span class="tag-remove" data-perm="enterprise:detail:edit:tag" onclick="removeTag(4)">×</span></span>
+          <span class="tag">🌐 跨国企业 <span class="tag-remove" data-perm="enterprise:detail:edit:tag" onclick="removeTag(5)">×</span></span>
+          <span class="tag-add" data-perm="enterprise:detail:edit:tag" onclick="openEditDialog('tag')">+ 添加标签</span>
+        </div>
+      </div>
+
+      <!-- Tab 4: 客户信息 -->
+      <div class="tab-pane" data-pane="customer">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="font-size:16px;font-weight:600">客户信息（3）</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default" onclick="openProfilePage()">👤 客户画像</button>
+            <button class="btn btn-primary" data-perm="enterprise:detail:edit:customer" onclick="openEditDialog('customer')">➕ 新增客户</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>项目编号</th>
+                  <th>客户类型</th>
+                  <th>租用面积</th>
+                  <th>入驻地址</th>
+                  <th>负责人</th>
+                  <th>电话</th>
+                  <th>注册时间</th>
+                  <th>状态</th>
+                  <th width="180">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><a href="#" onclick="openCustomerDetail(1);return false" style="color:var(--color-primary);text-decoration:none">HX-2024-001</a></td>
+                  <td><span class="badge badge-active">已签约</span></td>
+                  <td>8,500 m²</td>
+                  <td>坂田基地 A 座 12-15 楼</td>
+                  <td>张伟</td>
+                  <td>139****0001</td>
+                  <td>2024-03-15</td>
+                  <td><span class="badge badge-active">有效</span></td>
+                  <td style="white-space:nowrap">
+                    <button class="btn btn-default btn-sm" data-perm="enterprise:detail:edit:customer" onclick="openEditDialog('customer', 1, {onlyBase:true})">✏️ 编辑</button>
+                    <button class="btn btn-danger btn-sm" data-perm="enterprise:detail:edit:customer" onclick="deleteCustomer(1)">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#" onclick="openCustomerDetail(2);return false" style="color:var(--color-primary);text-decoration:none">HX-2024-002</a></td>
+                  <td><span class="badge badge-warning">意向</span></td>
+                  <td>2,300 m²</td>
+                  <td>坂田基地 B 座 8 楼</td>
+                  <td>李娜</td>
+                  <td>139****0002</td>
+                  <td>2024-06-20</td>
+                  <td><span class="badge badge-active">有效</span></td>
+                  <td style="white-space:nowrap">
+                    <button class="btn btn-default btn-sm" data-perm="enterprise:detail:edit:customer" onclick="openEditDialog('customer', 2, {onlyBase:true})">✏️ 编辑</button>
+                    <button class="btn btn-danger btn-sm" data-perm="enterprise:detail:edit:customer" onclick="deleteCustomer(2)">删除</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td><a href="#" onclick="openCustomerDetail(3);return false" style="color:var(--color-primary);text-decoration:none">HX-2023-015</a></td>
+                  <td><span class="badge badge-active">已签约</span></td>
+                  <td>12,000 m²</td>
+                  <td>坂田基地 C 座 1-3 楼</td>
+                  <td>王强</td>
+                  <td>139****0003</td>
+                  <td>2023-09-10</td>
+                  <td><span class="badge badge-active">有效</span></td>
+                  <td style="white-space:nowrap">
+                    <button class="btn btn-default btn-sm" data-perm="enterprise:detail:edit:customer" onclick="openEditDialog('customer', 3, {onlyBase:true})">✏️ 编辑</button>
+                    <button class="btn btn-danger btn-sm" data-perm="enterprise:detail:edit:customer" onclick="deleteCustomer(3)">删除</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: 云企库数据（第三方对接，5 子模块，每子模块 2 级分类） -->
+      <div class="tab-pane" data-pane="cloud">
+        <!-- 同步状态卡 -->
+        <div class="card" style="padding:16px 20px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+            <div>
+              <h3 style="font-size:16px;font-weight:600;margin-bottom:6px">☁️ 云企库数据 <span style="color:var(--color-ink-tertiary);font-weight:normal;font-size:12px">（第三方同步，仅查看）</span></h3>
+              <div style="display:flex;gap:24px;font-size:12px;color:var(--color-ink-tertiary);margin-top:8px">
+                <span>📡 数据源：天眼查 API + 启信宝</span>
+                <span>🕐 最后同步：2026-07-01 10:00:23</span>
+                <span style="color:#34C759">✅ 状态：同步成功（耗时 12.3s）</span>
+                <span>📊 缓存：25 条 / 总计：1,247 条</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="manualSyncCloud()" title="从第三方重新拉取最新数据">🔄 手动同步</button>
+              <button class="btn btn-default btn-sm" onclick="openSyncSettings()">⚙️ 同步设置</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5 个一级子模块 Tab -->
+        <div class="sub-tabs" id="cloudSubModuleTabs">
+          <div class="sub-tab active" data-sub="risk" onclick="switchSubTab('risk')">⚠️ 经营风险 <span class="badge-count" id="riskCount">0</span></div>
+          <div class="sub-tab" data-sub="situation" onclick="switchSubTab('situation')">📊 经营状况 <span class="badge-count" id="situationCount">5</span></div>
+          <div class="sub-tab" data-sub="detail" onclick="switchSubTab('detail')">🏢 企业详情 <span class="badge-count" id="detailCount">8</span></div>
+          <div class="sub-tab" data-sub="judicial" onclick="switchSubTab('judicial')">⚖️ 司法风险 <span class="badge-count" id="judicialCount">12</span></div>
+          <div class="sub-tab" data-sub="knowledge" onclick="switchSubTab('knowledge')">💡 企业知识 <span class="badge-count" id="knowledgeCount">0</span></div>
+        </div>
+
+        <!-- 1. 经营风险 -->
+        <div class="sub-tab-pane active" data-sub-pane="risk">
+          <!-- 2 级分类 Tab -->
+          <div class="sub-tabs" style="background:var(--color-canvas-grouped);border-radius:8px;padding:4px">
+            <div class="sub-tab active" data-cloud-sub-type="admin_penalty" onclick="switchCloudSubType('risk', 'admin_penalty')">行政处罚</div>
+            <div class="sub-tab" data-cloud-sub-type="abnormal_operation" onclick="switchCloudSubType('risk', 'abnormal_operation')">经营异常</div>
+            <div class="sub-tab" data-cloud-sub-type="equity_pledge" onclick="switchCloudSubType('risk', 'equity_pledge')">股权出质</div>
+            <div class="sub-tab" data-cloud-sub-type="movable_mortgage" onclick="switchCloudSubType('risk', 'movable_mortgage')">动产抵押</div>
+            <div class="sub-tab" data-cloud-sub-type="tax_owed" onclick="switchCloudSubType('risk', 'tax_owed')">欠税公告</div>
+          </div>
+          <div class="card" style="padding:0" id="cloudRiskTable">
+            <div class="empty-state" style="padding:32px"><div class="icon">✅</div><div class="title">无经营风险记录</div><div class="desc">该企业当前经营状况良好，未发现任何风险信号</div></div>
+          </div>
+          <div style="text-align:center;color:var(--color-ink-tertiary);font-size:11px;margin-top:8px">数据来源：天眼查 API · 接口：/cloud/business-risk · 实时同步</div>
+        </div>
+
+        <!-- 2. 经营状况 -->
+        <div class="sub-tab-pane" data-sub-pane="situation">
+          <div class="sub-tabs" style="background:var(--color-canvas-grouped);border-radius:8px;padding:4px">
+            <div class="sub-tab active" data-cloud-sub-type="credit_rating" onclick="switchCloudSubType('situation', 'credit_rating')">信用评级</div>
+            <div class="sub-tab" data-cloud-sub-type="recruitment" onclick="switchCloudSubType('situation', 'recruitment')">招聘信息</div>
+            <div class="sub-tab" data-cloud-sub-type="bidding" onclick="switchCloudSubType('situation', 'bidding')">招标信息</div>
+            <div class="sub-tab" data-cloud-sub-type="news" onclick="switchCloudSubType('situation', 'news')">新闻舆情</div>
+            <div class="sub-tab" data-cloud-sub-type="tax_credit" onclick="switchCloudSubType('situation', 'tax_credit')">纳税信用</div>
+          </div>
+          <div class="card" style="padding:0" id="cloudSituationTable">
+            <!-- 由 switchCloudSubType 渲染 -->
+          </div>
+          <div style="text-align:center;color:var(--color-ink-tertiary);font-size:11px;margin-top:8px">数据来源：天眼查 API · 接口：/cloud/business-situation · 实时同步</div>
+        </div>
+
+        <!-- 3. 企业详情 -->
+        <div class="sub-tab-pane" data-sub-pane="detail">
+          <div class="sub-tabs" style="background:var(--color-canvas-grouped);border-radius:8px;padding:4px">
+            <div class="sub-tab active" data-cloud-sub-type="base_info" onclick="switchCloudSubType('detail', 'base_info')">基本信息</div>
+            <div class="sub-tab" data-cloud-sub-type="shareholders" onclick="switchCloudSubType('detail', 'shareholders')">股东信息 (2)</div>
+            <div class="sub-tab" data-cloud-sub-type="key_persons" onclick="switchCloudSubType('detail', 'key_persons')">主要人员 (15)</div>
+            <div class="sub-tab" data-cloud-sub-type="investments" onclick="switchCloudSubType('detail', 'investments')">对外投资 (28)</div>
+            <div class="sub-tab" data-cloud-sub-type="branches" onclick="switchCloudSubType('detail', 'branches')">分支机构 (12)</div>
+            <div class="sub-tab" data-cloud-sub-type="changes" onclick="switchCloudSubType('detail', 'changes')">变更记录 (47)</div>
+          </div>
+          <div class="card" style="padding:0" id="cloudDetailTable">
+            <!-- 由 switchCloudSubType 渲染 -->
+          </div>
+          <div style="text-align:center;color:var(--color-ink-tertiary);font-size:11px;margin-top:8px">数据来源：启信宝 API · 接口：/cloud/ent-detail · 实时同步</div>
+        </div>
+
+        <!-- 4. 司法风险 -->
+        <div class="sub-tab-pane" data-sub-pane="judicial">
+          <div class="sub-tabs" style="background:var(--color-canvas-grouped);border-radius:8px;padding:4px">
+            <div class="sub-tab active" data-cloud-sub-type="dishonest" onclick="switchCloudSubType('judicial', 'dishonest')">失信被执行</div>
+            <div class="sub-tab" data-cloud-sub-type="executor" onclick="switchCloudSubType('judicial', 'executor')">被执行人</div>
+            <div class="sub-tab" data-cloud-sub-type="court_notice" onclick="switchCloudSubType('judicial', 'court_notice')">法院公告 (8)</div>
+            <div class="sub-tab" data-cloud-sub-type="limit_consume" onclick="switchCloudSubType('judicial', 'limit_consume')">限高令 (3)</div>
+            <div class="sub-tab" data-cloud-sub-type="bankruptcy" onclick="switchCloudSubType('judicial', 'bankruptcy')">破产重整</div>
+            <div class="sub-tab" data-cloud-sub-type="lawsuit" onclick="switchCloudSubType('judicial', 'lawsuit')">诉讼记录 (1)</div>
+          </div>
+          <div class="card" style="padding:0" id="cloudJudicialTable">
+            <!-- 由 switchCloudSubType 渲染 -->
+          </div>
+          <div style="text-align:center;color:var(--color-ink-tertiary);font-size:11px;margin-top:8px">数据来源：启信宝 API · 接口：/cloud/judicial-risk · 实时同步</div>
+        </div>
+
+        <!-- 5. 企业知识 -->
+        <div class="sub-tab-pane" data-sub-pane="knowledge">
+          <div class="sub-tabs" style="background:var(--color-canvas-grouped);border-radius:8px;padding:4px">
+            <div class="sub-tab active" data-cloud-sub-type="company_intro" onclick="switchCloudSubType('knowledge', 'company_intro')">公司简介</div>
+            <div class="sub-tab" data-cloud-sub-type="products" onclick="switchCloudSubType('knowledge', 'products')">产品信息</div>
+            <div class="sub-tab" data-cloud-sub-type="competitors" onclick="switchCloudSubType('knowledge', 'competitors')">竞品分析</div>
+            <div class="sub-tab" data-cloud-sub-type="customers" onclick="switchCloudSubType('knowledge', 'customers')">主要客户</div>
+          </div>
+          <div class="card" style="padding:20px" id="cloudKnowledgeContent">
+            <!-- 由 switchCloudSubType 渲染 -->
+          </div>
+          <div style="text-align:center;color:var(--color-ink-tertiary);font-size:11px;margin-top:8px">数据来源：天眼查 + 公开资料 · 接口：/cloud/knowledge · 实时同步</div>
+        </div>
+      </div>
+
+      <!-- Tab 6: 关注标签 -->
+      <div class="tab-pane" data-pane="focus">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <h3 style="font-size:16px;font-weight:600">关注标签（4）</h3>
+          <button class="btn btn-primary" data-perm="enterprise:detail:edit:focus" onclick="openEditDialog('focus')">➕ 添加关注</button>
+        </div>
+        <div class="card" style="padding:20px">
+          <div style="margin-bottom:20px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--color-primary)">⭐ 工商风险（3 项）</div>
+            <div class="tag-row" style="margin-top:0">
+              <span class="tag">法人变更 <span class="tag-remove" data-perm="enterprise:detail:edit:focus" onclick="removeFocus(1)">×</span></span>
+              <span class="tag">股权冻结 <span class="tag-remove" data-perm="enterprise:detail:edit:focus" onclick="removeFocus(2)">×</span></span>
+              <span class="tag">股权质押 <span class="tag-remove" data-perm="enterprise:detail:edit:focus" onclick="removeFocus(3)">×</span></span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--color-primary)">⭐ 经营动态（1 项）</div>
+            <div class="tag-row" style="margin-top:0">
+              <span class="tag">新闻舆情 <span class="tag-remove" data-perm="enterprise:detail:edit:focus" onclick="removeFocus(4)">×</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 7: 工商信息 -->
+      <div class="tab-pane" data-pane="register">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <h3 style="font-size:16px;font-weight:600">工商登记详情</h3>
+          <button class="btn btn-primary" data-perm="enterprise:detail:edit:register" onclick="openEditDialog('register')">✏️ 编辑工商信息</button>
+        </div>
+        <div class="section-title">注册信息 <span class="field-source" style="font-size:10px;margin-left:8px">sys_enterprise_register</span></div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">注册号 <span class="field-source">reg_no</span></div><div class="value mono">4403011002001</div></div>
+          <div class="item"><div class="label">注册资本 <span class="field-source">reg_capital</span></div><div class="value">364.5 亿人民币</div></div>
+          <div class="item"><div class="label">注册资本币种</div><div class="value">人民币</div></div>
+          <div class="item"><div class="label">注册地址</div><div class="value">广东省深圳市龙岗区坂田街道华为基地</div></div>
+          <div class="item"><div class="label">注册日期 <span class="field-source">reg_date</span></div><div class="value">1987-09-15</div></div>
+          <div class="item"><div class="label">登记机关 <span class="field-source">reg_authority</span></div><div class="value">深圳市市场监督管理局</div></div>
+          <div class="item"><div class="label">登记机关级别</div><div class="value">市级</div></div>
+          <div class="item"><div class="label">注册地址行政区划</div><div class="value">广东省 深圳市 龙岗区</div></div>
+          <div class="item"><div class="label">登记序号</div><div class="value mono">0001</div></div>
+          <div class="item full"><div class="label">经营范围 <span class="field-source">business_scope</span></div><div class="value">一般经营项目：实业投资；创业投资；高科技产品的技术开发、技术咨询、技术服务、技术转让；教育培训；经济信息咨询（不含限制项目）；国内贸易；经营进出口业务等</div></div>
+        </div>
+        <div class="section-title">注销/吊销信息 <span class="field-source" style="font-size:10px;margin-left:8px">sys_enterprise_unregister</span></div>
+        <div class="empty-state" style="padding:24px 0">
+          <div class="icon">✅</div>
+          <div class="desc">企业当前状态正常，无注销/吊销记录</div>
+        </div>
+        <div class="section-title">股票信息 <span class="field-source" style="font-size:10px;margin-left:8px">sys_enterprise_stock</span></div>
+        <div class="descriptions cols-3">
+          <div class="item"><div class="label">股票号 <span class="field-source">stock_no</span></div><div class="value empty">未上市</div></div>
+          <div class="item"><div class="label">股票名 <span class="field-source">stock_name</span></div><div class="value empty">-</div></div>
+          <div class="item"><div class="label">股票曾用名</div><div class="value empty">-</div></div>
+          <div class="item"><div class="label">股票类型 <span class="field-source">stock_type</span></div><div class="value empty">-</div></div>
+          <div class="item"><div class="label">上市交易所</div><div class="value empty">-</div></div>
+          <div class="item"><div class="label">上市日期</div><div class="value empty">-</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通用编辑弹窗 -->
+  <div class="modal-overlay" id="editDialog">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <h3 id="editDialogTitle">编辑</h3>
+        <button class="close" onclick="closeEditDialog()">×</button>
+      </div>
+      <div class="modal-body" id="editDialogBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeEditDialog()">取消</button>
+        <button class="btn btn-primary" onclick="saveDialog()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 客户详情独立弹窗 -->
+  <div class="inline-dialog" id="customerDialog">
+    <div class="modal modal-xl" style="margin:24px">
+      <div class="modal-header">
+        <h3 id="customerDialogTitle">客户详情</h3>
+        <button class="close" onclick="closeCustomerDetail()">×</button>
+      </div>
+      <div class="modal-body" id="customerDialogBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeCustomerDetail()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+     * 角色权限（演示模式）
+     * ============================================================ */
+    var USER_ROLES = {
+      'admin': {'enterprise:detail:edit:base':true,'enterprise:detail:edit:overview':true,'enterprise:detail:edit:tag':true,'enterprise:detail:edit:customer':true,'enterprise:detail:edit:cloud':true,'enterprise:detail:edit:focus':true,'enterprise:detail:edit:register':true},
+      'viewer': {'enterprise:detail:edit:base':false,'enterprise:detail:edit:overview':false,'enterprise:detail:edit:tag':false,'enterprise:detail:edit:customer':false,'enterprise:detail:edit:cloud':false,'enterprise:detail:edit:focus':false,'enterprise:detail:edit:register':false},
+      'archive_mgr': {'enterprise:detail:edit:base':true,'enterprise:detail:edit:overview':false,'enterprise:detail:edit:tag':true,'enterprise:detail:edit:customer':false,'enterprise:detail:edit:cloud':false,'enterprise:detail:edit:focus':false,'enterprise:detail:edit:register':true},
+      'risk': {'enterprise:detail:edit:base':false,'enterprise:detail:edit:overview':false,'enterprise:detail:edit:tag':false,'enterprise:detail:edit:customer':false,'enterprise:detail:edit:cloud':false,'enterprise:detail:edit:focus':true,'enterprise:detail:edit:register':false}
+    };
+    var currentRole = 'viewer';
+
+    function hasPerm(perm){ return USER_ROLES[currentRole] && USER_ROLES[currentRole][perm] === true; }
+
+    function applyPermUI(){
+      document.querySelectorAll('[data-perm]').forEach(function(el){
+        var perm = el.getAttribute('data-perm');
+        if (hasPerm(perm)) {
+          el.classList.remove('perm-disabled');
+          el.removeAttribute('title');
+        } else {
+          el.classList.add('perm-disabled');
+          el.setAttribute('title', '当前角色无 ' + perm + ' 权限');
+        }
+      });
+    }
+
+    function switchUserRole(role){ currentRole = role; applyPermUI(); }
+
+    /* ============================================================
+     * Tab 切换
+     * ============================================================ */
+    function switchTab(name){
+      document.querySelectorAll('.tabs-bar .tab').forEach(function(el){ el.classList.toggle('active', el.dataset.tab === name); });
+      document.querySelectorAll('.tabs-content .tab-pane').forEach(function(el){ el.classList.toggle('active', el.dataset.pane === name); });
+    }
+    function switchSubTab(name){
+      document.querySelectorAll('.sub-tabs .sub-tab').forEach(function(el){ el.classList.toggle('active', el.dataset.sub === name); });
+      document.querySelectorAll('.sub-tab-pane').forEach(function(el){ el.classList.toggle('active', el.dataset.subPane === name); });
+    }
+    function switchCustomerSubTab(name){
+      var tabs = document.querySelectorAll('.inline-dialog .sub-tab');
+      tabs.forEach(function(el){ el.classList.toggle('active', el.dataset.subC === name); });
+      var panes = document.querySelectorAll('.inline-dialog .sub-tab-pane');
+      panes.forEach(function(el){ el.classList.toggle('active', el.dataset.subCPane === name); });
+    }
+
+    /* ============================================================
+     * 跨 frame 导航
+     * ============================================================ */
+    function navigate(url, pageName, moduleKey){
+      var payload = { type: 'loadPage', url: url, pageName: pageName, moduleKey: moduleKey };
+      try { if (window.parent && window.parent !== window) { window.parent.postMessage(payload, '*'); return; } } catch(e) {}
+      try { if (window.parent && window.parent.loadPage) { window.parent.loadPage(url, pageName, moduleKey); return; } } catch(e) {}
+      window.top.location.href = '../index.html';
+    }
+    function goBack(){ navigate('park-enterprise/list.html', '企业列表', 'park-enterprise'); }
+    function goBackToList(){ navigate('park-enterprise/list.html', '企业列表', 'park-enterprise'); }
+
+    /* ============================================================
+     * Tag / Focus / Customer 删除
+     * ============================================================ */
+    function removeTag(id){
+      if (!hasPerm('enterprise:detail:edit:tag')) return;
+      if (!confirm('确定要删除该标签吗？')) return;
+      event.target.closest('.tag').remove();
+    }
+    function removeFocus(id){
+      if (!hasPerm('enterprise:detail:edit:focus')) return;
+      if (!confirm('确定要解除该关注吗？')) return;
+      event.target.closest('.tag').remove();
+    }
+    function deleteCustomer(id){
+      if (!hasPerm('enterprise:detail:edit:customer')) return;
+      if (!confirm('确定要删除该客户信息吗？')) return;
+      alert('演示模式：删除成功（实际接入 DELETE API）');
+    }
+
+    /* ============================================================
+     * 客户详情（独立弹窗）
+     * ============================================================ */
+    var currentCustomerId = null;
+    function openCustomerDetail(id){
+      currentCustomerId = id;
+      var title = id === 1 ? '客户详情：HX-2024-001' : (id === 2 ? '客户详情：HX-2024-002' : '客户详情：HX-2023-015');
+      document.getElementById('customerDialogTitle').textContent = title;
+      document.getElementById('customerDialogBody').innerHTML = getCustomerDetailBody(id);
+      document.getElementById('customerDialog').classList.add('show');
+    }
+    function closeCustomerDetail(){ document.getElementById('customerDialog').classList.remove('show'); }
+    function editCurrentCustomer(){ closeCustomerDetail(); openEditDialog('customer', currentCustomerId); }
+
+    function getCustomerDetailBody(id){
+      return [
+        '<div class="sub-tabs">',
+          '<div class="sub-tab active" data-sub-c="c-base" onclick="switchCustomerSubTab(\'c-base\')">基本信息</div>',
+          '<div class="sub-tab" data-sub-c="c-business" onclick="switchCustomerSubTab(\'c-business\')">业务信息</div>',
+          '<div class="sub-tab" data-sub-c="c-ip" onclick="switchCustomerSubTab(\'c-ip\')">知识产权</div>',
+          '<div class="sub-tab" data-sub-c="c-finance" onclick="switchCustomerSubTab(\'c-finance\')">财务状况</div>',
+          '<div class="sub-tab" data-sub-c="c-needs" onclick="switchCustomerSubTab(\'c-needs\')">企业需求</div>',
+          '<div class="sub-tab" data-sub-c="c-physical" onclick="switchCustomerSubTab(\'c-physical\')">物理需求</div>',
+        '</div>',
+        '<div class="sub-tab-pane active" data-sub-c-pane="c-base">',
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">',
+            '<h3 style="font-size:15px;font-weight:600">📋 基本信息</h3>',
+            '<button class="btn btn-primary" data-perm="enterprise:detail:edit:customer" onclick="openEditDialog(\'customer\', currentCustomerId, {openSubTab:\'c-base\'})">✏️ 编辑基本信息</button>',
+          '</div>',
+          '<div class="descriptions cols-2">',
+          '<div class="item"><div class="label">企业名称</div><div class="value">华为投资控股有限公司</div></div>',
+          '<div class="item"><div class="label">项目编号 <span class="field-source">code</span></div><div class="value mono">HX-2024-001</div></div>',
+          '<div class="item"><div class="label">客户类型 <span class="field-source">customer_type</span></div><div class="value"><span class="badge badge-active">已签约 (3)</span></div></div>',
+          '<div class="item"><div class="label">租用面积 (m²) <span class="field-source">area</span></div><div class="value mono">8,500</div></div>',
+          '<div class="item full"><div class="label">入驻地址 <span class="field-source">settle_address</span></div><div class="value">坂田基地 A 座 12-15 楼</div></div>',
+          '<div class="item"><div class="label">负责人 <span class="field-source">name</span></div><div class="value">张伟</div></div>',
+          '<div class="item"><div class="label">电话 <span class="field-source">phone</span></div><div class="value">13900000001</div></div>',
+          '<div class="item"><div class="label">邮箱</div><div class="value">zhangwei@huawei.com</div></div>',
+          '<div class="item"><div class="label">注册时间 <span class="field-source">regist_time</span></div><div class="value">2024-03-15</div></div>',
+          '<div class="item"><div class="label">注册资本 <span class="field-source">regist_money</span></div><div class="value">364.5 亿</div></div>',
+          '<div class="item"><div class="label">租金标准 (元/m²/月) <span class="field-source">rent_standard</span></div><div class="value mono">85</div></div>',
+          '<div class="item"><div class="label">专属链接</div><div class="value mono" style="font-size:11px">https://platform.local/c/HX2024-001-a3f9</div></div>',
+        '</div></div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-business"><div class="section-title">💼 业务信息</div><div class="descriptions cols-2">',
+          '<div class="item"><div class="label">所属产业领域 <span class="field-source">industrial_field</span></div><div class="value">集成电路 (1)</div></div>',
+          '<div class="item"><div class="label">其他领域</div><div class="value empty">无</div></div>',
+          '<div class="item full"><div class="label">主营业务 <span class="field-source">main_business</span></div><div class="value">通信设备、智能手机、芯片设计与制造、云计算服务、企业级 IT 解决方案的研发、生产、销售</div></div>',
+          '<div class="item"><div class="label">企业实力 <span class="field-source">company_strengths</span></div><div class="value">1,2,3,5,8（5 项）</div></div>',
+          '<div class="item"><div class="label">其他实力</div><div class="value empty">无</div></div>',
+        '</div></div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-ip">',
+          // 4 统计卡
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">📜 发明专利</div><div style="font-size:24px;font-weight:700;color:var(--color-ink)">62,000</div><div style="font-size:11px;color:var(--color-ink-tertiary);margin-top:2px">专利总数</div></div>',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">🔧 实用新型</div><div style="font-size:24px;font-weight:700;color:var(--color-ink)">48,000</div><div style="font-size:11px;color:var(--color-ink-tertiary);margin-top:2px">专利总数</div></div>',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">🎨 外观设计</div><div style="font-size:24px;font-weight:700;color:var(--color-ink)">15,000</div><div style="font-size:11px;color:var(--color-ink-tertiary);margin-top:2px">专利总数</div></div>',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">©️ 商标+著作权</div><div style="font-size:24px;font-weight:700;color:#007AFF">12,300</div><div style="font-size:11px;color:var(--color-ink-tertiary);margin-top:2px">商标 3,800 + 软著 8,500</div></div>',
+          '</div>',
+          // 工具栏：子类型 + 新增
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">',
+            '<div class="sub-tabs" id="ipSubTypeTabs" style="margin:0;border-bottom:none;flex:1">',
+              '<div class="sub-tab active" data-ip-type="patent_invention" onclick="switchIPType(\'patent_invention\')">发明专利 (62,000)</div>',
+              '<div class="sub-tab" data-ip-type="patent_utility" onclick="switchIPType(\'patent_utility\')">实用新型 (48,000)</div>',
+              '<div class="sub-tab" data-ip-type="patent_design" onclick="switchIPType(\'patent_design\')">外观设计 (15,000)</div>',
+              '<div class="sub-tab" data-ip-type="trademark" onclick="switchIPType(\'trademark\')">商标 (3,800)</div>',
+              '<div class="sub-tab" data-ip-type="software_copyright" onclick="switchIPType(\'software_copyright\')">软件著作权 (8,500)</div>',
+              '<div class="sub-tab" data-ip-type="ic_layout" onclick="switchIPType(\'ic_layout\')">集成电路布图 (320)</div>',
+            '</div>',
+            '<button class="btn btn-primary" data-perm="enterprise:detail:edit:customer" onclick="openIPAddDialog()">➕ 新增知识产权</button>',
+          '</div>',
+          // 列表
+          '<div class="card" style="padding:0">',
+            '<div class="table-wrapper">',
+              '<table>',
+                '<thead><tr>',
+                  '<th width="50">序号</th>',
+                  '<th>名称/标题</th>',
+                  '<th width="180">申请号</th>',
+                  '<th width="110">申请日</th>',
+                  '<th width="110">授权日</th>',
+                  '<th width="140">所有人</th>',
+                  '<th width="100">状态</th>',
+                  '<th width="140">操作</th>',
+                '</tr></thead>',
+                '<tbody id="ipListBody"></tbody>',
+              '</table>',
+            '</div>',
+            '<div class="pagination">',
+              '<div class="info">共 <span id="ipTotalCount">0</span> 条</div>',
+              '<div class="pages" id="ipPagination"></div>',
+            '</div>',
+          '</div>',
+        '</div></div>',
+        // 财务状况：当前年度 + 历史年度
+        '<div class="sub-tab-pane" data-sub-c-pane="c-finance">',
+          // 标题 + 操作
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">',
+            '<h3 style="font-size:15px;font-weight:600">财务状况</h3>',
+            '<div style="display:flex;gap:8px">',
+              '<select id="financeYearSwitch" onchange="switchFinanceYear(this.value)" style="font-size:13px;padding:6px 12px;border:1px solid var(--color-divider);border-radius:6px;background:var(--color-canvas)">',
+                '<option value="2024" selected>2024 年（最新）</option>',
+                '<option value="2023">2023 年</option>',
+                '<option value="2022">2022 年</option>',
+                '<option value="2021">2021 年</option>',
+                '<option value="2020">2020 年</option>',
+                '<option value="2019">2019 年</option>',
+                '<option value="2018">2018 年</option>',
+                '<option value="2017">2017 年</option>',
+                '<option value="2016">2016 年</option>',
+                '<option value="2015">2015 年</option>',
+              '</select>',
+            '</div>',
+          '</div>',
+          // 当前年度统计（4 卡）
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px" id="financeYearCards">',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">📈 营业收入</div><div style="font-size:22px;font-weight:700;color:#007AFF" id="fcRevenue">¥ 7,042 亿</div><div style="font-size:11px;color:#34C759;margin-top:4px">↑ 同比 9.6%</div></div>',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">💵 净利润</div><div style="font-size:22px;font-weight:700;color:#34C759" id="fcProfit">¥ 626 亿</div><div style="font-size:11px;color:#34C759;margin-top:4px">↑ 同比 12.3%</div></div>',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">🧾 税收</div><div style="font-size:22px;font-weight:700;color:var(--color-ink)" id="fcTax">¥ 350 亿</div><div style="font-size:11px;color:#FF9500;margin-top:4px">A 级纳税</div></div>',
+            '<div class="card" style="padding:16px"><div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:6px">📊 资产总额</div><div style="font-size:22px;font-weight:700;color:var(--color-ink)" id="fcAssets">¥ 1,250 亿</div><div style="font-size:11px;color:var(--color-ink-tertiary);margin-top:4px">净资产 680 亿</div></div>',
+          '</div>',
+          // 详细字段
+          '<div class="section-title" id="financeYearTitle">2024 年详细数据</div>',
+          '<div class="descriptions cols-2" id="financeYearDetail">',
+            '<div class="item"><div class="label">营业收入 <span class="field-source">revenue</span></div><div class="value mono">¥ 7,042 亿</div></div>',
+            '<div class="item"><div class="label">上年度税收 <span class="field-source">last_year_tax</span></div><div class="value">A 级（5）</div></div>',
+            '<div class="item"><div class="label">净利润</div><div class="value mono">¥ 626 亿</div></div>',
+            '<div class="item"><div class="label">毛利率</div><div class="value mono">42.5%</div></div>',
+            '<div class="item"><div class="label">净利率</div><div class="value mono">8.9%</div></div>',
+            '<div class="item"><div class="label">营收同比</div><div class="value" style="color:#34C759">↑ 9.6%</div></div>',
+            '<div class="item"><div class="label">投资总金额 <span class="field-source">invest_total</span></div><div class="value mono">¥ 280 亿</div></div>',
+            '<div class="item"><div class="label">融资总金额 <span class="field-source">financing_total</span></div><div class="value mono">¥ 150 亿</div></div>',
+            '<div class="item"><div class="label">资产总额</div><div class="value mono">¥ 1,250 亿</div></div>',
+            '<div class="item"><div class="label">净资产</div><div class="value mono">¥ 680 亿</div></div>',
+            '<div class="item"><div class="label">负债率</div><div class="value mono">45.6%</div></div>',
+            '<div class="item"><div class="label">信用评级</div><div class="value">AAA</div></div>',
+            '<div class="item full"><div class="label">财务备注 <span class="field-source">finance_remark</span></div><div class="value">2024 年营收稳步增长，主要驱动因素：云计算业务增长 32%、终端业务增长 18%、智能汽车解决方案增长 78%</div></div>',
+          '</div>',
+          // 历史财务表格
+          '<div class="section-title">📊 历年财务对比（2015-2024）</div>',
+          '<div class="card" style="padding:0">',
+            '<div class="table-wrapper">',
+              '<table>',
+                '<thead><tr>',
+                  '<th width="80">年份</th>',
+                  '<th>营业收入</th>',
+                  '<th>净利润</th>',
+                  '<th>税收</th>',
+                  '<th>资产总额</th>',
+                  '<th>毛利率</th>',
+                  '<th>营收同比</th>',
+                  '<th>数据来源</th>',
+                  '<th width="100">操作</th>',
+                '</tr></thead>',
+                '<tbody id="financeHistoryBody"></tbody>',
+              '</table>',
+            '</div>',
+            '<div class="pagination"><div class="info">共 <span id="financeHistoryCount">0</span> 年记录</div></div>',
+          '</div>',
+        '</div></div>',
+        // 企业需求：加最近更新日期
+        '<div class="sub-tab-pane" data-sub-c-pane="c-needs">',
+          // 元信息
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:12px 16px;background:var(--color-canvas-grouped);border-radius:8px;font-size:12px">',
+            '<div style="display:flex;gap:24px">',
+              '<div><span style="color:var(--color-ink-tertiary)">最近更新日期：</span><span style="font-weight:500;color:var(--color-ink)" id="needsUpdateDate">2026-06-15 14:30</span></div>',
+              '<div><span style="color:var(--color-ink-tertiary)">更新人：</span><span style="font-weight:500;color:var(--color-ink)">张伟（招商经理）</span></div>',
+              '<div><span style="color:var(--color-ink-tertiary)">数据来源：</span><span style="font-weight:500;color:var(--color-ink)">客户实地访谈 + 问卷</span></div>',
+            '</div>',
+          '</div>',
+          // 详细需求
+          '<div class="section-title">📋 企业需求</div>',
+          '<div class="descriptions cols-2">',
+            '<div class="item"><div class="label">面临困难 <span class="field-source">difficulties</span></div><div class="value">无</div></div>',
+            '<div class="item"><div class="label">其他困难</div><div class="value empty">-</div></div>',
+            '<div class="item"><div class="label">配套服务需求 <span class="field-source">support_needs</span></div><div class="value">班车、儿童托管、网络通讯、团餐、公寓</div></div>',
+            '<div class="item"><div class="label">科技咨询服务需求</div><div class="value">是</div></div>',
+            '<div class="item"><div class="label">管理服务需求</div><div class="value">是</div></div>',
+            '<div class="item"><div class="label">公共技术平台服务需求</div><div class="value">是</div></div>',
+            '<div class="item"><div class="label">投资服务需求</div><div class="value">是</div></div>',
+            '<div class="item full"><div class="label">对产业园建议 <span class="field-source">park_suggestion</span></div><div class="value">希望增加更多的会议室和路演厅，便于企业开展技术交流和对外发布</div></div>',
+          '</div>',
+          // 历史变更记录
+          '<div class="section-title">📜 需求变更历史</div>',
+          '<div class="card" style="padding:0">',
+            '<div class="table-wrapper">',
+              '<table>',
+                '<thead><tr>',
+                  '<th width="160">变更时间</th>',
+                  '<th width="100">变更人</th>',
+                  '<th width="100">变更类型</th>',
+                  '<th>变更内容</th>',
+                '</tr></thead>',
+                '<tbody id="needsHistoryBody"></tbody>',
+              '</table>',
+            '</div>',
+            '<div class="pagination"><div class="info">共 <span id="needsHistoryCount">0</span> 条记录</div></div>',
+          '</div>',
+        '</div></div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-physical"><div class="section-title">🏗️ 物理需求</div><div class="descriptions cols-3">',
+          '<div class="item"><div class="label">结构荷载 (kN/m²) <span class="field-source">load_capacity</span></div><div class="value mono">8.0</div></div>',
+          '<div class="item"><div class="label">楼层高度 (m) <span class="field-source">floor_height</span></div><div class="value mono">4.5</div></div>',
+          '<div class="item"><div class="label">电容量 (kW) <span class="field-source">power_capacity</span></div><div class="value mono">500</div></div>',
+          '<div class="item"><div class="label">给排水</div><div class="value">有</div></div>',
+          '<div class="item"><div class="label">新风排烟</div><div class="value">需要</div></div>',
+          '<div class="item"><div class="label">电梯长度 (m)</div><div class="value mono">2.0</div></div>',
+          '<div class="item"><div class="label">电梯宽度 (m)</div><div class="value mono">1.8</div></div>',
+          '<div class="item"><div class="label">电梯高度 (m)</div><div class="value mono">2.8</div></div>',
+          '<div class="item"><div class="label">电梯荷载 (kg)</div><div class="value mono">1600</div></div>',
+        '</div></div>',
+      ].join('');
+    }
+
+    /* ============================================================
+     * 知识产权：Mock 数据 + 渲染 + 切换 + 新增
+     * ============================================================ */
+    var IP_MOCK = {
+      'patent_invention': [
+        { name: '一种基于 5G 的低功耗通信方法', applyNo: 'CN202410123456.7', applyDate: '2024-03-15', grantDate: '2024-09-20', owner: '华为技术有限公司', status: 'granted' },
+        { name: '面向云端的高效数据加密算法', applyNo: 'CN202410234567.8', applyDate: '2024-05-10', grantDate: '2024-11-15', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '分布式 AI 模型训练资源调度方法', applyNo: 'CN202410345678.9', applyDate: '2024-07-22', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+        { name: '基于区块链的供应链溯源系统', applyNo: 'CN202410456789.0', applyDate: '2024-08-05', grantDate: '2025-02-10', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '智能终端的多模态交互方法', applyNo: 'CN202410567890.1', applyDate: '2024-10-18', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+        { name: '一种新型半导体材料及其制备方法', applyNo: 'CN202310987654.3', applyDate: '2023-11-08', grantDate: '2024-06-12', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '神经网络模型压缩方法及装置', applyNo: 'CN202311098765.4', applyDate: '2023-12-15', grantDate: '2024-08-22', owner: '华为投资控股有限公司', status: 'granted' },
+      ],
+      'patent_utility': [
+        { name: '一种可折叠电子设备支架', applyNo: 'CN202420111222.3', applyDate: '2024-02-08', grantDate: '2024-08-15', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '智能温控散热模组', applyNo: 'CN202420222333.4', applyDate: '2024-04-12', grantDate: '2024-10-20', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '便携式多功能充电设备', applyNo: 'CN202420333444.5', applyDate: '2024-06-20', grantDate: '2024-12-25', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '一种防水防尘摄像头', applyNo: 'CN202420444555.6', applyDate: '2024-08-15', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+        { name: '可调节式办公桌', applyNo: 'CN202420555666.7', applyDate: '2024-10-22', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+      ],
+      'patent_design': [
+        { name: '手机外观设计（Mate 系列）', applyNo: 'CN202430001122.3', applyDate: '2024-01-30', grantDate: '2024-07-15', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '智能手表表盘设计', applyNo: 'CN202430002233.4', applyDate: '2024-03-20', grantDate: '2024-09-25', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '平板电脑外观设计', applyNo: 'CN202430003344.5', applyDate: '2024-05-18', grantDate: '2024-11-30', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '耳机造型设计', applyNo: 'CN202430004455.6', applyDate: '2024-07-25', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+        { name: '路由器外观设计', applyNo: 'CN202430005566.7', applyDate: '2024-09-12', grantDate: '2025-03-18', owner: '华为投资控股有限公司', status: 'granted' },
+      ],
+      'trademark': [
+        { name: 'HUAWEI（中文+英文）', applyNo: 'TM20240001111', applyDate: '2024-01-10', grantDate: '2024-04-20', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: 'HarmonyOS 鸿蒙', applyNo: 'TM20240002222', applyDate: '2024-02-15', grantDate: '2024-06-10', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '麒麟 Kirin', applyNo: 'TM20240003333', applyDate: '2024-03-20', grantDate: '2024-08-05', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '昇腾 Ascend', applyNo: 'TM20240004444', applyDate: '2024-04-25', grantDate: '2024-10-15', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '盘古 Pangu', applyNo: 'TM20240005555', applyDate: '2024-06-12', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+      ],
+      'software_copyright': [
+        { name: '鸿蒙操作系统 V4.0', applyNo: '2024SR0123456', applyDate: '2024-01-15', grantDate: '2024-04-20', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '方舟编译器 V3.0', applyNo: '2024SR0234567', applyDate: '2024-03-10', grantDate: '2024-06-25', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: 'GaussDB 数据库 V2.0', applyNo: '2024SR0345678', applyDate: '2024-05-22', grantDate: '2024-08-30', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: 'MindSpore AI 框架 V2.0', applyNo: '2024SR0456789', applyDate: '2024-07-18', grantDate: '2024-10-22', owner: '华为投资控股有限公司', status: 'granted' },
+        { name: '云桌面 Workspace V5.0', applyNo: '2024SR0567890', applyDate: '2024-09-25', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+        { name: '智慧园区运营平台 V1.0', applyNo: '2024SR0678901', applyDate: '2024-11-12', grantDate: '', owner: '华为投资控股有限公司', status: 'pending' },
+      ],
+      'ic_layout': [
+        { name: '海思麒麟 9000S 芯片布图', applyNo: 'CN202400001', applyDate: '2024-02-10', grantDate: '2024-08-20', owner: '海思半导体', status: 'granted' },
+        { name: '鲲鹏 920 服务器芯片布图', applyNo: 'CN202400002', applyDate: '2024-04-15', grantDate: '2024-10-25', owner: '海思半导体', status: 'granted' },
+        { name: '昇腾 910 AI 芯片布图', applyNo: 'CN202400003', applyDate: '2024-06-20', grantDate: '', owner: '海思半导体', status: 'pending' },
+        { name: '巴龙 5000 基带芯片布图', applyNo: 'CN202400004', applyDate: '2024-08-08', grantDate: '2025-02-15', owner: '海思半导体', status: 'granted' },
+      ]
+    };
+
+    var IP_TYPE_LABEL = {
+      'patent_invention': '发明专利', 'patent_utility': '实用新型', 'patent_design': '外观设计',
+      'trademark': '商标', 'software_copyright': '软件著作权', 'ic_layout': '集成电路布图'
+    };
+
+    var currentIPType = 'patent_invention';
+    var currentIPPage = 1;
+    var IP_PAGE_SIZE = 5;
+
+    function switchIPType(type){
+      currentIPType = type;
+      currentIPPage = 1;
+      // 更新子 Tab 高亮
+      document.querySelectorAll('#ipSubTypeTabs .sub-tab').forEach(function(el){
+        el.classList.toggle('active', el.dataset.ipType === type);
+      });
+      renderIPList();
+    }
+
+    function renderIPList(){
+      var allData = IP_MOCK[currentIPType] || [];
+      var start = (currentIPPage - 1) * IP_PAGE_SIZE;
+      var end = Math.min(start + IP_PAGE_SIZE, allData.length);
+      var html = '';
+      for (var i = start; i < end; i++) {
+        var ip = allData[i];
+        var statusBadge = ip.status === 'granted' 
+          ? '<span class="badge badge-active">已授权</span>' 
+          : (ip.status === 'pending' ? '<span class="badge badge-warning">审核中</span>' : '<span class="badge badge-disabled">已失效</span>');
+        html += '<tr>';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td><a href="#" onclick="event.preventDefault();viewIPDetail(\'' + currentIPType + '\',' + i + ')" style="color:var(--color-primary);text-decoration:none;font-weight:500">' + ip.name + '</a></td>';
+        html += '<td style="font-family:monospace;font-size:12px">' + ip.applyNo + '</td>';
+        html += '<td style="font-size:12px">' + ip.applyDate + '</td>';
+        html += '<td style="font-size:12px">' + (ip.grantDate || '<span class="empty">-</span>') + '</td>';
+        html += '<td style="font-size:12px">' + ip.owner + '</td>';
+        html += '<td>' + statusBadge + '</td>';
+        html += '<td style="white-space:nowrap">';
+        html += '<button class="btn btn-default btn-sm" onclick="viewIPDetail(\'' + currentIPType + '\',' + i + ')" title="查看详情">🔍</button> ';
+        html += '<button class="btn btn-default btn-sm" data-perm="enterprise:detail:edit:customer" onclick="openIPAddDialog(' + i + ')" title="编辑">✏️</button> ';
+        html += '<button class="btn btn-danger btn-sm" data-perm="enterprise:detail:edit:customer" onclick="deleteIPRecord(' + currentIPType + ',' + i + ')" title="删除">🗑️</button>';
+        html += '</td>';
+        html += '</tr>';
+      }
+      if (allData.length === 0) {
+        html = '<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--color-ink-tertiary)">📋 该类型暂无知识产权记录<br><br><button class="btn btn-primary btn-sm" data-perm="enterprise:detail:edit:customer" onclick="openIPAddDialog()">➕ 新增第一条</button></td></tr>';
+      }
+      document.getElementById('ipListBody').innerHTML = html;
+      document.getElementById('ipTotalCount').textContent = allData.length;
+      renderIPPagination(allData.length);
+    }
+
+    function renderIPPagination(total){
+      var pages = Math.ceil(total / IP_PAGE_SIZE);
+      var html = '';
+      html += '<button ' + (currentIPPage === 1 ? 'class="disabled"' : '') + ' onclick="goIPPage(' + (currentIPPage - 1) + ')">‹</button>';
+      var start = Math.max(1, currentIPPage - 2);
+      var end = Math.min(pages, currentIPPage + 2);
+      for (var i = start; i <= end; i++) {
+        html += '<button ' + (i === currentIPPage ? 'class="active"' : '') + ' onclick="goIPPage(' + i + ')">' + i + '</button>';
+      }
+      html += '<button ' + (currentIPPage === pages ? 'class="disabled"' : '') + ' onclick="goIPPage(' + (currentIPPage + 1) + ')">›</button>';
+      document.getElementById('ipPagination').innerHTML = html;
+    }
+
+    function goIPPage(p){
+      var total = Math.ceil((IP_MOCK[currentIPType] || []).length / IP_PAGE_SIZE);
+      if (p < 1 || p > total) return;
+      currentIPPage = p;
+      renderIPList();
+    }
+
+    function viewIPDetail(type, idx){
+      var ip = IP_MOCK[type][idx];
+      var typeLabel = IP_TYPE_LABEL[type];
+      var detailHtml = [
+        '<div class="section-title">📜 ', typeLabel, ' 详情</div>',
+        '<div class="descriptions cols-2">',
+          '<div class="item"><div class="label">知识产权类型</div><div class="value">', typeLabel, '</div></div>',
+          '<div class="item"><div class="label">名称/标题</div><div class="value">', ip.name, '</div></div>',
+          '<div class="item"><div class="label">申请号</div><div class="value mono">', ip.applyNo, '</div></div>',
+          '<div class="item"><div class="label">申请日</div><div class="value">', ip.applyDate, '</div></div>',
+          '<div class="item"><div class="label">授权日</div><div class="value">', (ip.grantDate || '审核中'), '</div></div>',
+          '<div class="item"><div class="label">所有人</div><div class="value">', ip.owner, '</div></div>',
+          '<div class="item full"><div class="label">状态</div><div class="value">',
+            ip.status === 'granted' ? '<span class="badge badge-active">已授权</span> 正常有效，可用于维权和保护' :
+            (ip.status === 'pending' ? '<span class="badge badge-warning">审核中</span> 已受理申请，等待审查' :
+            '<span class="badge badge-disabled">已失效</span> 超过有效期或主动放弃'),
+          '</div></div>',
+        '</div>',
+      ].join('');
+      // 复用 customerDialog 复用：内嵌显示
+      // 实际应用应打开独立弹窗，这里演示
+      openIPDetailDialog(detailHtml);
+    }
+
+    function openIPDetailDialog(html){
+      // 复用 editDialog 显示 IP 详情
+      document.getElementById('editDialogTitle').textContent = '知识产权详情';
+      document.getElementById('editDialogBody').innerHTML = html;
+      document.getElementById('editDialog').classList.add('show');
+    }
+
+    function deleteIPRecord(type, idx){
+      if (!hasPerm('enterprise:detail:edit:customer')) return;
+      if (!confirm('确定要删除该知识产权记录吗？')) return;
+      console.log('DELETE customer_ip: type=' + type + ' idx=' + idx);
+      IP_MOCK[type].splice(idx, 1);
+      // 调整当前页
+      var total = IP_MOCK[type].length;
+      if (currentIPPage > Math.ceil(total / IP_PAGE_SIZE) && currentIPPage > 1) currentIPPage--;
+      renderIPList();
+    }
+
+    /* ============================================================
+     * 知识产权：新增/编辑弹窗
+     * ============================================================ */
+    function openIPAddDialog(idx){
+      if (!hasPerm('enterprise:detail:edit:customer')) {
+        alert('当前角色无 enterprise:detail:edit:customer 权限');
+        return;
+      }
+      var isEdit = (typeof idx === 'number');
+      var ip = isEdit ? IP_MOCK[currentIPType][idx] : null;
+      var title = isEdit ? '✏️ 编辑' + IP_TYPE_LABEL[currentIPType] : '➕ 新增知识产权';
+      document.getElementById('editDialogTitle').textContent = title;
+      document.getElementById('editDialogBody').innerHTML = getIPAddDialogBody(isEdit ? ip : null);
+      document.getElementById('editDialog').classList.add('show');
+    }
+
+    function getIPAddDialogBody(ip){
+      var typeOptions = Object.keys(IP_TYPE_LABEL).map(function(k){
+        var selected = (ip && currentIPType === k) ? ' selected' : '';
+        return '<option value="' + k + '"' + selected + '>' + IP_TYPE_LABEL[k] + '</option>';
+      }).join('');
+      return [
+        // 类型 + 名称
+        '<div class="form-row">',
+          '<div class="col"><label>知识产权类型 <span class="required">*</span> <span class="field-source">sys_customer_ip.ip_type</span></label>',
+            '<select id="ipType">' + typeOptions + '</select>',
+          '</div>',
+          '<div class="col" style="flex:2"><label>名称/标题 <span class="required">*</span> <span class="field-source">name</span></label>',
+            '<input type="text" id="ipName" value="' + (ip ? ip.name : '') + '" placeholder="如：一种基于 5G 的通信方法">',
+          '</div>',
+        '</div>',
+        // 申请号 + 申请日
+        '<div class="form-row">',
+          '<div class="col"><label>申请号 <span class="required">*</span> <span class="field-source">apply_no</span></label>',
+            '<input type="text" id="ipApplyNo" value="' + (ip ? ip.applyNo : '') + '" placeholder="如：CN202410123456.7">',
+          '</div>',
+          '<div class="col"><label>申请日 <span class="required">*</span> <span class="field-source">apply_date</span></label>',
+            '<input type="date" id="ipApplyDate" value="' + (ip ? ip.applyDate : new Date().toISOString().slice(0,10)) + '">',
+          '</div>',
+          '<div class="col"><label>授权日 <span class="field-source">grant_date</span></label>',
+            '<input type="date" id="ipGrantDate" value="' + (ip ? (ip.grantDate || '') : '') + '">',
+          '</div>',
+        '</div>',
+        // 截止日 + 状态
+        '<div class="form-row">',
+          '<div class="col"><label>截止日 <span class="field-source">expire_date</span></label>',
+            '<input type="date" id="ipExpireDate" placeholder="如：发明专利 20 年到期">',
+          '</div>',
+          '<div class="col"><label>状态 <span class="required">*</span> <span class="field-source">status</span></label>',
+            '<select id="ipStatus">',
+              '<option value="pending"' + (ip && ip.status === 'pending' ? ' selected' : '') + '>审核中</option>',
+              '<option value="granted"' + (!ip || ip.status === 'granted' ? ' selected' : '') + '>已授权</option>',
+              '<option value="expired">已失效</option>',
+            '</select>',
+          '</div>',
+          '<div class="col"><label>所有人 <span class="required">*</span> <span class="field-source">owner</span></label>',
+            '<input type="text" id="ipOwner" value="' + (ip ? ip.owner : '华为投资控股有限公司') + '">',
+          '</div>',
+        '</div>',
+        // 代理 + 类别
+        '<div class="form-row">',
+          '<div class="col"><label>代理机构 <span class="field-source">agency</span></label>',
+            '<input type="text" id="ipAgency" placeholder="如：北京集佳知识产权代理有限公司">',
+          '</div>',
+          '<div class="col"><label>代理人 <span class="field-source">agent</span></label>',
+            '<input type="text" id="ipAgent" placeholder="如：李华">',
+          '</div>',
+          '<div class="col"><label>分类号 <span class="field-source">classification</span></label>',
+            '<input type="text" id="ipClass" placeholder="如：H04L 1/00 (IPC 分类)">',
+          '</div>',
+        '</div>',
+        // 附件 + 备注
+        '<div class="form-row">',
+          '<div class="col"><label>附件上传 <span class="field-source">attachments</span></label>',
+            '<div style="border:1px dashed var(--color-divider);border-radius:8px;padding:16px;text-align:center;cursor:pointer;color:var(--color-ink-tertiary)" onclick="alert(\'演示模式：上传专利证书 PDF\')">📎 点击上传证书 / 申请文件（支持 PDF/JPG）</div>',
+          '</div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>备注 <span class="field-source">remark</span></label>',
+            '<textarea id="ipRemark" rows="2" placeholder="内部备注"></textarea>',
+          '</div>',
+        '</div>',
+        // 提示
+        '<div class="form-row">',
+          '<div class="col full">',
+            '<p style="font-size:12px;color:var(--color-ink-tertiary);padding:8px 12px;background:#E5F1FF;border-radius:6px">💡 知识产权记录关联当前客户（HX-2024-001）。保存后自动归集到客户档案，并在企业概览统计中实时更新。</p>',
+          '</div>',
+        '</div>',
+      ].join('');
+    }
+
+    function saveIPRecord(){
+      // 演示模式：直接保存
+      var name = document.getElementById('ipName') ? document.getElementById('ipName').value : '';
+      if (!name) { alert('请输入名称/标题'); return; }
+      alert('演示模式：保存成功（实际接入 POST /customer/' + currentCustomerId + '/ip）');
+      closeEditDialog();
+    }
+
+    /* ============================================================
+     * 财务历史数据（按年份切换）
+     * ============================================================ */
+    // Mock 数据：2015-2024 年财务数据
+    var FINANCE_HISTORY = {
+      '2024': { revenue: '¥ 7,042 亿', profit: '¥ 626 亿', tax: '¥ 350 亿', assets: '¥ 1,250 亿', grossMargin: '42.5%', yoy: '↑ 9.6%', source: '年报', detail: { revenue: '¥ 7,042 亿', tax: 'A 级（5）', profit: '¥ 626 亿', grossMargin: '42.5%', netMargin: '8.9%', yoy: '↑ 9.6%', investTotal: '¥ 280 亿', financeTotal: '¥ 150 亿', totalAssets: '¥ 1,250 亿', netAssets: '¥ 680 亿', debtRatio: '45.6%', credit: 'AAA', remark: '2024 年营收稳步增长，主要驱动因素：云计算业务增长 32%、终端业务增长 18%、智能汽车解决方案增长 78%' } },
+      '2023': { revenue: '¥ 6,422 亿', profit: '¥ 558 亿', tax: '¥ 320 亿', assets: '¥ 1,150 亿', grossMargin: '43.2%', yoy: '↑ 8.5%', source: '年报', detail: { revenue: '¥ 6,422 亿', tax: 'A 级（5）', profit: '¥ 558 亿', grossMargin: '43.2%', netMargin: '8.7%', yoy: '↑ 8.5%', investTotal: '¥ 240 亿', financeTotal: '¥ 130 亿', totalAssets: '¥ 1,150 亿', netAssets: '¥ 620 亿', debtRatio: '46.1%', credit: 'AAA', remark: '2023 年企业全面回归增长轨道' } },
+      '2022': { revenue: '¥ 5,920 亿', profit: '¥ 515 亿', tax: '¥ 295 亿', assets: '¥ 1,050 亿', grossMargin: '43.5%', yoy: '↑ 5.2%', source: '年报', detail: { revenue: '¥ 5,920 亿', tax: 'A 级（5）', profit: '¥ 515 亿', grossMargin: '43.5%', netMargin: '8.7%', yoy: '↑ 5.2%', investTotal: '¥ 210 亿', financeTotal: '¥ 100 亿', totalAssets: '¥ 1,050 亿', netAssets: '¥ 565 亿', debtRatio: '46.2%', credit: 'AAA', remark: '2022 年顶住外部压力，研发投入持续加码' } },
+      '2021': { revenue: '¥ 5,628 亿', profit: '¥ 487 亿', tax: '¥ 268 亿', assets: '¥ 980 亿', grossMargin: '44.1%', yoy: '↓ 28.6%', source: '年报', detail: { revenue: '¥ 5,628 亿', tax: 'A 级（5）', profit: '¥ 487 亿', grossMargin: '44.1%', netMargin: '8.7%', yoy: '↓ 28.6%', investTotal: '¥ 180 亿', financeTotal: '¥ 80 亿', totalAssets: '¥ 980 亿', netAssets: '¥ 530 亿', debtRatio: '45.9%', credit: 'AAA', remark: '2021 年受外部环境影响营收下降' } },
+      '2020': { revenue: '¥ 7,888 亿', profit: '¥ 646 亿', tax: '¥ 360 亿', assets: '¥ 920 亿', grossMargin: '36.3%', yoy: '↑ 3.8%', source: '年报', detail: { revenue: '¥ 7,888 亿', tax: 'A 级（5）', profit: '¥ 646 亿', grossMargin: '36.3%', netMargin: '8.2%', yoy: '↑ 3.8%', investTotal: '¥ 165 亿', financeTotal: '¥ 60 亿', totalAssets: '¥ 920 亿', netAssets: '¥ 500 亿', debtRatio: '45.7%', credit: 'AAA', remark: '2020 年消费者业务受全球疫情影响' } },
+      '2019': { revenue: '¥ 7,608 亿', profit: '¥ 627 亿', tax: '¥ 340 亿', assets: '¥ 865 亿', grossMargin: '37.6%', yoy: '↑ 19.5%', source: '年报', detail: { revenue: '¥ 7,608 亿', tax: 'A 级（5）', profit: '¥ 627 亿', grossMargin: '37.6%', netMargin: '8.2%', yoy: '↑ 19.5%', investTotal: '¥ 155 亿', financeTotal: '¥ 50 亿', totalAssets: '¥ 865 亿', netAssets: '¥ 470 亿', debtRatio: '45.6%', credit: 'AAA', remark: '2019 年 5G 商用元年，公司全面布局' } },
+      '2018': { revenue: '¥ 6,365 亿', profit: '¥ 593 亿', tax: '¥ 320 亿', assets: '¥ 800 亿', grossMargin: '38.6%', yoy: '↑ 19.5%', source: '年报', detail: { revenue: '¥ 6,365 亿', tax: 'A 级（5）', profit: '¥ 593 亿', grossMargin: '38.6%', netMargin: '9.3%', yoy: '↑ 19.5%', investTotal: '¥ 145 亿', financeTotal: '¥ 40 亿', totalAssets: '¥ 800 亿', netAssets: '¥ 430 亿', debtRatio: '46.3%', credit: 'AAA', remark: '2018 年消费者业务首次成为最大收入板块' } },
+      '2017': { revenue: '¥ 5,320 亿', profit: '¥ 475 亿', tax: '¥ 280 亿', assets: '¥ 720 亿', grossMargin: '39.5%', yoy: '↑ 15.7%', source: '年报', detail: { revenue: '¥ 5,320 亿', tax: 'A 级（5）', profit: '¥ 475 亿', grossMargin: '39.5%', netMargin: '8.9%', yoy: '↑ 15.7%', investTotal: '¥ 130 亿', financeTotal: '¥ 30 亿', totalAssets: '¥ 720 亿', netAssets: '¥ 380 亿', debtRatio: '47.2%', credit: 'AAA', remark: '2017 年云服务业务启动' } },
+      '2016': { revenue: '¥ 4,600 亿', profit: '¥ 370 亿', tax: '¥ 245 亿', assets: '¥ 650 亿', grossMargin: '40.3%', yoy: '↑ 32.0%', source: '年报', detail: { revenue: '¥ 4,600 亿', tax: 'A 级（5）', profit: '¥ 370 亿', grossMargin: '40.3%', netMargin: '8.0%', yoy: '↑ 32.0%', investTotal: '¥ 110 亿', financeTotal: '¥ 20 亿', totalAssets: '¥ 650 亿', netAssets: '¥ 330 亿', debtRatio: '49.2%', credit: 'AAA', remark: '2016 年消费者业务高速增长' } },
+      '2015': { revenue: '¥ 3,480 亿', profit: '¥ 295 亿', tax: '¥ 210 亿', assets: '¥ 580 亿', grossMargin: '41.7%', yoy: '↑ 37.0%', source: '年报', detail: { revenue: '¥ 3,480 亿', tax: 'A 级（5）', profit: '¥ 295 亿', grossMargin: '41.7%', netMargin: '8.5%', yoy: '↑ 37.0%', investTotal: '¥ 95 亿', financeTotal: '¥ 15 亿', totalAssets: '¥ 580 亿', netAssets: '¥ 290 亿', debtRatio: '50.0%', credit: 'AAA', remark: '2015 年企业业务集团成立' } }
+    };
+
+    function switchFinanceYear(year){
+      var d = FINANCE_HISTORY[year];
+      if (!d) return;
+      // 更新统计卡
+      document.getElementById('fcRevenue').textContent = d.revenue;
+      document.getElementById('fcProfit').textContent = d.profit;
+      document.getElementById('fcTax').textContent = d.tax;
+      document.getElementById('fcAssets').textContent = d.assets;
+      // 更新标题
+      document.getElementById('financeYearTitle').textContent = year + ' 年详细数据';
+      // 更新详细字段
+      var detailHtml = [
+        '<div class="item"><div class="label">营业收入 <span class="field-source">revenue</span></div><div class="value mono">' + d.detail.revenue + '</div></div>',
+        '<div class="item"><div class="label">上年度税收 <span class="field-source">last_year_tax</span></div><div class="value">' + d.detail.tax + '</div></div>',
+        '<div class="item"><div class="label">净利润</div><div class="value mono">' + d.detail.profit + '</div></div>',
+        '<div class="item"><div class="label">毛利率</div><div class="value mono">' + d.detail.grossMargin + '</div></div>',
+        '<div class="item"><div class="label">净利率</div><div class="value mono">' + d.detail.netMargin + '</div></div>',
+        '<div class="item"><div class="label">营收同比</div><div class="value" style="color:' + (d.detail.yoy.indexOf('↑') === 0 ? '#34C759' : '#FF3B30') + '">' + d.detail.yoy + '</div></div>',
+        '<div class="item"><div class="label">投资总金额 <span class="field-source">invest_total</span></div><div class="value mono">' + d.detail.investTotal + '</div></div>',
+        '<div class="item"><div class="label">融资总金额 <span class="field-source">finance_total</span></div><div class="value mono">' + d.detail.financeTotal + '</div></div>',
+        '<div class="item"><div class="label">资产总额</div><div class="value mono">' + d.detail.totalAssets + '</div></div>',
+        '<div class="item"><div class="label">净资产</div><div class="value mono">' + d.detail.netAssets + '</div></div>',
+        '<div class="item"><div class="label">负债率</div><div class="value mono">' + d.detail.debtRatio + '</div></div>',
+        '<div class="item"><div class="label">信用评级</div><div class="value">' + d.detail.credit + '</div></div>',
+        '<div class="item full"><div class="label">财务备注 <span class="field-source">finance_remark</span></div><div class="value">' + d.detail.remark + '</div></div>',
+      ].join('');
+      document.getElementById('financeYearDetail').innerHTML = detailHtml;
+    }
+
+    function renderFinanceHistory(){
+      var years = Object.keys(FINANCE_HISTORY).sort().reverse();
+      var html = '';
+      years.forEach(function(year){
+        var d = FINANCE_HISTORY[year];
+        var yoyColor = d.yoy.indexOf('↑') === 0 ? '#34C759' : (d.yoy.indexOf('↓') === 0 ? '#FF3B30' : '#FF9500');
+        html += '<tr>';
+        html += '<td style="font-weight:500"><a href="#" onclick="event.preventDefault();switchFinanceYear(\'' + year + '\');document.getElementById(\'financeYearSwitch\').value=\'' + year + '\'" style="color:var(--color-primary);text-decoration:none">' + year + ' 年</a></td>';
+        html += '<td style="font-family:monospace">' + d.revenue + '</td>';
+        html += '<td style="font-family:monospace">' + d.profit + '</td>';
+        html += '<td style="font-family:monospace">' + d.tax + '</td>';
+        html += '<td style="font-family:monospace">' + d.assets + '</td>';
+        html += '<td style="font-family:monospace">' + d.grossMargin + '</td>';
+        html += '<td style="color:' + yoyColor + '">' + d.yoy + '</td>';
+        html += '<td style="font-size:12px"><span class="badge badge-info">' + d.source + '</span></td>';
+        html += '<td style="white-space:nowrap">';
+        html += '<button class="btn btn-default btn-sm" onclick="switchFinanceYear(\'' + year + '\');document.getElementById(\'financeYearSwitch\').value=\'' + year + '\'" title="查看该年数据">查看</button>';
+        html += '</td>';
+        html += '</tr>';
+      });
+      document.getElementById('financeHistoryBody').innerHTML = html;
+      document.getElementById('financeHistoryCount').textContent = years.length;
+    }
+
+    /* ============================================================
+     * 需求变更历史
+     * ============================================================ */
+    var NEEDS_HISTORY = [
+      { time: '2026-06-15 14:30', user: '张伟（招商经理）', type: '更新', content: '调整配套服务需求：增加"室内环境"（因夏季高温需加强空调通风）' },
+      { time: '2026-03-20 10:15', user: '王强（招商总监）', type: '新增', content: '新增对产业园建议：希望增加更多的会议室和路演厅，便于企业开展技术交流和对外发布' },
+      { time: '2025-12-08 16:45', user: '张伟（招商经理）', type: '更新', content: '配套服务需求从 5 项更新为 6 项（增加儿童托管）' },
+      { time: '2025-08-12 09:20', user: '李娜（招商专员）', type: '初审', content: '初次采集企业需求信息：班车、儿童托管、网络通讯、团餐、公寓' },
+    ];
+
+    function renderNeedsHistory(){
+      var html = '';
+      NEEDS_HISTORY.forEach(function(h){
+        var typeBadge = h.type === '新增' ? '<span class="badge badge-active">新增</span>' 
+          : (h.type === '更新' ? '<span class="badge badge-info">更新</span>' 
+          : (h.type === '删除' ? '<span class="badge badge-negative">删除</span>' : '<span class="badge badge-default">初审</span>'));
+        html += '<tr>';
+        html += '<td style="font-family:monospace;font-size:12px">' + h.time + '</td>';
+        html += '<td>' + h.user + '</td>';
+        html += '<td>' + typeBadge + '</td>';
+        html += '<td>' + h.content + '</td>';
+        html += '</tr>';
+      });
+      document.getElementById('needsHistoryBody').innerHTML = html;
+      document.getElementById('needsHistoryCount').textContent = NEEDS_HISTORY.length;
+    }
+
+    /* ============================================================
+     * 编辑弹窗
+     * ============================================================ */
+    var currentEditType = null;
+    /* ─── 客户画像跳转 ─── */
+    function openProfilePage(){
+      try {
+        window.parent.postMessage({type:'loadPage', url:'park-enterprise/profile.html', pageName:'clientProfile', moduleKey:'park-enterprise'}, '*');
+      } catch(e) {
+        window.open('../park-enterprise/profile.html', '_blank');
+      }
+    }
+
+    /**
+     * 打开编辑弹窗
+     * @param {string} type - 编辑类型 (base/overview/tag/customer/focus/register)
+     * @param {number} subId - 客户 ID（customer 类型专用）
+     * @param {object} options - 附加选项
+     *   - openSubTab: 客户编辑弹窗内默认激活的子 Tab (c-base/c-business/c-ip/c-finance/c-needs/c-physical)
+     *   - financeYear: 财务编辑时预填的年份（默认当前年）
+     */
+    function openEditDialog(type, subId, options){
+      options = options || {};
+      if (!hasPerm('enterprise:detail:edit:' + type)) {
+        alert('当前角色无 enterprise:detail:edit:' + type + ' 权限');
+        return;
+      }
+      currentEditType = type;
+      var titleMap = {
+        'base': '✏️ 编辑基本信息',
+        'overview': '✏️ 编辑企业概览',
+        'tag': '🏷️ 添加/管理企业标签',
+        'customer': subId ? '✏️ 编辑客户 HX-2024-00' + subId : '➕ 新增客户',
+        'focus': '⭐ 添加关注标签',
+        'register': '✏️ 编辑工商信息'
+      };
+      // customer 类型带 openSubTab 时，标题更精确
+      if (type === 'customer' && options.openSubTab) {
+        var tabTitles = {
+          'c-base': '✏️ 编辑客户 - 基本信息',
+          'c-business': '✏️ 编辑客户 - 业务信息',
+          'c-ip': '✏️ 编辑客户 - 知识产权',
+          'c-finance': '✏️ 编辑客户 - 财务状况',
+          'c-needs': '✏️ 编辑客户 - 企业需求',
+          'c-physical': '✏️ 编辑客户 - 物理需求'
+        };
+        titleMap['customer'] = tabTitles[options.openSubTab] || titleMap['customer'];
+      }
+      document.getElementById('editDialogTitle').textContent = titleMap[type];
+      document.getElementById('editDialogBody').innerHTML = getDialogBody(type, subId);
+      document.getElementById('editDialog').classList.add('show');
+      // 弹窗打开后，激活指定子 Tab
+      if (type === 'customer' && options.openSubTab) {
+        setTimeout(function(){
+          switchCustomerSubTab(options.openSubTab);
+        }, 50);
+      }
+    }
+    function closeEditDialog(){ document.getElementById('editDialog').classList.remove('show'); }
+    function saveDialog(){
+      alert('演示模式：保存成功（实际接入 PUT/POST API）');
+      closeEditDialog();
+    }
+
+    function getDialogBody(type, subId){
+      switch(type){
+        case 'base': return getBaseEditForm();
+        case 'overview': return getOverviewEditForm();
+        case 'tag': return getTagEditForm();
+        case 'customer': return getCustomerEditForm(subId);
+        case 'focus': return getFocusEditForm();
+        case 'register': return getRegisterEditForm();
+        default: return '<p>该 Tab 编辑表单待定（演示模式）</p>';
+      }
+    }
+
+    // Tab 1: 基本信息（30+ 字段）
+    function getBaseEditForm(){
+      return [
+        '<div class="section-title">📋 工商登记</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>企业名称 <span class="required">*</span></label><input type="text" value="华为投资控股有限公司"><div class="field-source">sys_enterprise.name</div></div>',
+          '<div class="col"><label>简称</label><input type="text" value="华为投资"><div class="field-source">alias</div></div>',
+          '<div class="col"><label>曾用名</label><input type="text" value=""><div class="field-source">former_name</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>英文名</label><input type="text" value="Huawei Investment Holding"><div class="field-source">english_name</div></div>',
+          '<div class="col"><label>统一社会信用代码</label><input type="text" value="91440300MA5DA7Q37H" maxlength="18"><div class="field-source">credit_code</div></div>',
+          '<div class="col"><label>注册号</label><input type="text" value="4403011002001"><div class="field-source">reg_no</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>纳税人识别号</label><input type="text" value="91440300MA5DA7Q37H"><div class="field-source">tax_number</div></div>',
+          '<div class="col"><label>组织机构代码</label><input type="text" value="MA5DA7Q37"><div class="field-source">org_code</div></div>',
+          '<div class="col"><label>登记机关</label><input type="text" value="深圳市市场监督管理局"><div class="field-source">reg_authority</div></div>',
+        '</div>',
+        '<div class="section-title">👤 法人/资本</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>法定代表人 <span class="required">*</span></label><input type="text" value="任正非" required><div class="field-source">legal_person_name</div></div>',
+          '<div class="col"><label>法人类型</label><select><option value="1" selected>自然人</option><option value="2">公司</option><option value="3">其他组织</option></select><div class="field-source">legal_type</div></div>',
+          '<div class="col"><label>企业类型</label><select><option selected>有限责任公司</option><option>股份有限公司</option><option>个人独资企业</option><option>合伙企业</option></select><div class="field-source">ent_type</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>注册资本</label><input type="text" value="364.5 亿"><div class="field-source">reg_capital</div></div>',
+          '<div class="col"><label>注册资本币种</label><select><option selected>人民币</option><option>美元</option><option>欧元</option><option>港币</option></select><div class="field-source">reg_capital_currency</div></div>',
+          '<div class="col"><label>实收资本</label><input type="text" value="364.5 亿"><div class="field-source">actual_capital</div></div>',
+        '</div>',
+        '<div class="section-title">📅 期限/登记</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>成立日期</label><input type="date" value="1987-09-15"><div class="field-source">estiblish_time</div></div>',
+          '<div class="col"><label>经营开始日期</label><input type="date" value="1987-09-15"><div class="field-source">from_time</div></div>',
+          '<div class="col"><label>营业期限</label><select><option selected>长期</option><option>10年</option><option>20年</option><option>30年</option></select><div class="field-source">business_term</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>审核/年检日期</label><input type="date" value="2025-06-30"><div class="field-source">annual_date</div></div>',
+          '<div class="col"><label>登记状态</label><select><option selected>在营</option><option>吊销</option><option>注销</option><option>迁出</option></select><div class="field-source">reg_status</div></div>',
+          '<div class="col"><label>经营状态</label><div class="radio-group"><label class="radio-item"><input type="radio" name="businessStatus" checked> 开业</label><label class="radio-item"><input type="radio" name="businessStatus"> 停业</label></div><div class="field-source">business_status</div></div>',
+        '</div>',
+        '<div class="section-title">🏭 行业/规模</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>行业门类</label><select><option value="">请选择</option><option value="I" selected>I 信息传输、软件和信息技术服务业</option><option value="C">C 制造业</option><option value="F">F 批发和零售业</option></select><div class="field-source">industry_category</div></div>',
+          '<div class="col"><label>行业大类</label><input type="text" value="I65 软件和信息技术服务业"><div class="field-source">industry_big</div></div>',
+          '<div class="col"><label>行业中类</label><input type="text" value="I6520 信息系统集成服务"><div class="field-source">industry_middle</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>人员规模</label><select><option value="7" selected>10000+ 人</option><option value="6">5000-9999 人</option><option value="5">1000-4999 人</option><option value="4">500-999 人</option><option value="3">100-499 人</option></select><div class="field-source">staff_num_range</div></div>',
+          '<div class="col"><label>参保人数</label><input type="number" value="207000"><div class="field-source">insurance_num</div></div>',
+          '<div class="col"><label>是否小微企业</label><div class="radio-group"><label class="radio-item"><input type="radio" name="isSmall"> 是</label><label class="radio-item"><input type="radio" name="isSmall" checked> 否</label></div><div class="field-source">is_small_micro</div></div>',
+        '</div>',
+        '<div class="section-title">📞 联系/经营</div>',
+        '<div class="form-row">',
+          '<div class="col" style="flex:2"><label>注册地址 <span class="required">*</span></label><input type="text" value="广东省深圳市龙岗区坂田街道华为基地" required><div class="field-source">reg_location</div></div>',
+          '<div class="col"><label>联系电话</label><input type="text" value="0755-12345678"><div class="field-source">phone_number</div></div>',
+          '<div class="col"><label>邮箱</label><input type="email" value="contact@huawei.com"><div class="field-source">email</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>经营范围</label><textarea rows="3">一般经营项目：实业投资；创业投资；高科技产品的技术开发、技术咨询、技术服务、技术转让；教育培训；经济信息咨询（不含限制项目）；国内贸易；经营进出口业务等</textarea><div class="field-source">business_scope</div></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>备注</label><textarea rows="2" placeholder="内部备注"></textarea><div class="field-source">remark</div></div>',
+        '</div>',
+      ].join('');
+    }
+
+    // Tab 2: 企业概览（12+ 字段）
+    function getOverviewEditForm(){
+      return [
+        '<div class="section-title">💰 资产规模</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>总资产 (元) <span class="field-source">total_assets</span></label><input type="number" value="1250000000000"></div>',
+          '<div class="col"><label>净资产 (元) <span class="field-source">net_assets</span></label><input type="number" value="680000000000"></div>',
+          '<div class="col"><label>负债率 (%) <span class="field-source">debt_ratio</span></label><input type="number" step="0.01" value="45.6"></div>',
+        '</div>',
+        '<div class="section-title">📈 营收/利润</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>营业收入 (元) <span class="field-source">revenue</span></label><input type="number" value="704200000000"></div>',
+          '<div class="col"><label>净利润 (元) <span class="field-source">profit</span></label><input type="number" value="62600000000"></div>',
+          '<div class="col"><label>营收同比 (%) <span class="field-source">yoy_revenue</span></label><input type="number" step="0.01" value="9.6"></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>利润同比 (%) <span class="field-source">yoy_profit</span></label><input type="number" step="0.01" value="12.3"></div>',
+          '<div class="col"><label>毛利率 (%) <span class="field-source">gross_margin</span></label><input type="number" step="0.01" value="42.5"></div>',
+          '<div class="col"><label>净利率 (%) <span class="field-source">net_margin</span></label><input type="number" step="0.01" value="8.9"></div>',
+        '</div>',
+        '<div class="section-title">👥 人员/知识产权</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>员工总数 <span class="field-source">staff_count</span></label><input type="number" value="207000"></div>',
+          '<div class="col"><label>研发人员 <span class="field-source">rd_staff</span></label><input type="number" value="112000"></div>',
+          '<div class="col"><label>销售人员 <span class="field-source">sales_staff</span></label><input type="number" value="28000"></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>专利总数 <span class="field-source">patent_count</span></label><input type="number" value="125000"></div>',
+          '<div class="col"><label>发明专利 <span class="field-source">invention_patent</span></label><input type="number" value="62000"></div>',
+          '<div class="col"><label>商标 <span class="field-source">trademark</span></label><input type="number" value="3800"></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>软件著作权 <span class="field-source">software_copyright</span></label><input type="number" value="8500"></div>',
+          '<div class="col"><label>研发投入 (元) <span class="field-source">rd_investment</span></label><input type="number" value="165000000000"></div>',
+          '<div class="col"><label>市场份额 (%) <span class="field-source">market_share</span></label><input type="number" step="0.01" value="28"></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>纳税等级 <span class="field-source">tax_level</span></label><select><option selected>A 级</option><option>B 级</option><option>C 级</option></select></div>',
+          '<div class="col"><label>信用评级 <span class="field-source">credit_rating</span></label><select><option selected>AAA</option><option>AA</option><option>A</option></select></div>',
+          '<div class="col"><label>评分 <span class="field-source">rating</span></label><select><option value="1" selected>优</option><option value="2">良</option><option value="3">中</option><option value="4">差</option></select></div>',
+        '</div>',
+      ].join('');
+    }
+
+    // Tab 3: 标签
+    function getTagEditForm(){
+      return [
+        '<p style="color:var(--color-ink-tertiary);font-size:13px;margin-bottom:16px">从标签字典中选择（多选），已选 5 个标签：</p>',
+        '<div class="form-row">',
+          '<div class="col full"><label>可选标签 <span class="required">*</span></label>',
+            '<div class="checkbox-group" style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px 16px;padding:12px;background:var(--color-canvas-grouped);border-radius:8px;max-height:300px;overflow-y:auto">',
+              '<label class="checkbox-item"><input type="checkbox" checked> 🏢 500强企业</label>',
+              '<label class="checkbox-item"><input type="checkbox" checked> ⭐ VIP客户</label>',
+              '<label class="checkbox-item"><input type="checkbox" checked> 🚀 重点招商</label>',
+              '<label class="checkbox-item"><input type="checkbox" checked> 💎 高新技术</label>',
+              '<label class="checkbox-item"><input type="checkbox" checked> 🌐 跨国企业</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🏆 上市公司</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🏭 国资背景</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🚀 独角兽</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🏢 行业龙头</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 💼 优质客户</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🎯 重点跟进</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 💎 战略客户</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🌱 创新企业</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🏆 瞪羚企业</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 🚀 专精特新</label>',
+              '<label class="checkbox-item"><input type="checkbox"> ⚡ 隐形冠军</label>',
+            '</div>',
+            '<div class="field-source">sys_enterprise_tag + sys_tag</div>',
+          '</div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full">',
+            '<p style="font-size:12px;color:var(--color-ink-tertiary);padding:8px 12px;background:#E5F1FF;border-radius:6px">💡 当前已选 5 个标签，保存后立即生效。删除标签后，企业的相关筛选/统计也会同步更新。</p>',
+          '</div>',
+        '</div>',
+      ].join('');
+    }
+
+    // Tab 4: 客户信息（6 Tab 50+ 字段）
+    function getCustomerEditForm(subId){
+      return [
+        '<div class="sub-tabs">',
+          '<div class="sub-tab active" data-sub-c="c-base" onclick="switchCustomerSubTab(\'c-base\')">基本信息</div>',
+          '<div class="sub-tab" data-sub-c="c-business" onclick="switchCustomerSubTab(\'c-business\')">业务信息</div>',
+          '<div class="sub-tab" data-sub-c="c-ip" onclick="switchCustomerSubTab(\'c-ip\')">知识产权</div>',
+          '<div class="sub-tab" data-sub-c="c-finance" onclick="switchCustomerSubTab(\'c-finance\')">财务状况</div>',
+          '<div class="sub-tab" data-sub-c="c-needs" onclick="switchCustomerSubTab(\'c-needs\')">企业需求</div>',
+          '<div class="sub-tab" data-sub-c="c-physical" onclick="switchCustomerSubTab(\'c-physical\')">物理需求</div>',
+        '</div>',
+        '<div class="sub-tab-pane active" data-sub-c-pane="c-base">',
+          '<div class="form-row">',
+            '<div class="col"><label>企业名称</label><input type="text" value="华为投资控股有限公司"></div>',
+            '<div class="col"><label>项目编号 <span class="required">*</span></label><input type="text" value="HX-2024-001"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>客户类型 <span class="field-source">customer_type</span></label><select><option value="1">潜在客户</option><option value="2">意向客户</option><option value="3" selected>已签约</option></select></div>',
+            '<div class="col"><label>租用面积 (m²) <span class="field-source">area</span></label><input type="number" value="8500"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>入驻地址 <span class="required">*</span> <span class="field-source">settle_address</span></label><input type="text" value="坂田基地 A 座 12-15 楼"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>负责人 <span class="required">*</span> <span class="field-source">name</span></label><input type="text" value="张伟"></div>',
+            '<div class="col"><label>电话 <span class="required">*</span> <span class="field-source">phone</span></label><input type="text" value="13900000001"></div>',
+            '<div class="col"><label>邮箱</label><input type="email" value="zhangwei@huawei.com"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>注册时间 <span class="field-source">regist_time</span></label><input type="date" value="2024-03-15"></div>',
+            '<div class="col"><label>注册资本 <span class="field-source">regist_money</span></label><input type="text" value="364.5 亿"></div>',
+            '<div class="col"><label>租金标准 (元/m²/月) <span class="field-source">rent_standard</span></label><input type="number" value="85"></div>',
+          '</div>',
+        '</div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-business">',
+          '<div class="form-row">',
+            '<div class="col"><label>所属产业领域 <span class="field-source">industrial_field</span></label><select><option>集成电路</option><option>生物医药</option><option>高端装备</option><option>新材料</option><option>新能源</option><option>节能环保</option></select></div>',
+            '<div class="col"><label>其他领域</label><input type="text" placeholder="其他产业领域"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>主营业务 <span class="field-source">main_business</span></label><textarea rows="3">通信设备、智能手机、芯片设计与制造、云计算服务、企业级 IT 解决方案的研发、生产、销售</textarea></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>企业实力 <span class="field-source">company_strengths</span>（多选）</label>',
+              '<div class="checkbox-group" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px 12px">',
+                '<label class="checkbox-item"><input type="checkbox" checked> 1 行业龙头</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 2 上市企业</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 3 央企</label>',
+                '<label class="checkbox-item"><input type="checkbox"> 4 国资</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 5 高新技术</label>',
+                '<label class="checkbox-item"><input type="checkbox"> 6 独角兽</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 8 专精特新</label>',
+                '<label class="checkbox-item"><input type="checkbox"> 9 瞪羚</label>',
+                '<label class="checkbox-item"><input type="checkbox"> 10 隐形冠军</label>',
+                '<label class="checkbox-item"><input type="checkbox"> 7 外资</label>',
+              '</div>',
+            '</div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>其他实力</label><input type="text" placeholder="其他企业实力"></div>',
+          '</div>',
+        '</div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-ip">',
+          '<div class="form-row">',
+            '<div class="col"><label>有效知识产权总数 <span class="field-source">ip_total</span></label><input type="number" value="248300"></div>',
+            '<div class="col"><label>发明专利 <span class="field-source">invention_patent</span></label><input type="number" value="62000"></div>',
+            '<div class="col"><label>实用新型专利 <span class="field-source">utility_model</span></label><input type="number" value="48000"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>外观设计专利 <span class="field-source">design_patent</span></label><input type="number" value="15000"></div>',
+            '<div class="col"><label>商标 <span class="field-source">trademark</span></label><input type="number" value="3800"></div>',
+            '<div class="col"><label>软件著作权 <span class="field-source">software_copyright</span></label><input type="number" value="8500"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>植物新品种</label><input type="number" value="0"></div>',
+            '<div class="col"><label>集成电路布图 <span class="field-source">ic_layout</span></label><input type="number" value="320"></div>',
+            '<div class="col"><label>购买国外专利</label><input type="number" value="0"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>其他专利 <span class="field-source">other_patent</span></label><input type="number" value="110680"></div>',
+          '</div>',
+        '</div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-finance">',
+          '<div class="form-row">',
+            '<div class="col"><label>营业收入 <span class="field-source">revenue</span></label><select><option>1 500万以下</option><option>2 500-2000万</option><option>3 2000万-1亿</option><option value="4" selected>4 1亿以上</option></select></div>',
+            '<div class="col"><label>上年度税收 <span class="field-source">last_year_tax</span></label><select><option>1 10万以下</option><option>2 10-50万</option><option>3 50-100万</option><option>4 100-200万</option><option value="5" selected>5 200-500万</option><option>6 500万以上</option></select></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>投资总金额 <span class="field-source">invest_total</span></label><input type="text" value="280 亿"></div>',
+            '<div class="col"><label>融资总金额 <span class="field-source">financing_total</span></label><input type="text" value="150 亿"></div>',
+          '</div>',
+        '</div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-needs">',
+          '<div class="form-row">',
+            '<div class="col full"><label>面临困难 <span class="field-source">difficulties</span></label><textarea rows="2" placeholder="请输入企业面临的困难">无</textarea></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>其他困难</label><input type="text" placeholder="其他困难描述"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>配套服务需求 <span class="field-source">support_needs</span>（多选）</label>',
+              '<div class="checkbox-group" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 12px">',
+                '<label class="checkbox-item"><input type="checkbox" checked> 班车</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 儿童托管</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 网络通讯</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 团餐</label>',
+                '<label class="checkbox-item"><input type="checkbox" checked> 公寓</label>',
+                '<label class="checkbox-item"><input type="checkbox"> 室内环境</label>',
+              '</div>',
+            '</div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>科技咨询服务需求</label><div class="radio-group"><label class="radio-item"><input type="radio" name="techNeed" checked> 是</label><label class="radio-item"><input type="radio" name="techNeed"> 否</label></div></div>',
+            '<div class="col"><label>管理服务需求</label><div class="radio-group"><label class="radio-item"><input type="radio" name="mgmtNeed" checked> 是</label><label class="radio-item"><input type="radio" name="mgmtNeed"> 否</label></div></div>',
+            '<div class="col"><label>公共技术平台服务需求</label><div class="radio-group"><label class="radio-item"><input type="radio" name="platformNeed" checked> 是</label><label class="radio-item"><input type="radio" name="platformNeed"> 否</label></div></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>投资服务需求</label><div class="radio-group"><label class="radio-item"><input type="radio" name="investNeed" checked> 是</label><label class="radio-item"><input type="radio" name="investNeed"> 否</label></div></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col full"><label>对产业园建议 <span class="field-source">park_suggestion</span></label><textarea rows="3">希望增加更多的会议室和路演厅，便于企业开展技术交流和对外发布</textarea></div>',
+          '</div>',
+        '</div>',
+        '<div class="sub-tab-pane" data-sub-c-pane="c-physical">',
+          '<div class="form-row">',
+            '<div class="col"><label>结构荷载 (kN/m²) <span class="field-source">load_capacity</span></label><input type="number" step="0.1" value="8.0"></div>',
+            '<div class="col"><label>楼层高度 (m) <span class="field-source">floor_height</span></label><input type="number" step="0.1" value="4.5"></div>',
+            '<div class="col"><label>电容量 (kW) <span class="field-source">power_capacity</span></label><input type="number" value="500"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>给排水</label><div class="radio-group"><label class="radio-item"><input type="radio" name="plumb" checked> 有</label><label class="radio-item"><input type="radio" name="plumb"> 无</label></div></div>',
+            '<div class="col"><label>新风排烟</label><div class="radio-group"><label class="radio-item"><input type="radio" name="vent" checked> 需要</label><label class="radio-item"><input type="radio" name="vent"> 不需要</label></div></div>',
+            '<div class="col"><label>电梯长度 (m)</label><input type="number" step="0.1" value="2.0"></div>',
+          '</div>',
+          '<div class="form-row">',
+            '<div class="col"><label>电梯宽度 (m)</label><input type="number" step="0.1" value="1.8"></div>',
+            '<div class="col"><label>电梯高度 (m)</label><input type="number" step="0.1" value="2.8"></div>',
+            '<div class="col"><label>电梯荷载 (kg)</label><input type="number" value="1600"></div>',
+          '</div>',
+        '</div>',
+      ].join('');
+    }
+
+    // Tab 6: 关注标签
+    function getFocusEditForm(){
+      return [
+        '<div class="form-row">',
+          '<div class="col"><label>关注标签（一级） <span class="required">*</span> <span class="field-source">sys_focus.id</span></label>',
+            '<select onchange="onFocusCategoryChange(this.value)">',
+              '<option value="">请选择关注标签</option>',
+              '<option value="1" selected>工商风险</option>',
+              '<option value="2">经营动态</option>',
+              '<option value="3">司法风险</option>',
+              '<option value="4">知识产权</option>',
+              '<option value="5">人员变动</option>',
+              '<option value="6">新闻舆情</option>',
+            '</select>',
+            '<div class="field-source">sys_focus</div>',
+          '</div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>关注内容（多选） <span class="field-source">sys_focus_item.id</span></label>',
+            '<div id="focusItemsList" class="checkbox-group" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;padding:12px;background:var(--color-canvas-grouped);border-radius:8px;min-height:80px">',
+              '<label class="checkbox-item"><input type="checkbox" checked> 法人变更</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 股权冻结</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 股权质押</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 股东减持</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 股东增持</label>',
+              '<label class="checkbox-item"><input type="checkbox"> 注册资本变更</label>',
+            '</div>',
+            '<div class="field-source">sys_enterprise_focus + sys_focus_item</div>',
+          '</div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>备注</label><textarea rows="2" placeholder="关注的特殊原因或备注"></textarea></div>',
+        '</div>',
+      ].join('');
+    }
+
+    function onFocusCategoryChange(categoryId){
+      var itemsMap = {
+        '1': ['法人变更', '股权冻结', '股权质押', '股东减持', '股东增持', '注册资本变更', '经营范围变更', '注册地址变更', '企业名称变更'],
+        '2': ['新闻舆情', '产品发布', '战略合作', '融资动态', '业绩公告', '管理层变动', '员工招聘'],
+        '3': ['诉讼', '仲裁', '失信被执行', '限制高消费', '股权冻结', '破产清算', '行政处罚'],
+        '4': ['专利申请', '专利授权', '商标注册', '软件著作权', '集成电路布图', '知识产权转让'],
+        '5': ['高管变动', '核心员工变动', '大规模招聘', '裁员', '股权激励'],
+        '6': ['正面新闻', '负面新闻', '行业评论', '产品评测', '社会舆论']
+      };
+      var list = document.getElementById('focusItemsList');
+      if (!list) return;
+      var items = itemsMap[categoryId] || [];
+      list.innerHTML = items.map(function(item){
+        return '<label class="checkbox-item"><input type="checkbox"> ' + item + '</label>';
+      }).join('');
+    }
+
+    // Tab 7: 工商信息
+    function getRegisterEditForm(){
+      return [
+        '<div class="section-title">📋 注册信息 <span class="field-source" style="font-size:10px;margin-left:8px">sys_enterprise_register</span></div>',
+        '<div class="form-row">',
+          '<div class="col"><label>注册号 <span class="field-source">reg_no</span></label><input type="text" value="4403011002001"></div>',
+          '<div class="col"><label>注册资本 <span class="field-source">reg_capital</span></label><input type="text" value="364.5 亿"></div>',
+          '<div class="col"><label>注册资本币种</label><select><option selected>人民币</option><option>美元</option><option>欧元</option><option>港币</option></select></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>注册地址 <span class="field-source">reg_address</span></label><input type="text" value="广东省深圳市龙岗区坂田街道华为基地"></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>注册地址行政区划</label><input type="text" value="广东省 深圳市 龙岗区"></div>',
+          '<div class="col"><label>注册日期 <span class="field-source">reg_date</span></label><input type="date" value="1987-09-15"></div>',
+          '<div class="col"><label>登记机关 <span class="field-source">reg_authority</span></label><input type="text" value="深圳市市场监督管理局"></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>登记机关级别</label><select><option>国家级</option><option>省级</option><option selected>市级</option><option>区级</option></select></div>',
+          '<div class="col"><label>登记序号</label><input type="text" value="0001"></div>',
+          '<div class="col"><label>企业类型</label><select><option selected>有限责任公司</option><option>股份有限公司</option><option>个人独资企业</option></select></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col full"><label>经营范围 <span class="field-source">business_scope</span></label><textarea rows="4">一般经营项目：实业投资；创业投资；高科技产品的技术开发、技术咨询、技术服务、技术转让；教育培训；经济信息咨询（不含限制项目）；国内贸易；经营进出口业务等</textarea></div>',
+        '</div>',
+        '<div class="section-title">📈 经营期限</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>经营开始日期 <span class="field-source">oper_from</span></label><input type="date" value="1987-09-15"></div>',
+          '<div class="col"><label>经营结束日期 <span class="field-source">oper_to</span></label><input type="date" value=""></div>',
+          '<div class="col"><label>营业期限</label><select><option selected>长期</option><option>10年</option><option>20年</option><option>30年</option></select></div>',
+        '</div>',
+        '<div class="section-title">📊 股票信息 <span class="field-source" style="font-size:10px;margin-left:8px">sys_enterprise_stock</span></div>',
+        '<div class="form-row">',
+          '<div class="col"><label>是否上市</label><div class="radio-group"><label class="radio-item"><input type="radio" name="isListed"> 是</label><label class="radio-item"><input type="radio" name="isListed" checked> 否</label></div></div>',
+          '<div class="col"><label>股票号</label><input type="text" placeholder="如：AAPL" disabled></div>',
+          '<div class="col"><label>股票名</label><input type="text" placeholder="如：苹果" disabled></div>',
+        '</div>',
+        '<div class="form-row">',
+          '<div class="col"><label>股票曾用名</label><input type="text" placeholder="曾用名"></div>',
+          '<div class="col"><label>股票类型</label><select disabled><option>普通股</option><option>优先股</option></select></div>',
+          '<div class="col"><label>上市交易所</label><input type="text" placeholder="如：NASDAQ" disabled></div>',
+        '</div>',
+      ].join('');
+    }
+
+    /* ============================================================
+     * 初始化
+     * ============================================================ */
+    var urlParams = new URLSearchParams(window.location.search);
+    var enterpriseId = urlParams.get('id') || 1;
+    var urlTab = urlParams.get('tab');
+    if (urlTab) switchTab(urlTab);
+    applyPermUI();
+  </script>
+</body>
+</html>
