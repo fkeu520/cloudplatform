@@ -343,7 +343,26 @@
     </div>
   </div>
 
+  <style>
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    tr.row-done td{opacity:0.4;text-decoration:line-through;color:var(--color-ink-tertiary)}
+    th.sortable{cursor:pointer;user-select:none}
+    th.sortable:hover{color:var(--color-primary)}
+    .sort-asc::after{content:' ↑';font-size:10px;color:var(--color-primary)}
+    .sort-desc::after{content:' ↓';font-size:10px;color:var(--color-primary)}
+  </style>
   <script>
+    // === Toast ===
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
+
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
     function delayDialog(){ document.getElementById('delayModal').classList.add('show') }
     function terminateDialog(){ document.getElementById('terminateModal').classList.add('show') }
@@ -352,7 +371,123 @@
     function switchTab(el){
       document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active') })
       el.classList.add('active')
+      showToast('已切换：' + el.textContent.trim(), 'info')
     }
+
+    // === 协议延期确认 ===
+    function confirmDelay(){
+      var m = document.getElementById('delayModal')
+      var newDate = m.querySelectorAll('input[type="date"]')[1].value
+      var months = m.querySelector('input[type="number"]').value
+      var reason = m.querySelector('textarea').value.trim()
+      if(!newDate) return showToast('请选择新到期日期','danger')
+      if(!months) return showToast('请输入延期月数','danger')
+      if(!reason) return showToast('请输入延期原因','danger')
+      closeDialog('delayModal')
+      showToast('协议已延期 '+months+' 个月至 '+newDate,'success')
+    }
+
+    // === 协议终止确认 ===
+    function confirmTerminate(){
+      var m = document.getElementById('terminateModal')
+      var reason = m.querySelector('select').value
+      var date = m.querySelectorAll('input[type="date"]')[0].value
+      if(!reason) return showToast('请选择终止原因','danger')
+      if(!date) return showToast('请选择终止日期','danger')
+      closeDialog('terminateModal')
+      var lastBtn = document.activeElement
+      var tr = null
+      if(lastBtn && lastBtn.closest && lastBtn.tagName === 'BUTTON') tr = lastBtn.closest('tr')
+      if(tr){
+        tr.classList.add('row-done')
+        tr.querySelectorAll('button').forEach(function(b){ b.disabled = true })
+        setTimeout(function(){
+          tr.classList.add('fade-out')
+          setTimeout(function(){ if(tr.parentNode) tr.parentNode.removeChild(tr) }, 320)
+        }, 800)
+      }
+      showToast('协议已终止','danger')
+    }
+
+    // === 签订合同确认 ===
+    function confirmContract(){
+      var m = document.getElementById('contractModal')
+      var date = m.querySelectorAll('input[type="date"]')[0].value
+      if(!date) return showToast('请选择签订日期','danger')
+      closeDialog('contractModal')
+      var lastBtn = document.activeElement
+      var tr = null
+      if(lastBtn && lastBtn.closest && lastBtn.tagName === 'BUTTON') tr = lastBtn.closest('tr')
+      if(tr){
+        var badge = tr.querySelector('.badge')
+        if(badge){ badge.className='badge badge-success'; badge.textContent='已签合同' }
+        tr.querySelectorAll('button').forEach(function(b){ b.disabled = true })
+      }
+      showToast('合同已签订','success')
+    }
+
+    // === 筛选 ===
+    function filterTable(){
+      var inputs = document.querySelectorAll('.toolbar input')
+      var sels = document.querySelectorAll('.toolbar select')
+      var nameVal = inputs[0] ? (inputs[0].value||'').toLowerCase() : ''
+      var typeVal = sels[0] ? sels[0].value : ''
+      var statusVal = sels[1] ? sels[1].value : ''
+      var visible = 0
+      document.querySelectorAll('table tbody tr').forEach(function(row){
+        var show = true
+        if(nameVal && row.textContent.toLowerCase().indexOf(nameVal) === -1) show = false
+        if(show && typeVal && row.textContent.indexOf(typeVal) === -1) show = false
+        if(show && statusVal && row.textContent.indexOf(statusVal) === -1) show = false
+        if(show) visible++
+        row.style.display = show ? '' : 'none'
+      })
+      if(visible === 0) showToast('无匹配协议','warning')
+    }
+    function resetSearch(){
+      document.querySelectorAll('.toolbar input').forEach(function(i){ i.value = '' })
+      document.querySelectorAll('.toolbar select').forEach(function(s){ s.selectedIndex = 0 })
+      document.querySelectorAll('table tbody tr').forEach(function(r){ r.style.display = '' })
+      showToast('已重置筛选','info')
+    }
+
+    // === 排序 ===
+    var currentSort = {key:null,dir:'asc'}
+    function sortTable(colIdx, label){
+      var dir = currentSort.key === colIdx && currentSort.dir === 'asc' ? 'desc' : 'asc'
+      currentSort = {key:colIdx,dir:dir}
+      document.querySelectorAll('th.sortable').forEach(function(t){ t.classList.remove('sort-asc','sort-desc') })
+      var ths = document.querySelectorAll('th.sortable')
+      if(ths[colIdx]) ths[colIdx].classList.add(dir === 'asc' ? 'sort-asc' : 'sort-desc')
+      var rows = Array.from(document.querySelectorAll('table tbody tr'))
+      rows.sort(function(a,b){
+        var av = a.cells[colIdx] ? a.cells[colIdx].textContent.trim() : ''
+        var bv = b.cells[colIdx] ? b.cells[colIdx].textContent.trim() : ''
+        return dir === 'asc' ? av.localeCompare(bv,'zh-CN') : bv.localeCompare(av,'zh-CN')
+      })
+      var tbody = document.querySelector('table tbody')
+      rows.forEach(function(r){ tbody.appendChild(r) })
+      showToast('已按 ' + label + (dir==='asc'?' 升序':' 降序') + ' 排序','info')
+    }
+
+    // === 工具栏按钮绑定 ===
+    document.querySelectorAll('.search-box button').forEach(function(btn){
+      var label = btn.textContent.trim()
+      if(label.indexOf('搜索') > -1) btn.onclick = filterTable
+      else if(label.indexOf('重置') > -1) btn.onclick = resetSearch
+    })
+
+    // === 分页 ===
+    function goPage(n){ showToast('已跳转至第 ' + n + ' 页（演示）','info') }
+
+    // === 列头排序绑定 ===
+    document.querySelectorAll('th').forEach(function(th, idx){
+      var text = th.textContent.trim()
+      if(text && text !== '操作' && text !== '详情'){
+        th.classList.add('sortable')
+        th.setAttribute('onclick', 'sortTable(' + idx + ', \'' + text.replace(/'/g, '') + '\')')
+      }
+    })
   </script>
 </body>
 </html>
