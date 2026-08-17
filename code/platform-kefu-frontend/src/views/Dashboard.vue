@@ -7,6 +7,10 @@
           <router-link to="/">智能问答</router-link>
           <router-link to="/knowledge">知识库</router-link>
           <router-link to="/dashboard">数据看板</router-link>
+          <router-link to="/sessions">会话管理</router-link>
+          <router-link to="/faqs">FAQ管理</router-link>
+          <router-link to="/settings">数据源</router-link>
+          <router-link to="/evaluation">评估</router-link>
         </nav>
         <span>数据看板</span>
       </div>
@@ -61,6 +65,74 @@
           <div class="stat-info">
             <div class="stat-value">{{ avgLatency }}ms</div>
             <div class="stat-label">平均响应</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 客服业务统计 -->
+      <div class="stats-grid" v-if="dashboardStats" style="margin-top: 14px;">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="#E5F1FF"/>
+              <path d="M6 18l4-4 4 4 8-8" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ dashboardStats.total_sessions }}</div>
+            <div class="stat-label">总会话数</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="#E5F1FF"/>
+              <circle cx="14" cy="14" r="7" stroke="#007AFF" stroke-width="2"/>
+              <path d="M11 14l2 2 4-4" stroke="#007AFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ dashboardStats.ai_resolution_rate }}%</div>
+            <div class="stat-label">AI 解决率</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="#E5F1FF"/>
+              <path d="M14 6l2.5 5.5L22 12l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5L14 6z" stroke="#007AFF" stroke-width="2" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ dashboardStats.avg_satisfaction ? dashboardStats.avg_satisfaction.toFixed(1) : '-' }}</div>
+            <div class="stat-label">平均满意度</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <rect width="28" height="28" rx="8" fill="#E5F1FF"/>
+              <path d="M14 6v8M14 14l4 4" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="14" cy="14" r="8" stroke="#007AFF" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ dashboardStats.recent_24h_sessions }}</div>
+            <div class="stat-label">24h 新增</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 数据源命中 -->
+      <div class="section-card" v-if="dashboardStats?.data_source_hit_counts && Object.keys(dashboardStats.data_source_hit_counts).length">
+        <h3>数据源命中统计</h3>
+        <div class="ds-hit-list">
+          <div v-for="(count, source) in dashboardStats.data_source_hit_counts" :key="source" class="ds-hit-item">
+            <span class="ds-name">{{ source }}</span>
+            <div class="ds-bar-bg">
+              <div class="ds-bar" :style="{ width: Math.min(count * 10, 100) + '%' }"></div>
+            </div>
+            <span class="ds-count">{{ count }}</span>
           </div>
         </div>
       </div>
@@ -132,13 +204,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { knowledgeApi, chatApi } from '@/api'
+import { knowledgeApi, chatApi, dashboardApi } from '@/api'
 
 const stats = ref<any>(null)
 const documents = ref<any[]>([])
 const history = ref<any[]>([])
+const dashboardStats = ref<any>(null)
 
-const totalQuestions = computed(() => history.value.length)
+const totalQuestions = computed(() => dashboardStats.value?.total_messages || history.value.length)
 const avgLatency = computed(() => {
   if (!history.value.length) return 0
   const total = history.value.reduce((sum: number, h: any) => sum + h.latency_ms, 0)
@@ -147,14 +220,16 @@ const avgLatency = computed(() => {
 
 const loadData = async () => {
   try {
-    const [docsRes, statsRes, historyRes] = await Promise.all([
+    const [docsRes, statsRes, historyRes, dashRes] = await Promise.all([
       knowledgeApi.listDocs(),
       knowledgeApi.stats(),
-      chatApi.history()
+      chatApi.history(),
+      dashboardApi.stats()
     ])
     documents.value = (docsRes.data.items || []).slice(0, 10)
     stats.value = statsRes.data
     history.value = historyRes.data.items || []
+    dashboardStats.value = dashRes.data
   } catch (e) {
     console.error('加载数据失败', e)
   }
@@ -339,5 +414,41 @@ tr:hover td { background: #f9f9fb; }
   color: #86868b;
   padding: 48px;
   font-size: 14px;
+}
+.ds-hit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ds-hit-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ds-name {
+  width: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1d1d1f;
+}
+.ds-bar-bg {
+  flex: 1;
+  height: 24px;
+  background: #f2f2f7;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.ds-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #007AFF, #4da3ff);
+  border-radius: 12px;
+  transition: width 0.5s ease;
+}
+.ds-count {
+  width: 40px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: #007AFF;
 }
 </style>
