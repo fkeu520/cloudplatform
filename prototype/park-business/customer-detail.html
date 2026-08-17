@@ -337,13 +337,13 @@
         <div style="margin-top:24px">
           <div class="section-title">商机操作</div>
           <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <button class="btn btn-default" onclick="parent.postMessage({type:'loadPage',url:'park-business/opportunity-detail.html',pageName:'商机详情',moduleKey:'park-business'},'*')">商机跟进</button>
-            <button class="btn btn-default">更换联系人</button>
-            <button class="btn btn-default">客户意向</button>
-            <button class="btn btn-default">日程管理</button>
-            <button class="btn btn-danger">商机终止</button>
-            <button class="btn btn-warning">退回公海</button>
-            <button class="btn btn-primary">签订协议</button>
+            <button class="btn btn-default" onclick="openFollowupDialog()">商机跟进</button>
+            <button class="btn btn-default" onclick="openChangeContactDialog()">更换联系人</button>
+            <button class="btn btn-default" onclick="openCustomerIntent()">客户意向</button>
+            <button class="btn btn-default" onclick="openScheduleManage()">日程管理</button>
+            <button class="btn btn-danger" id="oppTerminateBtn" onclick="terminateOpportunity()">商机终止</button>
+            <button class="btn btn-warning" id="oppReturnBtn" onclick="returnToPool()">退回公海</button>
+            <button class="btn btn-primary" id="oppSignBtn" onclick="signAgreementFromCustomer()">签订协议</button>
           </div>
         </div>
       </div>
@@ -516,7 +516,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('contactModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('contactModal')">保存</button>
+        <button class="btn btn-primary" onclick="saveContact()">保存</button>
       </div>
     </div>
   </div>
@@ -548,7 +548,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('followupModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('followupModal')">保存</button>
+        <button class="btn btn-primary" onclick="saveFollowupFromCustomer()">保存</button>
       </div>
     </div>
   </div>
@@ -627,9 +627,118 @@
     function openFollowupDialog(){ document.getElementById('followupModal').classList.add('show') }
     function openConvertDialog(){ document.getElementById('convertModal').classList.add('show') }
     function closeDialog(id){ document.getElementById(id).classList.remove('show') }
-    function markValid(){ alert('已标记为有效线索') }
-    function markInvalid(){ if(confirm('确认标记为无效线索？')) alert('已标记为无效') }
-    function abandon(){ if(confirm('确认废弃此线索？\n废弃原因：联系不上、无意向、无法满足客户需求等')) alert('线索已废弃') }
+    function markValid(){ showToast('已标记为有效线索','success') }
+    function markInvalid(){ if(confirm('确认标记为无效线索？')){ showToast('已标记为无效','warning') } }
+    function abandon(){
+      if(confirm('确认废弃此线索？\n废弃原因：联系不上、无意向、无法满足客户需求等')){
+        document.querySelector('.badge-success').textContent='已废弃'
+        document.querySelector('.badge-success').className='badge badge-default'
+        document.querySelectorAll('.btn-success')[0].disabled=true
+        document.querySelectorAll('.btn-success')[0].style.opacity='0.4'
+        document.querySelectorAll('.btn-danger')[0].disabled=true
+        document.querySelectorAll('.btn-danger')[0].style.opacity='0.4'
+        document.querySelector('#tab-leads .btn-primary').style.display='none'
+        showToast('线索已废弃','warning')
+      }
+    }
+    // === Toast ===
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
+    // === M-17: 保存联系人 ===
+    function saveContact(){
+      var m=document.getElementById('contactModal')
+      var name=m.querySelector('input[placeholder="请输入联系人姓名"]').value.trim()
+      var phone=m.querySelector('input[placeholder="请输入手机号码"]').value.trim()
+      if(!name) return showToast('请输入联系人姓名','danger')
+      if(!phone) return showToast('请输入手机号码','danger')
+      var sels=m.querySelectorAll('select')
+      var role=sels[0].value,stance=sels[1].value,relation=sels[2].value,gender=sels[3].value
+      var inputs=m.querySelectorAll('input[type="text"]')
+      var position=inputs[2].value,dept=inputs[3].value
+      var birthday=m.querySelector('input[type="date"]').value
+      var card=document.createElement('div')
+      card.className='contact-card'
+      var info='📱 '+phone
+      if(birthday) info+=' &nbsp;|&nbsp; 生日：'+birthday
+      if(stance) info+='<br>立场：<span class="badge badge-success">'+stance+'</span>'
+      if(relation) info+=' &nbsp;客情关系：<span class="badge badge-info">'+relation+'</span>'
+      card.innerHTML='<div class="name">'+name+(role?' <span class="badge badge-info">'+role+'</span>':'')+'</div>'+
+        '<div class="role">'+(position||'')+(dept?' · '+dept:'')+'</div>'+
+        '<div class="info">'+info+'</div>'
+      var container=m.parentNode.querySelector('#tab-contacts')
+      container.insertBefore(card,container.querySelector('.contact-card'))
+      var badge=document.querySelector('.tab[onclick*="tab-contacts"] .badge-count')
+      if(badge) badge.textContent=parseInt(badge.textContent)+1
+      closeDialog('contactModal')
+      showToast('已添加联系人：'+name,'success')
+    }
+    // === M-02: 保存跟进记录（线索管理 Tab） ===
+    function saveFollowupFromCustomer(){
+      var m=document.getElementById('followupModal')
+      var method=m.querySelector('select').value
+      var content=m.querySelector('textarea').value.trim()
+      if(!method) return showToast('请选择跟进方式','danger')
+      if(!content) return showToast('请输入跟进内容','danger')
+      var now=new Date().toISOString().slice(0,16).replace('T',' ')
+      var tbody=document.querySelector('#tab-leads tbody')
+      if(tbody){
+        var row=document.createElement('tr')
+        row.innerHTML='<td>'+now+'</td><td><span class="badge badge-info">'+method+'</span></td><td>'+content+'</td><td>张三</td>'
+        tbody.insertBefore(row,tbody.firstChild)
+      }
+      closeDialog('followupModal')
+      showToast('已添加跟进记录','success')
+    }
+    // === M-02: 商机操作按钮 ===
+    function openChangeContactDialog(){
+      var c=prompt('选择新联系人：\n1. 刘洋（决策者）\n2. 陈静（影响者）\n3. 王磊（经办人）','刘洋（决策者）')
+      if(c) showToast('已更换联系人为：'+c,'success')
+    }
+    function openCustomerIntent(){
+      parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business')
+      showToast('请在商机详情页查看客户意向','info')
+    }
+    function openScheduleManage(){
+      parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business')
+      showToast('请在商机详情页管理日程','info')
+    }
+    function terminateOpportunity(){
+      if(!confirm('确认终止此商机？\n终止后不可恢复。')) return
+      var reason=prompt('请输入终止原因：','客户选择其他园区')
+      if(!reason) return showToast('取消终止','warning')
+      closeDialog('followupModal')
+      // 状态联动：隐藏签订协议和退回公海按钮
+      var signBtn=document.getElementById('oppSignBtn')
+      var returnBtn=document.getElementById('oppReturnBtn')
+      var followBtn=document.querySelector('#tab-opportunity .btn-default')
+      if(signBtn){signBtn.style.display='none'}
+      if(returnBtn){returnBtn.style.display='none'}
+      if(followBtn){followBtn.disabled=true;followBtn.style.opacity='0.4'}
+      // 时间轴新增终止节点
+      var tl=document.querySelector('#tab-timeline .timeline-item')
+      if(tl){
+        var item=document.createElement('div')
+        item.className='timeline-item'
+        item.innerHTML='<div class="dot" style="background:#FFD9D9;color:#FF3B30">⛔</div><div class="info"><div class="title">⛔ 商机终止 - 租赁意向</div><div class="desc">原因：'+reason+'</div><div class="time">'+new Date().toISOString().slice(0,16).replace('T',' ')+' · 张三</div></div>'
+        tl.parentNode.insertBefore(item,tl)
+      }
+      showToast('商机已终止，原因：'+reason+'（终止后不可恢复）','danger')
+    }
+    function signAgreementFromCustomer(){
+      parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business')
+      showToast('请在商机详情页签订协议','info')
+    }
+    function returnToPool(){
+      if(!confirm('确认将此客户退回公海池？')) return
+      showToast('已退回公海池','warning')
+    }
   </script>
 </body>
 </html>
