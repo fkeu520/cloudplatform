@@ -12,13 +12,44 @@
     .stat-card{padding:20px}
     .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
     .stat-card .num{font-size:28px;font-weight:700}
+    .stat-card .sub{font-size:12px;color:var(--color-ink-tertiary);margin-top:4px}
+    .stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-elevated);transition:all 0.2s}
+    .toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+    .toast{background:var(--color-ink);color:#fff;padding:12px 20px;border-radius:var(--rounded-sm);font-size:13px;box-shadow:var(--shadow-elevated);animation:toastIn 0.3s ease;max-width:360px}
+    .toast.success{background:var(--color-positive)}
+    .toast.warning{background:var(--color-warning)}
+    .toast.error{background:var(--color-negative)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+    .table-wrapper{table-layout:fixed}
+    .table-wrapper th{cursor:pointer;user-select:none;position:relative}
+    .table-wrapper th .sort-icon{display:inline-block;margin-left:4px;font-size:10px;color:var(--color-ink-tertiary)}
+    .table-wrapper th .sort-icon.active{color:var(--color-primary)}
+    .table-wrapper th:hover{background:var(--color-canvas-grouped)}
+    .table-wrapper tr.expandable{cursor:pointer}
+    .table-wrapper tr.expandable:hover{background:var(--color-primary-pale)}
+    .table-wrapper .detail-row{display:none}
+    .table-wrapper .detail-row.show{display:table-row}
+    .table-wrapper .detail-cell{padding:12px 24px;background:var(--color-canvas-grouped);font-size:13px;line-height:1.8}
+    .table-wrapper .detail-cell strong{color:var(--color-ink-secondary)}
+    .table-wrapper .detail-cell .detail-section{margin-bottom:8px}
+    .table-wrapper .detail-cell .detail-section:last-child{margin-bottom:0}
+    .batch-toolbar{display:flex;align-items:center;gap:8px;padding:8px 0}
+    .batch-toolbar .count{font-size:13px;color:var(--color-ink-secondary)}
+    .batch-toolbar .count strong{color:var(--color-primary)}
+    .checkbox-cell{width:36px;text-align:center}
+    .checkbox-cell input{width:16px;height:16px;cursor:pointer}
+    .pagination button{cursor:pointer}
+    .pagination button:hover:not(.disabled):not(.active){background:var(--color-primary-pale)}
+    .search-box input[type="date"]{width:140px}
+    .search-box select{min-width:120px}
   </style>
 </head>
 <body>
   <!--
   模块: park-business
   页面: pool-log (公海日志)
-  版本: v1.0
+  版本: v1.1
 
   数据源:
   - pai_business.pool_log (分配认领/回收/废弃记录)
@@ -51,22 +82,22 @@
       <div class="card stat-card">
         <div class="label">分配操作</div>
         <div class="num" style="color:var(--color-primary)">86</div>
-        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+        <div class="sub">本月</div>
       </div>
       <div class="card stat-card">
         <div class="label">认领操作</div>
         <div class="num" style="color:#34C759">52</div>
-        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+        <div class="sub">本月</div>
       </div>
       <div class="card stat-card">
         <div class="label">回收操作</div>
         <div class="num" style="color:#FF9500">28</div>
-        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+        <div class="sub">本月</div>
       </div>
       <div class="card stat-card">
         <div class="label">废弃操作</div>
         <div class="num" style="color:#FF3B30">12</div>
-        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+        <div class="sub">本月</div>
       </div>
     </div>
 
@@ -74,29 +105,40 @@
     <div class="card" style="padding:16px 20px;margin-bottom:16px">
       <div class="toolbar">
         <div class="search-box">
-          <input type="text" placeholder="企业名称">
-          <select>
-            <option value="">操作类型</option>
+          <input type="text" id="filterSearch" placeholder="企业名称 / 操作内容" oninput="applyFilters()">
+          <select id="filterType" onchange="applyFilters()">
+            <option value="">全部类型</option>
             <option>分配</option>
             <option>认领</option>
             <option>回收</option>
             <option>废弃</option>
           </select>
-          <select>
-            <option value="">操作人</option>
+          <select id="filterOperator" onchange="applyFilters()">
+            <option value="">全部操作人</option>
             <option>张三</option>
             <option>李四</option>
-            <option>系统自动</option>
+            <option>王五</option>
+            <option>系统</option>
+            <option>李经理</option>
+            <option>王经理</option>
           </select>
-          <input type="date" title="操作时间起">
-          <input type="date" title="操作时间止">
-          <button class="btn btn-primary">🔍 搜索</button>
-          <button class="btn btn-default">重置</button>
+          <input type="date" id="filterDateFrom" onchange="applyFilters()" title="操作时间起">
+          <input type="date" id="filterDateTo" onchange="applyFilters()" title="操作时间止">
+          <button class="btn btn-primary" onclick="applyFilters()">🔍 搜索</button>
+          <button class="btn btn-default" onclick="resetFilters()">重置</button>
         </div>
         <div class="search-actions">
-          <button class="btn btn-warning">📤 导出</button>
+          <button class="btn btn-default" onclick="goBackToPool()">← 返回公海池</button>
+          <button class="btn btn-warning" onclick="exportLog()">📤 导出日志</button>
         </div>
       </div>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div class="batch-toolbar" id="batchToolbar" style="display:none">
+      <span class="count">已选 <strong id="batchCount">0</strong> 项</span>
+      <button class="btn btn-default btn-sm" onclick="batchExport()">📤 批量导出</button>
+      <button class="btn btn-default btn-sm" onclick="clearSelection()">取消选择</button>
     </div>
 
     <!-- 表格 -->
@@ -105,117 +147,300 @@
         <table>
           <thead>
             <tr>
-              <th>操作时间</th>
-              <th>操作类型</th>
-              <th>企业名称</th>
-              <th>客户来源</th>
-              <th>来源方</th>
-              <th>目标方</th>
-              <th>操作原因</th>
-              <th>操作人</th>
+              <th class="checkbox-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
+              <th onclick="sortBy('time')"><span id="sort-time">操作时间<span class="sort-icon">↕</span></span></th>
+              <th onclick="sortBy('type')">操作类型<span class="sort-icon" id="sort-type">↕</span></th>
+              <th onclick="sortBy('company')">企业名称<span class="sort-icon" id="sort-company">↕</span></th>
+              <th onclick="sortBy('source')">客户来源<span class="sort-icon" id="sort-source">↕</span></th>
+              <th onclick="sortBy('from')">来源方<span class="sort-icon" id="sort-from">↕</span></th>
+              <th onclick="sortBy('to')">目标方<span class="sort-icon" id="sort-to">↕</span></th>
+              <th onclick="sortBy('reason')">操作原因<span class="sort-icon" id="sort-reason">↕</span></th>
+              <th onclick="sortBy('operator')">操作人<span class="sort-icon" id="sort-operator">↕</span></th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>2026-08-14 14:32</td>
-              <td><span class="badge badge-info">📥 分配</span></td>
-              <td>深圳前海科技发展有限公司</td>
-              <td>小程序登记</td>
-              <td>公海池</td>
-              <td>张三（招商一部）</td>
-              <td>招商经理分配</td>
-              <td>李经理</td>
-            </tr>
-            <tr>
-              <td>2026-08-14 11:20</td>
-              <td><span class="badge badge-success">✋ 认领</span></td>
-              <td>珠海华信智能装备有限公司</td>
-              <td>自行录入</td>
-              <td>公海池</td>
-              <td>王五（招商二部）</td>
-              <td>员工主动认领</td>
-              <td>王五</td>
-            </tr>
-            <tr>
-              <td>2026-08-14 09:15</td>
-              <td><span class="badge badge-warning">♻️ 回收</span></td>
-              <td>广州速达物流有限公司</td>
-              <td>公海池</td>
-              <td>赵六（招商二部）</td>
-              <td>公海池</td>
-              <td>跟进超期，自动回收</td>
-              <td>系统</td>
-            </tr>
-            <tr>
-              <td>2026-08-13 16:20</td>
-              <td><span class="badge badge-negative">❌ 废弃</span></td>
-              <td>深圳晨曦信息科技有限公司</td>
-              <td>小程序登记</td>
-              <td>李四（招商一部）</td>
-              <td>回收站</td>
-              <td>联系不上</td>
-              <td>李四</td>
-            </tr>
-            <tr>
-              <td>2026-08-13 10:30</td>
-              <td><span class="badge badge-success">✋ 认领</span></td>
-              <td>肇庆金鼎建材有限公司</td>
-              <td>小程序登记</td>
-              <td>公海池</td>
-              <td>张三（招商一部）</td>
-              <td>员工主动认领</td>
-              <td>张三</td>
-            </tr>
-            <tr>
-              <td>2026-08-12 17:45</td>
-              <td><span class="badge badge-info">📥 分配</span></td>
-              <td>中山恒通电器有限公司</td>
-              <td>活动收集</td>
-              <td>公海池</td>
-              <td>李四（招商一部）</td>
-              <td>招商经理分配</td>
-              <td>李经理</td>
-            </tr>
-            <tr>
-              <td>2026-08-12 14:00</td>
-              <td><span class="badge badge-warning">♻️ 回收</span></td>
-              <td>江门顺丰物流有限公司</td>
-              <td>批量导入</td>
-              <td>李四（招商一部）</td>
-              <td>公海池</td>
-              <td>客户主动要求退回</td>
-              <td>李四</td>
-            </tr>
-            <tr>
-              <td>2026-08-11 11:30</td>
-              <td><span class="badge badge-info">📥 分配</span></td>
-              <td>东莞宏达机械制造有限公司</td>
-              <td>批量导入</td>
-              <td>公海池</td>
-              <td>王五（招商二部）</td>
-              <td>招商经理批量分配</td>
-              <td>王经理</td>
-            </tr>
+          <tbody id="logTableBody">
+            <!-- 由 JS 动态渲染 -->
           </tbody>
         </table>
       </div>
       <div class="pagination">
-        <div class="info">共 <span>178</span> 条记录，每页 10 条</div>
-        <div class="pages">
-          <button class="disabled">‹</button>
-          <button class="active">1</button>
-          <button>2</button>
-          <button>3</button>
-          <button>...</button>
-          <button>18</button>
-          <button>›</button>
+        <div class="info">共 <span id="totalCount">178</span> 条记录，每页 <span id="pageSize">10</span> 条</div>
+        <div class="pages" id="paginationControls">
+          <!-- 由 JS 动态渲染 -->
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Toast 容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
   <script>
+    // ====== Mock Data ======
+    var mockData = [
+      { id:1, time:'2026-08-14 14:32', type:'分配', typeClass:'badge-info', typeIcon:'📥', company:'深圳前海科技发展有限公司', source:'小程序登记', from:'公海池', to:'张三（招商一部）', reason:'招商经理分配', operator:'李经理', detail:'分配数量：1 个客户<br>分配方式：手动分配<br>分配备注：高意向客户，优先跟进' },
+      { id:2, time:'2026-08-14 11:20', type:'认领', typeClass:'badge-success', typeIcon:'✋', company:'珠海华信智能装备有限公司', source:'自行录入', from:'公海池', to:'王五（招商二部）', reason:'员工主动认领', operator:'王五', detail:'认领方式：主动认领<br>认领前保有量：12/50<br>认领后保有量：13/50' },
+      { id:3, time:'2026-08-14 09:15', type:'回收', typeClass:'badge-warning', typeIcon:'♻️', company:'广州速达物流有限公司', source:'公海池', from:'赵六（招商二部）', to:'公海池', reason:'跟进超期，自动回收', operator:'系统', detail:'回收规则：保留期限 30 天 + 宽限期 7 天<br>超期天数：8 天<br>回收前通知：已发送 3 次' },
+      { id:4, time:'2026-08-13 16:20', type:'废弃', typeClass:'badge-negative', typeIcon:'❌', company:'深圳晨曦信息科技有限公司', source:'小程序登记', from:'李四（招商一部）', to:'回收站', reason:'联系不上', operator:'李四', detail:'废弃原因：联系不上<br>跟进次数：5 次<br>最后跟进：2026-08-01<br>废弃审批人：王经理' },
+      { id:5, time:'2026-08-13 10:30', type:'认领', typeClass:'badge-success', typeIcon:'✋', company:'肇庆金鼎建材有限公司', source:'小程序登记', from:'公海池', to:'张三（招商一部）', reason:'员工主动认领', operator:'张三', detail:'认领方式：主动认领<br>认领前保有量：15/50<br>认领后保有量：16/50' },
+      { id:6, time:'2026-08-12 17:45', type:'分配', typeClass:'badge-info', typeIcon:'📥', company:'中山恒通电器有限公司', source:'活动收集', from:'公海池', to:'李四（招商一部）', reason:'招商经理分配', operator:'李经理', detail:'分配数量：1 个客户<br>分配方式：手动分配<br>分配备注：客户经理推荐' },
+      { id:7, time:'2026-08-12 14:00', type:'回收', typeClass:'badge-warning', typeIcon:'♻️', company:'江门顺丰物流有限公司', source:'批量导入', from:'李四（招商一部）', to:'公海池', reason:'客户主动要求退回', operator:'李四', detail:'回收原因：客户主动要求退回<br>退回备注：客户需求变更，暂缓跟进' },
+      { id:8, time:'2026-08-11 11:30', type:'分配', typeClass:'badge-info', typeIcon:'📥', company:'东莞宏达机械制造有限公司', source:'批量导入', from:'公海池', to:'王五（招商二部）', reason:'招商经理批量分配', operator:'王经理', detail:'分配数量：1 个客户<br>分配方式：批量分配（共 5 个）<br>分配备注：新线索集中分配' },
+      { id:9, time:'2026-08-11 09:00', type:'认领', typeClass:'badge-success', typeIcon:'✋', company:'佛山天华精密仪器有限公司', source:'活动收集', from:'公海池', to:'赵六（招商二部）', reason:'员工主动认领', operator:'赵六', detail:'认领方式：主动认领<br>认领前保有量：8/50<br>认领后保有量：9/50' },
+      { id:10, time:'2026-08-10 16:30', type:'废弃', typeClass:'badge-negative', typeIcon:'❌', company:'广州星辰科技有限公司', source:'自行录入', from:'王五（招商二部）', to:'回收站', reason:'无意向', operator:'王五', detail:'废弃原因：无意向<br>跟进次数：3 次<br>最后跟进：2026-08-05<br>废弃审批人：自动审批' },
+      { id:11, time:'2026-08-10 14:00', type:'分配', typeClass:'badge-info', typeIcon:'📥', company:'深圳华强方特文化科技', source:'小程序登记', from:'公海池', to:'张三（招商一部）', reason:'招商经理分配', operator:'李经理', detail:'分配数量：1 个客户<br>分配方式：手动分配' },
+      { id:12, time:'2026-08-09 11:20', type:'回收', typeClass:'badge-warning', typeIcon:'♻️', company:'珠海格力智能装备', source:'公海池', from:'张三（招商一部）', to:'公海池', reason:'跟进超期，自动回收', operator:'系统', detail:'回收规则：保留期限 30 天 + 宽限期 7 天<br>超期天数：5 天' },
+      { id:13, time:'2026-08-08 09:30', type:'认领', typeClass:'badge-success', typeIcon:'✋', company:'东莞长安伟创力', source:'自行录入', from:'公海池', to:'李四（招商一部）', reason:'员工主动认领', operator:'李四', detail:'认领方式：主动认领' },
+      { id:14, time:'2026-08-08 08:00', type:'分配', typeClass:'badge-info', typeIcon:'📥', company:'惠州伯恩光学有限公司', source:'批量导入', from:'公海池', to:'王五（招商二部）', reason:'招商经理批量分配', operator:'王经理', detail:'分配数量：1 个客户<br>分配方式：批量分配' },
+      { id:15, time:'2026-08-07 17:00', type:'废弃', typeClass:'badge-negative', typeIcon:'❌', company:'中山大洋电机股份', source:'活动收集', from:'赵六（招商二部）', to:'回收站', reason:'无法满足客户需求', operator:'赵六', detail:'废弃原因：无法满足客户需求<br>跟进次数：7 次' },
+      { id:16, time:'2026-08-07 15:20', type:'认领', typeClass:'badge-success', typeIcon:'✋', company:'江门科恒实业股份', source:'小程序登记', from:'公海池', to:'张三（招商一部）', reason:'员工主动认领', operator:'张三', detail:'认领方式：主动认领' },
+      { id:17, time:'2026-08-06 11:00', type:'回收', typeClass:'badge-warning', typeIcon:'♻️', company:'佛山海天味业集团', source:'自行录入', from:'李四（招商一部）', to:'公海池', reason:'客户主动要求退回', operator:'李四', detail:'退回备注：企业内部调整，暂缓' },
+      { id:18, time:'2026-08-06 09:15', type:'分配', typeClass:'badge-info', typeIcon:'📥', company:'深圳迈瑞生物医疗', source:'公海分配', from:'公海池', to:'赵六（招商二部）', reason:'招商经理分配', operator:'李经理', detail:'分配数量：1 个客户<br>分配方式：手动分配' }
+    ];
+
+    var filteredData = [];
+    var currentPage = 1;
+    var pageSize = 10;
+    var sortField = 'time';
+    var sortDir = -1;
+    var expandedRow = null;
+    var selectedIds = {};
+
+    // ====== Toast ======
+    function showToast(msg, type){
+      type = type || 'info';
+      var c = document.getElementById('toastContainer');
+      var t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(function(){
+        t.style.animation = 'toastOut 0.3s ease forwards';
+        setTimeout(function(){ t.remove() }, 300);
+      }, 3000);
+    }
+
+    // ====== Filter ======
+    function applyFilters(){
+      var search = document.getElementById('filterSearch').value.toLowerCase().trim();
+      var type = document.getElementById('filterType').value;
+      var operator = document.getElementById('filterOperator').value;
+      var dateFrom = document.getElementById('filterDateFrom').value;
+      var dateTo = document.getElementById('filterDateTo').value;
+
+      filteredData = mockData.filter(function(row){
+        if(search && row.company.toLowerCase().indexOf(search) === -1 &&
+           row.reason.toLowerCase().indexOf(search) === -1 &&
+           row.operator.toLowerCase().indexOf(search) === -1) return false;
+        if(type && row.type !== type) return false;
+        if(operator && row.operator !== operator) return false;
+        if(dateFrom && row.time.slice(0,10) < dateFrom) return false;
+        if(dateTo && row.time.slice(0,10) > dateTo) return false;
+        return true;
+      });
+
+      currentPage = 1;
+      selectedIds = {};
+      document.getElementById('selectAll').checked = false;
+      updateBatchToolbar();
+      renderTable();
+    }
+
+    function resetFilters(){
+      document.getElementById('filterSearch').value = '';
+      document.getElementById('filterType').value = '';
+      document.getElementById('filterOperator').value = '';
+      document.getElementById('filterDateFrom').value = '';
+      document.getElementById('filterDateTo').value = '';
+      applyFilters();
+    }
+
+    // ====== Sort ======
+    function sortBy(field){
+      if(sortField === field) sortDir *= -1;
+      else { sortField = field; sortDir = -1; }
+      // Update sort icons
+      document.querySelectorAll('.sort-icon').forEach(function(el){ el.classList.remove('active'); el.textContent = '↕'; });
+      var icon = document.getElementById('sort-' + field);
+      if(icon) { icon.classList.add('active'); icon.textContent = sortDir === -1 ? '↓' : '↑'; }
+      renderTable();
+    }
+
+    // ====== Pagination ======
+    function goToPage(page){
+      var total = Math.ceil(filteredData.length / pageSize) || 1;
+      if(page < 1 || page > total) return;
+      currentPage = page;
+      renderTable();
+    }
+
+    // ====== Toggle Row Expand ======
+    function toggleRow(id){
+      if(expandedRow === id){ expandedRow = null; }
+      else { expandedRow = id; }
+      renderTable();
+    }
+
+    // ====== Selection ======
+    function toggleSelectAll(el){
+      var start = (currentPage - 1) * pageSize;
+      var end = Math.min(start + pageSize, filteredData.length);
+      for(var i = start; i < end; i++){
+        var item = filteredData[i];
+        if(el.checked) selectedIds[item.id] = true;
+        else delete selectedIds[item.id];
+      }
+      updateBatchToolbar();
+      renderTable();
+    }
+
+    function toggleSelect(id, el){
+      if(el.checked) selectedIds[id] = true;
+      else delete selectedIds[id];
+      updateBatchToolbar();
+      // Update selectAll checkbox
+      var start = (currentPage - 1) * pageSize;
+      var end = Math.min(start + pageSize, filteredData.length);
+      var allChecked = true;
+      for(var i = start; i < end; i++){
+        if(!selectedIds[filteredData[i].id]){ allChecked = false; break; }
+      }
+      document.getElementById('selectAll').checked = allChecked;
+    }
+
+    function updateBatchToolbar(){
+      var count = Object.keys(selectedIds).length;
+      var tb = document.getElementById('batchToolbar');
+      if(count > 0){
+        tb.style.display = 'flex';
+        document.getElementById('batchCount').textContent = count;
+      } else {
+        tb.style.display = 'none';
+      }
+    }
+
+    function clearSelection(){
+      selectedIds = {};
+      document.getElementById('selectAll').checked = false;
+      updateBatchToolbar();
+      renderTable();
+    }
+
+    function batchExport(){
+      var count = Object.keys(selectedIds).length;
+      if(count === 0){ showToast('请先选择要导出的日志项', 'warning'); return; }
+      showToast('导出中...', 'info');
+      setTimeout(function(){
+        showToast('已导出 ' + count + ' 条日志记录：公海日志_导出_20260817.xlsx', 'success');
+      }, 1500);
+    }
+
+    // ====== Export ======
+    function exportLog(){
+      showToast('导出中...', 'info');
+      setTimeout(function(){
+        var date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        showToast('日志已导出：公海日志_' + date + '.xlsx', 'success');
+      }, 1500);
+    }
+
+    // ====== Navigation ======
+    function goBackToPool(){
+      parent.loadPage('park-business/pool.html', '公海池', 'park-business');
+      showToast('正在返回公海池...', 'info');
+    }
+
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
+    // ====== Render ======
+    function renderTable(){
+      var sorted = filteredData.slice().sort(function(a,b){
+        var va = a[sortField] || '', vb = b[sortField] || '';
+        if(sortField === 'time'){ va = a.time; vb = b.time; }
+        return va > vb ? sortDir : va < vb ? -sortDir : 0;
+      });
+
+      var start = (currentPage - 1) * pageSize;
+      var end = Math.min(start + pageSize, sorted.length);
+      var pageData = sorted.slice(start, end);
+
+      var tbody = document.getElementById('logTableBody');
+      tbody.innerHTML = '';
+
+      if(pageData.length === 0){
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--color-ink-tertiary)">暂无匹配的日志记录</td></tr>';
+        document.getElementById('paginationControls').innerHTML = '';
+        return;
+      }
+
+      pageData.forEach(function(row){
+        var isExpanded = expandedRow === row.id;
+        var isSelected = selectedIds[row.id] || false;
+        var tr = document.createElement('tr');
+        tr.className = 'expandable';
+        tr.style.cursor = 'pointer';
+        tr.innerHTML = '<td class="checkbox-cell" onclick="event.stopPropagation()"><input type="checkbox" ' + (isSelected?'checked':'') + ' onchange="toggleSelect(' + row.id + ',this)"></td>' +
+          '<td>' + row.time + '</td>' +
+          '<td><span class="badge ' + row.typeClass + '">' + row.typeIcon + ' ' + row.type + '</span></td>' +
+          '<td style="color:var(--color-primary)">' + row.company + '</td>' +
+          '<td>' + row.source + '</td>' +
+          '<td>' + row.from + '</td>' +
+          '<td>' + row.to + '</td>' +
+          '<td>' + row.reason + '</td>' +
+          '<td>' + row.operator + '</td>';
+        tr.onclick = function(){ toggleRow(row.id); };
+        tbody.appendChild(tr);
+
+        // Detail row
+        if(isExpanded){
+          var detailTr = document.createElement('tr');
+          detailTr.className = 'detail-row show';
+          detailTr.innerHTML = '<td colspan="9"><div class="detail-cell"><div class="detail-section"><strong>操作详情</strong></div><div class="detail-section">' + row.detail + '</div></div></td>';
+          tbody.appendChild(detailTr);
+        }
+      });
+
+      // Pagination
+      renderPagination(sorted.length);
+      document.getElementById('totalCount').textContent = filteredData.length;
+    }
+
+    function renderPagination(total){
+      var totalPages = Math.ceil(total / pageSize) || 1;
+      var container = document.getElementById('paginationControls');
+      var html = '';
+
+      // Prev
+      html += '<button class="' + (currentPage <= 1 ? 'disabled' : '') + '" onclick="goToPage(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>‹</button>';
+
+      var pages = [];
+      if(totalPages <= 7){
+        for(var i = 1; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        if(currentPage > 3) pages.push('...');
+        var startP = Math.max(2, currentPage - 1);
+        var endP = Math.min(totalPages - 1, currentPage + 1);
+        if(startP > endP) startP = endP = 2;
+        for(var i = startP; i <= endP; i++) pages.push(i);
+        if(currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+      }
+
+      pages.forEach(function(p){
+        if(p === '...') html += '<button class="disabled" disabled>...</button>';
+        else html += '<button class="' + (currentPage === p ? 'active' : '') + '" onclick="goToPage(' + p + ')">' + p + '</button>';
+      });
+
+      // Next
+      html += '<button class="' + (currentPage >= totalPages ? 'disabled' : '') + '" onclick="goToPage(' + (currentPage + 1) + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>›</button>';
+
+      container.innerHTML = html;
+    }
+
+    // ====== Init ======
+    filteredData = mockData.slice();
+    renderTable();
   </script>
 </body>
 </html>

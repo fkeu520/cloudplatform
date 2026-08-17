@@ -9,14 +9,16 @@
     html,body{height:100%;overflow:hidden}
     body{display:flex;flex-direction:column}
     .page-content{flex:1;overflow-y:auto;padding:0}
-    .stat-card{padding:20px}
+    .stat-card{padding:20px;transition:all 0.2s;cursor:default}
+    .stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-elevated)}
     .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
     .stat-card .num{font-size:28px;font-weight:700}
     .stat-card .sub{font-size:12px;margin-top:4px}
     .stat-card .sub.up{color:#34C759}
     .stat-card .sub.down{color:#FF3B30}
     .tab-section{margin-bottom:24px}
-    .funnel-step{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    .funnel-step{display:flex;align-items:center;gap:12px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;padding:4px 8px;border-radius:var(--rounded-sm)}
+    .funnel-step:hover{background:var(--color-primary-pale);transform:translateX(4px)}
     .funnel-step .label{width:120px;font-size:13px;color:var(--color-ink-secondary)}
     .funnel-step .bar{flex:1;background:var(--color-canvas-grouped);border-radius:4px;height:32px;position:relative;overflow:hidden}
     .funnel-step .bar-fill{height:100%;background:linear-gradient(90deg,#007AFF,#5AC8FA);display:flex;align-items:center;padding-left:12px;color:#fff;font-size:13px;font-weight:500;transition:width 0.3s}
@@ -31,13 +33,27 @@
     .pie-legend{display:flex;flex-direction:column;gap:8px;font-size:13px}
     .pie-legend .item{display:flex;align-items:center;gap:8px}
     .pie-legend .dot{width:12px;height:12px;border-radius:2px}
+    .toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+    .toast{background:var(--color-ink);color:#fff;padding:12px 20px;border-radius:var(--rounded-sm);font-size:13px;box-shadow:var(--shadow-elevated);animation:toastIn 0.3s ease;max-width:360px}
+    .toast.success{background:var(--color-positive)}
+    .toast.warning{background:var(--color-warning)}
+    .toast.error{background:var(--color-negative)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+    .card-clickable{cursor:pointer;transition:all 0.2s}
+    .card-clickable:hover{transform:translateY(-2px);box-shadow:var(--shadow-elevated)}
+    .emp-row{cursor:pointer;transition:background 0.15s}
+    .emp-row:hover{background:var(--color-primary-pale)!important}
+    .time-filter-btn{font-size:13px;padding:6px 14px;border:1px solid var(--color-divider);background:var(--color-canvas);border-radius:var(--rounded-sm);cursor:pointer;transition:all 0.15s;color:var(--color-ink-secondary)}
+    .time-filter-btn:hover{border-color:var(--color-primary);color:var(--color-primary)}
+    .time-filter-btn.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
   </style>
 </head>
 <body>
   <!--
   模块: park-business
   页面: statistics (招商统计)
-  版本: v1.0
+  版本: v1.1
 
   数据源:
   - 看板数据（KPI 聚合）
@@ -67,20 +83,21 @@
     <div class="card" style="padding:16px 20px;margin-bottom:16px">
       <div class="toolbar">
         <div class="search-box">
-          <select>
-            <option>本月</option>
-            <option>本季度</option>
-            <option>本年度</option>
-            <option>自定义</option>
-          </select>
-          <input type="date" value="2026-08-01">
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="time-filter-btn" data-period="today" onclick="setTimeFilter('today')">今日</button>
+            <button class="time-filter-btn" data-period="week" onclick="setTimeFilter('week')">本周</button>
+            <button class="time-filter-btn active" data-period="month" onclick="setTimeFilter('month')">本月</button>
+            <button class="time-filter-btn" data-period="quarter" onclick="setTimeFilter('quarter')">本季</button>
+            <button class="time-filter-btn" data-period="year" onclick="setTimeFilter('year')">本年度</button>
+          </div>
+          <input type="date" id="filterDateFrom" value="2026-08-01">
           <span style="color:var(--color-ink-tertiary)">至</span>
-          <input type="date" value="2026-08-14">
-          <button class="btn btn-primary">应用</button>
+          <input type="date" id="filterDateTo" value="2026-08-14">
+          <button class="btn btn-primary" onclick="applyTimeFilter()">应用</button>
         </div>
         <div class="search-actions">
           <!-- {{perm:business:statistics:export}} -->
-          <button class="btn btn-warning">📤 导出报表</button>
+          <button class="btn btn-warning" onclick="exportReport()">📤 导出报表</button>
         </div>
       </div>
     </div>
@@ -135,15 +152,15 @@
               <h3>🔴 最新签约（实时滚动）</h3>
             </div>
             <div class="card-body" style="max-height:300px;overflow-y:auto">
-              <div style="padding:12px;border-left:3px solid #34C759;background:#d1f7d1;border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px">
+              <div class="card-clickable" onclick="drillAgreement('AGR-2026-0801')" style="padding:12px;border-left:3px solid #34C759;background:#d1f7d1;border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px">
                 <div style="font-size:14px;font-weight:500">肇庆金鼎建材 - D栋7层</div>
                 <div style="font-size:12px;color:var(--color-ink-secondary);margin-top:4px">签约金额：36万/年 · 跟进人：张三 · 刚刚</div>
               </div>
-              <div style="padding:12px;border-left:3px solid #34C759;background:#d1f7d1;border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px">
+              <div class="card-clickable" onclick="drillAgreement('AGR-2026-0720')" style="padding:12px;border-left:3px solid #34C759;background:#d1f7d1;border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px">
                 <div style="font-size:14px;font-weight:500">中山华盛智能装备 - E栋3层</div>
                 <div style="font-size:12px;color:var(--color-ink-secondary);margin-top:4px">签约金额：1500万 · 跟进人：李四 · 1小时前</div>
               </div>
-              <div style="padding:12px;border-left:3px solid #34C759;background:#d1f7d1;border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px">
+              <div class="card-clickable" onclick="drillAgreement('AGR-2026-0715')" style="padding:12px;border-left:3px solid #34C759;background:#d1f7d1;border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px">
                 <div style="font-size:14px;font-weight:500">清远新安电子 - F栋2层</div>
                 <div style="font-size:12px;color:var(--color-ink-secondary);margin-top:4px">签约金额：24万/年 · 跟进人：王五 · 2小时前</div>
               </div>
@@ -202,37 +219,37 @@
       <div class="tab-pane" id="tab-funnel">
         <h3 style="font-size:15px;font-weight:600;margin-bottom:20px">转化漏斗（招商全链路）</h3>
 
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('qualification')" title="点击查看资质验证阶段的商机">
           <div class="label">① 线索入池</div>
           <div class="bar"><div class="bar-fill" style="width:100%">128</div></div>
           <div class="num">128 条</div>
         </div>
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('qualification')" title="点击查看资质验证阶段的商机">
           <div class="label">② 资质验证</div>
           <div class="bar"><div class="bar-fill" style="width:80%">102</div></div>
           <div class="num">102 条 (79.7%)</div>
         </div>
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('demand')" title="点击查看需求确认阶段的商机">
           <div class="label">③ 需求确认</div>
           <div class="bar"><div class="bar-fill" style="width:55%">70</div></div>
           <div class="num">70 条 (54.7%)</div>
         </div>
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('matching')" title="点击查看方案匹配阶段的商机">
           <div class="label">④ 方案匹配</div>
           <div class="bar"><div class="bar-fill" style="width:42%">54</div></div>
           <div class="num">54 条 (42.2%)</div>
         </div>
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('visit')" title="点击查看带看考察阶段的商机">
           <div class="label">⑤ 带看考察</div>
           <div class="bar"><div class="bar-fill" style="width:30%">38</div></div>
           <div class="num">38 条 (29.7%)</div>
         </div>
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('negotiation')" title="点击查看谈判协商阶段的商机">
           <div class="label">⑥ 谈判协商</div>
           <div class="bar"><div class="bar-fill" style="width:18%">23</div></div>
           <div class="num">23 条 (18.0%)</div>
         </div>
-        <div class="funnel-step">
+        <div class="funnel-step" onclick="drillFunnel('agreement')" title="点击查看协议签订阶段的商机">
           <div class="label">⑦ 协议签订</div>
           <div class="bar"><div class="bar-fill" style="width:8%;background:linear-gradient(90deg,#34C759,#5AC8FA)">10</div></div>
           <div class="num">10 条 (7.8%)</div>
@@ -431,10 +448,10 @@
                 <tr><th>排名</th><th>员工</th><th>部门</th><th>签约套数</th><th>签约金额</th><th>完成率</th></tr>
               </thead>
               <tbody>
-                <tr style="background:#FFF8DC"><td>🥇 1</td><td>张三</td><td>招商一部</td><td>5</td><td>¥580万</td><td><span style="color:#34C759">96%</span></td></tr>
-                <tr><td>🥈 2</td><td>李四</td><td>招商一部</td><td>3</td><td>¥420万</td><td><span style="color:#34C759">85%</span></td></tr>
-                <tr><td>🥉 3</td><td>王五</td><td>招商二部</td><td>2</td><td>¥250万</td><td><span style="color:#FF9500">62%</span></td></tr>
-                <tr><td>4</td><td>赵六</td><td>招商二部</td><td>0</td><td>¥0</td><td><span style="color:#FF3B30">15%</span></td></tr>
+                <tr class="emp-row" style="background:#FFF8DC" onclick="drillEmployee('zhangsan','张三')"><td>🥇 1</td><td>张三</td><td>招商一部</td><td>5</td><td>¥580万</td><td><span style="color:#34C759">96%</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('lisi','李四')"><td>🥈 2</td><td>李四</td><td>招商一部</td><td>3</td><td>¥420万</td><td><span style="color:#34C759">85%</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('wangwu','王五')"><td>🥉 3</td><td>王五</td><td>招商二部</td><td>2</td><td>¥250万</td><td><span style="color:#FF9500">62%</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('zhaoliu','赵六')"><td>4</td><td>赵六</td><td>招商二部</td><td>0</td><td>¥0</td><td><span style="color:#FF3B30">15%</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -448,10 +465,10 @@
                 <tr><th>排名</th><th>员工</th><th>跟进次数</th><th>客户数</th><th>平均响应时长</th></tr>
               </thead>
               <tbody>
-                <tr style="background:#FFF8DC"><td>🥇 1</td><td>张三</td><td>86</td><td>22</td><td><span style="color:#34C759">2.1 小时</span></td></tr>
-                <tr><td>🥈 2</td><td>李四</td><td>72</td><td>18</td><td><span style="color:#34C759">3.5 小时</span></td></tr>
-                <tr><td>🥉 3</td><td>王五</td><td>65</td><td>16</td><td><span style="color:#FF9500">5.2 小时</span></td></tr>
-                <tr><td>4</td><td>赵六</td><td>48</td><td>12</td><td><span style="color:#FF3B30">8.5 小时</span></td></tr>
+                <tr class="emp-row" style="background:#FFF8DC" onclick="drillEmployee('zhangsan','张三')"><td>🥇 1</td><td>张三</td><td>86</td><td>22</td><td><span style="color:#34C759">2.1 小时</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('lisi','李四')"><td>🥈 2</td><td>李四</td><td>72</td><td>18</td><td><span style="color:#34C759">3.5 小时</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('wangwu','王五')"><td>🥉 3</td><td>王五</td><td>65</td><td>16</td><td><span style="color:#FF9500">5.2 小时</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('zhaoliu','赵六')"><td>4</td><td>赵六</td><td>48</td><td>12</td><td><span style="color:#FF3B30">8.5 小时</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -465,10 +482,10 @@
                 <tr><th>排名</th><th>员工</th><th>跟进客户</th><th>转化商机</th><th>转化率</th></tr>
               </thead>
               <tbody>
-                <tr style="background:#FFF8DC"><td>🥇 1</td><td>张三</td><td>22</td><td>12</td><td><span style="color:#34C759;font-weight:600">54.5%</span></td></tr>
-                <tr><td>🥈 2</td><td>李四</td><td>18</td><td>9</td><td><span style="color:#34C759">50.0%</span></td></tr>
-                <tr><td>🥉 3</td><td>王五</td><td>16</td><td>8</td><td><span style="color:#34C759">50.0%</span></td></tr>
-                <tr><td>4</td><td>赵六</td><td>12</td><td>5</td><td><span style="color:#FF9500">41.7%</span></td></tr>
+                <tr class="emp-row" style="background:#FFF8DC" onclick="drillEmployee('zhangsan','张三')"><td>🥇 1</td><td>张三</td><td>22</td><td>12</td><td><span style="color:#34C759;font-weight:600">54.5%</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('lisi','李四')"><td>🥈 2</td><td>李四</td><td>18</td><td>9</td><td><span style="color:#34C759">50.0%</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('wangwu','王五')"><td>🥉 3</td><td>王五</td><td>16</td><td>8</td><td><span style="color:#34C759">50.0%</span></td></tr>
+                <tr class="emp-row" onclick="drillEmployee('zhaoliu','赵六')"><td>4</td><td>赵六</td><td>12</td><td>5</td><td><span style="color:#FF9500">41.7%</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -477,13 +494,122 @@
     </div>
   </div>
 
+  <!-- Toast 容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
   <script>
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
     function switchTab(el, paneId){
-      document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') })
-      el.classList.add('active')
-      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active') })
-      document.getElementById(paneId).classList.add('active')
+      document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') });
+      el.classList.add('active');
+      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active') });
+      document.getElementById(paneId).classList.add('active');
+    }
+
+    // ====== Toast ======
+    function showToast(msg, type){
+      type = type || 'info';
+      var c = document.getElementById('toastContainer');
+      var t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(function(){
+        t.style.animation = 'toastOut 0.3s ease forwards';
+        setTimeout(function(){ t.remove() }, 300);
+      }, 3000);
+    }
+
+    // ====== M-06: Export Report ======
+    function exportReport(){
+      showToast('导出中...', 'info');
+      setTimeout(function(){
+        var date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        showToast('报表已导出：招商统计_' + date + '.xlsx', 'success');
+      }, 3000);
+    }
+
+    // ====== M-06: Drill Agreement Card ======
+    function drillAgreement(code){
+      showToast('正在打开协议详情：' + code, 'info');
+      parent.loadPage('park-business/agreement-detail.html', '协议详情', 'park-business');
+    }
+
+    // ====== M-07: Drill Funnel Stage ======
+    var stageLabels = {
+      qualification: '资质验证',
+      demand: '需求确认',
+      matching: '方案匹配',
+      visit: '带看考察',
+      negotiation: '谈判协商',
+      agreement: '协议签订'
+    };
+
+    function drillFunnel(stage){
+      var label = stageLabels[stage] || stage;
+      showToast('已筛选：' + label + ' 阶段', 'info');
+      parent.loadPage('park-business/opportunity.html?stage=' + stage, '商机管理', 'park-business');
+    }
+
+    // ====== M-08: Drill Employee ======
+    var empNames = {
+      zhangsan: '张三',
+      lisi: '李四',
+      wangwu: '王五',
+      zhaoliu: '赵六'
+    };
+
+    function drillEmployee(empId, empName){
+      showToast('正在查看 ' + empName + ' 的客户详情', 'info');
+      parent.loadPage('park-business/my-customer.html?owner=' + empId, '我的客户', 'park-business');
+    }
+
+    // ====== Time Filter ======
+    var currentPeriod = 'month';
+
+    function setTimeFilter(period){
+      document.querySelectorAll('.time-filter-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelector('.time-filter-btn[data-period="' + period + '"]').classList.add('active');
+      currentPeriod = period;
+
+      var now = new Date();
+      var y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate();
+      var from, to = now.toISOString().slice(0,10);
+
+      switch(period){
+        case 'today':
+          from = to;
+          break;
+        case 'week':
+          var day = now.getDay() || 7;
+          var monday = new Date(now);
+          monday.setDate(now.getDate() - day + 1);
+          from = monday.toISOString().slice(0,10);
+          break;
+        case 'month':
+          from = y + '-' + String(m).padStart(2,'0') + '-01';
+          break;
+        case 'quarter':
+          var qStart = Math.floor((m - 1) / 3) * 3 + 1;
+          from = y + '-' + String(qStart).padStart(2,'0') + '-01';
+          break;
+        case 'year':
+          from = y + '-01-01';
+          break;
+        default:
+          from = y + '-' + String(m).padStart(2,'0') + '-01';
+      }
+
+      document.getElementById('filterDateFrom').value = from;
+      document.getElementById('filterDateTo').value = to;
+      applyTimeFilter();
+    }
+
+    function applyTimeFilter(){
+      var from = document.getElementById('filterDateFrom').value;
+      var to = document.getElementById('filterDateTo').value;
+      showToast('已应用筛选：' + from + ' 至 ' + to, 'info');
     }
   </script>
 </body>
