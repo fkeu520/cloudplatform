@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知识库 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    tr.row-done td{opacity:0.4;text-decoration:line-through;color:var(--color-ink-tertiary)}
+    th.sortable{cursor:pointer;user-select:none}
+    th.sortable:hover{color:var(--color-primary)}
+    .sort-asc::after{content:' ▲';font-size:10px;color:var(--color-primary)}
+    .sort-desc::after{content:' ▼';font-size:10px;color:var(--color-primary)}
+    .source-tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:3px;margin-right:4px}
+    .source-tag.faq{background:#E3F2FD;color:#1976D2}
+    .source-tag.manual{background:#F3E5F5;color:#7B1FA2}
+    .source-tag.business_entity{background:#FFF3E0;color:#F57C00}
+    .source-tag.import{background:#E8F5E9;color:#388E3C}
+    .source-ref{display:inline-block;color:var(--color-primary);cursor:pointer}
+    .source-ref:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: knowledge (知识库)
+版本: v1.0
+
+数据源:
+- 主表: kefu_knowledge
+- 数据源: kefu_data_source (6 个数据源，含 park-enterprise/park-business/park-space/park-contract 占位)
+- 业务实体引用: source_ref 字段存储 park-XXX:entity:id
+
+API:
+- GET /kefu/knowledge/page?source=park-enterprise
+- POST /kefu/knowledge
+- PUT /kefu/knowledge/{id}
+- DELETE /kefu/knowledge/{id}
+- POST /kefu/knowledge/import
+
+权限:
+- kefu:knowledge:view
+- kefu:knowledge:edit
+- kefu:knowledge:delete
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">知识库</span>
+</div>
+
+<div class="page-content" style="padding:16px 20px">
+  <!-- 统计卡 -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">知识总数</div><div style="font-size:22px;font-weight:700">1,248</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">已向量化</div><div style="font-size:22px;font-weight:700;color:#34C759">1,156</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">业务实体</div><div style="font-size:22px;font-weight:700;color:#FF9500">342</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">本月新增</div><div style="font-size:22px;font-weight:700;color:var(--color-primary)">86</div></div>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" placeholder="知识标题/内容关键词" id="searchKw" oninput="filterTable()">
+        <select id="filterSource" onchange="filterTable()">
+          <option value="">全部数据源</option>
+          <option value="faq">FAQ 库</option>
+          <option value="manual">手动录入</option>
+          <option value="business_entity">业务实体</option>
+          <option value="import">批量导入</option>
+        </select>
+        <select id="filterStatus" onchange="filterTable()">
+          <option value="">全部状态</option>
+          <option>已索引</option>
+          <option>待索引</option>
+          <option>索引失败</option>
+        </select>
+        <button class="btn btn-primary" onclick="filterTable()">🔍 搜索</button>
+        <button class="btn btn-default" onclick="resetSearch()">重置</button>
+      </div>
+      <div class="search-actions">
+        <button class="btn btn-default" onclick="parent.loadPage('kefu/import.html','知识导入','kefu')">📥 批量导入</button>
+        <button class="btn btn-primary" onclick="openAddKnowledge()">➕ 新增知识</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 表格 -->
+  <div class="card">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-checkbox"><input type="checkbox" onchange="toggleAll(this)"></th>
+            <th class="sortable" onclick="sortTable('id')">ID</th>
+            <th class="sortable" onclick="sortTable('title')">标题</th>
+            <th class="sortable" onclick="sortTable('sourceType')">数据源</th>
+            <th>业务实体引用</th>
+            <th class="sortable" onclick="sortTable('category')">分类</th>
+            <th class="sortable" onclick="sortTable('hit')">命中</th>
+            <th class="sortable" onclick="sortTable('status')">状态</th>
+            <th>启用</th>
+            <th style="width:160px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <div class="info">共 <span id="totalCount">12</span> 条记录</div>
+      <div class="pages" id="pageButtons"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div class="modal-overlay" id="knowledgeModal">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h3 id="modalTitle">新增知识</h3><button class="close" onclick="closeDialog('knowledgeModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="col"><label>标题 <span class="required">*</span></label><input type="text" id="kmTitle" placeholder="知识标题"></div>
+        <div class="col"><label>分类 <span class="required">*</span></label>
+          <select id="kmCategory"><option value="">请选择</option><option>FAQ</option><option>政策</option><option>流程</option><option>业务实体</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>数据源类型 <span class="required">*</span></label>
+          <select id="kmSourceType" onchange="onSourceTypeChange()">
+            <option value="faq">FAQ 库</option>
+            <option value="manual">手动录入</option>
+            <option value="business_entity">业务实体</option>
+            <option value="import">批量导入</option>
+          </select>
+        </div>
+        <div class="col"><label>业务实体引用</label><input type="text" id="kmSourceRef" placeholder="如: park-enterprise:123"></div>
+      </div>
+      <div class="form-row">
+        <div class="col" style="flex:1"><label>内容 <span class="required">*</span></label><textarea id="kmContent" rows="6" placeholder="知识内容..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeDialog('knowledgeModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveKnowledge()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  type=type||'info'
+  var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+  var t=document.createElement('div')
+  t.textContent=msg
+  t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},3000)
+}
+
+var mockData = [
+  {id:1,title:'入驻流程说明',sourceType:'manual',sourceRef:'',category:'流程',hit:1280,status:'已索引',enabled:true},
+  {id:2,title:'A 栋 3 层 301 室房源信息',sourceType:'business_entity',sourceRef:'park-space:ROOM-301',category:'业务实体',hit:856,status:'已索引',enabled:true,entityLabel:'A栋3层301室'},
+  {id:3,title:'深圳前海科技 - 入驻记录',sourceType:'business_entity',sourceRef:'park-enterprise:123',category:'业务实体',hit:642,status:'已索引',enabled:true,entityLabel:'深圳前海科技'},
+  {id:4,title:'租金支付方式',sourceType:'manual',sourceRef:'',category:'FAQ',hit:523,status:'已索引',enabled:true},
+  {id:5,title:'车位申请流程',sourceType:'manual',sourceRef:'',category:'流程',hit:418,status:'已索引',enabled:true},
+  {id:6,title:'企业入驻优惠政策',sourceType:'manual',sourceRef:'',category:'政策',hit:387,status:'已索引',enabled:true},
+  {id:7,title:'招商经理联系方式',sourceType:'faq',sourceRef:'',category:'FAQ',hit:356,status:'已索引',enabled:true},
+  {id:8,title:'租金调整规则',sourceType:'manual',sourceRef:'',category:'政策',hit:248,status:'已索引',enabled:true},
+  {id:9,title:'企业续约流程',sourceType:'manual',sourceRef:'',category:'流程',hit:196,status:'待索引',enabled:true},
+  {id:10,title:'物业缴费 FAQ',sourceType:'faq',sourceRef:'',category:'FAQ',hit:158,status:'已索引',enabled:true},
+  {id:11,title:'商机跟进 SOP',sourceType:'manual',sourceRef:'',category:'流程',hit:128,status:'索引失败',enabled:false},
+  {id:12,title:'B 栋 5 层 502 室房源信息',sourceType:'business_entity',sourceRef:'park-space:ROOM-502',category:'业务实体',hit:95,status:'已索引',enabled:true,entityLabel:'B栋5层502室'}
+]
+
+var currentPage=1, pageSize=10
+var filteredData = mockData.slice()
+
+function renderPage(){
+  var tbody = document.getElementById('dataTable')
+  tbody.innerHTML=''
+  var start = (currentPage-1)*pageSize
+  var pageData = filteredData.slice(start, start+pageSize)
+  pageData.forEach(function(d){
+    var tr = document.createElement('tr')
+    tr.setAttribute('data-id', d.id)
+    var sourceEntity = ''
+    if(d.entityLabel){
+      sourceEntity = '<span class="source-ref" data-source-ref="'+d.sourceRef+'">📎 '+d.entityLabel+'</span>'
+    } else {
+      sourceEntity = '<span style="color:var(--color-ink-tertiary);font-size:11px">-</span>'
+    }
+    var enabledHtml = d.enabled ? '<span class="badge badge-success">启用</span>' : '<span class="badge badge-default">禁用</span>'
+    tr.innerHTML = '<td class="col-checkbox"><input type="checkbox" class="row-check"></td>' +
+      '<td>#'+d.id+'</td>' +
+      '<td>'+d.title+'</td>' +
+      '<td><span class="source-tag '+d.sourceType+'">'+d.sourceType+'</span></td>' +
+      '<td>'+sourceEntity+'</td>' +
+      '<td>'+d.category+'</td>' +
+      '<td>'+d.hit+'</td>' +
+      '<td><span class="badge '+(d.status==='已索引'?'badge-success':d.status==='待索引'?'badge-warn':'badge-negative')+'">'+d.status+'</span></td>' +
+      '<td>'+enabledHtml+'</td>' +
+      '<td>' +
+        '<button class="btn btn-default btn-sm" onclick="viewKnowledge('+d.id+')">查看</button> ' +
+        '<button class="btn btn-default btn-sm" onclick="editKnowledge('+d.id+')">编辑</button> ' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteKnowledge(this)">删除</button>' +
+      '</td>'
+    tbody.appendChild(tr)
+  })
+  document.getElementById('totalCount').textContent = filteredData.length
+  updatePagination()
+}
+
+function updatePagination(){
+  var totalPages = Math.ceil(filteredData.length/pageSize) || 1
+  var container = document.getElementById('pageButtons')
+  container.innerHTML=''
+  var prev = document.createElement('button')
+  prev.textContent='‹'; if(currentPage<=1) prev.className='disabled'; else prev.onclick=function(){goToPage('prev')}
+  container.appendChild(prev)
+  for(var p=1;p<=totalPages;p++){
+    var btn = document.createElement('button')
+    btn.textContent=p; btn.onclick=(function(p){return function(){goToPage(p)}})(p)
+    if(p===currentPage) btn.className='active'
+    container.appendChild(btn)
+  }
+  var next = document.createElement('button')
+  next.textContent='›'; if(currentPage>=totalPages) next.className='disabled'; else next.onclick=function(){goToPage('next')}
+  container.appendChild(next)
+}
+
+function goToPage(p){
+  var totalPages = Math.ceil(filteredData.length/pageSize) || 1
+  if(p==='prev'&&currentPage>1) currentPage--
+  else if(p==='next'&&currentPage<totalPages) currentPage++
+  else if(typeof p==='number') currentPage=p
+  renderPage()
+}
+
+function filterTable(){
+  var kw = (document.getElementById('searchKw').value||'').toLowerCase()
+  var src = document.getElementById('filterSource').value
+  var stt = document.getElementById('filterStatus').value
+  filteredData = mockData.filter(function(d){
+    if(kw && (d.title+' '+d.entityLabel||'').toLowerCase().indexOf(kw)===-1) return false
+    if(src && d.sourceType!==src) return false
+    if(stt && d.status!==stt) return false
+    return true
+  })
+  currentPage=1; renderPage()
+}
+
+function resetSearch(){
+  document.getElementById('searchKw').value=''
+  document.getElementById('filterSource').selectedIndex=0
+  document.getElementById('filterStatus').selectedIndex=0
+  filteredData=mockData.slice(); currentPage=1; renderPage()
+  showToast('已重置','info')
+}
+
+function sortTable(col){
+  var dir = (this.lastCol===col && this.lastDir==='asc') ? 'desc' : 'asc'
+  this.lastCol=col; this.lastDir=dir
+  filteredData.sort(function(a,b){
+    var va=a[col]||'', vb=b[col]||''
+    return dir==='asc' ? va.localeCompare(vb,'zh-CN') : vb.localeCompare(va,'zh-CN')
+  })
+  document.querySelectorAll('th.sortable').forEach(function(t){t.classList.remove('sort-asc','sort-desc')})
+  event.target.classList.add('sort-'+dir)
+  renderPage()
+  showToast('已按列'+(dir==='asc'?'升序':'降序')+'排序','info')
+}
+
+function toggleAll(cb){
+  document.querySelectorAll('.row-check').forEach(function(c){c.checked=cb.checked})
+}
+
+function openAddKnowledge(){
+  document.getElementById('modalTitle').textContent='新增知识'
+  document.getElementById('kmTitle').value=''
+  document.getElementById('kmCategory').selectedIndex=0
+  document.getElementById('kmSourceType').selectedIndex=0
+  document.getElementById('kmSourceRef').value=''
+  document.getElementById('kmContent').value=''
+  document.getElementById('knowledgeModal').classList.add('show')
+}
+
+function editKnowledge(id){
+  var d = mockData.find(function(x){return x.id===id})
+  if(!d) return
+  document.getElementById('modalTitle').textContent='编辑知识 #' + id
+  document.getElementById('kmTitle').value=d.title
+  document.getElementById('kmCategory').value=d.category
+  document.getElementById('kmSourceType').value=d.sourceType
+  document.getElementById('kmSourceRef').value=d.sourceRef||''
+  document.getElementById('kmContent').value=d.content||d.title
+  document.getElementById('knowledgeModal').classList.add('show')
+}
+
+function saveKnowledge(){
+  var title=document.getElementById('kmTitle').value.trim()
+  var cat=document.getElementById('kmCategory').value
+  var srcType=document.getElementById('kmSourceType').value
+  var srcRef=document.getElementById('kmSourceRef').value.trim()
+  var content=document.getElementById('kmContent').value.trim()
+  if(!title) return showToast('请输入标题','danger')
+  if(!cat) return showToast('请选择分类','danger')
+  if(!content) return showToast('请输入内容','danger')
+  if(srcType==='business_entity' && !srcRef) return showToast('业务实体类型需填写 source_ref','danger')
+  closeDialog('knowledgeModal')
+  var newId = Math.max.apply(null, mockData.map(function(d){return d.id}).concat([0]))+1
+  mockData.unshift({id:newId, title:title, sourceType:srcType, sourceRef:srcRef, category:cat, hit:0, status:'待索引', enabled:true})
+  filteredData = mockData.slice(); renderPage()
+  showToast('知识已新增：'+title,'success')
+}
+
+function viewKnowledge(id){
+  showToast('查看知识详情 #'+id+'（mock：可后续接入详情页）','info')
+}
+
+function deleteKnowledge(btn){
+  if(!confirm('确认删除该知识？')) return
+  var tr = btn.closest('tr')
+  tr.classList.add('row-done')
+  tr.querySelectorAll('button').forEach(function(b){b.disabled=true})
+  setTimeout(function(){
+    tr.classList.add('fade-out')
+    setTimeout(function(){if(tr.parentNode) tr.parentNode.removeChild(tr)}, 320)
+  }, 600)
+  showToast('知识已删除','warning')
+}
+
+function onSourceTypeChange(){
+  var st = document.getElementById('kmSourceType').value
+  if(st==='business_entity') showToast('提示：业务实体类型需填写 park-XXX:entity:id 格式的 source_ref','info')
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+
+renderPage()
+</script>
+</body>
+</html>

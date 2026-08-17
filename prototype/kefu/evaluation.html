@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>评估报告 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: evaluation (评估报告)
+版本: v1.0
+
+数据源:
+- 聚合: kefu_message + kefu_session.satisfaction
+- 多维度: 数据源命中率 / 满意度 / 转人工率
+
+API:
+- GET /kefu/evaluation/report
+- GET /kefu/evaluation/details
+
+权限:
+- kefu:evaluation:view
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">评估报告</span>
+  <div style="margin-left:auto">
+    <button class="btn btn-default btn-sm" onclick="exportReport()">📤 导出 PDF</button>
+  </div>
+</div>
+
+<div class="page-content" style="padding:16px 20px">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">平均满意度</div><div style="font-size:22px;font-weight:700;color:#34C759">4.6<span style="font-size:14px;color:var(--color-ink-tertiary)">/5</span></div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">数据源命中率</div><div style="font-size:22px;font-weight:700;color:var(--color-primary)">82.5%</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">转人工率</div><div style="font-size:22px;font-weight:700;color:#FF9500">31.8%</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">已评分条数</div><div style="font-size:22px;font-weight:700">856</div></div>
+  </div>
+
+  <div class="card" style="padding:14px">
+    <h4 style="font-size:14px;margin-bottom:12px">📊 数据源命中率明细</h4>
+    <table>
+      <thead><tr><th>数据源</th><th>类型</th><th>命中次数</th><th>占比</th><th>满意度</th><th>趋势</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-info">faq</span></td><td>internal</td><td>485</td><td>38.8%</td><td>4.7 ⭐</td><td><span style="color:#34C759">↑ 5%</span></td></tr>
+        <tr><td><span class="badge badge-info">knowledge</span></td><td>vector_search</td><td>312</td><td>25.0%</td><td>4.5 ⭐</td><td><span style="color:#34C759">↑ 8%</span></td></tr>
+        <tr><td><span class="badge badge-info">park-enterprise</span></td><td>database_query</td><td>186</td><td>14.9%</td><td>4.8 ⭐</td><td><span style="color:#34C759">↑ 12%</span></td></tr>
+        <tr><td><span class="badge badge-default">park-business</span></td><td>database_query</td><td>98</td><td>7.8%</td><td>4.6 ⭐</td><td><span style="color:var(--color-ink-tertiary)">—</span></td></tr>
+        <tr><td><span class="badge badge-default">park-space</span></td><td>database_query</td><td>76</td><td>6.1%</td><td>4.4 ⭐</td><td><span style="color:var(--color-ink-tertiary)">—</span></td></tr>
+        <tr><td><span class="badge badge-default">park-contract</span></td><td>database_query</td><td>42</td><td>3.4%</td><td>4.5 ⭐</td><td><span style="color:var(--color-ink-tertiary)">—</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="padding:14px;margin-top:14px">
+    <h4 style="font-size:14px;margin-bottom:12px">📝 待优化问题（满意度 &lt; 4 星）</h4>
+    <table>
+      <thead><tr><th>问题</th><th>数据源</th><th>评分</th><th>次数</th><th>建议</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td>装修押金什么时候退？</td><td><span class="badge badge-info">faq</span></td><td>3.2 ⭐</td><td>12</td><td>补充装修押金的退还条件</td><td><button class="btn btn-default btn-sm">查看</button> <button class="btn btn-primary btn-sm">补充</button></td></tr>
+        <tr><td>园区 WiFi 密码？</td><td><span class="badge badge-info">knowledge</span></td><td>2.8 ⭐</td><td>8</td><td>添加 WiFi 信息到知识库</td><td><button class="btn btn-default btn-sm">查看</button> <button class="btn btn-primary btn-sm">补充</button></td></tr>
+        <tr><td>会议室预约？</td><td><span class="badge badge-default">未命中</span></td><td>2.5 ⭐</td><td>5</td><td>新增 FAQ "会议室预约流程"</td><td><button class="btn btn-default btn-sm">查看</button> <button class="btn btn-primary btn-sm">新增</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  type=type||'info'
+  var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+  var t=document.createElement('div')
+  t.textContent=msg
+  t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},3000)
+}
+
+function exportReport(){
+  showToast('导出中...','info')
+  setTimeout(function(){
+    showToast('评估报告已导出：kefu_evaluation_202608.pdf','success')
+  }, 1500)
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+</script>
+</body>
+</html>

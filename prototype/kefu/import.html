@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>知识导入 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .upload-area{border:2px dashed var(--color-divider);border-radius:8px;padding:48px 24px;text-align:center;background:var(--color-canvas-elevated);cursor:pointer;transition:border-color 0.2s}
+    .upload-area:hover{border-color:var(--color-primary)}
+    .upload-area.dragover{border-color:var(--color-primary);background:var(--color-primary-pale)}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: import (知识导入)
+版本: v1.0
+
+数据源:
+- 目标: kefu_knowledge / kefu_faq
+- 支持格式: PDF/Word/Markdown/Excel/CSV
+- 自动分段 + 向量化
+
+API:
+- POST /kefu/knowledge/import (multipart)
+- GET /kefu/knowledge/import-history
+
+权限:
+- kefu:import:upload
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">知识导入</span>
+</div>
+
+<div class="page-content" style="padding:16px 20px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <div class="card" style="padding:14px">
+      <h4 style="font-size:13px;margin-bottom:10px">📤 上传知识文件</h4>
+      <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="handleDrop(event)">
+        <div style="font-size:36px;margin-bottom:8px">📁</div>
+        <div style="font-size:14px;color:var(--color-ink);margin-bottom:4px">点击或拖拽文件到此处</div>
+        <div style="font-size:11px;color:var(--color-ink-tertiary)">支持 PDF / Word / Markdown / Excel / CSV · 单文件 ≤ 50MB</div>
+      </div>
+      <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.md,.xlsx,.csv" onchange="handleFile(this)">
+      <div style="margin-top:12px">
+        <label style="display:block;font-size:12px;color:var(--color-ink-secondary);margin-bottom:4px">导入到分类</label>
+        <select id="importCategory" style="width:100%"><option>政策</option><option>流程</option><option>FAQ</option><option>业务实体</option></select>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px">
+      <h4 style="font-size:13px;margin-bottom:10px">💡 导入提示</h4>
+      <ul style="font-size:12px;color:var(--color-ink-secondary);line-height:1.8;padding-left:18px">
+        <li>PDF/Word：自动分段（每段 ≤ 2000 字）</li>
+        <li>Excel/CSV：第一列问题，第二列答案</li>
+        <li>Markdown：按标题分段</li>
+        <li>导入完成后自动向量化（通常 1-5 分钟）</li>
+        <li>大文件（&gt;10MB）建议分批导入</li>
+        <li>重复内容自动合并（按 hash）</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="padding:14px;border-bottom:1px solid var(--color-divider);font-weight:600">📋 导入历史</div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>文件名</th><th>大小</th><th>分类</th><th>条目数</th><th>状态</th><th>导入时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>📄 入驻流程手册 v3.2.pdf</td><td>2.8 MB</td><td><span class="badge badge-info">流程</span></td><td>36</td><td><span class="badge badge-success">已完成</span></td><td>2026-08-15 14:20</td><td><button class="btn btn-default btn-sm" onclick="showToast('查看导入详情','info')">查看</button></td></tr>
+          <tr><td>📄 招商政策汇总.xlsx</td><td>0.5 MB</td><td><span class="badge badge-info">政策</span></td><td>48</td><td><span class="badge badge-success">已完成</span></td><td>2026-08-14 10:15</td><td><button class="btn btn-default btn-sm">查看</button></td></tr>
+          <tr><td>📝 常见问题.csv</td><td>0.1 MB</td><td><span class="badge badge-info">FAQ</span></td><td>128</td><td><span class="badge badge-success">已完成</span></td><td>2026-08-12 16:42</td><td><button class="btn btn-default btn-sm">查看</button></td></tr>
+          <tr><td>📄 产品手册.pdf</td><td>8.4 MB</td><td><span class="badge badge-info">业务实体</span></td><td>0</td><td><span class="badge badge-warn">导入中 62%</span></td><td>2026-08-17 14:08</td><td><button class="btn btn-default btn-sm" disabled>等待</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  type=type||'info'
+  var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+  var t=document.createElement('div')
+  t.textContent=msg
+  t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},3000)
+}
+
+function handleDrop(e){
+  e.preventDefault()
+  document.getElementById('uploadArea').classList.remove('dragover')
+  var files = e.dataTransfer.files
+  if(files.length > 0) processFile(files[0])
+}
+
+function handleFile(input){
+  if(input.files.length > 0) processFile(input.files[0])
+}
+
+function processFile(file){
+  var sizeKb = Math.round(file.size/1024)
+  showToast('开始解析：'+file.name+'（'+sizeKb+' KB）...','info')
+  setTimeout(function(){
+    var count = Math.floor(Math.random()*30)+5
+    showToast('导入完成：'+count+' 条知识进入向量化队列','success')
+  }, 2000)
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+</script>
+</body>
+</html>
