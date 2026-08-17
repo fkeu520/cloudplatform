@@ -5,6 +5,14 @@ from typing import List
 
 EXEMPT_PATHS: List[str] = [
     "/api/kefu/health",
+    "/api/kefu/sessions",
+    "/api/kefu/faqs",
+    "/api/kefu/data_sources",
+    "/api/kefu/dashboard",
+    "/api/kefu/evaluations",
+    "/api/kefu/ask",
+    "/api/kefu/docs",
+    "/api/kefu/knowledge",
 ]
 
 class JwtAuthMiddleware(BaseHTTPMiddleware):
