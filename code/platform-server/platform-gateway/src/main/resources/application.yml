@@ -195,7 +195,7 @@ spring:
           predicates:
             - Path=/api/kefu/**, /kefu/**
           filters:
-            - RewritePath=/kefu/(?<segment>.*), /api/kefu/${segment}
+            - RewritePath=^/kefu/(?<segment>.*), /api/kefu/${segment}
 
         # 缃戝叧鑷韩绠＄悊鎺ュ彛
         - id: platform-gateway-self
