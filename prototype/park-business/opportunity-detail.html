@@ -258,8 +258,8 @@
             👥 参与人: 张三、刘洋（客户）、陈静（客户） · 类型: 客户拜访
           </div>
           <div style="margin-top:8px;display:flex;gap:6px">
-            <button class="btn btn-default btn-sm">编辑</button>
-            <button class="btn btn-danger btn-sm">取消</button>
+            <button class="btn btn-default btn-sm" onclick="editSchedule(this)">编辑</button>
+            <button class="btn btn-danger btn-sm" onclick="cancelSchedule(this)">取消</button>
           </div>
         </div>
 
@@ -270,8 +270,8 @@
             👥 参与人: 张三、刘洋（客户） · 类型: 客户拜访
           </div>
           <div style="margin-top:8px;display:flex;gap:6px">
-            <button class="btn btn-default btn-sm">编辑</button>
-            <button class="btn btn-danger btn-sm">取消</button>
+            <button class="btn btn-default btn-sm" onclick="editSchedule(this)">编辑</button>
+            <button class="btn btn-danger btn-sm" onclick="cancelSchedule(this)">取消</button>
           </div>
         </div>
 
@@ -282,8 +282,8 @@
             👥 参与人: 张三、李四、王五、赵六 · 类型: 内部会议
           </div>
           <div style="margin-top:8px;display:flex;gap:6px">
-            <button class="btn btn-default btn-sm">编辑</button>
-            <button class="btn btn-danger btn-sm">取消</button>
+            <button class="btn btn-default btn-sm" onclick="editSchedule(this)">编辑</button>
+            <button class="btn btn-danger btn-sm" onclick="cancelSchedule(this)">取消</button>
           </div>
         </div>
       </div>
@@ -785,6 +785,31 @@
       if(!name) return showToast('请选择新联系人','danger')
       closeDialog('contactChangeModal')
       showToast('已更换联系人为：'+name,'success')
+    }
+
+    // === 日程编辑/取消 ===
+    function editSchedule(btn){
+      var item = btn.closest('div[style*="margin-top:8px"]')
+      var parent = btn.closest('[class*="timeline"], [class*="schedule-item"]')
+      var titleEl = btn.parentNode.parentNode.querySelector('.title, div')
+      var title = titleEl ? titleEl.textContent.trim() : '日程'
+      showToast('编辑日程：'+title,'info')
+    }
+    function cancelSchedule(btn){
+      if(!confirm('确认取消此日程？')) return
+      var wrap = btn.closest('div[style*="margin-top:8px"]')
+      if(!wrap) return
+      var card = wrap.parentNode
+      wrap.style.opacity = '0.4'
+      wrap.querySelectorAll('button').forEach(function(b){ b.disabled = true })
+      showToast('日程已取消','warning')
+      setTimeout(function(){
+        if(card && card.parentNode){
+          card.style.transition = 'opacity 0.3s'
+          card.style.opacity = '0'
+          setTimeout(function(){ if(card.parentNode) card.parentNode.removeChild(card) }, 320)
+        }
+      }, 800)
     }
   </script>
 </body>

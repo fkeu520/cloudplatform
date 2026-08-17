@@ -196,7 +196,7 @@
       <div class="tab-pane" id="tab-attach">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
           <h3 style="font-size:15px;font-weight:600">协议附件</h3>
-          <button class="btn btn-primary btn-sm">📎 上传附件</button>
+          <button class="btn btn-primary btn-sm" onclick="uploadAttachment()">📎 上传附件</button>
         </div>
         <div class="card" style="box-shadow:none;border:1px solid var(--color-divider)">
           <div class="table-wrapper">
@@ -205,10 +205,10 @@
                 <tr><th>文件名</th><th>类型</th><th>大小</th><th>上传人</th><th>上传时间</th><th>操作</th></tr>
               </thead>
               <tbody>
-                <tr><td>📄 租赁协议正本.pdf</td><td>协议</td><td>2.3 MB</td><td>张三</td><td>2026-07-01 10:30</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
-                <tr><td>📷 签约现场照片.jpg</td><td>图片</td><td>1.8 MB</td><td>张三</td><td>2026-07-01 10:30</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
-                <tr><td>📄 企业营业执照.pdf</td><td>证件</td><td>0.5 MB</td><td>刘洋</td><td>2026-07-01 09:15</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
-                <tr><td>📄 法人身份证.pdf</td><td>证件</td><td>0.8 MB</td><td>刘洋</td><td>2026-07-01 09:15</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
+<tr><td>📄 租赁协议正本.pdf</td><td>协议</td><td>2.3 MB</td><td>张三</td><td>2026-07-01 10:30</td><td><button class="btn btn-default btn-sm" onclick="downloadAttachment(this,'租赁协议正本.pdf')">下载</button></td></tr>
+            <tr><td>📷 签约现场照片.jpg</td><td>图片</td><td>1.8 MB</td><td>张三</td><td>2026-07-01 10:30</td><td><button class="btn btn-default btn-sm" onclick="downloadAttachment(this,'签约现场照片.jpg')">下载</button></td></tr>
+            <tr><td>📄 企业营业执照.pdf</td><td>证件</td><td>0.5 MB</td><td>刘洋</td><td>2026-07-01 09:15</td><td><button class="btn btn-default btn-sm" onclick="downloadAttachment(this,'企业营业执照.pdf')">下载</button></td></tr>
+            <tr><td>📄 法人身份证.pdf</td><td>证件</td><td>0.8 MB</td><td>刘洋</td><td>2026-07-01 09:15</td><td><button class="btn btn-default btn-sm" onclick="downloadAttachment(this,'法人身份证.pdf')">下载</button></td></tr>
               </tbody>
             </table>
           </div>
@@ -493,6 +493,26 @@
         tl.parentNode.insertBefore(item,tl)
       }
       showToast('合同已签订','success')
+    }
+
+    // === 附件上传/下载 (mock) ===
+    function uploadAttachment(){
+      var filename = '附件_' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '.pdf'
+      showToast('上传中：'+filename+' ...','info')
+      setTimeout(function(){
+        showToast('上传成功：'+filename,'success')
+      }, 1200)
+    }
+    function downloadAttachment(btn, filename){
+      btn.disabled = true
+      var oldText = btn.textContent
+      btn.textContent = '下载中...'
+      showToast('下载中：'+filename,'info')
+      setTimeout(function(){
+        btn.textContent = oldText
+        btn.disabled = false
+        showToast('已下载：'+filename,'success')
+      }, 1500)
     }
   </script>
 </body>
