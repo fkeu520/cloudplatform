@@ -7,6 +7,10 @@
           <router-link to="/">智能问答</router-link>
           <router-link to="/knowledge">知识库</router-link>
           <router-link to="/dashboard">数据看板</router-link>
+          <router-link to="/sessions">会话管理</router-link>
+          <router-link to="/faqs">FAQ管理</router-link>
+          <router-link to="/settings">数据源</router-link>
+          <router-link to="/evaluation">评估</router-link>
         </nav>
         <span>知识库管理</span>
       </div>
