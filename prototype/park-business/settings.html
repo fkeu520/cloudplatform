@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>基础设置 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .setting-card{padding:24px;margin-bottom:16px}
+    .setting-card h3{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .setting-card .desc{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:16px;line-height:1.6}
+    .toggle{display:inline-block;width:44px;height:24px;background:var(--color-canvas-grouped);border-radius:12px;position:relative;cursor:pointer;transition:background 0.2s}
+    .toggle.on{background:var(--color-primary)}
+    .toggle .knob{position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left 0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+    .toggle.on .knob{left:22px}
+    .input-with-unit{display:flex;align-items:center;gap:8px}
+    .input-with-unit input{flex:1}
+    .input-with-unit .unit{color:var(--color-ink-tertiary);font-size:13px;width:60px}
+    .setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--color-divider)}
+    .setting-row:last-child{border-bottom:none}
+    .setting-row .info{flex:1}
+    .setting-row .info-label{font-size:14px;font-weight:500;margin-bottom:4px}
+    .setting-row .info-desc{font-size:12px;color:var(--color-ink-tertiary)}
+    .setting-row .control{width:240px}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: settings (基础设置)
+  版本: v1.0
+
+  数据源:
+  - pai业务: (park_id, retention_days, grace_days, leader_assign_enabled, employee_claim_enabled, max_hold_per_staff, release_after_deal)
+
+  API:
+  - GET /business/settings (获取基础设置)
+  - PUT /business/settings (更新基础设置)
+
+  权限点:
+  - business:settings:view
+  - business:settings:edit
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">基础设置</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <div class="page-title">基础设置</div>
+
+    <div style="background:var(--color-primary-pale);border-radius:var(--rounded-md);padding:12px 20px;margin-bottom:16px;font-size:13px;color:var(--color-ink-secondary)">
+      💡 基础设置影响整个招商管理模块的规则。请谨慎修改，修改后立即生效。
+    </div>
+
+    <!-- 1. 客户保留期限 -->
+    <div class="card setting-card">
+      <h3>⏰ 客户保留期限</h3>
+      <div class="desc">客户分配给员工后，超过保留期限未跟进则进入宽限期。宽限期结束后仍未跟进将自动回收至公海池。</div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">客户保留期限 <span class="field-source">biz_setting.retention_days</span></div>
+          <div class="info-desc">客户分配后多久未跟进进入宽限期</div>
+        </div>
+        <div class="control">
+          <div class="input-with-unit">
+            <input type="number" value="30" min="1" max="365">
+            <span class="unit">天</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 宽限期设置 -->
+    <div class="card setting-card">
+      <h3>⌛ 宽限期设置</h3>
+      <div class="desc">客户超过保留期限后，进入宽限期。宽限期内若产生有效跟进，则重新计时。</div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">宽限期时长 <span class="field-source">biz_setting.grace_days</span></div>
+          <div class="info-desc">超过保留期限后给员工的额外保护期</div>
+        </div>
+        <div class="control">
+          <div class="input-with-unit">
+            <input type="number" value="7" min="1" max="30">
+            <span class="unit">天</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">宽限期内提醒</div>
+          <div class="info-desc">每日提醒即将到期的客户</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">回收前自动通知</div>
+          <div class="info-desc">回收前 1 天通过微信/站内信通知员工</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 分配规则 -->
+    <div class="card setting-card">
+      <h3>📋 分配规则</h3>
+      <div class="desc">决定客户进入公海后如何分配给员工。</div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">领导分配 <span class="field-source">biz_setting.leader_assign_enabled</span></div>
+          <div class="info-desc">招商经理可主动分配客户给指定员工</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">员工领取 <span class="field-source">biz_setting.employee_claim_enabled</span></div>
+          <div class="info-desc">员工可主动从公海池领取客户</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">领取后限制</div>
+          <div class="info-desc">员工领取后 N 天内不可退回公海</div>
+        </div>
+        <div class="control">
+          <div class="input-with-unit">
+            <input type="number" value="15" min="0" max="90">
+            <span class="unit">天</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">领取后首次跟进时限</div>
+          <div class="info-desc">领取后多久内必须有首次跟进，否则自动回收</div>
+        </div>
+        <div class="control">
+          <div class="input-with-unit">
+            <input type="number" value="48" min="1">
+            <span class="unit">小时</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 公海保有规则 -->
+    <div class="card setting-card">
+      <h3>🌐 公海保有规则</h3>
+      <div class="desc">员工手中允许保有的客户数量上限，避免资源囤积。</div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">员工最多保有 <span class="field-source">biz_setting.max_hold_per_staff</span></div>
+          <div class="info-desc">每个员工手中允许保有的最多客户数（含跟进中+已签协议未转化）</div>
+        </div>
+        <div class="control">
+          <div class="input-with-unit">
+            <input type="number" value="50" min="1" max="500">
+            <span class="unit">个客户</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">成交释放保有量 <span class="field-source">biz_setting.release_after_deal</span></div>
+          <div class="info-desc">每成交 1 单，释放 1 个保有名额（员工可继续领取新客户）</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">VIP 客户不计入保有量</div>
+          <div class="info-desc">A 类 VIP 客户不占保有名额（需配合客户分级使用）</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">超限提醒</div>
+          <div class="info-desc">员工接近保有上限时提醒（如 80%）</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 客户分级（v1.2 行业对标补充） -->
+    <div class="card setting-card">
+      <h3>👑 客户分级（v1.2 新增）</h3>
+      <div class="desc">按客户重要性分级，决定资源分配优先级。</div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">客户分级自动评估</div>
+          <div class="info-desc">根据客户规模、行业、预算自动评估 A/B/C/D 等级</div>
+        </div>
+        <div class="control">
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">A 类门槛（VIP）</div>
+          <div class="info-desc">注册资本/营收达到此标准</div>
+        </div>
+        <div class="control">
+          <div class="input-with-unit">
+            <input type="number" value="10000" min="0">
+            <span class="unit">万元</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. 通知设置 -->
+    <div class="card setting-card">
+      <h3>🔔 通知设置</h3>
+      <div class="desc">关键事件的通知规则。</div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">新线索入池</div>
+          <div class="info-desc">有新线索进入公海时通知招商经理</div>
+        </div>
+        <div class="control">
+          <label class="checkbox-item"><input type="checkbox" checked>站内信</label>
+          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" checked>微信</label>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">签约成功</div>
+          <div class="info-desc">团队成员签约成功时全员通知</div>
+        </div>
+        <div class="control">
+          <label class="checkbox-item"><input type="checkbox" checked>站内信</label>
+          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox">微信</label>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <div class="info">
+          <div class="info-label">跟进超期</div>
+          <div class="info-desc">客户跟进超期时通知员工和上级</div>
+        </div>
+        <div class="control">
+          <label class="checkbox-item"><input type="checkbox" checked>站内信</label>
+          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" checked>邮件</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div style="position:sticky;bottom:0;background:var(--color-canvas-elevated);padding:16px 24px;border-top:1px solid var(--color-divider);margin:24px -24px -20px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-default" onclick="if(confirm('重置为默认值？')) alert('已重置')">恢复默认</button>
+      <!-- {{perm:business:settings:edit}} -->
+      <button class="btn btn-primary" onclick="saveSettings()">💾 保存设置</button>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    function toggleSwitch(el){
+      el.classList.toggle('on')
+    }
+    function saveSettings(){
+      if(confirm('确认保存所有设置？保存后立即生效')){
+        alert('设置已保存')
+      }
+    }
+  </script>
+</body>
+</html>

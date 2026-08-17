@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商机详情 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .opp-header{background:linear-gradient(135deg,#007AFF,#5AC8FA);color:#fff;padding:24px;border-radius:var(--rounded-md);margin-bottom:16px;box-shadow:var(--shadow-card)}
+    .opp-header h2{font-size:20px;font-weight:600;margin-bottom:8px}
+    .opp-header .meta{display:flex;gap:24px;font-size:13px;opacity:0.95;margin-top:8px;flex-wrap:wrap}
+    .opp-header .meta-item{display:flex;align-items:center;gap:6px}
+    .opp-header .action-bar{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+    .opp-header .action-bar .btn{background:rgba(255,255,255,0.95);color:var(--color-primary)}
+    .opp-header .action-bar .btn:hover{background:#fff}
+    .timeline-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-divider)}
+    .timeline-item:last-child{border-bottom:none}
+    .timeline-item .dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;background:var(--color-primary-pale);color:var(--color-primary)}
+    .timeline-item .dot.success{background:#d1f7d1;color:var(--color-positive-deep)}
+    .timeline-item .info{flex:1}
+    .timeline-item .info .title{font-size:13px;font-weight:500;margin-bottom:2px}
+    .timeline-item .info .desc{font-size:12px;color:var(--color-ink-secondary);margin-bottom:2px}
+    .timeline-item .info .time{font-size:11px;color:var(--color-ink-tertiary)}
+    .comp-card{padding:12px;border:1px solid var(--color-divider);border-radius:var(--rounded-md);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    .comp-card .name{font-size:14px;font-weight:500}
+    .comp-card .progress{font-size:12px;color:var(--color-ink-tertiary)}
+    .schedule-card{padding:12px;border-left:3px solid var(--color-primary);background:var(--color-primary-pale);border-radius:0 var(--rounded-sm) var(--rounded-sm) 0;margin-bottom:8px}
+    .schedule-card .title{font-size:14px;font-weight:500;margin-bottom:4px}
+    .schedule-card .time{font-size:12px;color:var(--color-ink-secondary)}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: opportunity-detail (商机详情)
+  版本: v1.0
+
+  数据源:
+  - 商机: pai_business.opportunity
+  - 跟进: pai_business.communication
+  - 联系人: pai_business.contacts
+  - 竞争对手: pai_business.competitor
+  - 日程: pai_business.schedule
+  - 协议: pai_business.agreement
+
+  API:
+  - GET /business/opportunity/{id}
+  - POST /business/opportunity/{id}/followup (添加跟进：沟通/预约看房/带看)
+  - POST /business/opportunity/{id}/schedule (添加日程)
+  - POST /business/opportunity/{id}/competitor (添加竞争对手)
+  - POST /business/opportunity/{id}/return-pool (退回公海)
+  - POST /business/opportunity/{id}/terminate (商机终止)
+  - POST /business/opportunity/{id}/agreement (签订协议)
+
+  权限点:
+  - business:opportunity:view
+  - business:opportunity:followup
+  - business:opportunity:schedule
+  - business:opportunity:competitor
+  - business:opportunity:return-pool
+  - business:opportunity:terminate
+  - business:opportunity:agreement
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb" onclick="parent.loadPage('park-business/opportunity.html','商机管理','park-business')" style="cursor:pointer">商机管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">租赁意向-A栋3层</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <!-- 商机头部卡片 -->
+    <div class="opp-header">
+      <h2>💼 租赁意向-A栋3层</h2>
+      <div style="font-size:13px;opacity:0.95">商机编号: OPP-2026-0813-001</div>
+      <div class="meta">
+        <div class="meta-item">🏢 深圳前海科技发展有限公司</div>
+        <div class="meta-item">📍 A栋3层301室</div>
+        <div class="meta-item">📐 200 ㎡</div>
+        <div class="meta-item">💰 80 元/㎡/月</div>
+        <div class="meta-item">👤 跟进人: 张三</div>
+        <div class="meta-item">📅 创建: 2026-08-13</div>
+        <div class="meta-item">⏱️ 最近跟进: 2026-08-14</div>
+      </div>
+      <div class="action-bar">
+        <!-- {{perm:business:opportunity:return-pool}} -->
+        <button class="btn btn-warning btn-sm" onclick="returnPool()">↩️ 退回公海</button>
+        <!-- {{perm:business:opportunity:terminate}} -->
+        <button class="btn btn-danger btn-sm" onclick="terminate()">⛔ 商机终止</button>
+        <!-- {{perm:business:opportunity:agreement}} -->
+        <button class="btn btn-success btn-sm" onclick="parent.loadPage('park-business/agreement.html','协议管理','park-business')">📄 签订协议</button>
+      </div>
+    </div>
+
+    <!-- Tab 栏 -->
+    <div class="tabs-bar">
+      <div class="tab active" onclick="switchTab(this,'tab-overview')">商机概览</div>
+      <div class="tab" onclick="switchTab(this,'tab-followup')">商机跟进 <span class="badge-count">8</span></div>
+      <div class="tab" onclick="switchTab(this,'tab-schedule')">日程管理 <span class="badge-count">3</span></div>
+      <div class="tab" onclick="switchTab(this,'tab-competitor')">竞争对手 <span class="badge-count">2</span></div>
+      <div class="tab" onclick="switchTab(this,'tab-contacts')">商机联系人</div>
+      <div class="tab" onclick="switchTab(this,'tab-intent')">客户意向</div>
+    </div>
+
+    <div class="tabs-content">
+      <!-- Tab: 商机概览 -->
+      <div class="tab-pane active" id="tab-overview">
+        <div class="section-title">📋 商机基本信息</div>
+        <div class="descriptions cols-3">
+          <div class="item">
+            <div class="label">商机名称 <span class="field-source">opportunity.name</span></div>
+            <div class="value">租赁意向-A栋3层</div>
+          </div>
+          <div class="item">
+            <div class="label">业务类型 <span class="field-source">opportunity.business_type</span></div>
+            <div class="value"><span class="badge badge-info">租赁业务</span></div>
+          </div>
+          <div class="item">
+            <div class="label">商机状态</div>
+            <div class="value"><span class="badge badge-active">跟进中</span></div>
+          </div>
+          <div class="item">
+            <div class="label">所属企业 <span class="field-source">opportunity.enterprise_id</span></div>
+            <div class="value">深圳前海科技发展有限公司</div>
+          </div>
+          <div class="item">
+            <div class="label">意向房源 <span class="field-source">opportunity.house_id</span></div>
+            <div class="value">A栋3层301室</div>
+          </div>
+          <div class="item">
+            <div class="label">需求面积 <span class="field-source">opportunity.demand_area</span></div>
+            <div class="value">200 ㎡</div>
+          </div>
+          <div class="item">
+            <div class="label">意向价格 <span class="field-source">opportunity.intend_price</span></div>
+            <div class="value">80 元/㎡/月</div>
+          </div>
+          <div class="item">
+            <div class="label">跟进人 <span class="field-source">opportunity.owner_id</span></div>
+            <div class="value">张三（招商一部）</div>
+          </div>
+          <div class="item">
+            <div class="label">创建时间</div>
+            <div class="value mono">2026-08-13 16:00</div>
+          </div>
+        </div>
+
+        <div class="section-title">📊 商机关键指标</div>
+        <div class="descriptions cols-4">
+          <div class="item">
+            <div class="label">跟进次数</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-primary)">8</div>
+          </div>
+          <div class="item">
+            <div class="label">带看次数</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-primary)">2</div>
+          </div>
+          <div class="item">
+            <div class="label">日程数</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-ink)">3</div>
+          </div>
+          <div class="item">
+            <div class="label">竞争对手</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:#FF9500">2</div>
+          </div>
+        </div>
+
+        <div class="section-title">📝 备注说明</div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--color-divider);padding:16px">
+          <p style="font-size:14px;color:var(--color-ink-secondary);line-height:1.8">
+            客户对 A 栋 3 层 301 室有较强烈意向，预算 80 元/㎡/月。已带看 2 次，客户对户型和位置满意。
+            主要决策人为刘洋（总经理），态度支持。预计决策周期 2 周。下一步：提交报价方案，约第三次面谈。
+          </p>
+        </div>
+      </div>
+
+      <!-- Tab: 商机跟进 -->
+      <div class="tab-pane" id="tab-followup">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">商机跟进记录（沟通/预约看房/带看）</h3>
+          <!-- {{perm:business:opportunity:followup}} -->
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-default btn-sm" onclick="openFollowupDialog('PHONE')">📞 沟通</button>
+            <button class="btn btn-default btn-sm" onclick="openFollowupDialog('BOOK')">📅 预约看房</button>
+            <button class="btn btn-default btn-sm" onclick="openFollowupDialog('SHOW')">🚶 带看</button>
+            <button class="btn btn-primary btn-sm" onclick="openFollowupDialog('OTHER')">➕ 其他</button>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">🚶 带看 - A栋3层301室</div>
+            <div class="desc">第二次带看，客户对户型、采光满意。客户关注电梯数量和空调系统配置</div>
+            <div class="time">2026-08-14 14:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">📅 预约看房 - A栋3层301室</div>
+            <div class="desc">客户通过微信预约 8 月 14 日下午看房</div>
+            <div class="time">2026-08-13 18:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot">📞</div>
+          <div class="info">
+            <div class="title">📞 电话沟通</div>
+            <div class="desc">电话沟通租赁方案，客户对价格敏感，期望在 75-80 元/㎡/月 区间</div>
+            <div class="time">2026-08-13 15:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">🚶 带看 - A栋3层301室</div>
+            <div class="desc">首次带看，介绍园区配套、入驻企业情况</div>
+            <div class="time">2026-08-13 10:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot">📞</div>
+          <div class="info">
+            <div class="title">📞 电话沟通</div>
+            <div class="desc">确认客户意向真实有效，介绍园区招商政策</div>
+            <div class="time">2026-08-11 14:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">💼 商机转化</div>
+            <div class="desc">从线索客户转化为商机，业务类型：租赁业务</div>
+            <div class="time">2026-08-13 16:00 · 张三</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 日程管理 -->
+      <div class="tab-pane" id="tab-schedule">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">日程管理（客户拜访/开会等日程安排）</h3>
+          <!-- {{perm:business:opportunity:schedule}} -->
+          <button class="btn btn-primary btn-sm" onclick="openScheduleDialog()">➕ 添加日程</button>
+        </div>
+
+        <div class="schedule-card">
+          <div class="title">📋 提交报价方案面谈</div>
+          <div class="time">📅 2026-08-18 14:00-15:30 · 📍 园区招商中心会议室</div>
+          <div style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">
+            👥 参与人: 张三、刘洋（客户）、陈静（客户） · 类型: 客户拜访
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <button class="btn btn-default btn-sm">编辑</button>
+            <button class="btn btn-danger btn-sm">取消</button>
+          </div>
+        </div>
+
+        <div class="schedule-card">
+          <div class="title">🚶 第三次带看 - 周边配套</div>
+          <div class="time">📅 2026-08-20 10:00-11:30 · 📍 园区周边</div>
+          <div style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">
+            👥 参与人: 张三、刘洋（客户） · 类型: 客户拜访
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <button class="btn btn-default btn-sm">编辑</button>
+            <button class="btn btn-danger btn-sm">取消</button>
+          </div>
+        </div>
+
+        <div class="schedule-card">
+          <div class="title">📊 部门周会 - 商机进度汇报</div>
+          <div class="time">📅 2026-08-15 09:00-10:00 · 📍 部门会议室</div>
+          <div style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">
+            👥 参与人: 张三、李四、王五、赵六 · 类型: 内部会议
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <button class="btn btn-default btn-sm">编辑</button>
+            <button class="btn btn-danger btn-sm">取消</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 竞争对手 -->
+      <div class="tab-pane" id="tab-competitor">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">竞争对手（对手信息描述、进度等情况）</h3>
+          <!-- {{perm:business:opportunity:competitor}} -->
+          <button class="btn btn-primary btn-sm" onclick="openCompetitorDialog()">➕ 添加竞争对手</button>
+        </div>
+
+        <div class="comp-card">
+          <div>
+            <div class="name">🏢 科技园 B 区</div>
+            <div class="progress">对方报价 70 元/㎡/月，面积可灵活分割，客户正在对比</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-default btn-sm">编辑</button>
+            <button class="btn btn-danger btn-sm">删除</button>
+          </div>
+        </div>
+
+        <div class="comp-card">
+          <div>
+            <div class="name">🏢 创新产业园 C 区</div>
+            <div class="progress">距离市区较远，租金低 20%，但客户对位置敏感</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-default btn-sm">编辑</button>
+            <button class="btn btn-danger btn-sm">删除</button>
+          </div>
+        </div>
+
+        <div class="empty-state" style="margin-top:16px">
+          <div class="icon">📊</div>
+          <div class="title">竞品分析建议</div>
+          <div class="desc">建议突出我园区的区位优势、企业聚集效应、配套服务</div>
+        </div>
+      </div>
+
+      <!-- Tab: 商机联系人 -->
+      <div class="tab-pane" id="tab-contacts">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">商机联系人</h3>
+          <button class="btn btn-primary btn-sm" onclick="openContactChangeDialog()">🔄 更换联系人</button>
+        </div>
+
+        <div class="descriptions cols-3">
+          <div class="item">
+            <div class="label">主联系人 <span class="field-source">opportunity.contact_id</span></div>
+            <div class="value">
+              <strong>刘洋</strong> <span class="badge badge-info">决策者</span>
+            </div>
+          </div>
+          <div class="item">
+            <div class="label">职务</div>
+            <div class="value">总经理</div>
+          </div>
+          <div class="item">
+            <div class="label">部门</div>
+            <div class="value">采购部</div>
+          </div>
+          <div class="item">
+            <div class="label">手机号</div>
+            <div class="value mono">138 0011 2233</div>
+          </div>
+          <div class="item">
+            <div class="label">邮箱</div>
+            <div class="value">liuyang@qianhai-tech.com</div>
+          </div>
+          <div class="item">
+            <div class="label">立场</div>
+            <div class="value"><span class="badge badge-success">支持</span></div>
+          </div>
+          <div class="item">
+            <div class="label">客情关系</div>
+            <div class="value"><span class="badge badge-info">良好</span></div>
+          </div>
+          <div class="item">
+            <div class="label">接触状态</div>
+            <div class="value"><span class="badge badge-info">多次接触</span></div>
+          </div>
+        </div>
+
+        <div class="section-title">👥 其他相关联系人</div>
+        <div class="descriptions cols-2">
+          <div class="item">
+            <div class="label">陈静 <span class="badge badge-default">影响者</span></div>
+            <div class="value">副总经理 · 运营部 · 139 0011 4455</div>
+            <div class="label" style="margin-top:8px">立场：<span class="badge badge-success">支持</span> · 接触：多次接触</div>
+          </div>
+          <div class="item">
+            <div class="label">王磊 <span class="badge badge-default">经办人</span></div>
+            <div class="value">行政专员 · 行政部 · 137 0011 6677</div>
+            <div class="label" style="margin-top:8px">立场：<span class="badge badge-warn">中立</span> · 接触：首次接触</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 客户意向 -->
+      <div class="tab-pane" id="tab-intent">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:20px">客户意向分析</h3>
+
+        <div class="section-title">💡 意向强度评估</div>
+        <div style="background:var(--color-primary-pale);border-radius:var(--rounded-md);padding:20px;margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong style="font-size:15px">综合意向评分</strong>
+            <span style="font-size:24px;font-weight:700;color:var(--color-primary)">82 分</span>
+          </div>
+          <div style="height:8px;background:#fff;border-radius:4px;overflow:hidden">
+            <div style="width:82%;height:100%;background:linear-gradient(90deg,#007AFF,#5AC8FA)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-secondary);margin-top:8px">
+            <span>需求匹配度 90%</span>
+            <span>预算匹配度 75%</span>
+            <span>决策人态度 支持</span>
+            <span>跟进频率 高</span>
+          </div>
+        </div>
+
+        <div class="section-title">📝 意向记录</div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--color-divider);padding:16px">
+          <p style="font-size:14px;line-height:1.8;color:var(--color-ink-secondary)">
+            <strong>客户明确意向：</strong>租赁 A 栋 3 层 301 室，面积 200㎡，可接受价格区间 75-85 元/㎡/月。<br>
+            <strong>决策时间：</strong>预计 2 周内决策。<br>
+            <strong>主要顾虑：</strong>1）电梯数量是否满足 50 人办公需求 2）空调系统配置 3）租金是否可优惠。<br>
+            <strong>竞争优势：</strong>我园区交通便利、周边配套齐全、聚集同行业企业。<br>
+            <strong>风险点：</strong>科技园 B 区报价更低，客户正在对比；需尽快提交详细方案。
+          </p>
+        </div>
+
+        <div class="section-title">🎯 下一步行动计划</div>
+        <div style="background:#FFE8C7;border-radius:var(--rounded-md);padding:16px">
+          <ol style="font-size:14px;line-height:2;color:var(--color-ink);padding-left:20px">
+            <li>本周内提交正式报价方案（含优惠策略）</li>
+            <li>约第三次面谈，介绍周边配套和企业聚集效应</li>
+            <li>协调工程部展示电梯和空调系统配置</li>
+            <li>邀请客户参观同行业入驻企业</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加跟进弹窗 -->
+  <div class="modal-overlay" id="followupModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="followupTitle">添加跟进</h3>
+        <button class="close" onclick="closeDialog('followupModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>跟进类型 <span class="required">*</span></label>
+            <select id="followupType">
+              <option value="PHONE">📞 沟通（电话/微信/邮件）</option>
+              <option value="BOOK">📅 预约看房</option>
+              <option value="SHOW">🚶 带看</option>
+              <option value="OTHER">其他</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>跟进时间</label>
+            <input type="datetime-local">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>跟进内容 <span class="required">*</span></label>
+            <textarea placeholder="详细记录跟进过程、客户反馈、下一步计划..." style="min-height:120px"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('followupModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('followupModal')">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加日程弹窗 -->
+  <div class="modal-overlay" id="scheduleModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>添加日程</h3>
+        <button class="close" onclick="closeDialog('scheduleModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>日程类型 <span class="required">*</span></label>
+            <select>
+              <option value="">请选择</option>
+              <option value="VISIT">客户拜访</option>
+              <option value="MEETING">开会</option>
+              <option value="OTHER">其他</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>日程主题 <span class="required">*</span></label>
+            <input type="text" placeholder="如：提交报价方案面谈">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>开始时间 <span class="required">*</span></label>
+            <input type="datetime-local">
+          </div>
+          <div class="col">
+            <label>结束时间 <span class="required">*</span></label>
+            <input type="datetime-local">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>地点</label>
+            <input type="text" placeholder="如：园区招商中心会议室">
+          </div>
+          <div class="col">
+            <label>参与人员</label>
+            <input type="text" placeholder="多个参与人以逗号分隔">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>日程详情</label>
+            <textarea placeholder="详细说明日程安排..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('scheduleModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('scheduleModal')">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加竞争对手弹窗 -->
+  <div class="modal-overlay" id="competitorModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>添加竞争对手</h3>
+        <button class="close" onclick="closeDialog('competitorModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>竞争对手名称 <span class="required">*</span></label>
+            <input type="text" placeholder="如：科技园B区、创新产业园C区">
+          </div>
+          <div class="col">
+            <label>对接状态</label>
+            <select>
+              <option>初步接触</option>
+              <option>深度沟通</option>
+              <option>方案对比</option>
+              <option>客户已选</option>
+              <option>客户已弃</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>对手信息描述 <span class="required">*</span></label>
+            <textarea placeholder="详细描述竞争对手情况：报价、面积、配套、政策等" style="min-height:80px"></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>竞争进度 <span class="required">*</span></label>
+            <select>
+              <option>客户初步了解</option>
+              <option>客户已实地考察</option>
+              <option>对手已提交方案</option>
+              <option>客户正在对比</option>
+              <option>客户已倾向对手</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>我方应对策略</label>
+            <textarea placeholder="针对此竞争对手，我方的应对措施"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('competitorModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('competitorModal')">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 更换联系人弹窗 -->
+  <div class="modal-overlay" id="contactChangeModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>更换联系人</h3>
+        <button class="close" onclick="closeDialog('contactChangeModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>选择新联系人 <span class="required">*</span></label>
+            <select>
+              <option value="">请选择该企业的联系人</option>
+              <option>刘洋（决策者）</option>
+              <option>陈静（影响者）</option>
+              <option>王磊（经办人）</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>更换原因</label>
+            <textarea placeholder="如：原联系人生病，由同事接手"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('contactChangeModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('contactChangeModal')">确认更换</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    function switchTab(el, paneId){
+      document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') })
+      el.classList.add('active')
+      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active') })
+      document.getElementById(paneId).classList.add('active')
+    }
+    function openFollowupDialog(type){
+      var titles = {PHONE:'添加跟进 - 沟通', BOOK:'添加跟进 - 预约看房', SHOW:'添加跟进 - 带看', OTHER:'添加跟进'}
+      document.getElementById('followupTitle').textContent = titles[type] || '添加跟进'
+      document.getElementById('followupType').value = type
+      document.getElementById('followupModal').classList.add('show')
+    }
+    function openScheduleDialog(){ document.getElementById('scheduleModal').classList.add('show') }
+    function openCompetitorDialog(){ document.getElementById('competitorModal').classList.add('show') }
+    function openContactChangeDialog(){ document.getElementById('contactChangeModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+    function returnPool(){ if(confirm('确认将此商机退回公海池？')) alert('已退回公海') }
+    function terminate(){
+      if(confirm('确认终止此商机？\n终止原因将记录在案。')){
+        var reason = prompt('请输入终止原因：', '客户选择其他园区')
+        if(reason) alert('商机已终止，原因：' + reason)
+      }
+    }
+  </script>
+</body>
+</html>

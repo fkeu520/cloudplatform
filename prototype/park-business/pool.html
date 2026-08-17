@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公海池 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .col-checkbox{width:40px}
+    .col-checkbox input{width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer}
+    .bulk-bar{display:none;align-items:center;gap:var(--space-md);padding:var(--space-md) var(--space-lg);background:var(--color-primary-pale);border-radius:var(--rounded-sm);margin-bottom:var(--space-md)}
+    .bulk-bar.show{display:flex}
+    .bulk-bar .count{font-size:13px;color:var(--color-primary);font-weight:500}
+    .stat-card{padding:20px}
+    .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
+    .stat-card .num{font-size:28px;font-weight:700;color:var(--color-ink)}
+    .stat-card .sub{font-size:12px;color:var(--color-ink-tertiary);margin-top:4px}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: pool (公海池)
+  版本: v1.0
+
+  数据源:
+  - 主表: pai_business.clue_enterprise (线索客户)
+  - 客户来源字典: sys_dict (source)
+  - 分配记录: pai_business.client_handover
+
+  API:
+  - GET /business/pool/page (公海池分页查询)
+  - POST /business/pool (新增客户入池)
+  - POST /business/pool/{id}/assign (分配给跟进人)
+  - POST /business/pool/{id}/claim (认领)
+  - DELETE /business/pool/{id} (删除→回收站)
+  - GET /business/pool/log (公海日志)
+
+  权限点:
+  - business:pool:view (查看)
+  - business:pool:add (新增客户)
+  - business:pool:assign (分配)
+  - business:pool:claim (认领)
+  - business:pool:delete (删除)
+  - business:pool:log (公海日志)
+  -->
+
+  <!-- 面包屑 -->
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">公海池</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <div class="page-title">公海池</div>
+
+    <!-- 统计卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px">
+      <div class="card stat-card">
+        <div class="label">公海客户总数</div>
+        <div class="num">128</div>
+        <div class="sub">待分配跟进</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">今日入池</div>
+        <div class="num" style="color:#FF9500">+12</div>
+        <div class="sub">2026-08-14</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">今日分配</div>
+        <div class="num" style="color:#34C759">8</div>
+        <div class="sub">已指派跟进人</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">今日认领</div>
+        <div class="num" style="color:var(--color-primary)">5</div>
+        <div class="sub">员工主动认领</div>
+      </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="card" style="padding:16px 20px;margin-bottom:16px">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" placeholder="企业名称 / 联系人">
+          <input type="text" placeholder="手机号码">
+          <select>
+            <option value="">全部来源</option>
+            <option value="1">自行录入</option>
+            <option value="2">小程序登记</option>
+            <option value="3">批量导入</option>
+            <option value="4">活动收集</option>
+          </select>
+          <select>
+            <option value="">全部状态</option>
+            <option value="0">待分配</option>
+            <option value="1">已分配</option>
+          </select>
+          <button class="btn btn-primary">🔍 搜索</button>
+          <button class="btn btn-default">重置</button>
+        </div>
+        <div class="search-actions">
+          <button class="btn btn-default" onclick="parent.loadPage('park-business/pool-log.html','公海日志','park-business')">📋 公海日志</button>
+          <!-- {{perm:business:pool:add}} -->
+          <button class="btn btn-primary" onclick="openAddDialog()">➕ 新增客户</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量操作条 -->
+    <div class="bulk-bar" id="bulkBar">
+      <span class="count">已选 <span id="selectedCount">0</span> 项</span>
+      <!-- {{perm:business:pool:assign}} -->
+      <button class="btn btn-primary btn-sm" onclick="batchAssign()">批量分配</button>
+      <button class="btn btn-default btn-sm" style="margin-left:auto" onclick="clearSelection()">取消选择</button>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-checkbox"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+              <th>企业名称</th>
+              <th>联系人</th>
+              <th>手机号码</th>
+              <th>客户来源</th>
+              <th>入池时间</th>
+              <th>入池原因</th>
+              <th>状态</th>
+              <th style="width:140px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="dataTable">
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">深圳智云科技有限公司</a></td>
+              <td>张伟</td>
+              <td>138 8888 8881</td>
+              <td><span class="badge badge-info">小程序登记</span></td>
+              <td>2026-08-10</td>
+              <td>无人跟进超期回收</td>
+              <td><span class="badge badge-warn">待分配</span></td>
+              <td>
+                <!-- {{perm:business:pool:assign}} -->
+                <button class="btn btn-primary btn-sm" onclick="openAssignDialog()">分配</button>
+                <!-- {{perm:business:pool:claim}} -->
+                <button class="btn btn-default btn-sm" onclick="claim(this)">认领</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">广州创芯电子有限公司</a></td>
+              <td>李芳</td>
+              <td>139 8888 8882</td>
+              <td><span class="badge badge-info">自行录入</span></td>
+              <td>2026-08-11</td>
+              <td>新录入未分配</td>
+              <td><span class="badge badge-warn">待分配</span></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openAssignDialog()">分配</button>
+                <button class="btn btn-default btn-sm" onclick="claim(this)">认领</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">东莞宏达机械制造有限公司</a></td>
+              <td>王强</td>
+              <td>137 8888 8883</td>
+              <td><span class="badge badge-info">批量导入</span></td>
+              <td>2026-08-12</td>
+              <td>导入待分配</td>
+              <td><span class="badge badge-warn">待分配</span></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openAssignDialog()">分配</button>
+                <button class="btn btn-default btn-sm" onclick="claim(this)">认领</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">佛山德盛金属制品有限公司</a></td>
+              <td>赵敏</td>
+              <td>136 8888 8884</td>
+              <td><span class="badge badge-info">活动收集</span></td>
+              <td>2026-08-13</td>
+              <td>展会收集</td>
+              <td><span class="badge badge-warn">待分配</span></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openAssignDialog()">分配</button>
+                <button class="btn btn-default btn-sm" onclick="claim(this)">认领</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">中山市恒通电器有限公司</a></td>
+              <td>陈刚</td>
+              <td>135 8888 8885</td>
+              <td><span class="badge badge-info">小程序登记</span></td>
+              <td>2026-08-14</td>
+              <td>意向登记转公海</td>
+              <td><span class="badge badge-warn">待分配</span></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openAssignDialog()">分配</button>
+                <button class="btn btn-default btn-sm" onclick="claim(this)">认领</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="info">共 <span>128</span> 条记录，每页 10 条</div>
+        <div class="pages">
+          <button class="disabled">‹</button>
+          <button class="active">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>...</button>
+          <button>13</button>
+          <button>›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 新增客户弹窗 -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>新增客户入池</h3>
+        <button class="close" onclick="closeDialog('addModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">📋 客户基本信息</div>
+        <div class="form-row">
+          <div class="col">
+            <label>企业名称 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入企业名称">
+            <div class="field-source">clue_enterprise.name</div>
+          </div>
+          <div class="col">
+            <label>联系人 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入联系人姓名">
+            <div class="field-source">clue_enterprise.contact_name</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>手机号码 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入手机号码" maxlength="11">
+            <div class="field-source">clue_enterprise.contact_phone</div>
+          </div>
+          <div class="col">
+            <label>客户来源</label>
+            <select>
+              <option value="">请选择</option>
+              <option value="1">自行录入</option>
+              <option value="2">小程序登记</option>
+              <option value="3">批量导入</option>
+              <option value="4">活动收集</option>
+            </select>
+            <div class="field-source">clue_enterprise.source</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>性别</label>
+            <select>
+              <option value="">请选择</option>
+              <option value="1">男</option>
+              <option value="2">女</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>生日</label>
+            <input type="date">
+          </div>
+          <div class="col">
+            <label>职务</label>
+            <input type="text" placeholder="如：总经理">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>部门</label>
+            <input type="text" placeholder="如：采购部">
+          </div>
+          <div class="col">
+            <label>职责描述</label>
+            <input type="text" placeholder="职责描述">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>备注</label>
+            <textarea placeholder="其他信息备注"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('addModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('addModal')">保存入池</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 分配弹窗 -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="assignModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>分配跟进人</h3>
+        <button class="close" onclick="closeDialog('assignModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>跟进人 <span class="required">*</span></label>
+            <select>
+              <option value="">请选择跟进人</option>
+              <option>张三（招商一部）</option>
+              <option>李四（招商一部）</option>
+              <option>王五（招商二部）</option>
+              <option>赵六（招商二部）</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>分配备注</label>
+            <textarea placeholder="分配备注说明"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('assignModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('assignModal')">确认分配</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
+    function openAddDialog(){ document.getElementById('addModal').classList.add('show') }
+    function openAssignDialog(){ document.getElementById('assignModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+
+    function toggleAll(checkbox){
+      document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = checkbox.checked })
+      updateBulkBar()
+    }
+    function updateBulkBar(){
+      var checked = document.querySelectorAll('.row-check:checked').length
+      var bar = document.getElementById('bulkBar')
+      if(checked > 0){ bar.classList.add('show'); document.getElementById('selectedCount').textContent = checked }
+      else{ bar.classList.remove('show') }
+      var all = document.getElementById('checkAll')
+      if(all) all.checked = checked > 0 && checked === document.querySelectorAll('.row-check').length
+    }
+    function clearSelection(){
+      document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = false })
+      document.getElementById('checkAll').checked = false
+      updateBulkBar()
+    }
+    function batchAssign(){ openAssignDialog() }
+    function claim(btn){
+      if(confirm('确认认领此客户到我的客户列表？')){
+        btn.closest('tr').style.opacity = '0.4'
+        btn.disabled = true
+        btn.textContent = '已认领'
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户档案 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .timeline-item{display:flex;gap:16px;margin-bottom:0;padding:16px 0;border-bottom:1px solid var(--color-divider)}
+    .timeline-item:last-child{border-bottom:none}
+    .timeline-item .dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--color-primary-pale);color:var(--color-primary)}
+    .timeline-item .dot.success{background:#d1f7d1;color:var(--color-positive-deep)}
+    .timeline-item .dot.warn{background:#FFE8C7;color:var(--color-warning-deep)}
+    .timeline-item .info{flex:1}
+    .timeline-item .info .title{font-size:14px;font-weight:500;margin-bottom:4px}
+    .timeline-item .info .desc{font-size:13px;color:var(--color-ink-secondary);margin-bottom:4px}
+    .timeline-item .info .time{font-size:12px;color:var(--color-ink-tertiary)}
+    .contact-card{padding:16px;border:1px solid var(--color-divider);border-radius:var(--rounded-md);margin-bottom:12px}
+    .contact-card .name{font-size:15px;font-weight:600;margin-bottom:4px}
+    .contact-card .role{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
+    .contact-card .info{font-size:13px;color:var(--color-ink-secondary);line-height:1.8}
+    .opp-card{padding:16px;border:1px solid var(--color-divider);border-radius:var(--rounded-md);margin-bottom:12px;cursor:pointer;transition:all 0.15s}
+    .opp-card:hover{border-color:var(--color-primary);box-shadow:var(--shadow-md)}
+    .opp-card .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .opp-card .header .name{font-size:15px;font-weight:600}
+    .opp-card .body{font-size:13px;color:var(--color-ink-secondary);line-height:1.8}
+    .milestone-bar{display:flex;align-items:center;gap:0;margin-bottom:24px;overflow-x:auto}
+    .milestone-bar .ms-item{display:flex;align-items:center;gap:0;flex-shrink:0}
+    .milestone-bar .ms-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--color-canvas-grouped);color:var(--color-ink-tertiary);border:2px solid var(--color-divider)}
+    .milestone-bar .ms-dot.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+    .milestone-bar .ms-dot.done{background:#34C759;color:#fff;border-color:#34C759}
+    .milestone-bar .ms-label{font-size:11px;color:var(--color-ink-tertiary);margin-left:6px;white-space:nowrap}
+    .milestone-bar .ms-label.active{color:var(--color-primary);font-weight:500}
+    .milestone-bar .ms-line{width:40px;height:2px;background:var(--color-divider);margin:0 4px}
+    .milestone-bar .ms-line.done{background:#34C759}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: customer-detail (客户档案/客户详情)
+  版本: v1.0
+
+  数据源:
+  - 客户: clue_enterprise
+  - 联系人: contacts
+  - 商机: opportunity
+  - 沟通记录: communication
+  - 时间轴: lifecycle_log
+
+  API:
+  - GET /business/customer/{id} (详情)
+  - POST /business/customer/{id}/contact (添加联系人)
+  - POST /business/customer/{id}/communication (添加跟进记录)
+  - PUT /business/customer/{id}/mark (标记有效/无效)
+
+  权限点:
+  - business:customer:view
+  - business:customer:contact:add
+  - business:customer:communication:add
+  - business:customer:mark
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">客户档案</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <!-- 顶部信息 -->
+    <div class="top-info">
+      <div class="name">
+        深圳前海科技发展有限公司
+        <span class="badge badge-success">有效</span>
+        <span class="badge badge-info">跟进中</span>
+      </div>
+      <div class="alias">简称：前海科技 · 来源：公海分配 · 跟进人：张三</div>
+      <div class="meta-row">
+        <div class="meta-item">
+          <span class="meta-label">联系人：</span>
+          <span class="meta-value">刘洋</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">手机号：</span>
+          <span class="meta-value">138 0011 2233</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">入池时间：</span>
+          <span class="meta-value">2026-08-10</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">最近跟进：</span>
+          <span class="meta-value">2026-08-13</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 生命周期里程碑 -->
+    <div class="card" style="padding:20px 24px;margin-bottom:16px">
+      <div class="section-title" style="margin-top:0">🛤️ 生命周期里程碑</div>
+      <div class="milestone-bar">
+        <div class="ms-item">
+          <div class="ms-dot done">✓</div><span class="ms-label">线索入池</span>
+        </div>
+        <div class="ms-line done"></div>
+        <div class="ms-item">
+          <div class="ms-dot done">✓</div><span class="ms-label">分配跟进</span>
+        </div>
+        <div class="ms-line done"></div>
+        <div class="ms-item">
+          <div class="ms-dot done">✓</div><span class="ms-label">标记有效</span>
+        </div>
+        <div class="ms-line done"></div>
+        <div class="ms-item">
+          <div class="ms-dot active">●</div><span class="ms-label active">商机转化</span>
+        </div>
+        <div class="ms-line"></div>
+        <div class="ms-item">
+          <div class="ms-dot">5</div><span class="ms-label">签订协议</span>
+        </div>
+        <div class="ms-line"></div>
+        <div class="ms-item">
+          <div class="ms-dot">6</div><span class="ms-label">合同签订</span>
+        </div>
+        <div class="ms-line"></div>
+        <div class="ms-item">
+          <div class="ms-dot">7</div><span class="ms-label">入驻</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 栏 -->
+    <div class="tabs-bar">
+      <div class="tab active" onclick="switchTab(this,'tab-info')">客户基本信息</div>
+      <div class="tab" onclick="switchTab(this,'tab-contacts')">联系人 <span class="badge-count">3</span></div>
+      <div class="tab" onclick="switchTab(this,'tab-leads')">线索管理</div>
+      <div class="tab" onclick="switchTab(this,'tab-opportunity')">商机管理 <span class="badge-count">2</span></div>
+      <div class="tab" onclick="switchTab(this,'tab-timeline')">时间轴</div>
+      <div class="tab" onclick="switchTab(this,'tab-related')">相关业务数据</div>
+    </div>
+
+    <div class="tabs-content">
+      <!-- Tab: 客户基本信息 -->
+      <div class="tab-pane active" id="tab-info">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">客户基本信息</h3>
+          <div style="display:flex;gap:8px">
+            <!-- {{perm:business:customer:mark}} -->
+            <button class="btn btn-success btn-sm" onclick="markValid()">✓ 标记有效</button>
+            <button class="btn btn-danger btn-sm" onclick="markInvalid()">✗ 标记无效</button>
+          </div>
+        </div>
+        <div class="descriptions">
+          <div class="item">
+            <div class="label">企业名称 <span class="field-source">clue_enterprise.name</span></div>
+            <div class="value">深圳前海科技发展有限公司</div>
+          </div>
+          <div class="item">
+            <div class="label">联系人 <span class="field-source">clue_enterprise.contact_name</span></div>
+            <div class="value">刘洋</div>
+          </div>
+          <div class="item">
+            <div class="label">手机号码 <span class="field-source">clue_enterprise.contact_phone</span></div>
+            <div class="value mono">138 0011 2233</div>
+          </div>
+          <div class="item">
+            <div class="label">客户来源 <span class="field-source">clue_enterprise.source</span></div>
+            <div class="value">公海分配</div>
+          </div>
+          <div class="item">
+            <div class="label">线索状态</div>
+            <div class="value"><span class="badge badge-success">有效</span></div>
+          </div>
+          <div class="item">
+            <div class="label">跟进人</div>
+            <div class="value">张三（招商一部）</div>
+          </div>
+          <div class="item">
+            <div class="label">性别</div>
+            <div class="value">男</div>
+          </div>
+          <div class="item">
+            <div class="label">生日</div>
+            <div class="value">1985-06-15</div>
+          </div>
+          <div class="item">
+            <div class="label">部门</div>
+            <div class="value">采购部</div>
+          </div>
+          <div class="item">
+            <div class="label">职务</div>
+            <div class="value">总经理</div>
+          </div>
+          <div class="item">
+            <div class="label">职责描述</div>
+            <div class="value">负责公司采购决策</div>
+          </div>
+          <div class="item">
+            <div class="label">入池时间</div>
+            <div class="value mono">2026-08-10 14:30</div>
+          </div>
+          <div class="item full">
+            <div class="label">备注</div>
+            <div class="value">客户对 A 栋 3 层有较强烈意向，预算 200 万/年，决策周期约 1 个月。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 联系人 -->
+      <div class="tab-pane" id="tab-contacts">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">联系人列表</h3>
+          <!-- {{perm:business:customer:contact:add}} -->
+          <button class="btn btn-primary btn-sm" onclick="openContactDialog()">➕ 添加联系人</button>
+        </div>
+
+        <div class="contact-card">
+          <div class="name">刘洋 <span class="badge badge-info">决策者</span></div>
+          <div class="role">总经理 · 采购部</div>
+          <div class="info">
+            📱 138 0011 2233 &nbsp;|&nbsp; 📧 liuyang@qianhai-tech.com<br>
+            立场：<span class="badge badge-success">支持</span> 客情关系：<span class="badge badge-info">良好</span> 接触状态：多次接触<br>
+            生日：1985-06-15 &nbsp;|&nbsp; 性别：男
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <div class="name">陈静 <span class="badge badge-default">影响者</span></div>
+          <div class="role">副总经理 · 运营部</div>
+          <div class="info">
+            📱 139 0011 4455 &nbsp;|&nbsp; 📧 chenjing@qianhai-tech.com<br>
+            立场：<span class="badge badge-success">支持</span> 客情关系：<span class="badge badge-info">良好</span> 接触状态：多次接触<br>
+            生日：1988-03-22 &nbsp;|&nbsp; 性别：女
+          </div>
+        </div>
+
+        <div class="contact-card">
+          <div class="name">王磊 <span class="badge badge-default">经办人</span></div>
+          <div class="role">行政专员 · 行政部</div>
+          <div class="info">
+            📱 137 0011 6677 &nbsp;|&nbsp; 📧 wanglei@qianhai-tech.com<br>
+            立场：<span class="badge badge-warn">中立</span> 客情关系：<span class="badge badge-default">一般</span> 接触状态：首次接触<br>
+            生日：1992-11-08 &nbsp;|&nbsp; 性别：男
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 线索管理 -->
+      <div class="tab-pane" id="tab-leads">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">线索跟进记录</h3>
+          <!-- {{perm:business:customer:communication:add}} -->
+          <button class="btn btn-primary btn-sm" onclick="openFollowupDialog()">➕ 添加跟进记录</button>
+        </div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--color-divider)">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>跟进时间</th><th>跟进方式</th><th>跟进内容</th><th>跟进人</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>2026-08-13 15:00</td>
+                  <td><span class="badge badge-info">电话</span></td>
+                  <td>电话沟通，客户表示对 A 栋 3 层感兴趣，约下周带看</td>
+                  <td>张三</td>
+                </tr>
+                <tr>
+                  <td>2026-08-12 10:30</td>
+                  <td><span class="badge badge-info">微信</span></td>
+                  <td>发送园区介绍资料和户型图，客户已读</td>
+                  <td>张三</td>
+                </tr>
+                <tr>
+                  <td>2026-08-11 14:00</td>
+                  <td><span class="badge badge-info">上门拜访</span></td>
+                  <td>上门拜访，与刘洋总经理面谈，了解需求面积 200㎡</td>
+                  <td>张三</td>
+                </tr>
+                <tr>
+                  <td>2026-08-10 14:30</td>
+                  <td><span class="badge badge-info">系统分配</span></td>
+                  <td>公海池分配，客户来源：小程序登记</td>
+                  <td>系统</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-top:24px">
+          <div class="section-title">线索操作</div>
+          <div style="display:flex;gap:12px">
+            <button class="btn btn-success" onclick="markValid()">✓ 标记为有效线索</button>
+            <button class="btn btn-danger" onclick="markInvalid()">✗ 标记为无效线索</button>
+            <button class="btn btn-warning" onclick="abandon()">⚠️ 线索废弃</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 商机管理 -->
+      <div class="tab-pane" id="tab-opportunity">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">商机列表</h3>
+          <button class="btn btn-primary btn-sm" onclick="openConvertDialog()">➕ 新增商机</button>
+        </div>
+
+        <div class="opp-card" onclick="parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business')">
+          <div class="header">
+            <span class="name">租赁意向 - A栋3层</span>
+            <span class="badge badge-active">跟进中</span>
+          </div>
+          <div class="body">
+            业务类型：租赁业务 &nbsp;|&nbsp; 意向房源：A栋3层301室 &nbsp;|&nbsp; 需求面积：200㎡<br>
+            意向价格：80元/㎡/月 &nbsp;|&nbsp; 联系人：刘洋（决策者）<br>
+            创建时间：2026-08-13 &nbsp;|&nbsp; 最近跟进：2026-08-14
+          </div>
+        </div>
+
+        <div class="opp-card" style="opacity:0.6">
+          <div class="header">
+            <span class="name">购房意向 - B栋5层</span>
+            <span class="badge badge-negative">已终止</span>
+          </div>
+          <div class="body">
+            业务类型：销售业务 &nbsp;|&nbsp; 意向房源：B栋5层502室 &nbsp;|&nbsp; 需求面积：150㎡<br>
+            意向价格：20000元/㎡ &nbsp;|&nbsp; 终止原因：客户预算不足<br>
+            创建时间：2026-08-05 &nbsp;|&nbsp; 终止时间：2026-08-10
+          </div>
+        </div>
+
+        <div style="margin-top:24px">
+          <div class="section-title">商机操作</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-default" onclick="parent.postMessage({type:'loadPage',url:'park-business/opportunity-detail.html',pageName:'商机详情',moduleKey:'park-business'},'*')">商机跟进</button>
+            <button class="btn btn-default">更换联系人</button>
+            <button class="btn btn-default">客户意向</button>
+            <button class="btn btn-default">日程管理</button>
+            <button class="btn btn-danger">商机终止</button>
+            <button class="btn btn-warning">退回公海</button>
+            <button class="btn btn-primary">签订协议</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 时间轴 -->
+      <div class="tab-pane" id="tab-timeline">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:20px">客户生命周期时间轴</h3>
+
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">商机转化 - 租赁意向</div>
+            <div class="desc">客户刘洋转化为租赁商机，意向房源 A栋3层301室，需求面积200㎡</div>
+            <div class="time">2026-08-13 16:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot">📞</div>
+          <div class="info">
+            <div class="title">电话跟进</div>
+            <div class="desc">与刘洋总经理电话沟通，约下周带看 A 栋 3 层</div>
+            <div class="time">2026-08-13 15:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot">💬</div>
+          <div class="info">
+            <div class="title">微信跟进</div>
+            <div class="desc">发送园区介绍资料和户型图，客户已读</div>
+            <div class="time">2026-08-12 10:30 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">标记为有效线索</div>
+            <div class="desc">上门拜访后确认客户意向真实有效</div>
+            <div class="time">2026-08-11 17:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot warn">🏠</div>
+          <div class="info">
+            <div class="title">上门拜访</div>
+            <div class="desc">与刘洋总经理面谈，了解需求面积 200㎡，预算 200 万/年</div>
+            <div class="time">2026-08-11 14:00 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">公海池分配</div>
+            <div class="desc">客户从公海池分配给张三跟进，来源：小程序登记</div>
+            <div class="time">2026-08-10 14:30 · 系统</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot">📥</div>
+          <div class="info">
+            <div class="title">客户入池</div>
+            <div class="desc">深圳前海科技发展有限公司通过小程序登记进入公海池</div>
+            <div class="time">2026-08-10 10:00 · 系统</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 相关业务数据 -->
+      <div class="tab-pane" id="tab-related">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:20px">相关业务数据</h3>
+        <div class="descriptions cols-3">
+          <div class="item">
+            <div class="label">商机总数</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-primary)">2</div>
+          </div>
+          <div class="item">
+            <div class="label">跟进中商机</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:#34C759">1</div>
+          </div>
+          <div class="item">
+            <div class="label">已终止商机</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-ink-tertiary)">1</div>
+          </div>
+          <div class="item">
+            <div class="label">已签协议</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-ink-tertiary)">0</div>
+          </div>
+          <div class="item">
+            <div class="label">已签合同</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-ink-tertiary)">0</div>
+          </div>
+          <div class="item">
+            <div class="label">跟进记录</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-ink)">4</div>
+          </div>
+        </div>
+
+        <div class="section-title">📋 协议记录</div>
+        <div class="empty-state">
+          <div class="icon">📄</div>
+          <div class="title">暂无协议</div>
+          <div class="desc">客户尚未签订任何协议</div>
+        </div>
+
+        <div class="section-title">📄 合同记录</div>
+        <div class="empty-state">
+          <div class="icon">📑</div>
+          <div class="title">暂无合同</div>
+          <div class="desc">客户尚未签订任何合同</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加联系人弹窗 -->
+  <div class="modal-overlay" id="contactModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>添加联系人</h3>
+        <button class="close" onclick="closeDialog('contactModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>姓名 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入联系人姓名">
+          </div>
+          <div class="col">
+            <label>电话 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入手机号码" maxlength="11">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>角色</label>
+            <select><option value="">请选择</option><option>决策者</option><option>影响者</option><option>使用者</option><option>经办人</option></select>
+          </div>
+          <div class="col">
+            <label>立场</label>
+            <select><option value="">请选择</option><option>支持</option><option>中立</option><option>反对</option></select>
+          </div>
+          <div class="col">
+            <label>客情关系</label>
+            <select><option value="">请选择</option><option>密切</option><option>良好</option><option>一般</option><option>疏远</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>性别</label>
+            <select><option value="">请选择</option><option>男</option><option>女</option></select>
+          </div>
+          <div class="col">
+            <label>生日</label>
+            <input type="date">
+          </div>
+          <div class="col">
+            <label>职务</label>
+            <input type="text" placeholder="如：总经理">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>部门</label>
+            <input type="text" placeholder="如：采购部">
+          </div>
+          <div class="col">
+            <label>职责描述</label>
+            <input type="text" placeholder="职责描述">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('contactModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('contactModal')">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加跟进记录弹窗 -->
+  <div class="modal-overlay" id="followupModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>添加跟进记录</h3>
+        <button class="close" onclick="closeDialog('followupModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>跟进方式 <span class="required">*</span></label>
+            <select><option value="">请选择</option><option>电话</option><option>微信</option><option>上门拜访</option><option>邮件</option><option>带看</option></select>
+          </div>
+          <div class="col">
+            <label>跟进时间</label>
+            <input type="datetime-local">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>跟进内容 <span class="required">*</span></label>
+            <textarea placeholder="请输入跟进内容..." style="min-height:100px"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('followupModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('followupModal')">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 商机转化弹窗 -->
+  <div class="modal-overlay" id="convertModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>商机转化 - 意向登记</h3>
+        <button class="close" onclick="closeDialog('convertModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">📋 意向登记</div>
+        <div class="form-row">
+          <div class="col">
+            <label>业务类型 <span class="required">*</span></label>
+            <select><option value="">请选择</option><option value="lease">租赁业务</option><option value="sale">销售业务</option></select>
+          </div>
+          <div class="col">
+            <label>意向房源</label>
+            <select><option value="">请选择</option><option>A栋 3层 301室</option><option>B栋 5层 502室</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>需求面积 (㎡)</label>
+            <input type="text" placeholder="如：200">
+          </div>
+          <div class="col">
+            <label>意向价格</label>
+            <input type="text" placeholder="如：80 元/㎡/月">
+          </div>
+        </div>
+        <div class="section-title">👥 联系人角色</div>
+        <div class="form-row">
+          <div class="col">
+            <label>联系人</label>
+            <input type="text" placeholder="联系人姓名">
+          </div>
+          <div class="col">
+            <label>角色</label>
+            <select><option value="">请选择</option><option>决策者</option><option>影响者</option><option>使用者</option><option>经办人</option></select>
+          </div>
+          <div class="col">
+            <label>立场</label>
+            <select><option value="">请选择</option><option>支持</option><option>中立</option><option>反对</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>客情关系</label>
+            <select><option value="">请选择</option><option>密切</option><option>良好</option><option>一般</option><option>疏远</option></select>
+          </div>
+          <div class="col">
+            <label>接触状态</label>
+            <select><option value="">请选择</option><option>首次接触</option><option>多次接触</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('convertModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('convertModal')">确认转化</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    function switchTab(el, paneId){
+      document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') })
+      el.classList.add('active')
+      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active') })
+      document.getElementById(paneId).classList.add('active')
+    }
+    function openContactDialog(){ document.getElementById('contactModal').classList.add('show') }
+    function openFollowupDialog(){ document.getElementById('followupModal').classList.add('show') }
+    function openConvertDialog(){ document.getElementById('convertModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+    function markValid(){ alert('已标记为有效线索') }
+    function markInvalid(){ if(confirm('确认标记为无效线索？')) alert('已标记为无效') }
+    function abandon(){ if(confirm('确认废弃此线索？\n废弃原因：联系不上、无意向、无法满足客户需求等')) alert('线索已废弃') }
+  </script>
+</body>
+</html>
