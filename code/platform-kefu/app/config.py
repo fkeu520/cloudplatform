@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     minio_bucket: str = "kefu-docs"
     minio_secure: bool = False
 
-    jwt_secret: str = "cloudhub-platform-jwt-secret-2024-production-min-32-chars"
+    jwt_secret: str = "cloudhub-platform-secret-key-2024-change-in-production"
 
     @property
     def allowed_extensions_list(self) -> List[str]:

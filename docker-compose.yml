@@ -697,7 +697,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kefu-docs
-      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
+      - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-secret-key-2024-change-in-production}
       - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
     volumes:
