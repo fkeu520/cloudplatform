@@ -281,6 +281,8 @@ services:
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
+      - DB_POOL_MAX=${DB_POOL_MAX_PARK_SPACE:-15}
+      - TOMCAT_THREADS_MAX=${TOMCAT_THREADS_MAX_PARK_SPACE:-30}
       - REDIS_HOST=redis
       - NACOS_HOST=nacos
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=5
@@ -371,6 +373,8 @@ services:
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
+      - DB_POOL_MAX=${DB_POOL_MAX_PARK_ENTERPRISE:-15}
+      - TOMCAT_THREADS_MAX=${TOMCAT_THREADS_MAX_PARK_ENTERPRISE:-30}
       - REDIS_HOST=redis
       - NACOS_HOST=nacos
       - MYBATIS_PLUS_SNOWFLAKE_WORKER_ID=8
