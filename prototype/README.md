@@ -120,7 +120,9 @@ prototype/
 | workflow 流程 | 🔵 待原型 | - |
 | message 消息 | 🔵 待原型 | - |
 | user 用户/权限 | 🔵 待原型 | - |
-| kefu 智能问答 | 🔵 待原型 | - |
+| **kefu** 智能问答 | ✅ v1.0 (设计阶段) | [chat.html](kefu/chat.html) · [knowledge.html](kefu/knowledge.html) · [dashboard.html](kefu/dashboard.html) · [faq.html](kefu/faq.html) · [logs.html](kefu/logs.html) · [import.html](kefu/import.html) · [settings.html](kefu/settings.html) · [evaluation.html](kefu/evaluation.html) · [DESIGN.md](kefu/DESIGN.md) |
+
+> **kefu v1.0 智能问答**：含 10 章节（业务架构/5 张数据表/状态机/权限/API/扩展架构/扩展点）。**核心特性：数据源插件架构** —— 后续可接入 park-business/park-enterprise/park-space/park-contract 等模块作为业务实体数据源。详见 [DESIGN.md](kefu/DESIGN.md) |
 | mobile 移动端示例 | ✅ v1.0 | [mobile.html](mobile.html) |
 
 ---

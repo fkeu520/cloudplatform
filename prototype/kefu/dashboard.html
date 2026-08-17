@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>数据看板 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .stat-card{padding:18px;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s}
+    .stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+    .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
+    .stat-card .num{font-size:28px;font-weight:700}
+    .bar-chart{display:flex;align-items:flex-end;height:180px;gap:8px;padding:16px;border-bottom:1px solid var(--color-divider)}
+    .bar{flex:1;background:var(--color-primary);border-radius:4px 4px 0 0;position:relative;cursor:pointer;min-width:20px}
+    .bar:hover{opacity:0.85}
+    .bar .value{position:absolute;top:-20px;left:0;right:0;text-align:center;font-size:11px;color:var(--color-ink)}
+    .bar .label{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:11px;color:var(--color-ink-tertiary)}
+    .funnel{display:flex;flex-direction:column;gap:6px;padding:8px}
+    .funnel-step{padding:10px 14px;color:#fff;border-radius:4px;cursor:pointer;transition:opacity 0.2s}
+    .funnel-step:hover{opacity:0.85}
+    .funnel-step .step-label{font-size:13px;font-weight:500}
+    .funnel-step .step-count{font-size:11px;opacity:0.9;margin-top:2px}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: dashboard (数据看板)
+版本: v1.0
+
+数据源:
+- 聚合: kefu_message + kefu_session + kefu_data_source
+- 7 天/今日/本月 维度切换
+
+API:
+- GET /kefu/dashboard/stats
+- GET /kefu/dashboard/trend
+- GET /kefu/dashboard/data-source-hit-rate
+
+权限:
+- kefu:dashboard:view
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">数据看板</span>
+  <div style="margin-left:auto">
+    <button class="btn btn-default btn-sm active" onclick="setRange(this,'today')">今日</button>
+    <button class="btn btn-default btn-sm" onclick="setRange(this,'week')">本周</button>
+    <button class="btn btn-default btn-sm" onclick="setRange(this,'month')">本月</button>
+    <button class="btn btn-default btn-sm" onclick="exportReport()">📤 导出报表</button>
+  </div>
+</div>
+
+<div class="page-content" style="padding:16px 20px">
+  <!-- KPI 4 卡 -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+    <div class="card stat-card" onclick="showDetail('questions')">
+      <div class="label">今日问答数</div>
+      <div class="num" style="color:var(--color-primary)">1,248</div>
+      <div class="sub" style="font-size:11px;color:var(--color-ink-tertiary);margin-top:4px">↑ 18% 较昨日</div>
+    </div>
+    <div class="card stat-card" onclick="showDetail('satisfaction')">
+      <div class="label">满意度</div>
+      <div class="num" style="color:#34C759">4.6<span style="font-size:14px;color:var(--color-ink-tertiary)">/5</span></div>
+      <div class="sub" style="font-size:11px;color:var(--color-ink-tertiary);margin-top:4px">已评分 856 条</div>
+    </div>
+    <div class="card stat-card" onclick="showDetail('ai-rate')">
+      <div class="label">AI 直接解答率</div>
+      <div class="num" style="color:#FF9500">68.2%</div>
+      <div class="sub" style="font-size:11px;color:var(--color-ink-tertiary);margin-top:4px">31.8% 转人工</div>
+    </div>
+    <div class="card stat-card" onclick="showDetail('hit-rate')">
+      <div class="label">知识命中率</div>
+      <div class="num" style="color:#5856D6">82.5%</div>
+      <div class="sub" style="font-size:11px;color:var(--color-ink-tertiary);margin-top:4px">数据源: 6 个</div>
+    </div>
+  </div>
+
+  <!-- 趋势图 + 漏斗 -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px">
+    <div class="card" style="padding:14px">
+      <h4 style="font-size:13px;margin-bottom:12px">📈 问答量趋势（7 天）</h4>
+      <div class="bar-chart" id="trendChart"></div>
+    </div>
+    <div class="card" style="padding:14px">
+      <h4 style="font-size:13px;margin-bottom:12px">🔁 满意度分布</h4>
+      <div class="funnel">
+        <div class="funnel-step" style="background:#34C759"><div class="step-label">⭐⭐⭐⭐⭐ 非常满意</div><div class="step-count">528 条 (61.7%)</div></div>
+        <div class="funnel-step" style="background:#85C46A"><div class="step-label">⭐⭐⭐⭐ 满意</div><div class="step-count">198 条 (23.1%)</div></div>
+        <div class="funnel-step" style="background:#FF9500"><div class="step-label">⭐⭐⭐ 一般</div><div class="step-count">86 条 (10.0%)</div></div>
+        <div class="funnel-step" style="background:#FF6B6B"><div class="step-label">⭐⭐ 不满意</div><div class="step-count">32 条 (3.7%)</div></div>
+        <div class="funnel-step" style="background:#FF3B30"><div class="step-label">⭐ 非常不满意</div><div class="step-count">12 条 (1.4%)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 数据源命中率 + 热门问题 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card" style="padding:14px">
+      <h4 style="font-size:13px;margin-bottom:12px">📊 数据源命中率</h4>
+      <table style="width:100%;font-size:13px">
+        <thead><tr style="text-align:left;color:var(--color-ink-tertiary)"><th>数据源</th><th>类型</th><th>命中</th><th style="text-align:right">占比</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-info">faq</span></td><td>internal</td><td>485</td><td style="text-align:right">38.8%</td></tr>
+          <tr><td><span class="badge badge-info">knowledge</span></td><td>vector_search</td><td>312</td><td style="text-align:right">25.0%</td></tr>
+          <tr><td><span class="badge badge-info">park-enterprise</span></td><td>database_query</td><td>186</td><td style="text-align:right">14.9%</td></tr>
+          <tr><td><span class="badge badge-default">park-business</span></td><td>database_query</td><td>98</td><td style="text-align:right">7.8%</td></tr>
+          <tr><td><span class="badge badge-default">park-space</span></td><td>database_query</td><td>76</td><td style="text-align:right">6.1%</td></tr>
+          <tr><td><span class="badge badge-default">park-contract</span></td><td>database_query</td><td>42</td><td style="text-align:right">3.4%</td></tr>
+          <tr style="font-weight:600;border-top:1px solid var(--color-divider)"><td colspan="2">合计</td><td>1,248</td><td style="text-align:right">100%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="padding:14px">
+      <h4 style="font-size:13px;margin-bottom:12px">🔥 热门问题 Top10</h4>
+      <table style="width:100%;font-size:13px">
+        <tbody>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：租金多少','info')"><td>1</td><td>A 栋 3 层还有空房吗？</td><td style="text-align:right;color:var(--color-ink-tertiary)">258</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：入驻','info')"><td>2</td><td>入驻需要哪些材料？</td><td style="text-align:right;color:var(--color-ink-tertiary)">196</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：续约','info')"><td>3</td><td>合同到期怎么续签？</td><td style="text-align:right;color:var(--color-ink-tertiary)">162</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：转人工','info')"><td>4</td><td>怎么联系招商经理？</td><td style="text-align:right;color:var(--color-ink-tertiary)">142</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：停车','info')"><td>5</td><td>车位怎么申请？</td><td style="text-align:right;color:var(--color-ink-tertiary)">128</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：缴费','info')"><td>6</td><td>物业费怎么交？</td><td style="text-align:right;color:var(--color-ink-tertiary)">108</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：优惠','info')"><td>7</td><td>有什么优惠政策？</td><td style="text-align:right;color:var(--color-ink-tertiary)">86</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：水电','info')"><td>8</td><td>水电费缴纳方式？</td><td style="text-align:right;color:var(--color-ink-tertiary)">72</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：装修','info')"><td>9</td><td>装修需要审批吗？</td><td style="text-align:right;color:var(--color-ink-tertiary)">58</td></tr>
+          <tr style="cursor:pointer" onclick="showToast('查看问题详情：付款','info')"><td>10</td><td>付款方式有哪些？</td><td style="text-align:right;color:var(--color-ink-tertiary)">42</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  type=type||'info'
+  var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+  var t=document.createElement('div')
+  t.textContent=msg
+  t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},3000)
+}
+
+function renderTrend(){
+  var days = [{l:'周一',v:820},{l:'周二',v:940},{l:'周三',v:1120},{l:'周四',v:1056},{l:'周五',v:1248},{l:'周六',v:680},{l:'周日',v:752}]
+  var max = Math.max.apply(null, days.map(function(d){return d.v}))
+  var chart = document.getElementById('trendChart')
+  chart.innerHTML=''
+  days.forEach(function(d){
+    var h = Math.round(d.v/max*100)
+    var div = document.createElement('div')
+    div.className='bar'
+    div.style.height=h+'%'
+    div.innerHTML='<div class="value">'+d.v+'</div><div class="label">'+d.l+'</div>'
+    div.title = d.l + ': ' + d.v + ' 次问答'
+    div.onclick = function(){ showToast(d.l + ' ' + d.v + ' 次问答','info') }
+    chart.appendChild(div)
+  })
+}
+
+function setRange(btn, range){
+  document.querySelectorAll('.breadcrumb-bar .btn').forEach(function(b){b.classList.remove('active')})
+  btn.classList.add('active')
+  var label = {today:'今日',week:'本周',month:'本月'}[range]
+  showToast('时间范围：' + label,'info')
+}
+
+function exportReport(){
+  showToast('导出中...','info')
+  setTimeout(function(){
+    showToast('报表已导出：智能问答看板_20260817.xlsx','success')
+  }, 1500)
+}
+
+function showDetail(type){
+  var labels = {questions:'今日问答 1,248 条 · 客户/AI/人工各占 38%/45%/17%', satisfaction:'满意度 4.6 · 评分 856 条', 'ai-rate':'AI 直接解答率 68.2% · 31.8% 转人工', 'hit-rate':'知识命中率 82.5% · 6 个数据源'}
+  showToast(labels[type],'info')
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
+renderTrend()
+</script>
+</body>
+</html>

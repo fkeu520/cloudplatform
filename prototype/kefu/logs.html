@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对话日志 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: logs (对话日志)
+版本: v1.0
+
+数据源:
+- kefu_session + kefu_message 关联表
+- 客户/客服关联 park-enterprise / sys_user
+
+API:
+- GET /kefu/log/page
+- GET /kefu/log/{sessionId}/messages
+- POST /kefu/log/export
+
+权限:
+- kefu:logs:view
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">对话日志</span>
+</div>
+
+<div class="page-content" style="padding:16px 20px">
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" placeholder="客户/客服/消息关键词" id="kw" oninput="filter()">
+        <select id="channel" onchange="filter()"><option value="">全部渠道</option><option>wechat</option><option>web</option><option>phone</option><option>app</option></select>
+        <select id="rating" onchange="filter()"><option value="">全部评分</option><option>⭐⭐⭐⭐⭐</option><option>⭐⭐⭐⭐</option><option>⭐⭐⭐</option><option>⭐⭐</option><option>⭐</option></select>
+        <input type="date" id="dateStart" title="开始日期">
+        <input type="date" id="dateEnd" title="结束日期">
+        <button class="btn btn-primary" onclick="filter()">🔍 搜索</button>
+      </div>
+      <div class="search-actions">
+        <button class="btn btn-default" onclick="exportLogs()">📤 导出</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>会话 ID</th><th>客户</th><th>渠道</th><th>客服/AI</th>
+            <th>消息数</th><th>开始时间</th><th>时长</th>
+            <th>数据源引用</th><th>评分</th><th>状态</th><th style="width:120px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  type=type||'info'
+  var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+  var t=document.createElement('div')
+  t.textContent=msg
+  t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},3000)
+}
+
+var logs = [
+  {id:'S-1001', customer:'深圳前海科技发展有限公司', channel:'wechat', agent:'AI', msgCount:8, startTime:'14:20', duration:'12 分', sources:'park-enterprise×2 park-space×1', rating:5, status:'已完成'},
+  {id:'S-1002', customer:'珠海华信智能装备有限公司', channel:'web', agent:'AI', msgCount:6, startTime:'14:08', duration:'8 分', sources:'faq×2', rating:5, status:'已完成'},
+  {id:'S-1003', customer:'惠州东海食品加工有限公司', channel:'phone', agent:'张三(人工)', msgCount:14, startTime:'13:45', duration:'24 分', sources:'park-business×3 park-contract×1', rating:4, status:'已转人工'},
+  {id:'S-1004', customer:'肇庆金鼎建材有限公司', channel:'wechat', agent:'AI', msgCount:4, startTime:'11:30', duration:'6 分', sources:'park-space×1', rating:0, status:'进行中'},
+  {id:'S-1005', customer:'中山博达电器有限公司', channel:'app', agent:'AI', msgCount:10, startTime:'10:15', duration:'18 分', sources:'faq×3 knowledge×2', rating:5, status:'已完成'},
+  {id:'S-1006', customer:'佛山南海陶瓷有限公司', channel:'web', agent:'李四(人工)', msgCount:12, startTime:'09:42', duration:'32 分', sources:'park-enterprise×2 park-business×1', rating:3, status:'已评分'},
+  {id:'S-1007', customer:'深圳华强北电子有限公司', channel:'wechat', agent:'AI', msgCount:5, startTime:'昨天', duration:'9 分', sources:'knowledge×2', rating:4, status:'已完成'},
+  {id:'S-1008', customer:'广州天域网络技术有限公司', channel:'app', agent:'AI', msgCount:6, startTime:'昨天', duration:'14 分', sources:'faq×1 park-enterprise×1', rating:5, status:'已完成'}
+]
+
+function render(){
+  var tbody = document.getElementById('dataTable')
+  tbody.innerHTML=''
+  logs.forEach(function(l){
+    var ratingHtml = l.rating > 0 ? ? + ' ×' + l.rating : '—'
+    var statusBadge = l.status==='已完成'?'badge-success':(l.status==='进行中'?'badge-info':(l.status==='已转人工'?'badge-warn':'badge-default'))
+    var tr = document.createElement('tr')
+    tr.innerHTML = '<td><code>'+l.id+'</code></td>' +
+      '<td>' + l.customer +'</td>' +
+      '<td><span class="badge badge-info">'+l.channel+'</span></td>' +
+      '<td>'+l.agent+'</td>' +
+      '<td>'+l.msgCount+'</td>' +
+      '<td>'+l.startTime+'</td>' +
+      '<td>'+l.duration+'</td>' +
+      '<td style="font-size:11px;color:var(--color-ink-secondary)">'+l.sources+'</td>' +
+      '<td>'+ratingHtml+'</td>' +
+      '<td><span class="badge '+statusBadge+'">'+l.status+'</span></td>' +
+      '<td>' +
+        '<button class="btn btn-default btn-sm" onclick="viewLog(\''+l.id+'\')">查看</button> ' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteLog(this)">删除</button>' +
+      '</td>'
+    tbody.appendChild(tr)
+  })
+}
+
+function filter(){
+  var kw = (document.getElementById('kw').value||'').toLowerCase()
+  if(!kw){ render(); return }
+  var rows = document.querySelectorAll('#dataTable tr')
+  rows.forEach(function(tr){
+    tr.style.display = tr.textContent.toLowerCase().indexOf(kw) > -1 ? '' : 'none'
+  })
+}
+
+function viewLog(id){
+  showToast('查看会话 '+id+' 详情（mock：可后续接详情抽屉）','info')
+}
+
+function deleteLog(btn){
+  if(!confirm('确认删除该会话日志？')) return
+  var tr = btn.closest('tr')
+  tr.style.opacity='0.4'
+  setTimeout(function(){if(tr.parentNode) tr.parentNode.removeChild(tr)}, 320)
+  showToast('日志已删除','warning')
+}
+
+function exportLogs(){
+  showToast('导出中...','info')
+  setTimeout(function(){ showToast('日志已导出：会话日志_20260817.xlsx','success') }, 1500)
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
+render()
+</script>
+</body>
+</html>

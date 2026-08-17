@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>问答对话 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .chat-container{flex:1;display:flex;overflow:hidden}
+    .chat-left{width:240px;border-right:1px solid var(--color-divider);overflow-y:auto;background:var(--color-canvas-elevated)}
+    .chat-middle{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .chat-right{width:320px;border-left:1px solid var(--color-divider);overflow-y:auto;background:var(--color-canvas-elevated);padding:12px}
+    .session-item{padding:12px 16px;border-bottom:1px solid var(--color-divider);cursor:pointer;transition:background 0.15s}
+    .session-item:hover{background:var(--color-primary-pale)}
+    .session-item.active{background:var(--color-primary-pale);border-left:3px solid var(--color-primary)}
+    .session-item .name{font-size:13px;font-weight:500;color:var(--color-ink);margin-bottom:4px}
+    .session-item .preview{font-size:11px;color:var(--color-ink-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .session-item .meta{display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--color-ink-tertiary)}
+    .messages-area{flex:1;overflow-y:auto;padding:20px;background:var(--color-canvas)}
+    .message{display:flex;gap:10px;margin-bottom:18px}
+    .message .avatar-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;font-weight:600;color:#fff}
+    .message.customer .avatar-circle{background:#007AFF}
+    .message.ai .avatar-circle{background:#34C759}
+    .message.agent .avatar-circle{background:#FF9500}
+    .message-bubble{max-width:60%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.6;background:var(--color-canvas-elevated);box-shadow:0 1px 3px rgba(0,0,0,0.05)}
+    .message.customer .message-bubble{background:#E3F2FD}
+    .message.ai .message-bubble{background:#E8F5E9}
+    .message-time{font-size:10px;color:var(--color-ink-tertiary);margin-top:4px}
+    .input-area{border-top:1px solid var(--color-divider);padding:12px;background:var(--color-canvas)}
+    .input-area textarea{width:100%;border:1px solid var(--color-divider);border-radius:8px;padding:8px;resize:none;font-size:14px;font-family:inherit}
+    .quick-replies{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .quick-reply{padding:4px 10px;background:var(--color-canvas-elevated);border:1px solid var(--color-divider);border-radius:14px;font-size:12px;cursor:pointer}
+    .quick-reply:hover{background:var(--color-primary-pale)}
+    .ref-card{background:#FFF;border:1px solid var(--color-divider);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px}
+    .ref-card .ref-title{font-weight:600;color:var(--color-primary);margin-bottom:6px}
+    .ref-card .ref-source{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;background:#E3F2FD;color:#1976D2;margin-right:4px}
+    .ref-card .ref-source.external{background:#FFF3E0;color:#F57C00}
+    .ref-card .ref-source.business{background:#F3E5F5;color:#7B1FA2}
+    .customer-card{background:#FFF;border:1px solid var(--color-divider);border-radius:8px;padding:12px;margin-bottom:12px}
+    .customer-card .name{font-weight:600;margin-bottom:6px}
+    .customer-card .info-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--color-ink-secondary)}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: chat (问答对话)
+版本: v1.0
+
+数据源:
+- 主表: kefu_session, kefu_message
+- 关联实体引用: park-enterprise (客户信息), park-business (商机), park-space (房源)
+- 当前会话客户: 模拟关联 park-enterprise.id=123 (深圳前海科技)
+
+API:
+- GET /kefu/session/page
+- POST /kefu/session/{id}/message
+- POST /kefu/session/{id}/escalate
+- POST /kefu/session/{id}/close
+
+权限:
+- kefu:chat:view
+- kefu:chat:reply
+- kefu:chat:escalate
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">问答对话</span>
+  <div style="margin-left:auto;display:flex;gap:6px">
+    <span class="tag tag-info" title="AI 置信度">AI 置信度 0.85</span>
+    <button class="btn btn-default btn-sm" onclick="toggleAIAuto()">🤖 AI 接管</button>
+    <button class="btn btn-warning btn-sm" onclick="escalateToHuman()">转人工</button>
+    <button class="btn btn-danger btn-sm" onclick="closeSession()">结束会话</button>
+  </div>
+</div>
+
+<div class="chat-container">
+  <!-- 左栏：会话列表 -->
+  <div class="chat-left">
+    <div style="padding:12px;border-bottom:1px solid var(--color-divider)">
+      <input type="text" placeholder="🔍 搜索客户/会话" style="width:100%;padding:6px 10px;border:1px solid var(--color-divider);border-radius:6px;font-size:13px" oninput="filterSessions()">
+    </div>
+    <div id="sessionList"></div>""
+  </div>
+
+  <!-- 中栏：对话流 -->
+  <div class="chat-middle">
+    <div class="messages-area" id="messagesArea">
+      <!-- 消息由 JS 渲染 -->
+    </div>
+    <div class="input-area">
+      <textarea id="msgInput" rows="3" placeholder="输入消息... (Ctrl+Enter 发送)" onkeydown="if(event.ctrlKey&&event.keyCode===13)sendMessage()"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+        <div class="quick-replies">
+          <span class="quick-reply" onclick="insertQuickReply('请问贵公司主营业务是什么？')">主营业务</span>
+          <span class="quick-reply" onclick="insertQuickReply('园区有哪些入驻政策？')">入驻政策</span>
+          <span class="quick-reply" onclick="insertQuickReply('A 栋 3 层还有空房吗？')">房源查询</span>
+          <span class="quick-reply" onclick="insertQuickReply('转人工')">转人工</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="sendMessage()">📤 发送</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右栏：上下文 + 数据源引用 + 推荐 -->
+  <div class="chat-right">
+    <div class="customer-card" id="customerCard">
+      <!-- 客户信息卡 (mock park-enterprise 引用) -->
+    </div>
+    <h4 style="font-size:13px;margin:16px 0 8px;color:var(--color-ink-secondary)">📚 引用来源</h4>
+    <div id="refCards">
+      <!-- 数据源引用卡 (mock 多源) -->
+    </div>
+    <h4 style="font-size:13px;margin:16px 0 8px;color:var(--color-ink-secondary)">💡 推荐回复</h4>
+    <div id="recommendList">
+      <!-- AI 推荐回答 -->
+    </div>
+  </div>
+</div>
+
+<script>
+// === Toast 系统 ===
+function showToast(msg, type){
+  type = type || 'info'
+  var colors = {info:'#007AFF', success:'#34C759', warning:'#FF9500', danger:'#FF3B30'}
+  var t = document.createElement('div')
+  t.textContent = msg
+  t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){ t.style.op ='0'; setTimeout(function(){ t.remove() },300) },3000)
+}
+
+// === Mock 数据 ===
+var sessions = [
+  {id:1, customer:'深圳前海科技发展有限公司', contact:'刘洋', channel:'wechat', status:'AI', preview:'请问 A 栋 3 层还有空房吗？', time:'14:23', unread:2, customerId:123},
+  {id:2, customer:'珠海华信智能装备有限公司', contact:'孙莉', channel:'web', status:'AI', preview:'入驻政策有哪些？', time:'14:08', unread:0, customerId:124},
+  {id:3, customer:'惠州东海食品加工有限公司', contact:'周明', channel:'phone', status:'ESCALATED', preview:'我已经转给招商经理', time:'13:45', unread:0, customerId:125},
+  {id:4, customer:'肇庆金鼎建材有限公司', contact:'郑华', channel:'wechat', status:'AI', preview:'月租金多少？', time:'11:30', unread:1, customerId:126},
+  {id:5, customer:'广州天域网络技术有限公司', contact:'马超', channel:'app', status:'CLOSED', preview:'会话已结束', time:'昨天', unread:0, customerId:127}
+]
+
+var currentSession = sessions[0]
+
+var messages = [
+  {role:'customer', content:'你好，我想咨询一下 A 栋 3 层 301 室的入驻情况', time:'14:20'},
+  {role:'ai', content:'您好刘洋！为您查询到：\n\nA 栋 3 层 301 室当前可租赁，面积 200㎡，月租 12,000 元（60 元/㎡）。\n\n您的客户档案显示：深圳前海科技发展有限公司，当前已租赁 B 栋 5 层。\n\n是否需要预约看房？', time:'14:20', refs:[
+    {source:'park-enterprise', entity:'深圳前海科技发展有限公司', id:123, label:'客户档案 · 入驻记录'},
+    {source:'park-space', entity:'A栋3层301室', id:'ROOM-301', label:'房源信息 · 200㎡ · 可租'}
+  ]},
+  {role:'customer', content:'可以预约看房吗？明天上午', time:'14:23'},
+  {role:'agent', content:'好的，已为您预约明天（2026-08-18）上午 10:00 看房，地点：A 栋 3 层。届时会有招商专员陪同。', time:'14:25'}
+]
+
+var recommendReplies = [
+  '已为您预约成功，是否需要发送短信提醒？',
+  '已记录到您的偏好，下周可联系',
+  '转交给招商经理进一步沟通'
+]
+
+// === 会话列表渲染 ===
+function renderSessions(){
+  var container = document.getElementById('sessionList')
+  container.innerHTML = ''
+  sessions.forEach(function(s){
+    var item = document.createElement('div')
+    item.className = 'session-item' + (s.id === currentSession.id ? ' active' : '')
+    var statusBadge = s.status === 'AI' ? '🤖' : (s.status === 'ESCALATED' ? '👤' : '✓')
+    item.innerHTML = '<div class="name">' + statusBadge + ' ' + s.customer + '</div>' +
+      '<div class="meta"><span>' + s.channel + '</span><span>' + s.time + (s.unread > 0 ? ' · ' + s.unread + ' 未读' : '') + '</span></div>' +
+      '<div class="preview">' + s.preview + '</div>'
+    item.onclick = function(){ switchSession(s.id) }
+    container.appendChild(item)
+  })
+}
+
+function switchSession(id){
+  currentSession = sessions.find(function(s){ return s.id === id })
+  renderSessions()
+  renderMessages()
+  renderCustomerCard()
+  renderRefs()
+  renderRecommend()
+}
+
+function filterSessions(){
+  var q = event.target.value.toLowerCase()
+  Array.from(document.querySelectorAll('.session-item')).forEach(function(item){
+    var visible = item.textContent.toLowerCase().indexOf(q) > -1
+    item.style.display = visible ? '' : 'none'
+  })
+}
+
+// === 消息渲染 ===
+function renderMessages(){
+  var container = document.getElementById('messagesArea')
+  container.innerHTML = ''
+  messages.forEach(function(m){
+    var roleName = m.role === 'customer' ? '客户' : (m.role === 'ai' ? 'AI' : (m.role === 'agent' ? '客服' : '系统'))
+    var initial = m.role === 'customer' ? '客' : (m.role === 'ai' ? 'AI' : '服')
+    var div = document.createElement('div')
+    div.className = 'message ' + m.role
+    div.innerHTML = '<div class="avatar-circle">' + initial + '</div>' +
+      '<div><div class="message-bubble">' + (m.content||'').replace(/\n/g,'<br>') + '</div>' +
+      '<div class="message-time">' + roleName + ' · ' + m.time + '</div></div>'
+    container.appendChild(div)
+  })
+  container.scrollTop = container.scrollHeight
+}
+
+function renderCustomerCard(){
+  var card = document.getElementById('customerCard')
+  card.innerHTML = '<div class="name" data-source-ref="park-enterprise:' + currentSession.customerId + '" data-source-type="enterprise">' +
+    '🏢 ' + currentSession.customer + '</div>' +
+    '<div class="info-row"><span>联系人</span><span>' + currentSession.contact + '</span></div>' +
+    '<div class="info-row"><span>渠道</span><span>' + currentSession.channel + '</span></div>' +
+    '<div class="info-row"><span>会话 ID</span><span>#' + currentSession.id + '</span></div>' +
+    '<div class="info-row"><span>当前状态</span><span class="badge badge-info">' + currentSession.status + '</span></div>' +
+    '<div style="margin-top:8px"><button class="btn btn-default btn-sm" style="width:100%" onclick="viewCustomer()">查看客户档案</button></div>'
+}
+
+function renderRefs(){
+  var container = document.getElementById('refCards')
+  container.innerHTML = ''
+  var lastAiMsg = messages.slice().reverse().find(function(m){ return m.role === 'ai' && m.refs })
+  if(lastAiMsg && lastAiMsg.refs){
+    lastAiMsg.refs.forEach(function(r){
+      var div = document.createElement('div')
+      div.className = 'ref-card'
+      var srcClass = r.source.indexOf('park-') === 0 ? 'business' : 'external'
+      div.innerHTML = '<div class="ref-title">📎 ' + r.label + '</div>' +
+        '<div><span class="ref-source ' + srcClass + '">' + r.source + '</span>' +
+        '<span style="color:var(--color-ink-tertiary);font-size:10px"> #' + r.id + '</span></div>'
+      container.appendChild(div)
+    })
+  } else {
+    container.innerHTML = '<div style="font-size:12px;color:var(--color-ink-tertiary);padding:8px 0">本轮无数据源引用</div>'
+  }
+}
+
+function renderRecommend(){
+  var container = document.getElementById('recommendList')
+  container.innerHTML = ''
+  recommendReplies.forEach(function(r){
+    var div = document.createElement('div')
+    div.className = 'quick-reply'
+    div.style.cssText = 'width:100%;padding:8px 12px;margin-bottom:6px;text-align:left;cursor:pointer;border:1px solid var(--color-divider);border-radius:6px;font-size:12px'
+    div.textContent = '💡 ' + r
+    div.onclick = function(){ document.getElementById('msgInput').value = r; showToast('已填入快捷回复','info') }
+    container.appendChild(div)
+  })
+}
+
+// === 交互 ===
+function sendMessage(){
+  var input = document.getElementById('msgInput')
+  var text = input.value.trim()
+  if(!text) return showToast('请输入消息','warning')
+  var now = new Date()
+  var time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0')
+  messages.push({role:'agent', content:text, time:time})
+  input.value = ''
+  renderMessages()
+  // 模拟 AI 回复
+  if(currentSession.status === 'AI'){
+    setTimeout(function(){
+      var aiReply = generateAIReply(text)
+      messages.push({role:'ai', content:aiReply.content, time:time, refs:aiReply.refs})
+      renderMessages()
+      renderRefs()
+    }, 800)
+  }
+}
+
+function generateAIReply(userText){
+  var lower = userText.toLowerCase()
+  if(lower.indexOf('房源') > -1 || lower.indexOf('租') > -1 || lower.indexOf('空房') > -1){
+    return {
+      content:'为您查询到 3 套在租房源：\n\n• A 栋 3 层 301 室（200㎡，月租 1.2 万）\n• B 栋 5 层 502 室（150㎡，月租 9,000）\n• C 栋 2 层 203 室（350㎡，月租 2.1 万）\n\n是否需要预约看房？',
+      refs:[{source:'park-space', entity:'在租房源', id:'LIST-001', label:'房源列表 · 3 条'}]
+    }
+  }
+  if(lower.indexOf('企业') > -1 || lower.indexOf('公司') > -1 || lower.indexOf('档案') > -1){
+    return {
+      content:'已为您调取客户档案：\n\n深圳前海科技发展有限公司\n• 入驻：B 栋 5 层 502 室（2025-08-15 起）\n• 当前合同：36 万/年，租期至 2026-08-14\n• 续约意向：积极\n\n推荐：提前 60 天提醒续约',
+      refs:[{source:'park-enterprise', entity:'深圳前海科技', id:'123', label:'客户档案 · 续约意向'}]
+    }
+  }
+  if(lower.indexOf('商机') > -1 || lower.indexOf('跟进') > -1){
+    return {
+      content:'当前商机：\n\n• 商机名称：扩大办公区租赁\n• 阶段：协议签订\n• 跟进人：张三（招商一部）\n• 最近跟进：2026-08-15\n\n建议：3 天内确认房源 + 准备合同模板',
+      refs:[{source:'park-business', entity:'商机 #OPP-001', id:'OPP-001', label:'商机详情 · 协议阶段'}]
+    }
+  }
+  return {content:'收到您的咨询。正在为您查询...', refs:[]}
+}
+
+function insertQuickReply(text){
+  document.getElementById('msgInput').value = text
+}
+
+function escalateToHuman(){
+  if(!confirm('确认转人工？转接后将由招商经理接管')) return
+  currentSession.status = 'ESCALATED'
+  showToast('已转人工：' + currentSession.customer + '，预计 30 秒内接管','success')
+  renderSessions()
+  renderCustomerCard()
+}
+
+function closeSession(){
+  if(!confirm('确认结束当前会话？')) return
+  currentSession.status = 'CLOSED'
+  messages.push({role:'system', content:'会话已结束 · ' + new Date().toLocaleString(), time:new Date().toLocaleTimeString().slice(0,5)})
+  renderMessages()
+  renderSessions()
+  showToast('会话已结束','success')
+}
+
+function toggleAIAuto(){
+  var newStatus = currentSession.status === 'AI' ? 'ESCALATED' : 'AI'
+  currentSession.status = newStatus
+  showToast(newStatus === 'AI' ? '已切回 AI 自动回复' : '已切人工接管', 'info')
+  renderSessions()
+  renderCustomerCard()
+}
+
+function viewCustomer(){
+  parent.loadPage('park-enterprise/detail.html?id=' + currentSession.customerId, currentSession.customer, 'park-enterprise')
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+
+// === 初始化 ===
+renderSessions()
+renderMessages()
+renderCustomerCard()
+renderRefs()
+renderRecommend()
+</script>
+</body>
+</html>

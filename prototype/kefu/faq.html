@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ 管理 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .fade-out{opacity:0;transform:translateX(30px);transition:all 0.3s ease}
+    tr.row-done td{opacity:0.4;text-decoration:line-through;color:var(--color-ink-tertiary)}
+  </style>
+</head>
+<body>
+<!--
+模块: kefu
+页面: faq (FAQ 管理)
+版本: v1.0
+
+数据源:
+- kefu_faq
+- 命中统计 kefu_session.message where knowledge_refs contains faq.id
+
+API:
+- GET /kefu/faq/page
+- POST /kefu/faq
+- PUT /kefu/faq/{id}
+- DELETE /kefu/faq/{id}
+- POST /kefu/faq/import (批量导入)
+
+权限:
+- kefu:faq:view / edit / delete
+-->
+
+<div class="breadcrumb-bar" style="padding:10px 16px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:13px">
+  <button class="back-btn" onclick="goBack()" title="返回">←</button>
+  <span class="crumb" onclick="goBack()" style="cursor:pointer">智能问答</span>
+  <span class="sep">/</span>
+  <span class="crumb active">FAQ 管理</span>
+</div>
+
+<div class="page-content" style="padding:16px 20px">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">FAQ 总数</div><div style="font-size:22px;font-weight:700">328</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">本月命中</div><div style="font-size:22px;font-weight:700;color:#34C759">2,856</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">命中率</div><div style="font-size:22px;font-weight:700;color:var(--color-primary)">87.2%</div></div>
+    <div class="card" style="padding:14px"><div style="font-size:11px;color:var(--color-ink-tertiary)">待完善</div><div style="font-size:22px;font-weight:700;color:#FF9500">12</div></div>
+  </div>
+
+  <div class="card" style="padding:12px 16px;margin-bottom:12px">
+    <div class="toolbar">
+      <div class="search-box">
+        <input type="text" placeholder="问题/答案关键词" id="searchKw" oninput="filterTable()">
+        <select id="filterCat" onchange="filterTable()">
+          <option value="">全部分类</option><option>入驻</option><option>退租</option><option>续约</option>
+          <option>政策</option><option>缴费</option><option>其他</option>
+        </select>
+        <button class="btn btn-primary" onclick="filterTable()">🔍 搜索</button>
+      </div>
+      <div class="search-actions">
+        <button class="btn btn-default" onclick="batchImport()">📥 批量导入</button>
+        <button class="btn btn-primary" onclick="openAddFaq()">➕ 新增 FAQ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th class="col-checkbox"><input type="checkbox" onchange="toggleAll(this)"></th><th>问题</th><th>答案摘要</th><th>分类</th><th>命中</th><th>满意度</th><th>状态</th><th>启用</th><th style="width:140px">操作</th></tr>
+        </thead>
+        <tbody id="dataTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="faqModal">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h3 id="modalTitle">新增 FAQ</h3><button class="close" onclick="closeDialog('faqModal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row"><div class="col"><label>问题 <span class="required">*</span></label><input type="text" id="fQuestion" placeholder="如：怎么申请车位？"></div></div>
+      <div class="form-row"><div class="col"><label>分类 <span class="required">*</span></label><select id="fCategory"><option value="">请选择</option><option>入驻</option><option>退租</option><option>续约</option><option>政策</option><option>缴费</option><option>其他</option></select></div></div>
+      <div class="form-row"><div class="col"><label>答案 <span class="required">*</span></label><textarea id="fAnswer" rows="6" placeholder="详细答案..."></textarea></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeDialog('faqModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveFaq()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showToast(msg,type){
+  type=type||'info'
+  var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+  var t=document.createElement('div')
+  t.textContent=msg
+  t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+  document.body.appendChild(t)
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},3000)
+}
+
+var mockData = [
+  {id:1, question:'怎么申请车位？', answer:'租户可凭租赁合同前往物业中心办理车位申请，月费 200 元/月。', category:'其他', hit:258, sat:4.6, status:'已发布', enabled:true},
+  {id:2, question:'入驻需要哪些材料？', answer:'营业执照、法人身份证、租赁合同（我方提供模板）、押金转账凭证。', category:'入驻', hit:196, sat:4.8, status:'已发布', enabled:true},
+  {id:3, question:'合同到期怎么续签？', answer:'合同到期前 60 天，系统会自动提醒招商经理联系您续签。', category:'续约', hit:162, sat:4.5, status:'已发布', enabled:true},
+  {id:4, question:'怎么联系招商经理？', answer:'拨打 400-100-1234 转 招商部，或在系统中点击"转人工"按钮。', category:'其他', hit:142, sat:4.7, status:'已发布', enabled:true},
+  {id:5, question:'水电费缴纳方式？', answer:'可通过园区 APP、微信公众号、银行代扣三种方式缴纳。', category:'缴费', hit:108, sat:4.4, status:'已发布', enabled:true},
+  {id:6, question:'有什么优惠政策？', answer:'新入驻企业首年免物业费、增值税返还 50%（地方政策）。', category:'政策', hit:86, sat:4.9, status:'已发布', enabled:true},
+  {id:7, question:'装修需要审批吗？', answer:'涉及水电改造/隔墙/吊顶的装修需提前 7 天向物业中心报备审批。', category:'其他', hit:58, sat:4.3, status:'草稿', enabled:false},
+  {id:8, question:'付款方式有哪些？', answer:'支持季度/年度预付、月度结算、一次性付清三种付款方式。', category:'缴费', hit:42, sat:4.6, status:'已发布', enabled:true}
+]
+
+var filteredData = mockData.slice()
+
+function render(){
+  var tbody = document.getElementById('dataTable')
+  tbody.innerHTML=''
+  filteredData.forEach(function(f){
+    var tr = document.createElement('tr')
+    tr.setAttribute('data-id', f.id)
+    tr.innerHTML = '<td class="col-checkbox"><input type="checkbox" class="row-check"></td>' +
+      '<td><strong>' + f.question + '</strong></td>' +
+      '<td style="color:var(--color-ink-secondary);font-size:13px">' + f.answer.slice(0,50) + '...</td>' +
+      '<td><span class="badge badge-info">' + f.category + '</span></td>' +
+      '<td>' + f.hit + '</td>' +
+      '<td>' + f.sat + ' ⭐</td>' +
+      '<td><span class="badge ' + (f.status==='已发布'?'badge-success':'badge-warn') + '">' + f.status + '</span></td>' +
+      '<td>' + (f.enabled?'<span class="badge badge-success">启用</span>':'<span class="badge badge-default">禁用</span>') + '</td>' +
+      '<td>' +
+        '<button class="btn btn-default btn-sm" onclick="editFaq('+f.id+')">编辑</button> ' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteFaq(this)">删除</button>' +
+      '</td>'
+    tbody.appendChild(tr)
+  })
+}
+
+function filterTable(){
+  var kw = (document.getElementById('searchKw').value||'').toLowerCase()
+  var cat = document.getElementById('filterCat').value
+  filteredData = mockData.filter(function(f){
+    if(kw && (f.question+f.answer).toLowerCase().indexOf(kw)===-1) return false
+    if(cat && f.category!==cat) return false
+    return true
+  })
+  render()
+}
+
+function toggleAll(cb){ document.querySelectorAll('.row-check').forEach(function(c){c.checked=cb.checked}) }
+
+function openAddFaq(){
+  document.getElementById('modalTitle').textContent='新增 FAQ'
+  document.getElementById('fQuestion').value=''
+  document.getElementById('fCategory').selectedIndex=0
+  document.getElementById('fAnswer').value=''
+  document.getElementById('faqModal').classList.add('show')
+}
+
+function editFaq(id){
+  var f = mockData.find(function(x){return x.id===id})
+  if(!f) return
+  document.getElementById('modalTitle').textContent='编辑 FAQ #' + id
+  document.getElementById('fQuestion').value=f.question
+  document.getElementById('fCategory').value=f.category
+  document.getElementById('fAnswer').value=f.answer
+  document.getElementById('faqModal').classList.add('show')
+}
+
+function saveFaq(){
+  var q = document.getElementById('fQuestion').value.trim()
+  var c = document.getElementById('fCategory').value
+  var a = document.getElementById('fAnswer').value.trim()
+  if(!q) return showToast('请输入问题','danger')
+  if(!c) return showToast('请选择分类','danger')
+  if(!a) return showToast('请输入答案','danger')
+  closeDialog('faqModal')
+  var nid = Math.max.apply(null, mockData.map(function(d){return d.id}).concat([0]))+1
+  mockData.unshift({id:nid, question:q, answer:a, category:c, hit:0, sat:5.0, status:'已发布', enabled:true})
+  filteredData = mockData.slice(); render()
+  showToast('FAQ 已新增：'+q.slice(0,20),'success')
+}
+
+function deleteFaq(btn){
+  if(!confirm('确认删除此 FAQ？')) return
+  var tr = btn.closest('tr')
+  tr.classList.add('row-done')
+  tr.querySelectorAll('button').forEach(function(b){b.disabled=true})
+  setTimeout(function(){
+    tr.classList.add('fade-out')
+    setTimeout(function(){if(tr.parentNode) tr.parentNode.removeChild(tr)},320)
+  },600)
+  showToast('FAQ 已删除','warning')
+}
+
+function batchImport(){
+  showToast('批量导入向导（mock：可后续接 Excel 解析）','info')
+}
+
+function goBack(){ parent.postMessage({type:'goBack'},'*') }
+function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+
+render()
+</script>
+</body>
+</html>
