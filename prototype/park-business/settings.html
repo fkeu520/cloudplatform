@@ -22,16 +22,35 @@
     .setting-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--color-divider)}
     .setting-row:last-child{border-bottom:none}
     .setting-row .info{flex:1}
-    .setting-row .info-label{font-size:14px;font-weight:500;margin-bottom:4px}
+    .setting-row .info-label{font-size:14px;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:4px}
     .setting-row .info-desc{font-size:12px;color:var(--color-ink-tertiary)}
     .setting-row .control{width:240px}
+    .toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+    .toast{background:var(--color-ink);color:#fff;padding:12px 20px;border-radius:var(--rounded-sm);font-size:13px;box-shadow:var(--shadow-elevated);animation:toastIn 0.3s ease;max-width:360px}
+    .toast.success{background:var(--color-positive)}
+    .toast.warning{background:var(--color-warning)}
+    .toast.error{background:var(--color-negative)}
+    @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+    .success-bar{position:fixed;top:0;left:0;right:0;background:var(--color-positive);color:#fff;text-align:center;padding:10px 0;font-size:14px;font-weight:500;z-index:10000;animation:slideDown 0.3s ease;box-shadow:0 2px 8px rgba(52,199,89,0.3)}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideUp{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-100%)}}
+    .input-error{border:2px solid var(--color-negative)!important;background:#FFF5F5!important}
+    .input-error-msg{font-size:11px;color:var(--color-negative);margin-top:2px;display:none}
+    .input-error-msg.show{display:block}
+    .help-icon{display:inline-flex;width:18px;height:18px;border-radius:50%;background:var(--color-canvas-grouped);color:var(--color-ink-tertiary);font-size:11px;align-items:center;justify-content:center;cursor:pointer;position:relative;font-weight:600}
+    .help-icon:hover{background:var(--color-primary);color:#fff}
+    .help-icon .tooltip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--color-ink);color:#fff;font-size:12px;padding:8px 12px;border-radius:var(--rounded-sm);white-space:nowrap;z-index:100;display:none;font-weight:400;box-shadow:var(--shadow-elevated)}
+    .help-icon .tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--color-ink)}
+    .help-icon:hover .tooltip{display:block}
+    .setting-row.disabled{opacity:0.5;pointer-events:none}
   </style>
 </head>
 <body>
   <!--
   模块: park-business
   页面: settings (基础设置)
-  版本: v1.0
+  版本: v1.1
 
   数据源:
   - pai业务: (park_id, retention_days, grace_days, leader_assign_enabled, employee_claim_enabled, max_hold_per_staff, release_after_deal)
@@ -66,14 +85,16 @@
 
       <div class="setting-row">
         <div class="info">
-          <div class="info-label">客户保留期限 <span class="field-source">biz_setting.retention_days</span></div>
+          <div class="info-label">客户保留期限 <span class="field-source">biz_setting.retention_days</span>
+            <span class="help-icon" onmouseenter="showTooltip(this,'设置客户分配给员工后，未跟进则进入宽限期的天数')" onmouseleave="hideTooltip(this)">?<span class="tooltip"></span></span></div>
           <div class="info-desc">客户分配后多久未跟进进入宽限期</div>
         </div>
         <div class="control">
           <div class="input-with-unit">
-            <input type="number" value="30" min="1" max="365">
+            <input type="number" id="retentionDays" value="30" min="1" max="365" oninput="validateRetention()">
             <span class="unit">天</span>
           </div>
+          <div class="input-error-msg" id="retentionError">保留期限需在 1-365 天之间</div>
         </div>
       </div>
     </div>
@@ -85,14 +106,16 @@
 
       <div class="setting-row">
         <div class="info">
-          <div class="info-label">宽限期时长 <span class="field-source">biz_setting.grace_days</span></div>
+          <div class="info-label">宽限期时长 <span class="field-source">biz_setting.grace_days</span>
+            <span class="help-icon" onmouseenter="showTooltip(this,'超过保留期限后给员工的额外保护期，宽限期内有跟进则重新计时')" onmouseleave="hideTooltip(this)">?<span class="tooltip"></span></span></div>
           <div class="info-desc">超过保留期限后给员工的额外保护期</div>
         </div>
         <div class="control">
           <div class="input-with-unit">
-            <input type="number" value="7" min="1" max="30">
+            <input type="number" id="graceDays" value="7" min="1" max="30" oninput="validateRetention()">
             <span class="unit">天</span>
           </div>
+          <div class="input-error-msg" id="graceError">宽限期应小于保留期限</div>
         </div>
       </div>
 
@@ -102,7 +125,7 @@
           <div class="info-desc">每日提醒即将到期的客户</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleGraceRemind" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
 
@@ -112,57 +135,59 @@
           <div class="info-desc">回收前 1 天通过微信/站内信通知员工</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleRecycleNotify" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
     </div>
 
     <!-- 3. 分配规则 -->
-    <div class="card setting-card">
+    <div class="card setting-card" id="assignRuleCard">
       <h3>📋 分配规则</h3>
       <div class="desc">决定客户进入公海后如何分配给员工。</div>
 
-      <div class="setting-row">
+      <div class="setting-row" id="leaderAssignRow">
         <div class="info">
-          <div class="info-label">领导分配 <span class="field-source">biz_setting.leader_assign_enabled</span></div>
+          <div class="info-label">领导分配 <span class="field-source">biz_setting.leader_assign_enabled</span>
+            <span class="help-icon" onmouseenter="showTooltip(this,'开启后招商经理可主动分配客户给指定员工')" onmouseleave="hideTooltip(this)">?<span class="tooltip"></span></span></div>
           <div class="info-desc">招商经理可主动分配客户给指定员工</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleLeaderAssign" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
 
-      <div class="setting-row">
+      <div class="setting-row" id="employeeClaimRow">
         <div class="info">
-          <div class="info-label">员工领取 <span class="field-source">biz_setting.employee_claim_enabled</span></div>
+          <div class="info-label">员工领取 <span class="field-source">biz_setting.employee_claim_enabled</span>
+            <span class="help-icon" onmouseenter="showTooltip(this,'开启后员工可主动从公海池领取客户')" onmouseleave="hideTooltip(this)">?<span class="tooltip"></span></span></div>
           <div class="info-desc">员工可主动从公海池领取客户</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleEmployeeClaim" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
 
-      <div class="setting-row">
+      <div class="setting-row" id="claimLimitRow">
         <div class="info">
           <div class="info-label">领取后限制</div>
           <div class="info-desc">员工领取后 N 天内不可退回公海</div>
         </div>
         <div class="control">
           <div class="input-with-unit">
-            <input type="number" value="15" min="0" max="90">
+            <input type="number" id="claimLimitDays" value="15" min="0" max="90">
             <span class="unit">天</span>
           </div>
         </div>
       </div>
 
-      <div class="setting-row">
+      <div class="setting-row" id="firstFollowupRow">
         <div class="info">
           <div class="info-label">领取后首次跟进时限</div>
           <div class="info-desc">领取后多久内必须有首次跟进，否则自动回收</div>
         </div>
         <div class="control">
           <div class="input-with-unit">
-            <input type="number" value="48" min="1">
+            <input type="number" id="firstFollowupHours" value="48" min="1">
             <span class="unit">小时</span>
           </div>
         </div>
@@ -176,12 +201,13 @@
 
       <div class="setting-row">
         <div class="info">
-          <div class="info-label">员工最多保有 <span class="field-source">biz_setting.max_hold_per_staff</span></div>
+          <div class="info-label">员工最多保有 <span class="field-source">biz_setting.max_hold_per_staff</span>
+            <span class="help-icon" onmouseenter="showTooltip(this,'每个员工手中允许保有的最多客户数，含跟进中+已签协议未转化')" onmouseleave="hideTooltip(this)">?<span class="tooltip"></span></span></div>
           <div class="info-desc">每个员工手中允许保有的最多客户数（含跟进中+已签协议未转化）</div>
         </div>
         <div class="control">
           <div class="input-with-unit">
-            <input type="number" value="50" min="1" max="500">
+            <input type="number" id="maxHold" value="50" min="1" max="500">
             <span class="unit">个客户</span>
           </div>
         </div>
@@ -193,7 +219,7 @@
           <div class="info-desc">每成交 1 单，释放 1 个保有名额（员工可继续领取新客户）</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleReleaseDeal" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
 
@@ -203,7 +229,7 @@
           <div class="info-desc">A 类 VIP 客户不占保有名额（需配合客户分级使用）</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleVipExempt" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
 
@@ -213,7 +239,7 @@
           <div class="info-desc">员工接近保有上限时提醒（如 80%）</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleOverlimitWarn" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
     </div>
@@ -229,7 +255,7 @@
           <div class="info-desc">根据客户规模、行业、预算自动评估 A/B/C/D 等级</div>
         </div>
         <div class="control">
-          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+          <div class="toggle on" id="toggleAutoGrade" onclick="toggleSwitch(this)"><div class="knob"></div></div>
         </div>
       </div>
 
@@ -240,7 +266,7 @@
         </div>
         <div class="control">
           <div class="input-with-unit">
-            <input type="number" value="10000" min="0">
+            <input type="number" id="vipThreshold" value="10000" min="0">
             <span class="unit">万元</span>
           </div>
         </div>
@@ -258,8 +284,8 @@
           <div class="info-desc">有新线索进入公海时通知招商经理</div>
         </div>
         <div class="control">
-          <label class="checkbox-item"><input type="checkbox" checked>站内信</label>
-          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" checked>微信</label>
+          <label class="checkbox-item"><input type="checkbox" id="notifyLeadSiteMsg" checked>站内信</label>
+          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" id="notifyLeadWechat" checked>微信</label>
         </div>
       </div>
 
@@ -269,8 +295,8 @@
           <div class="info-desc">团队成员签约成功时全员通知</div>
         </div>
         <div class="control">
-          <label class="checkbox-item"><input type="checkbox" checked>站内信</label>
-          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox">微信</label>
+          <label class="checkbox-item"><input type="checkbox" id="notifySignSiteMsg" checked>站内信</label>
+          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" id="notifySignWechat">微信</label>
         </div>
       </div>
 
@@ -280,29 +306,186 @@
           <div class="info-desc">客户跟进超期时通知员工和上级</div>
         </div>
         <div class="control">
-          <label class="checkbox-item"><input type="checkbox" checked>站内信</label>
-          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" checked>邮件</label>
+          <label class="checkbox-item"><input type="checkbox" id="notifyOverdueSiteMsg" checked>站内信</label>
+          <label class="checkbox-item" style="margin-left:12px"><input type="checkbox" id="notifyOverdueEmail" checked>邮件</label>
         </div>
       </div>
     </div>
 
     <!-- 操作按钮 -->
     <div style="position:sticky;bottom:0;background:var(--color-canvas-elevated);padding:16px 24px;border-top:1px solid var(--color-divider);margin:24px -24px -20px;display:flex;justify-content:flex-end;gap:8px">
-      <button class="btn btn-default" onclick="if(confirm('重置为默认值？')) alert('已重置')">恢复默认</button>
+      <button class="btn btn-default" onclick="resetSettings()">恢复默认</button>
       <!-- {{perm:business:settings:edit}} -->
       <button class="btn btn-primary" onclick="saveSettings()">💾 保存设置</button>
     </div>
   </div>
 
+  <!-- Toast 容器 -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Success Bar -->
+  <div id="successBar" style="display:none"></div>
+
   <script>
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
-    function toggleSwitch(el){
-      el.classList.toggle('on')
+
+    // ====== Toast ======
+    function showToast(msg, type){
+      type = type || 'info';
+      var c = document.getElementById('toastContainer');
+      var t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(function(){
+        t.style.animation = 'toastOut 0.3s ease forwards';
+        setTimeout(function(){ t.remove() }, 300);
+      }, 3000);
     }
-    function saveSettings(){
-      if(confirm('确认保存所有设置？保存后立即生效')){
-        alert('设置已保存')
+
+    // ====== Success Bar (M-11) ======
+    function showSuccessBar(msg){
+      var bar = document.getElementById('successBar');
+      bar.textContent = msg || '✅ 设置已保存';
+      bar.style.display = 'block';
+      bar.className = 'success-bar';
+      setTimeout(function(){
+        bar.style.animation = 'slideUp 0.3s ease forwards';
+        setTimeout(function(){ bar.style.display = 'none'; bar.style.animation = ''; }, 300);
+      }, 3000);
+    }
+
+    // ====== Toggle Switch (M-09) ======
+    function toggleSwitch(el){
+      el.classList.toggle('on');
+
+      // M-09: 关闭"员工领取" → 联动分配规则区块
+      if(el.id === 'toggleEmployeeClaim'){
+        var isOff = !el.classList.contains('on');
+        var rows = ['claimLimitRow', 'firstFollowupRow'];
+        rows.forEach(function(id){
+          var row = document.getElementById(id);
+          if(isOff) row.classList.add('disabled');
+          else row.classList.remove('disabled');
+        });
+        // 勾选时 toast
+        if(isOff){
+          showToast('员工领取已关闭，分配规则中的领取限制将失效', 'warning');
+        }
       }
+
+      // 关闭"领导分配" → 联动 toast
+      if(el.id === 'toggleLeaderAssign'){
+        if(!el.classList.contains('on')){
+          showToast('领导分配已关闭，招商经理无法主动分配客户', 'warning');
+        }
+      }
+    }
+
+    // ====== M-10: Retention Validation ======
+    function validateRetention(){
+      var retention = parseInt(document.getElementById('retentionDays').value);
+      var grace = parseInt(document.getElementById('graceDays').value);
+      var retentionInput = document.getElementById('retentionDays');
+      var graceInput = document.getElementById('graceDays');
+      var retentionError = document.getElementById('retentionError');
+      var graceError = document.getElementById('graceError');
+
+      var valid = true;
+
+      // Validate retention 1-365
+      if(isNaN(retention) || retention < 1 || retention > 365){
+        retentionInput.classList.add('input-error');
+        retentionError.classList.add('show');
+        valid = false;
+      } else {
+        retentionInput.classList.remove('input-error');
+        retentionError.classList.remove('show');
+      }
+
+      // Validate grace < retention
+      if(!isNaN(retention) && !isNaN(grace) && grace >= 1 && grace <= 30){
+        if(grace >= retention && retention >= 1){
+          graceInput.classList.add('input-error');
+          graceError.classList.add('show');
+          valid = false;
+        } else {
+          graceInput.classList.remove('input-error');
+          graceError.classList.remove('show');
+        }
+      } else {
+        graceInput.classList.remove('input-error');
+        graceError.classList.remove('show');
+      }
+
+      return valid;
+    }
+
+    // ====== M-11: Save Settings ======
+    function saveSettings(){
+      // Validate first
+      var valid = validateRetention();
+      if(!valid){
+        showToast('请修正表单中的错误后再保存', 'error');
+        return;
+      }
+
+      // Check M-09: employee claim state
+      var employeeClaimEl = document.getElementById('toggleEmployeeClaim');
+      var employeeClaimOff = !employeeClaimEl.classList.contains('on');
+
+      if(confirm('确认保存所有设置？保存后立即生效')){
+        showSuccessBar('✅ 设置已保存');
+
+        if(employeeClaimOff){
+          showToast('员工领取已关闭，需刷新页面生效', 'warning');
+        } else {
+          showToast('设置已保存成功', 'success');
+        }
+      }
+    }
+
+    // ====== Reset Settings ======
+    function resetSettings(){
+      if(!confirm('重置为默认值？所有修改将丢失')) return;
+
+      // Reset inputs
+      document.getElementById('retentionDays').value = 30;
+      document.getElementById('graceDays').value = 7;
+      document.getElementById('claimLimitDays').value = 15;
+      document.getElementById('firstFollowupHours').value = 48;
+      document.getElementById('maxHold').value = 50;
+      document.getElementById('vipThreshold').value = 10000;
+
+      // Reset toggles to ON
+      document.querySelectorAll('.toggle').forEach(function(t){
+        if(!t.classList.contains('on')) t.classList.add('on');
+      });
+
+      // Reset checkboxes
+      document.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+        if(cb.id === 'notifySignWechat') cb.checked = false;
+        else cb.checked = true;
+      });
+
+      // Clear validation errors
+      document.querySelectorAll('.input-error').forEach(function(el){ el.classList.remove('input-error'); });
+      document.querySelectorAll('.input-error-msg.show').forEach(function(el){ el.classList.remove('show'); });
+
+      // Re-enable disabled rows
+      document.querySelectorAll('.setting-row.disabled').forEach(function(el){ el.classList.remove('disabled'); });
+
+      showToast('已重置为默认值', 'success');
+    }
+
+    // ====== Help Tooltip ======
+    function showTooltip(el, text){
+      var tip = el.querySelector('.tooltip');
+      if(tip) tip.textContent = text;
+    }
+
+    function hideTooltip(el){
+      // Tooltip hides via CSS :hover, no action needed
     }
   </script>
 </body>
