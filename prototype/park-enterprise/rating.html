@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>评分规则 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:16px 24px 24px}
+
+    .page-desc{font-size:13px;color:var(--color-ink-secondary);margin-bottom:16px;line-height:1.6}
+
+    /* ─── Overview Cards ─── */
+    .overview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+    .overview-card{background:var(--color-canvas);border-radius:12px;padding:16px 20px;border:1px solid var(--color-divider);display:flex;align-items:center;gap:16px}
+    .overview-card .icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .overview-card .info .num{font-size:22px;font-weight:700;line-height:1.2}
+    .overview-card .info .lbl{font-size:12px;color:var(--color-ink-tertiary);margin-top:2px}
+
+    /* ─── Dimension Cards ─── */
+    .dim-card{background:var(--color-canvas);border-radius:12px;border:1px solid var(--color-divider);overflow:hidden;margin-bottom:12px}
+    .dim-header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:var(--color-canvas-grouped);border-bottom:1px solid var(--color-divider);cursor:pointer}
+    .dim-header:hover{background:var(--color-primary-pale)}
+    .dim-header .left{display:flex;align-items:center;gap:10px}
+    .dim-header .name{font-size:14px;font-weight:600}
+    .dim-header .weight{font-size:12px;color:var(--color-ink-secondary);background:var(--color-canvas);padding:2px 10px;border-radius:10px;border:1px solid var(--color-divider)}
+    .dim-header .toggle-icon{font-size:12px;color:var(--color-ink-tertiary);transition:transform .2s}
+    .dim-header .toggle-icon.open{transform:rotate(180deg)}
+    .dim-body{padding:16px 20px}
+    .dim-body.collapsed{display:none}
+
+    /* ─── Rule Items ─── */
+    .rule-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--color-divider)}
+    .rule-item:last-child{border-bottom:none}
+    .rule-item .name{flex:1;font-size:13px;font-weight:500}
+    .rule-item .condition{font-size:12px;color:var(--color-ink-secondary);min-width:120px}
+    .rule-item .score{font-size:14px;font-weight:600;min-width:50px;text-align:center}
+    .rule-item .score.positive{color:var(--color-positive)}
+    .rule-item .score.negative{color:var(--color-negative)}
+    .rule-item .actions{display:flex;gap:4px;min-width:60px;justify-content:flex-end}
+
+    /* ─── Add Rule Row ─── */
+    .add-rule{display:flex;align-items:center;gap:12px;padding:12px 0 4px;border-top:1px dashed var(--color-divider);margin-top:8px}
+    .add-rule select,.add-rule input{padding:6px 10px;border:1px solid var(--color-divider);border-radius:6px;font-size:12px;font-family:inherit}
+    .add-rule select:focus,.add-rule input:focus{outline:none;border-color:var(--color-primary)}
+
+    .btn{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .2s;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary{background:var(--color-primary);color:#fff}
+    .btn-primary:hover{background:var(--color-primary-active)}
+    .btn-default{background:var(--color-canvas);color:var(--color-ink);border:1px solid var(--color-divider)}
+    .btn-default:hover{background:var(--color-canvas-grouped)}
+    .btn-success{background:var(--color-positive);color:#fff}
+    .btn-sm{padding:5px 12px;font-size:12px}
+    .btn-icon{width:26px;height:26px;border-radius:6px;border:1px solid var(--color-divider);background:var(--color-canvas);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:var(--color-ink-secondary);transition:all .15s}
+    .btn-icon:hover{background:var(--color-primary-pale);border-color:var(--color-primary);color:var(--color-primary)}
+    .btn-icon.danger:hover{background:#FFEBEE;border-color:var(--color-negative);color:var(--color-negative)}
+
+    .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+    .search-box{display:flex;gap:8px;align-items:center}
+    .search-box select{padding:6px 12px;border:1px solid var(--color-divider);border-radius:8px;font-size:13px;font-family:inherit}
+
+    .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center}
+    .modal-overlay.show{display:flex}
+    .modal{background:var(--color-canvas);border-radius:16px;width:520px;max-height:80vh;overflow:hidden;box-shadow:var(--shadow-elevated)}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;padding:20px 24px 0}
+    .modal-header h3{font-size:18px;font-weight:600}
+    .modal-header .close{width:32px;height:32px;border-radius:50%;border:none;background:var(--color-canvas-grouped);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:var(--color-ink-secondary)}
+    .modal-body{padding:16px 24px 20px;overflow-y:auto;max-height:calc(80vh - 80px)}
+    .modal-footer{display:flex;justify-content:flex-end;gap:12px;padding:16px 24px;border-top:1px solid var(--color-divider)}
+    .form-row{display:flex;gap:16px;margin-bottom:14px}
+    .form-row .col{flex:1;min-width:0}
+    .form-row .col-3{flex:0 0 32%}
+    .form-row label{display:block;font-size:12px;font-weight:500;color:var(--color-ink-secondary);margin-bottom:4px}
+    .form-row label .required{color:var(--color-negative);margin-left:2px}
+    input[type="text"],input[type="number"],select{width:100%;padding:8px 12px;border:1px solid var(--color-divider);border-radius:8px;font-size:13px;font-family:inherit;background:var(--color-canvas);color:var(--color-ink)}
+    input:focus,select:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-pale)}
+
+    .tab-bar{display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid var(--color-divider);padding:0 0 0 16px}
+    .tab-item{padding:10px 20px;cursor:pointer;font-size:14px;color:var(--color-ink-secondary);position:relative;bottom:-2px;border-bottom:2px solid transparent;transition:all .2s;font-weight:500}
+    .tab-item:hover{color:var(--color-primary)}
+    .tab-item.active{color:var(--color-primary);border-bottom-color:var(--color-primary)}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+  </style>
+</head>
+<body>
+<div class="page-content">
+
+  <div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:4px">企业档案 &gt; 评分规则</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div>
+      <h2 style="font-size:22px;font-weight:700">评分规则</h2>
+      <p class="page-desc">配置企业综合评分规则，支持多维度评分体系，自动计算企业评分</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-default" onclick="alert('评分规则已重置为默认值')">恢复默认</button>
+      <button class="btn btn-primary" onclick="alert('所有评分规则已保存 ✓')">💾 保存全部</button>
+    </div>
+  </div>
+
+  <!-- ═══ Overview Stats ═══ -->
+  <div class="overview-grid">
+    <div class="overview-card">
+      <div class="icon" style="background:var(--color-primary-pale);color:var(--color-primary)">📊</div>
+      <div class="info"><div class="num">5</div><div class="lbl">评分维度</div></div>
+    </div>
+    <div class="overview-card">
+      <div class="icon" style="background:#E8F5E9;color:var(--color-positive)">📋</div>
+      <div class="info"><div class="num">24</div><div class="lbl">评分规则</div></div>
+    </div>
+    <div class="overview-card">
+      <div class="icon" style="background:#FFF3E0;color:var(--color-warning)">⚙️</div>
+      <div class="info"><div class="num">100</div><div class="lbl">满分</div></div>
+    </div>
+    <div class="overview-card">
+      <div class="icon" style="background:#F3E5F5;color:#9C27B0">🔄</div>
+      <div class="info"><div class="num">每日</div><div class="lbl">评分周期</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ Tabs: 评分规则 / 评分历史 ═══ -->
+  <div class="tab-bar">
+    <div class="tab-item active" onclick="switchTab(this,'rules')">📋 评分规则</div>
+    <div class="tab-item" onclick="switchTab(this,'history')">📈 评分历史</div>
+    <div class="tab-item" onclick="switchTab(this,'settings')">⚙️ 全局设置</div>
+  </div>
+
+  <!-- ═══ Tab: 评分规则 ═══ -->
+  <div class="tab-content active" id="tabRules">
+
+    <div class="toolbar">
+      <div class="search-box">
+        <select><option>全部维度</option><option>企业基础</option><option>经营状况</option><option>创新能力</option><option>信用风险</option><option>社会贡献</option></select>
+        <input type="text" placeholder="搜索规则名称..." style="padding:6px 12px;border:1px solid var(--color-divider);border-radius:8px;font-size:13px;font-family:inherit;width:200px">
+        <button class="btn btn-default btn-sm" onclick="alert('搜索功能演示')">搜索</button>
+      </div>
+      <button class="btn btn-primary" onclick="showModal('addDimension')">+ 新增维度</button>
+    </div>
+
+    <!-- Dimension 1: 企业基础 -->
+    <div class="dim-card">
+      <div class="dim-header" onclick="toggleDim(this)">
+        <div class="left">
+          <span class="name">🏛️ 企业基础</span>
+          <span class="weight">权重 25%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">6 条规则</span>
+          <button class="btn btn-default btn-sm" onclick="event.stopPropagation();showModal('editDimension')">✏️</button>
+          <span class="toggle-icon">▼</span>
+        </div>
+      </div>
+      <div class="dim-body">
+        <div class="rule-item">
+          <span class="name">注册资本</span>
+          <span class="condition">≥ 1000万</span>
+          <span class="score positive">+10</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')" title="编辑">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">注册资本</span>
+          <span class="condition">≥ 500万 且 &lt; 1000万</span>
+          <span class="score positive">+5</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')" title="编辑">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">成立年限</span>
+          <span class="condition">≥ 10年</span>
+          <span class="score positive">+8</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')" title="编辑">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">成立年限</span>
+          <span class="condition">≥ 3年 且 &lt; 10年</span>
+          <span class="score positive">+4</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')" title="编辑">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">企业规模</span>
+          <span class="condition">大型企业</span>
+          <span class="score positive">+7</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')" title="编辑">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">企业规模</span>
+          <span class="condition">中型企业</span>
+          <span class="score positive">+4</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')" title="编辑">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')" title="删除">🗑️</button></div>
+        </div>
+        <div class="add-rule">
+          <select><option>注册资本</option><option>成立年限</option><option>企业规模</option><option>企业性质</option></select>
+          <select><option selected>≥</option><option>≤</option><option>=</option><option>介于</option></select>
+          <input type="text" placeholder="值" style="width:80px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">得分</span>
+          <input type="text" placeholder="±" style="width:60px">
+          <button class="btn btn-primary btn-sm" onclick="alert('新规则已添加')">+ 添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimension 2: 经营状况 -->
+    <div class="dim-card">
+      <div class="dim-header" onclick="toggleDim(this)">
+        <div class="left">
+          <span class="name">📈 经营状况</span>
+          <span class="weight">权重 30%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">5 条规则</span>
+          <button class="btn btn-default btn-sm" onclick="event.stopPropagation();showModal('editDimension')">✏️</button>
+          <span class="toggle-icon open">▼</span>
+        </div>
+      </div>
+      <div class="dim-body">
+        <div class="rule-item">
+          <span class="name">年营收</span>
+          <span class="condition">≥ 1亿</span>
+          <span class="score positive">+15</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">年营收增长率</span>
+          <span class="condition">≥ 20%</span>
+          <span class="score positive">+10</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">净利润</span>
+          <span class="condition">盈利</span>
+          <span class="score positive">+8</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">资产负债率</span>
+          <span class="condition">&lt; 50%</span>
+          <span class="score positive">+6</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">现金流</span>
+          <span class="condition">正向</span>
+          <span class="score positive">+5</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="add-rule">
+          <select><option>年营收</option><option>营收增长率</option><option>净利润</option><option>资产负债率</option><option>现金流</option></select>
+          <select><option selected>≥</option><option>≤</option><option>=</option><option>介于</option></select>
+          <input type="text" placeholder="值" style="width:80px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">得分</span>
+          <input type="text" placeholder="±" style="width:60px">
+          <button class="btn btn-primary btn-sm" onclick="alert('新规则已添加')">+ 添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimension 3: 创新能力 -->
+    <div class="dim-card">
+      <div class="dim-header" onclick="toggleDim(this)">
+        <div class="left">
+          <span class="name">💡 创新能力</span>
+          <span class="weight">权重 20%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">5 条规则</span>
+          <button class="btn btn-default btn-sm" onclick="event.stopPropagation();showModal('editDimension')">✏️</button>
+          <span class="toggle-icon open">▼</span>
+        </div>
+      </div>
+      <div class="dim-body">
+        <div class="rule-item">
+          <span class="name">专利数量</span>
+          <span class="condition">≥ 50</span>
+          <span class="score positive">+12</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">专利数量</span>
+          <span class="condition">≥ 10 且 &lt; 50</span>
+          <span class="score positive">+6</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">高新技术企业</span>
+          <span class="condition">是</span>
+          <span class="score positive">+10</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">研发投入占比</span>
+          <span class="condition">≥ 5%</span>
+          <span class="score positive">+8</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">专精特新</span>
+          <span class="condition">是</span>
+          <span class="score positive">+6</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="add-rule">
+          <select><option>专利数量</option><option>软著数量</option><option>研发投入占比</option><option>高新技术企业</option><option>专精特新</option></select>
+          <select><option selected>≥</option><option>≤</option><option>=</option><option>是/否</option></select>
+          <input type="text" placeholder="值" style="width:80px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">得分</span>
+          <input type="text" placeholder="±" style="width:60px">
+          <button class="btn btn-primary btn-sm" onclick="alert('新规则已添加')">+ 添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimension 4: 信用风险 -->
+    <div class="dim-card">
+      <div class="dim-header" onclick="toggleDim(this)">
+        <div class="left">
+          <span class="name">🛡️ 信用风险</span>
+          <span class="weight">权重 15%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">4 条规则（扣分项）</span>
+          <button class="btn btn-default btn-sm" onclick="event.stopPropagation();showModal('editDimension')">✏️</button>
+          <span class="toggle-icon open">▼</span>
+        </div>
+      </div>
+      <div class="dim-body">
+        <div class="rule-item">
+          <span class="name">经营异常</span>
+          <span class="condition">有记录</span>
+          <span class="score negative">-15</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">行政处罚</span>
+          <span class="condition">有记录</span>
+          <span class="score negative">-10</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">司法诉讼（被告）</span>
+          <span class="condition">≥ 3 起</span>
+          <span class="score negative">-8</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">失信被执行</span>
+          <span class="condition">有记录</span>
+          <span class="score negative">-20</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="add-rule">
+          <select><option>经营异常</option><option>行政处罚</option><option>司法诉讼</option><option>失信被执行</option><option>欠税</option></select>
+          <select><option selected>有记录</option><option>≥ N 次</option></select>
+          <input type="text" placeholder="值" style="width:80px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">扣分</span>
+          <input type="text" placeholder="-" style="width:60px">
+          <button class="btn btn-primary btn-sm" onclick="alert('新规则已添加')">+ 添加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimension 5: 社会贡献 -->
+    <div class="dim-card">
+      <div class="dim-header" onclick="toggleDim(this)">
+        <div class="left">
+          <span class="name">🤝 社会贡献</span>
+          <span class="weight">权重 10%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">4 条规则</span>
+          <button class="btn btn-default btn-sm" onclick="event.stopPropagation();showModal('editDimension')">✏️</button>
+          <span class="toggle-icon open">▼</span>
+        </div>
+      </div>
+      <div class="dim-body">
+        <div class="rule-item">
+          <span class="name">就业人数</span>
+          <span class="condition">≥ 500</span>
+          <span class="score positive">+5</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">纳税信用等级</span>
+          <span class="condition">A级</span>
+          <span class="score positive">+6</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">公益捐赠</span>
+          <span class="condition">有记录</span>
+          <span class="score positive">+3</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="rule-item">
+          <span class="name">ESG评级</span>
+          <span class="condition">A级以上</span>
+          <span class="score positive">+4</span>
+          <div class="actions"><button class="btn-icon" onclick="alert('编辑规则')">✏️</button><button class="btn-icon danger" onclick="if(confirm('确认删除？'))alert('已删除')">🗑️</button></div>
+        </div>
+        <div class="add-rule">
+          <select><option>就业人数</option><option>纳税信用等级</option><option>公益捐赠</option><option>ESG评级</option></select>
+          <select><option selected>≥</option><option>≤</option><option>=</option><option>有记录</option></select>
+          <input type="text" placeholder="值" style="width:80px">
+          <span style="font-size:12px;color:var(--color-ink-tertiary)">得分</span>
+          <input type="text" placeholder="±" style="width:60px">
+          <button class="btn btn-primary btn-sm" onclick="alert('新规则已添加')">+ 添加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Tab: 评分历史 ═══ -->
+  <div class="tab-content" id="tabHistory">
+    <div class="card" style="padding:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:600">企业评分分布</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select style="padding:5px 10px;border:1px solid var(--color-divider);border-radius:8px;font-size:12px;font-family:inherit">
+            <option>全部行业</option><option>信息技术</option><option>房地产</option><option>能源环保</option>
+          </select>
+          <select style="padding:5px 10px;border:1px solid var(--color-divider);border-radius:8px;font-size:12px;font-family:inherit">
+            <option>本月</option><option>本季度</option><option selected>本年</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Score Distribution Chart -->
+      <div style="display:flex;gap:4px;align-items:flex-end;height:160px;padding:0 10px 24px;border-bottom:1px solid var(--color-divider);margin-bottom:16px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">35</span>
+          <div style="width:100%;height:35%;background:var(--color-primary);border-radius:4px 4px 0 0;min-height:8px;opacity:0.6"></div>
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">0-20</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">68</span>
+          <div style="width:100%;height:55%;background:var(--color-primary);border-radius:4px 4px 0 0;min-height:8px;opacity:0.7"></div>
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">21-40</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">156</span>
+          <div style="width:100%;height:80%;background:var(--color-primary);border-radius:4px 4px 0 0;min-height:8px;opacity:0.85"></div>
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">41-60</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">234</span>
+          <div style="width:100%;height:100%;background:var(--color-primary);border-radius:4px 4px 0 0;min-height:8px"></div>
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">61-80</span>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">89</span>
+          <div style="width:100%;height:60%;background:var(--color-positive);border-radius:4px 4px 0 0;min-height:8px"></div>
+          <span style="font-size:11px;color:var(--color-ink-tertiary)">81-100</span>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-secondary)">
+        <span>共 582 家企业已评分</span>
+        <span>平均分：67.3 分</span>
+        <span>最高分：96.5</span>
+        <span>最低分：8.0</span>
+      </div>
+
+      <!-- Recent Score Changes -->
+      <div style="margin-top:20px">
+        <div class="section-title" style="font-size:13px;font-weight:600;color:var(--color-ink-secondary);margin-bottom:8px">最近评分变动</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr><th style="text-align:left;padding:8px 12px;background:var(--color-canvas-grouped);font-weight:600;font-size:12px;border-bottom:1px solid var(--color-divider)">企业名称</th><th style="text-align:left;padding:8px 12px;background:var(--color-canvas-grouped);font-weight:600;font-size:12px;border-bottom:1px solid var(--color-divider)">原评分</th><th style="text-align:left;padding:8px 12px;background:var(--color-canvas-grouped);font-weight:600;font-size:12px;border-bottom:1px solid var(--color-divider)">新评分</th><th style="text-align:left;padding:8px 12px;background:var(--color-canvas-grouped);font-weight:600;font-size:12px;border-bottom:1px solid var(--color-divider)">变动</th><th style="text-align:left;padding:8px 12px;background:var(--color-canvas-grouped);font-weight:600;font-size:12px;border-bottom:1px solid var(--color-divider)">原因</th><th style="text-align:left;padding:8px 12px;background:var(--color-canvas-grouped);font-weight:600;font-size:12px;border-bottom:1px solid var(--color-divider)">时间</th></tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">华为投资控股</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">78.5</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">82.3</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider);color:var(--color-positive)">↑ +3.8</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">新增专利 12 项</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">2026-07-02</td></tr>
+            <tr><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">腾讯科技</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">85.0</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">85.0</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider);color:var(--color-ink-tertiary)">— 0</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">无变动</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">2026-07-02</td></tr>
+            <tr><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">某问题企业</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">45.0</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">32.0</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider);color:var(--color-negative)">↓ -13.0</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">经营异常 + 行政处罚</td><td style="padding:8px 12px;border-bottom:1px solid var(--color-divider)">2026-07-01</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Tab: 全局设置 ═══ -->
+  <div class="tab-content" id="tabSettings">
+    <div class="card" style="padding:24px">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--color-divider)">⚙️ 评分全局设置</h3>
+      <div class="form-row">
+        <div class="col"><label>评分满分</label><input type="number" value="100"></div>
+        <div class="col"><label>及格线</label><input type="number" value="60"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>评分周期</label>
+          <select><option>实时</option><option selected>每日</option><option>每周</option><option>每月</option></select>
+        </div>
+        <div class="col"><label>评分计算方式</label>
+          <select><option selected>加权平均</option><option>简单平均</option><option>最高分优先</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>评分等级划分</label>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;font-weight:400;color:var(--color-ink)">A (优秀): <input type="number" value="80" style="width:60px;padding:4px 8px;border:1px solid var(--color-divider);border-radius:6px;font-size:12px"> 分以上</label>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;font-weight:400;color:var(--color-ink)">B (良好): <input type="number" value="60" style="width:60px;padding:4px 8px;border:1px solid var(--color-divider);border-radius:6px;font-size:12px"> 分以上</label>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;font-weight:400;color:var(--color-ink)">C (中等): <input type="number" value="40" style="width:60px;padding:4px 8px;border:1px solid var(--color-divider);border-radius:6px;font-size:12px"> 分以上</label>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;font-weight:400;color:var(--color-ink)">D (较差): <input type="number" value="0" style="width:60px;padding:4px 8px;border:1px solid var(--color-divider);border-radius:6px;font-size:12px"> 分以下</label>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>自动评分</label>
+          <div class="toggle-wrap" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <div class="toggle on" onclick="this.classList.toggle('on')" style="cursor:pointer;width:44px;height:24px;background:var(--color-positive);border-radius:12px;position:relative;transition:background .3s;flex-shrink:0"></div>
+            <span class="toggle-label" style="font-size:13px;color:var(--color-ink-secondary)">启用自动评分（每日凌晨 2:00 执行）</span>
+          </div>
+        </div>
+        <div class="col"><label>评分通知</label>
+          <div class="toggle-wrap" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+            <div class="toggle" onclick="this.classList.toggle('on')" style="cursor:pointer;width:44px;height:24px;background:var(--color-gray-3);border-radius:12px;position:relative;transition:background .3s;flex-shrink:0"></div>
+            <span class="toggle-label" style="font-size:13px;color:var(--color-ink-secondary)">评分变动超过 10 分时发送通知</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--color-divider);display:flex;justify-content:flex-end;gap:12px">
+        <button class="btn btn-default" onclick="alert('已取消修改')">取消</button>
+        <button class="btn btn-primary" onclick="alert('全局设置已保存 ✓')">💾 保存设置</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ Modal: Add Dimension ═══ -->
+<div class="modal-overlay" id="modalAddDimension">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>新增评分维度</h3>
+      <button class="close" onclick="hideModal('addDimension')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="col"><label>维度名称 <span class="required">*</span></label><input type="text" placeholder="如：供应链能力"></div>
+        <div class="col"><label>维度图标</label><input type="text" placeholder="如：🔗" style="width:80px"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>权重 (%) <span class="required">*</span></label><input type="number" value="10" min="0" max="100"></div>
+        <div class="col"><label>排序号</label><input type="number" value="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>维度描述</label><textarea placeholder="维度说明"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="hideModal('addDimension')">取消</button>
+      <button class="btn btn-primary" onclick="alert('新评分维度已添加 ✓');hideModal('addDimension')">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Modal: Edit Dimension ═══ -->
+<div class="modal-overlay" id="modalEditDimension">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>编辑评分维度</h3>
+      <button class="close" onclick="hideModal('editDimension')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="col"><label>维度名称 <span class="required">*</span></label><input type="text" value="企业基础"></div>
+        <div class="col"><label>维度图标</label><input type="text" value="🏛️" style="width:80px"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>权重 (%) <span class="required">*</span></label><input type="number" value="25" min="0" max="100"></div>
+        <div class="col"><label>排序号</label><input type="number" value="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="col"><label>维度描述</label><textarea>企业基本信息相关评分，包括注册资本、成立年限、企业规模等</textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="hideModal('editDimension')">取消</button>
+      <button class="btn btn-primary" onclick="alert('维度已更新 ✓');hideModal('editDimension')">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleDim(header) {
+    const body = header.nextElementSibling;
+    const icon = header.querySelector('.toggle-icon');
+    body.classList.toggle('collapsed');
+    icon.classList.toggle('open');
+  }
+
+  function switchTab(el, tab) {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  }
+
+  function showModal(name) {
+    document.getElementById('modal' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('show');
+  }
+  function hideModal(name) {
+    document.getElementById('modal' + name.charAt(0).toUpperCase() + name.slice(1)).classList.remove('show');
+  }
+
+  // Add toggle CSS
+  document.querySelectorAll('.toggle').forEach(t => {
+    t.addEventListener('click', function() {
+      this.classList.toggle('on');
+      const label = this.nextElementSibling;
+      if (label) {
+        if (this.classList.contains('on')) {
+          label.textContent = label.textContent.replace('未', '');
+        } else {
+          if (!label.textContent.includes('未')) {
+            label.textContent = '未' + label.textContent;
+          }
+        }
+      }
+    });
+  });
+</script>
+</body>
+</html>

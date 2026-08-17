@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>企业列表 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto}
+    /* 表格点击表头排序 */
+    th.sortable{cursor:pointer;user-select:none}
+    th.sortable:hover{background:var(--color-canvas-elevated)}
+    th.sortable .sort-icon{opacity:0.4;margin-left:4px;font-size:10px}
+    th.sortable.active .sort-icon{opacity:1;color:var(--color-primary)}
+    /* 复选框列 */
+    .col-checkbox{width:40px}
+    .col-checkbox input{width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer}
+    /* 批量操作条 */
+    .bulk-bar{
+      display:none;
+      align-items:center;
+      gap:var(--space-md);
+      padding:var(--space-md) var(--space-lg);
+      background:var(--color-primary-pale);
+      border-radius:var(--rounded-sm);
+      margin-bottom:var(--space-md);
+    }
+    .bulk-bar.show{display:flex}
+    .bulk-bar .count{font-size:13px;color:var(--color-primary);font-weight:500}
+    /* 未授权按钮 */
+    .btn.perm-disabled{
+      background:var(--color-canvas-grouped) !important;
+      color:var(--color-ink-tertiary) !important;
+      border:1px solid var(--color-divider) !important;
+      cursor:not-allowed !important;
+      pointer-events:none;
+    }
+    .btn.perm-disabled:hover{background:var(--color-canvas-grouped) !important}
+  </style>
+</head>
+<body>
+  <!--
+  页面: park-enterprise/list (企业列表)
+  层级: 第 3 层 - 内容页（不含框架，假设 index.html 框架已存在）
+  嵌入方式: index.html iframe src="park-enterprise/list.html"
+  版本: v1.1
+  日期: 2026-07-01
+
+  数据源:
+  - 主表: sys_enterprise (V53)
+  - 行业: sys_enterprise_industry (V54)
+  - 子表: sys_enterprise_register/address/... (V55)
+  - 状态字典: sys_dict
+
+  API:
+  - GET /enterprise/page (分页查询 + 排序)
+  - GET /enterprise/{id} (详情跳转)
+  - POST /enterprise (新增)
+  - PUT /enterprise/{id} (编辑)
+  - DELETE /enterprise/{id} (软删除)
+  - DELETE /enterprise/batch (批量删除)
+  - PUT /enterprise/{id}/status (启停)
+  - PUT /enterprise/batch/status (批量启停)
+  - GET /enterprise/excel/export (导出)
+  - GET /enterprise/excel/template (下载模板)
+  - POST /enterprise/excel/import (导入)
+
+  权限点:
+  - enterprise:list (查看)
+  - enterprise:add (新增)
+  - enterprise:edit (编辑)
+  - enterprise:delete (删除)
+  - enterprise:status (启停)
+  - enterprise:batch (批量操作)
+  - enterprise:excel:export (导出)
+  - enterprise:excel:template (下载模板)
+  - enterprise:excel:import (导入)
+  -->
+
+  <!-- 面包屑 -->
+  <div class="breadcrumb-bar">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">企业档案</span>
+    <span class="sep">/</span>
+    <span class="crumb active">企业列表</span>
+  </div>
+
+  <div class="page-content">
+    <div class="page-title">企业列表</div>
+
+    <!-- 工具栏：搜索 + Excel + 新增 -->
+    <div class="card" style="padding:16px 20px">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" id="searchName" placeholder="企业名称 / 简称">
+          <input type="text" id="searchCredit" placeholder="统一社会信用代码">
+          <select id="searchIndustry">
+            <option value="">全部行业</option>
+            <option value="tech">信息技术</option>
+            <option value="finance">金融服务</option>
+            <option value="manufacture">制造业</option>
+            <option value="retail">零售批发</option>
+            <option value="service">服务业</option>
+          </select>
+          <select id="searchRegStatus">
+            <option value="">全部经营状态</option>
+            <option value="1">在营</option>
+            <option value="2">吊销</option>
+            <option value="3">注销</option>
+          </select>
+          <select id="searchBindStatus">
+            <option value="">全部入驻状态</option>
+            <option value="1">已绑定</option>
+            <option value="0">未绑定</option>
+          </select>
+          <button class="btn btn-primary" onclick="search()">🔍 搜索</button>
+          <button class="btn btn-default" onclick="resetSearch()">重置</button>
+        </div>
+        <div class="search-actions">
+          <!-- {{perm:enterprise:excel:import}} -->
+          <button class="btn btn-success" onclick="openImportDialog()">📥 导入</button>
+          <!-- {{perm:enterprise:excel:template}} -->
+          <button class="btn btn-default" onclick="downloadTemplate()">📋 下载模板</button>
+          <!-- {{perm:enterprise:excel:export}} -->
+          <button class="btn btn-warning" onclick="exportExcel()">📤 导出</button>
+          <!-- {{perm:enterprise:add}} -->
+          <button class="btn btn-primary" onclick="openAddDialog()">➕ 新增企业</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量操作条（默认隐藏，有选中时显示） -->
+    <div class="bulk-bar" id="bulkBar">
+      <span class="count">已选 <span id="selectedCount">0</span> 项</span>
+      <!-- {{perm:enterprise:status}} -->
+      <button class="btn btn-success btn-sm" onclick="batchToggleStatus(1)">批量启用</button>
+      <button class="btn btn-default btn-sm" onclick="batchToggleStatus(0)">批量停用</button>
+      <!-- {{perm:enterprise:delete}} -->
+      <button class="btn btn-danger btn-sm" onclick="batchDelete()">批量删除</button>
+      <button class="btn btn-default btn-sm" style="margin-left:auto" onclick="clearSelection()">取消选择</button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px">
+      <div class="card" style="padding:20px">
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px">总企业数</div>
+        <div style="font-size:28px;font-weight:700;color:var(--color-ink)" id="statTotal">5</div>
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">当前查询条件</div>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px">在营企业</div>
+        <div style="font-size:28px;font-weight:700;color:#34C759" id="statActive">5</div>
+        <div style="font-size:12px;color:#34C759;margin-top:4px">↑ 100%</div>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px">已入驻绑定</div>
+        <div style="font-size:28px;font-weight:700;color:var(--color-primary)" id="statBound">3</div>
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">绑定率 60%</div>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px">今日新增</div>
+        <div style="font-size:28px;font-weight:700;color:#FF9500" id="statNew">+5</div>
+        <div style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">2026-07-01</div>
+      </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+      <div id="enterpriseTable"></div>
+      <div class="pagination">
+        <div class="info">共 <span id="totalCount">5</span> 条记录，每页 10 条</div>
+        <div class="pages" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       新增/编辑企业弹窗（完整 30+ 字段）
+       ============================================================ -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal modal-xl">
+      <div class="modal-header">
+        <h3 id="modalTitle">新增企业</h3>
+        <button class="close" onclick="closeEditDialog()">×</button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm" onsubmit="return false">
+          <input type="hidden" id="editId">
+
+          <!-- 工商登记 -->
+          <div class="section-title">📋 工商登记</div>
+          <div class="form-row">
+            <div class="col">
+              <label>企业名称 <span class="required">*</span></label>
+              <input type="text" id="editName" required placeholder="请输入企业名称">
+              <div class="field-source">sys_enterprise.name</div>
+            </div>
+            <div class="col">
+              <label>简称</label>
+              <input type="text" id="editAlias" placeholder="请输入简称">
+              <div class="field-source">sys_enterprise.alias</div>
+            </div>
+            <div class="col">
+              <label>曾用名</label>
+              <input type="text" id="editFormerName" placeholder="如有曾用名">
+              <div class="field-source">sys_enterprise.former_name</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col">
+              <label>英文名</label>
+              <input type="text" id="editEnglishName" placeholder="English Name">
+              <div class="field-source">sys_enterprise.english_name</div>
+            </div>
+            <div class="col">
+              <label>统一社会信用代码</label>
+              <input type="text" id="editCreditCode" placeholder="18 位字符" maxlength="18">
+              <div class="field-source">sys_enterprise.credit_code</div>
+            </div>
+            <div class="col">
+              <label>注册号</label>
+              <input type="text" id="editRegNo" placeholder="工商注册号">
+              <div class="field-source">sys_enterprise.reg_no</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col">
+              <label>纳税人识别号</label>
+              <input type="text" id="editTaxNumber" placeholder="税号">
+              <div class="field-source">sys_enterprise.tax_number</div>
+            </div>
+            <div class="col">
+              <label>组织机构代码</label>
+              <input type="text" id="editOrgCode" placeholder="组织机构代码">
+              <div class="field-source">sys_enterprise.org_code</div>
+            </div>
+            <div class="col">
+              <label>工商登记机关</label>
+              <input type="text" id="editRegAuthority" placeholder="如：深圳市市场监督管理局">
+              <div class="field-source">sys_enterprise.reg_authority</div>
+            </div>
+          </div>
+
+          <!-- 法人/资本 -->
+          <div class="section-title">👤 法人/资本</div>
+          <div class="form-row">
+            <div class="col">
+              <label>法定代表人 <span class="required">*</span></label>
+              <input type="text" id="editLegalPerson" required placeholder="请输入法定代表人">
+              <div class="field-source">sys_enterprise.legal_person_name</div>
+            </div>
+            <div class="col">
+              <label>法人类型</label>
+              <select id="editLegalType">
+                <option value="1">自然人</option>
+                <option value="2">公司</option>
+                <option value="3">其他组织</option>
+              </select>
+              <div class="field-source">sys_enterprise.legal_type</div>
+            </div>
+            <div class="col">
+              <label>企业类型</label>
+              <select id="editEntType">
+                <option value="有限责任公司">有限责任公司</option>
+                <option value="股份有限公司">股份有限公司</option>
+                <option value="个人独资企业">个人独资企业</option>
+                <option value="合伙企业">合伙企业</option>
+                <option value="个体工商户">个体工商户</option>
+              </select>
+              <div class="field-source">sys_enterprise.ent_type</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col">
+              <label>注册资本</label>
+              <input type="text" id="editRegCapital" placeholder="如：1000 万">
+              <div class="field-source">sys_enterprise.reg_capital</div>
+            </div>
+            <div class="col">
+              <label>注册资本币种</label>
+              <select id="editRegCurrency">
+                <option value="人民币">人民币</option>
+                <option value="美元">美元</option>
+                <option value="欧元">欧元</option>
+                <option value="港币">港币</option>
+              </select>
+              <div class="field-source">sys_enterprise.reg_capital_currency</div>
+            </div>
+            <div class="col">
+              <label>实收资本</label>
+              <input type="text" id="editActualCapital" placeholder="如：500 万">
+              <div class="field-source">sys_enterprise.actual_capital</div>
+            </div>
+          </div>
+
+          <!-- 期限/登记 -->
+          <div class="section-title">📅 期限/登记</div>
+          <div class="form-row">
+            <div class="col">
+              <label>成立日期</label>
+              <input type="date" id="editEstiblishTime">
+              <div class="field-source">sys_enterprise.estiblish_time</div>
+            </div>
+            <div class="col">
+              <label>经营开始日期</label>
+              <input type="date" id="editFromTime">
+              <div class="field-source">sys_enterprise.from_time</div>
+            </div>
+            <div class="col">
+              <label>营业期限</label>
+              <select id="editBusinessTerm">
+                <option value="长期">长期</option>
+                <option value="10年">10 年</option>
+                <option value="20年">20 年</option>
+                <option value="30年">30 年</option>
+              </select>
+              <div class="field-source">sys_enterprise.business_term</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col">
+              <label>审核/年检日期</label>
+              <input type="date" id="editAnnualDate">
+              <div class="field-source">sys_enterprise.annual_date</div>
+            </div>
+            <div class="col">
+              <label>登记状态</label>
+              <select id="editRegStatus">
+                <option value="在营">在营</option>
+                <option value="吊销">吊销</option>
+                <option value="注销">注销</option>
+                <option value="迁出">迁出</option>
+              </select>
+              <div class="field-source">sys_enterprise.reg_status</div>
+            </div>
+            <div class="col">
+              <label>经营状态 <span class="field-source">sys_enterprise.business_status</span></label>
+              <div class="radio-group">
+                <label class="radio-item"><input type="radio" name="businessStatus" value="1" checked> 开业</label>
+                <label class="radio-item"><input type="radio" name="businessStatus" value="0"> 停业</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 行业/规模 -->
+          <div class="section-title">🏭 行业/规模</div>
+          <div class="form-row">
+            <div class="col">
+              <label>行业门类 <span class="field-source">sys_enterprise.industry_category</span></label>
+              <select id="editIndustryCategory">
+                <option value="">请选择</option>
+                <option value="A">A 农、林、牧、渔业</option>
+                <option value="B">B 采矿业</option>
+                <option value="C">C 制造业</option>
+                <option value="D">D 电力、热力、燃气及水生产和供应业</option>
+                <option value="E">E 建筑业</option>
+                <option value="F">F 批发和零售业</option>
+                <option value="G">G 交通运输、仓储和邮政业</option>
+                <option value="I">I 信息传输、软件和信息技术服务业</option>
+                <option value="K">K 房地产业</option>
+                <option value="L">L 租赁和商务服务业</option>
+                <option value="M">M 科学研究和技术服务业</option>
+              </select>
+            </div>
+            <div class="col">
+              <label>行业大类</label>
+              <select id="editIndustryBig">
+                <option value="">请先选择门类</option>
+              </select>
+              <div class="field-source">sys_enterprise.industry_big</div>
+            </div>
+            <div class="col">
+              <label>行业中类</label>
+              <select id="editIndustryMiddle">
+                <option value="">请先选择大类</option>
+              </select>
+              <div class="field-source">sys_enterprise.industry_middle</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col">
+              <label>人员规模</label>
+              <select id="editStaffNumRange">
+                <option value="">请选择</option>
+                <option value="1">少于 50 人</option>
+                <option value="2">50-99 人</option>
+                <option value="3">100-499 人</option>
+                <option value="4">500-999 人</option>
+                <option value="5">1000-4999 人</option>
+                <option value="6">5000-9999 人</option>
+                <option value="7">10000+ 人</option>
+              </select>
+              <div class="field-source">sys_enterprise.staff_num_range</div>
+            </div>
+            <div class="col">
+              <label>参保人数</label>
+              <input type="number" id="editInsuranceNum" placeholder="员工参保人数">
+              <div class="field-source">sys_enterprise.insurance_num</div>
+            </div>
+            <div class="col">
+              <label>是否小微企业</label>
+              <div class="radio-group">
+                <label class="radio-item"><input type="radio" name="isSmall" value="1"> 是</label>
+                <label class="radio-item"><input type="radio" name="isSmall" value="0" checked> 否</label>
+              </div>
+              <div class="field-source">sys_enterprise.is_small_micro</div>
+            </div>
+          </div>
+
+          <!-- 联系/经营 -->
+          <div class="section-title">📞 联系/经营</div>
+          <div class="form-row">
+            <div class="col" style="flex:2">
+              <label>注册地址 <span class="required">*</span></label>
+              <input type="text" id="editRegLocation" required placeholder="省/市/区 + 详细地址">
+              <div class="field-source">sys_enterprise.reg_location</div>
+            </div>
+            <div class="col">
+              <label>联系电话</label>
+              <input type="text" id="editPhoneNumber" placeholder="如：021-12345678">
+              <div class="field-source">sys_enterprise.phone_number</div>
+            </div>
+            <div class="col">
+              <label>邮箱</label>
+              <input type="email" id="editEmail" placeholder="contact@example.com">
+              <div class="field-source">sys_enterprise.email</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col" style="flex:2">
+              <label>经营范围 <span class="field-source">sys_enterprise.business_scope</span></label>
+              <textarea id="editBusinessScope" rows="3" placeholder="一般经营项目：...&#10;许可经营项目：..."></textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="col" style="flex:2">
+              <label>备注</label>
+              <textarea id="editRemark" rows="2" placeholder="内部备注信息"></textarea>
+              <div class="field-source">sys_enterprise.remark</div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeEditDialog()">取消</button>
+        <!-- {{perm:enterprise:edit}} -->
+        <button class="btn btn-primary" onclick="saveEnterprise()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导入弹窗 -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📥 导入企业</h3>
+        <button class="close" onclick="closeImportDialog()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="border:2px dashed var(--color-divider);border-radius:12px;padding:48px 24px;text-align:center;cursor:pointer;margin-bottom:16px" onclick="document.getElementById('excelFile').click()">
+          <div style="font-size:48px;margin-bottom:12px">📥</div>
+          <div style="font-size:15px;color:var(--color-ink);margin-bottom:4px">点击或拖拽 Excel 文件到此区域</div>
+          <div style="font-size:12px;color:var(--color-ink-tertiary)">仅支持 .xlsx 格式，最大 10MB</div>
+          <input type="file" id="excelFile" accept=".xlsx" style="display:none" onchange="handleFileSelect(this)">
+        </div>
+        <div id="importResult" style="display:none">
+          <div class="section-title">导入结果</div>
+          <div style="padding:12px;background:#d1f7d1;border-radius:8px;color:#248a3d;margin-bottom:8px">
+            ✓ 成功导入 <strong id="successCount">0</strong> 条
+          </div>
+          <div id="errorList"></div>
+        </div>
+        <div style="font-size:12px;color:var(--color-ink-tertiary);padding-top:12px;border-top:1px solid var(--color-divider)">
+          💡 提示：<a href="#" onclick="downloadTemplate();return false" style="color:var(--color-primary)">下载导入模板</a>，按模板格式填写后上传
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeImportDialog()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+     * Mock 数据（5 家头部企业，从 SeedDataInitializer 同步）
+     * ============================================================ */
+    var mockEnterprises = [
+      { id: 1, name: '华为投资控股有限公司', alias: '华为投资', formerName: '', englishName: 'Huawei Investment Holding', creditCode: '91440300MA5DA7Q37H', regNo: '4403011002001', taxNumber: '91440300MA5DA7Q37H', orgCode: 'MA5DA7Q37', legalPerson: '任正非', legalType: 1, entType: '有限责任公司', regCapital: '364.5 亿', regCapitalCurrency: '人民币', actualCapital: '364.5 亿', regAuthority: '深圳市市场监督管理局', estiblishTime: '1987-09-15', fromTime: '1987-09-15', businessTerm: '长期', annualDate: '2025-06-30', regStatus: '在营', regStatusCode: 1, businessStatus: 1, industry: 'tech', industryCategory: 'I', industryBig: 'I65', industryMiddle: 'I6520', industryLabel: '信息技术', staffNumRange: '7', insuranceNum: 207000, isSmallMicro: 0, regLocation: '广东省深圳市龙岗区坂田街道华为基地', phoneNumber: '0755-12345678', email: 'contact@huawei.com', businessScope: '一般经营项目：实业投资；创业投资；高科技产品的技术开发、技术咨询、技术服务、技术转让；国内贸易；经营进出口业务等', remark: '', rating: 1, bindStatus: 1, status: 1, createTime: '2026-07-01 10:30:00', updateTime: '2026-07-01 10:30:00' },
+      { id: 2, name: '深圳市腾讯计算机系统有限公司', alias: '腾讯', formerName: '', englishName: 'Tencent', creditCode: '91440300710930058F', regNo: '4403011002002', taxNumber: '91440300710930058F', orgCode: '', legalPerson: '马化腾', legalType: 1, entType: '有限责任公司', regCapital: '1000 万', regCapitalCurrency: '人民币', actualCapital: '1000 万', regAuthority: '深圳市市场监督管理局', estiblishTime: '1998-11-11', fromTime: '1998-11-11', businessTerm: '长期', annualDate: '2025-06-30', regStatus: '在营', regStatusCode: 1, businessStatus: 1, industry: 'tech', industryCategory: 'I', industryBig: 'I65', industryMiddle: 'I6520', industryLabel: '信息技术', staffNumRange: '7', insuranceNum: 85000, isSmallMicro: 0, regLocation: '广东省深圳市南山区高新区科技中一路腾讯大厦', phoneNumber: '0755-86013388', email: 'ir@tencent.com', businessScope: '一般经营项目：计算机软、硬件的设计、技术开发、销售（不含专营、专控、专卖商品及限制项目）；数据库及计算机网络服务；国内商业、物资供销业（不含专营、专控、专卖商品）等', remark: '', rating: 1, bindStatus: 1, status: 1, createTime: '2026-07-01 10:30:01', updateTime: '2026-07-01 10:30:01' },
+      { id: 3, name: '比亚迪股份有限公司', alias: '比亚迪', formerName: '', englishName: 'BYD', creditCode: '91440300192181804Y', regNo: '4403011002003', taxNumber: '91440300192181804Y', orgCode: '', legalPerson: '王传福', legalType: 1, entType: '股份有限公司', regCapital: '29.11 亿', regCapitalCurrency: '人民币', actualCapital: '29.11 亿', regAuthority: '深圳市市场监督管理局', estiblishTime: '1995-02-10', fromTime: '1995-02-10', businessTerm: '长期', annualDate: '2025-06-30', regStatus: '在营', regStatusCode: 1, businessStatus: 1, industry: 'manufacture', industryCategory: 'C', industryBig: 'C36', industryMiddle: 'C3610', industryLabel: '制造业', staffNumRange: '7', insuranceNum: 900000, isSmallMicro: 0, regLocation: '广东省深圳市大鹏新区葵涌街道延安路 1 号', phoneNumber: '0755-89888888', email: 'webmaster@byd.com', businessScope: '汽车（含小轿车）的研发、生产、销售及售后服务；新能源汽车、动力电池、储能电池及配件的研发、生产、销售等', remark: '', rating: 2, bindStatus: 0, status: 1, createTime: '2026-07-01 10:30:02', updateTime: '2026-07-01 10:30:02' },
+      { id: 4, name: '阿里巴巴（中国）有限公司', alias: '阿里', formerName: '', englishName: 'Alibaba', creditCode: '91330100799655058B', regNo: '330100000012345', taxNumber: '91330100799655058B', orgCode: '', legalPerson: '张勇', legalType: 1, entType: '有限责任公司', regCapital: '5962.5 万', regCapitalCurrency: '人民币', actualCapital: '5962.5 万', regAuthority: '杭州市市场监督管理局', estiblishTime: '2007-03-26', fromTime: '2007-03-26', businessTerm: '长期', annualDate: '2025-06-30', regStatus: '在营', regStatusCode: 1, businessStatus: 1, industry: 'tech', industryCategory: 'I', industryBig: 'I65', industryMiddle: 'I6520', industryLabel: '信息技术', staffNumRange: '7', insuranceNum: 124000, isSmallMicro: 0, regLocation: '浙江省杭州市余杭区文一西路 969 号', phoneNumber: '0571-85022088', email: 'ir@alibaba-inc.com', businessScope: '一般经营项目：计算机软硬件、网络产品的技术开发、技术服务、技术咨询、成果转让；计算机软硬件的安装、调试、维护等', remark: '', rating: 1, bindStatus: 1, status: 1, createTime: '2026-07-01 10:30:03', updateTime: '2026-07-01 10:30:03' },
+      { id: 5, name: '宁德时代新能源科技股份有限公司', alias: '宁德时代', formerName: '', englishName: 'CATL', creditCode: '91350900587531952H', regNo: '350901100005', taxNumber: '91350900587531952H', orgCode: '', legalPerson: '曾毓群', legalType: 1, entType: '股份有限公司', regCapital: '23.93 亿', regCapitalCurrency: '人民币', actualCapital: '23.93 亿', regAuthority: '宁德市市场监督管理局', estiblishTime: '2011-12-16', fromTime: '2011-12-16', businessTerm: '长期', annualDate: '2025-06-30', regStatus: '在营', regStatusCode: 1, businessStatus: 1, industry: 'manufacture', industryCategory: 'C', industryBig: 'C38', industryMiddle: 'C3840', industryLabel: '制造业', staffNumRange: '7', insuranceNum: 110000, isSmallMicro: 0, regLocation: '福建省宁德市蕉城区漳湾镇新港路 2 号', phoneNumber: '0593-2588888', email: 'catl@catlbattery.com', businessScope: '锂离子电池、锂聚合物电池、燃料电池、动力电池、超大容量储能电池及储能系统的研发、生产、销售等', remark: '', rating: 1, bindStatus: 0, status: 1, createTime: '2026-07-01 10:30:04', updateTime: '2026-07-01 10:30:04' },
+    ];
+
+    var currentPage = 1;
+    var pageSize = 10;
+    var filteredData = mockEnterprises.slice();
+    var selectedIds = new Set();
+    var sortField = 'createTime';
+    var sortOrder = 'desc'; // asc | desc
+
+    /* ============================================================
+     * 表格渲染（含复选框、列头排序、批量选择）
+     * ============================================================ */
+    function renderTable(){
+      // 排序
+      filteredData.sort(function(a, b){
+        var va = a[sortField] || '';
+        var vb = b[sortField] || '';
+        if (typeof va === 'number' && typeof vb === 'number') {
+          return sortOrder === 'asc' ? va - vb : vb - va;
+        }
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        if (va < vb) return sortOrder === 'asc' ? -1 : 1;
+        if (va > vb) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      var start = (currentPage - 1) * pageSize;
+      var end = Math.min(start + pageSize, filteredData.length);
+      var html = '<div class="table-wrapper"><table><thead><tr>';
+      // 复选框列
+      html += '<th class="col-checkbox"><input type="checkbox" id="checkAll" onclick="toggleCheckAll(this.checked)"></th>';
+      html += '<th width="50" class="sortable' + (sortField==='id'?' active':'') + '" onclick="sortBy(\'id\')">序号<span class="sort-icon">' + (sortField==='id'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th class="sortable' + (sortField==='name'?' active':'') + '" onclick="sortBy(\'name\')">企业名称<span class="sort-icon">' + (sortField==='name'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="100" class="sortable' + (sortField==='alias'?' active':'') + '" onclick="sortBy(\'alias\')">简称<span class="sort-icon">' + (sortField==='alias'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="200" class="sortable' + (sortField==='creditCode'?' active':'') + '" onclick="sortBy(\'creditCode\')">统一社会信用代码<span class="sort-icon">' + (sortField==='creditCode'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="100" class="sortable' + (sortField==='legalPerson'?' active':'') + '" onclick="sortBy(\'legalPerson\')">法人<span class="sort-icon">' + (sortField==='legalPerson'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="120" class="sortable' + (sortField==='industryLabel'?' active':'') + '" onclick="sortBy(\'industryLabel\')">行业<span class="sort-icon">' + (sortField==='industryLabel'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="120" class="sortable' + (sortField==='regCapital'?' active':'') + '" onclick="sortBy(\'regCapital\')">注册资本<span class="sort-icon">' + (sortField==='regCapital'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="80" class="sortable' + (sortField==='rating'?' active':'') + '" onclick="sortBy(\'rating\')">评分<span class="sort-icon">' + (sortField==='rating'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="100" class="sortable' + (sortField==='regStatus'?' active':'') + '" onclick="sortBy(\'regStatus\')">经营状态<span class="sort-icon">' + (sortField==='regStatus'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="100" class="sortable' + (sortField==='bindStatus'?' active':'') + '" onclick="sortBy(\'bindStatus\')">入驻状态<span class="sort-icon">' + (sortField==='bindStatus'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="90" class="sortable' + (sortField==='status'?' active':'') + '" onclick="sortBy(\'status\')">操作状态<span class="sort-icon">' + (sortField==='status'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="150" class="sortable' + (sortField==='updateTime'?' active':'') + '" onclick="sortBy(\'updateTime\')">更新时间<span class="sort-icon">' + (sortField==='updateTime'?(sortOrder==='asc'?'▲':'▼'):'⇅') + '</span></th>';
+      html += '<th width="220">操作</th>';
+      html += '</tr></thead><tbody>';
+
+      for (var i = start; i < end; i++) {
+        var e = filteredData[i];
+        var isSelected = selectedIds.has(e.id);
+        // 整行可点击进详情
+        html += '<tr class="clickable" onclick="goDetail(' + e.id + ')" title="点击查看详情">';
+        // 复选框（stopPropagation 避免冒泡）
+        html += '<td class="col-checkbox" onclick="event.stopPropagation()"><input type="checkbox" ' + (isSelected?'checked':'') + ' onchange="toggleSelect(' + e.id + ', this.checked)"></td>';
+        html += '<td>' + (i + 1) + '</td>';
+        // 企业名称
+        html += '<td><a href="#" onclick="event.stopPropagation();goDetail(' + e.id + ');return false" style="color:var(--color-primary);text-decoration:none;font-weight:500">' + e.name + '</a></td>';
+        html += '<td>' + (e.alias || '-') + '</td>';
+        html += '<td style="font-family:monospace;font-size:12px">' + e.creditCode + '</td>';
+        html += '<td>' + e.legalPerson + '</td>';
+        html += '<td>' + e.industryLabel + '</td>';
+        html += '<td>' + e.regCapital + '</td>';
+        // 评分
+        var ratingClass = e.rating === 1 ? 'badge-active' : (e.rating === 2 ? 'badge-info' : (e.rating === 3 ? 'badge-warning' : 'badge-negative'));
+        var ratingLabel = e.rating === 1 ? '优' : (e.rating === 2 ? '良' : (e.rating === 3 ? '中' : '差'));
+        html += '<td><span class="badge ' + ratingClass + '">' + ratingLabel + '</span></td>';
+        // 经营状态
+        var regStatusClass = e.regStatusCode === 1 ? 'badge-active' : (e.regStatusCode === 2 ? 'badge-warning' : 'badge-negative');
+        html += '<td><span class="badge ' + regStatusClass + '">' + e.regStatus + '</span></td>';
+        // 入驻状态
+        html += '<td>' + (e.bindStatus === 1 ? '<span class="badge badge-info">已绑定</span>' : '<span class="badge badge-disabled">未绑定</span>') + '</td>';
+        // 操作状态
+        var opStatusClass = e.status === 1 ? 'badge-active' : 'badge-disabled';
+        html += '<td><span class="badge ' + opStatusClass + '">' + (e.status === 1 ? '启用' : '停用') + '</span></td>';
+        html += '<td style="font-size:12px;color:var(--color-ink-tertiary)">' + e.updateTime + '</td>';
+        // 操作列
+        html += '<td style="white-space:nowrap" onclick="event.stopPropagation()">';
+        html += '<button class="btn btn-default btn-sm" onclick="goDetail(' + e.id + ')" title="查看详情">🔍</button> ';
+        html += '<button class="btn btn-default btn-sm" onclick="openEditDialog(' + e.id + ')" title="编辑">✏️</button> ';
+        if (e.status === 1) {
+          html += '<button class="btn btn-default btn-sm" onclick="toggleStatus(' + e.id + ', 0)" title="停用">停用</button> ';
+        } else {
+          html += '<button class="btn btn-success btn-sm" onclick="toggleStatus(' + e.id + ', 1)" title="启用">启用</button> ';
+        }
+        html += '<button class="btn btn-danger btn-sm" onclick="deleteEnterprise(' + e.id + ')" title="删除">删除</button>';
+        html += '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody></table></div>';
+      document.getElementById('enterpriseTable').innerHTML = html;
+      document.getElementById('totalCount').textContent = filteredData.length;
+      updateStats();
+      renderPagination();
+      updateBulkBar();
+    }
+
+    function renderPagination(){
+      var total = Math.ceil(filteredData.length / pageSize);
+      var html = '';
+      html += '<button ' + (currentPage === 1 ? 'class="disabled"' : '') + ' onclick="goPage(' + (currentPage - 1) + ')">‹</button>';
+      var start = Math.max(1, currentPage - 2);
+      var end = Math.min(total, currentPage + 2);
+      for (var i = start; i <= end; i++) {
+        html += '<button ' + (i === currentPage ? 'class="active"' : '') + ' onclick="goPage(' + i + ')">' + i + '</button>';
+      }
+      html += '<button ' + (currentPage === total ? 'class="disabled"' : '') + ' onclick="goPage(' + (currentPage + 1) + ')">›</button>';
+      document.getElementById('pagination').innerHTML = html;
+    }
+
+    function goPage(p){
+      var total = Math.ceil(filteredData.length / pageSize);
+      if (p < 1 || p > total) return;
+      currentPage = p;
+      renderTable();
+    }
+
+    /* ============================================================
+     * 排序
+     * ============================================================ */
+    function sortBy(field){
+      if (sortField === field) {
+        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortField = field;
+        sortOrder = 'asc';
+      }
+      renderTable();
+    }
+
+    /* ============================================================
+     * 批量选择
+     * ============================================================ */
+    function toggleSelect(id, checked){
+      if (checked) selectedIds.add(id);
+      else selectedIds.delete(id);
+      updateBulkBar();
+      // 同步全选状态
+      var visibleIds = filteredData.slice((currentPage-1)*pageSize, currentPage*pageSize).map(function(e){return e.id;});
+      var allChecked = visibleIds.every(function(id){return selectedIds.has(id);});
+      var checkAllEl = document.getElementById('checkAll');
+      if (checkAllEl) checkAllEl.checked = allChecked;
+    }
+
+    function toggleCheckAll(checked){
+      var visibleIds = filteredData.slice((currentPage-1)*pageSize, currentPage*pageSize);
+      visibleIds.forEach(function(e){
+        if (checked) selectedIds.add(e.id);
+        else selectedIds.delete(e.id);
+      });
+      renderTable();
+    }
+
+    function clearSelection(){
+      selectedIds.clear();
+      renderTable();
+    }
+
+    function updateBulkBar(){
+      var bar = document.getElementById('bulkBar');
+      var count = document.getElementById('selectedCount');
+      count.textContent = selectedIds.size;
+      if (selectedIds.size > 0) bar.classList.add('show');
+      else bar.classList.remove('show');
+    }
+
+    /* ============================================================
+     * 统计
+     * ============================================================ */
+    function updateStats(){
+      document.getElementById('statTotal').textContent = filteredData.length;
+      document.getElementById('statActive').textContent = filteredData.filter(function(e){ return e.regStatusCode === 1; }).length;
+      document.getElementById('statBound').textContent = filteredData.filter(function(e){ return e.bindStatus === 1; }).length;
+      var newCount = filteredData.filter(function(e){ return e.createTime.indexOf('2026-07-01') === 0; }).length;
+      document.getElementById('statNew').textContent = '+' + newCount;
+    }
+
+    /* ============================================================
+     * 搜索/重置
+     * ============================================================ */
+    function search(){
+      var name = document.getElementById('searchName').value.toLowerCase();
+      var credit = document.getElementById('searchCredit').value.toLowerCase();
+      var industry = document.getElementById('searchIndustry').value;
+      var regStatus = document.getElementById('searchRegStatus').value;
+      var bindStatus = document.getElementById('searchBindStatus').value;
+      filteredData = mockEnterprises.filter(function(e){
+        if (name && e.name.toLowerCase().indexOf(name) === -1 && e.alias.toLowerCase().indexOf(name) === -1) return false;
+        if (credit && e.creditCode.toLowerCase().indexOf(credit) === -1) return false;
+        if (industry && e.industry !== industry) return false;
+        if (regStatus && e.regStatusCode !== parseInt(regStatus)) return false;
+        if (bindStatus && e.bindStatus !== parseInt(bindStatus)) return false;
+        return true;
+      });
+      currentPage = 1;
+      selectedIds.clear();
+      renderTable();
+    }
+
+    function resetSearch(){
+      document.getElementById('searchName').value = '';
+      document.getElementById('searchCredit').value = '';
+      document.getElementById('searchIndustry').value = '';
+      document.getElementById('searchRegStatus').value = '';
+      document.getElementById('searchBindStatus').value = '';
+      filteredData = mockEnterprises.slice();
+      currentPage = 1;
+      selectedIds.clear();
+      renderTable();
+    }
+
+    /* ============================================================
+     * 详情跳转
+     * ============================================================ */
+    function goDetail(id){
+      var url = 'park-enterprise/detail.html?id=' + id;
+      var payload = { type: 'loadPage', url: url, pageName: '企业详情', moduleKey: 'park-enterprise' };
+      try { if (window.parent && window.parent !== window) { window.parent.postMessage(payload, '*'); return; } } catch(e) {}
+      try { if (window.parent && window.parent.loadPage) { window.parent.loadPage(url, payload.pageName, payload.moduleKey); return; } } catch(e) {}
+      window.location.href = url;
+    }
+
+    /* ============================================================
+     * 返回
+     * ============================================================ */
+    function goBack(){
+      var payload = { type: 'loadPage', url: '', pageName: '概览', moduleKey: 'dashboard' };
+      try { if (window.parent && window.parent !== window) { window.parent.postMessage(payload, '*'); return; } } catch(e) {}
+      try { if (window.parent && window.parent.loadPage) { window.parent.loadPage('', '概览', 'dashboard'); return; } } catch(e) {}
+      window.top.location.href = '../index.html';
+    }
+
+    /* ============================================================
+     * 新增/编辑
+     * ============================================================ */
+    function openAddDialog(){
+      document.getElementById('modalTitle').textContent = '➕ 新增企业';
+      document.getElementById('editForm').reset();
+      document.getElementById('editId').value = '';
+      document.getElementById('editRegCurrency').value = '人民币';
+      document.getElementById('editRegStatus').value = '在营';
+      document.getElementById('editBusinessTerm').value = '长期';
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function openEditDialog(id){
+      var e = mockEnterprises.find(function(x){ return x.id === id; });
+      if (!e) return;
+      document.getElementById('modalTitle').textContent = '✏️ 编辑企业：' + e.name;
+      // 工商登记
+      document.getElementById('editId').value = id;
+      document.getElementById('editName').value = e.name || '';
+      document.getElementById('editAlias').value = e.alias || '';
+      document.getElementById('editFormerName').value = e.formerName || '';
+      document.getElementById('editEnglishName').value = e.englishName || '';
+      document.getElementById('editCreditCode').value = e.creditCode || '';
+      document.getElementById('editRegNo').value = e.regNo || '';
+      document.getElementById('editTaxNumber').value = e.taxNumber || '';
+      document.getElementById('editOrgCode').value = e.orgCode || '';
+      document.getElementById('editRegAuthority').value = e.regAuthority || '';
+      // 法人/资本
+      document.getElementById('editLegalPerson').value = e.legalPerson || '';
+      document.getElementById('editLegalType').value = e.legalType || 1;
+      document.getElementById('editEntType').value = e.entType || '有限责任公司';
+      document.getElementById('editRegCapital').value = e.regCapital || '';
+      document.getElementById('editRegCurrency').value = e.regCapitalCurrency || '人民币';
+      document.getElementById('editActualCapital').value = e.actualCapital || '';
+      // 期限/登记
+      document.getElementById('editEstiblishTime').value = e.estiblishTime || '';
+      document.getElementById('editFromTime').value = e.fromTime || '';
+      document.getElementById('editBusinessTerm').value = e.businessTerm || '长期';
+      document.getElementById('editAnnualDate').value = e.annualDate || '';
+      document.getElementById('editRegStatus').value = e.regStatus || '在营';
+      // 行业/规模
+      document.getElementById('editIndustryCategory').value = e.industryCategory || '';
+      document.getElementById('editIndustryBig').value = e.industryBig || '';
+      document.getElementById('editIndustryMiddle').value = e.industryMiddle || '';
+      document.getElementById('editStaffNumRange').value = e.staffNumRange || '';
+      document.getElementById('editInsuranceNum').value = e.insuranceNum || '';
+      // 联系/经营
+      document.getElementById('editRegLocation').value = e.regLocation || '';
+      document.getElementById('editPhoneNumber').value = e.phoneNumber || '';
+      document.getElementById('editEmail').value = e.email || '';
+      document.getElementById('editBusinessScope').value = e.businessScope || '';
+      document.getElementById('editRemark').value = e.remark || '';
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function closeEditDialog(){
+      document.getElementById('editModal').classList.remove('show');
+    }
+
+    function saveEnterprise(){
+      var name = document.getElementById('editName').value.trim();
+      var legal = document.getElementById('editLegalPerson').value.trim();
+      var location = document.getElementById('editRegLocation').value.trim();
+      if (!name) { alert('请输入企业名称（必填）'); return; }
+      if (!legal) { alert('请输入法定代表人（必填）'); return; }
+      if (!location) { alert('请输入注册地址（必填）'); return; }
+
+      var id = document.getElementById('editId').value;
+      var data = {
+        name: name,
+        alias: document.getElementById('editAlias').value.trim(),
+        formerName: document.getElementById('editFormerName').value.trim(),
+        englishName: document.getElementById('editEnglishName').value.trim(),
+        creditCode: document.getElementById('editCreditCode').value.trim(),
+        regNo: document.getElementById('editRegNo').value.trim(),
+        taxNumber: document.getElementById('editTaxNumber').value.trim(),
+        orgCode: document.getElementById('editOrgCode').value.trim(),
+        regAuthority: document.getElementById('editRegAuthority').value.trim(),
+        legalPerson: legal,
+        legalType: parseInt(document.getElementById('editLegalType').value),
+        entType: document.getElementById('editEntType').value,
+        regCapital: document.getElementById('editRegCapital').value.trim(),
+        regCapitalCurrency: document.getElementById('editRegCurrency').value,
+        actualCapital: document.getElementById('editActualCapital').value.trim(),
+        estiblishTime: document.getElementById('editEstiblishTime').value,
+        fromTime: document.getElementById('editFromTime').value,
+        businessTerm: document.getElementById('editBusinessTerm').value,
+        annualDate: document.getElementById('editAnnualDate').value,
+        regStatus: document.getElementById('editRegStatus').value,
+        industryCategory: document.getElementById('editIndustryCategory').value,
+        industryBig: document.getElementById('editIndustryBig').value,
+        industryMiddle: document.getElementById('editIndustryMiddle').value,
+        staffNumRange: document.getElementById('editStaffNumRange').value,
+        insuranceNum: parseInt(document.getElementById('editInsuranceNum').value) || 0,
+        regLocation: location,
+        phoneNumber: document.getElementById('editPhoneNumber').value.trim(),
+        email: document.getElementById('editEmail').value.trim(),
+        businessScope: document.getElementById('editBusinessScope').value.trim(),
+        remark: document.getElementById('editRemark').value.trim(),
+        updateTime: new Date().toISOString().slice(0,19).replace('T',' ')
+      };
+
+      if (id) {
+        // 编辑
+        var idx = mockEnterprises.findIndex(function(x){ return x.id === parseInt(id); });
+        if (idx >= 0) {
+          Object.assign(mockEnterprises[idx], data);
+          alert('演示模式：编辑成功（' + name + '）');
+        }
+      } else {
+        // 新增
+        var newId = Math.max.apply(null, mockEnterprises.map(function(e){return e.id;})) + 1;
+        data.id = newId;
+        data.regStatusCode = 1;
+        data.industry = data.industryCategory || 'tech';
+        data.industryLabel = document.getElementById('editIndustryCategory').selectedOptions[0]?.text.split(' ')[1] || '其他';
+        data.businessStatus = 1;
+        data.bindStatus = 0;
+        data.status = 1;
+        data.rating = 1;
+        data.createTime = new Date().toISOString().slice(0,19).replace('T',' ');
+        mockEnterprises.unshift(data);
+        filteredData = mockEnterprises.slice();
+        alert('演示模式：新增成功（' + name + '）');
+      }
+      closeEditDialog();
+      renderTable();
+    }
+
+    function toggleStatus(id, status){
+      var e = mockEnterprises.find(function(x){ return x.id === id; });
+      if (e) {
+        e.status = status;
+        e.updateTime = new Date().toISOString().slice(0,19).replace('T',' ');
+        renderTable();
+      }
+    }
+
+    function batchToggleStatus(status){
+      if (selectedIds.size === 0) return;
+      var action = status === 1 ? '启用' : '停用';
+      if (!confirm('确定要' + action + '选中的 ' + selectedIds.size + ' 个企业吗？')) return;
+      selectedIds.forEach(function(id){
+        var e = mockEnterprises.find(function(x){ return x.id === id; });
+        if (e) {
+          e.status = status;
+          e.updateTime = new Date().toISOString().slice(0,19).replace('T',' ');
+        }
+      });
+      alert('演示模式：批量' + action + '成功');
+      selectedIds.clear();
+      renderTable();
+    }
+
+    function deleteEnterprise(id){
+      if (!confirm('确定要删除该企业吗？此操作不可恢复。')) return;
+      mockEnterprises = mockEnterprises.filter(function(x){ return x.id !== id; });
+      filteredData = mockEnterprises.slice();
+      selectedIds.delete(id);
+      renderTable();
+    }
+
+    function batchDelete(){
+      if (selectedIds.size === 0) return;
+      if (!confirm('确定要删除选中的 ' + selectedIds.size + ' 个企业吗？此操作不可恢复。')) return;
+      var ids = Array.from(selectedIds);
+      mockEnterprises = mockEnterprises.filter(function(x){ return ids.indexOf(x.id) === -1; });
+      filteredData = mockEnterprises.slice();
+      selectedIds.clear();
+      alert('演示模式：批量删除成功');
+      renderTable();
+    }
+
+    /* ============================================================
+     * Excel 导入/导出/模板
+     * ============================================================ */
+    function downloadTemplate(){
+      console.log('GET /enterprise/excel/template');
+      alert('演示模式：触发下载 enterprise_template.xlsx（含 19 列示例）');
+    }
+
+    function exportExcel(){
+      var count = filteredData.length;
+      console.log('GET /enterprise/excel/export - 当前筛选 ' + count + ' 条');
+      alert('演示模式：导出 ' + count + ' 条企业数据为 enterprise_export_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    }
+
+    function openImportDialog(){
+      document.getElementById('importResult').style.display = 'none';
+      document.getElementById('excelFile').value = '';
+      document.getElementById('importModal').classList.add('show');
+    }
+
+    function closeImportDialog(){
+      document.getElementById('importModal').classList.remove('show');
+    }
+
+    function handleFileSelect(input){
+      if (!input.files || !input.files[0]) return;
+      var file = input.files[0];
+      console.log('POST /enterprise/excel/import - file:', file.name);
+      document.getElementById('successCount').textContent = '3';
+      var errorHtml = '<div style="padding:12px;background:#FFD9D9;border-radius:8px;color:#d32f2f;margin-bottom:8px">✗ 失败 <strong>2</strong> 条：<ul style="margin:8px 0 0 20px;font-size:12px"><li>第 3 行：信用代码已存在</li><li>第 5 行：必填字段缺失（企业名称）</li></ul></div>';
+      document.getElementById('errorList').innerHTML = errorHtml;
+      document.getElementById('importResult').style.display = 'block';
+    }
+
+    /* ============================================================
+     * 初始化
+     * ============================================================ */
+    renderTable();
+  </script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>客户画像 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:16px 24px 24px}
+    /* 顶部画像卡 */
+    .profile-header{background:linear-gradient(135deg, #007AFF 0%, #5856D6 100%);color:#fff;border-radius:12px;padding:24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+    .profile-header .name{font-size:22px;font-weight:600;margin-bottom:6px}
+    .profile-header .meta{font-size:13px;opacity:0.85;display:flex;gap:16px;flex-wrap:wrap}
+    .profile-header .meta span{background:rgba(255,255,255,0.15);padding:4px 10px;border-radius:12px}
+    .profile-header .score{text-align:center;padding:0 24px;border-left:1px solid rgba(255,255,255,0.3);border-right:1px solid rgba(255,255,255,0.3)}
+    .profile-header .score .label{font-size:11px;opacity:0.8}
+    .profile-header .score .value{font-size:36px;font-weight:700;line-height:1.2}
+    .profile-header .score .sub{font-size:11px;opacity:0.8}
+    .profile-header .health{text-align:center;padding-left:24px}
+    .profile-header .health .label{font-size:11px;opacity:0.8}
+    .profile-header .health .badge-health{font-size:16px;font-weight:600}
+    /* RFM 卡片 */
+    .rfm-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+    .rfm-card{background:var(--color-canvas);border-radius:12px;box-shadow:var(--shadow-card);padding:16px;text-align:center}
+    .rfm-card .label{font-size:11px;color:var(--color-ink-tertiary);margin-bottom:6px}
+    .rfm-card .value{font-size:22px;font-weight:700;margin-bottom:4px}
+    .rfm-card .bar{height:4px;background:var(--color-canvas-grouped);border-radius:2px;overflow:hidden;margin-top:8px}
+    .rfm-card .bar .fill{height:100%;background:#007AFF;border-radius:2px}
+    /* 时间轴 */
+    .timeline{position:relative;padding-left:24px}
+    .timeline::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--color-divider)}
+    .timeline-item{position:relative;padding-bottom:20px}
+    .timeline-item::before{content:"";position:absolute;left:-20px;top:6px;width:12px;height:12px;border-radius:50%;background:#007AFF;border:3px solid var(--color-canvas);box-shadow:0 0 0 2px var(--color-primary-pale)}
+    .timeline-item .time{font-size:11px;color:var(--color-ink-tertiary);margin-bottom:4px}
+    .timeline-item .title{font-size:14px;font-weight:600;color:var(--color-ink);margin-bottom:4px}
+    .timeline-item .desc{font-size:12px;color:var(--color-ink-secondary)}
+    /* 健康度雷达 */
+    .radar-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+    .radar-card{padding:16px}
+    .radar-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .radar-bar .name{width:100px;font-size:12px}
+    .radar-bar .track{flex:1;height:8px;background:var(--color-canvas-grouped);border-radius:4px;overflow:hidden}
+    .radar-bar .fill{height:100%;border-radius:4px;background:linear-gradient(90deg, #34C759 0%, #007AFF 100%)}
+    .radar-bar .score{width:50px;font-size:12px;text-align:right;font-family:monospace}
+  </style>
+</head>
+<body>
+  <!--
+  页面: park-enterprise/profile (客户画像)
+  层级: 第 3 层 - 内容页（只读视图）
+  版本: v1.0
+  日期: 2026-07-01
+  -->
+
+  <div class="breadcrumb-bar">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">企业档案</span>
+    <span class="sep">/</span>
+    <span class="crumb active">客户画像</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <select onchange="switchCustomer(this.value)" style="font-size:12px;padding:4px 10px;border:1px solid var(--color-divider);border-radius:6px;background:var(--color-canvas)">
+        <option value="1" selected>华为投资控股有限公司</option>
+        <option value="2">深圳市腾讯计算机系统有限公司</option>
+        <option value="3">比亚迪股份有限公司</option>
+        <option value="4">阿里巴巴（中国）有限公司</option>
+        <option value="5">宁德时代新能源科技股份有限公司</option>
+      </select>
+    </span>
+  </div>
+
+  <div class="page-content">
+
+    <!-- 顶部画像卡 -->
+    <div class="profile-header">
+      <div>
+        <div class="name">🏛️ 华为投资控股有限公司 <span class="badge badge-active" style="font-size:11px;vertical-align:middle;background:rgba(255,255,255,0.2);color:#fff;margin-left:8px">VIP</span></div>
+        <div class="meta" style="margin-top:8px">
+          <span>🏭 信息传输/软件</span>
+          <span>📅 合作 4 年</span>
+          <span>📊 已签约</span>
+          <span>👥 10000+ 人</span>
+          <span>🌐 全国</span>
+        </div>
+      </div>
+      <div class="score">
+        <div class="label">客户价值评分</div>
+        <div class="value">98</div>
+        <div class="sub">/ 100 · 优</div>
+      </div>
+      <div class="health">
+        <div class="label">健康度</div>
+        <div class="badge-health">A 级</div>
+        <div class="sub" style="margin-top:4px">健康</div>
+      </div>
+    </div>
+
+    <!-- RFM 模型 -->
+    <div class="section-title">📊 RFM 客户价值模型</div>
+    <div class="rfm-grid">
+      <div class="rfm-card">
+        <div class="label">R - 最近合作</div>
+        <div class="value" style="color:#34C759">3 天前</div>
+        <div class="bar"><div class="fill" style="width:98%;background:#34C759"></div></div>
+      </div>
+      <div class="rfm-card">
+        <div class="label">F - 合作频次</div>
+        <div class="value" style="color:#007AFF">12 次/年</div>
+        <div class="bar"><div class="fill" style="width:85%;background:#007AFF"></div></div>
+      </div>
+      <div class="rfm-card">
+        <div class="label">M - 合作金额</div>
+        <div class="value" style="color:#5856D6">¥ 4.2 亿</div>
+        <div class="bar"><div class="fill" style="width:92%;background:#5856D6"></div></div>
+      </div>
+      <div class="rfm-card">
+        <div class="label">满意度</div>
+        <div class="value" style="color:#34C759">96%</div>
+        <div class="bar"><div class="fill" style="width:96%;background:#34C759"></div></div>
+      </div>
+      <div class="rfm-card">
+        <div class="label">续约概率</div>
+        <div class="value" style="color:#34C759">92%</div>
+        <div class="bar"><div class="fill" style="width:92%;background:#34C759"></div></div>
+      </div>
+    </div>
+
+    <!-- 双栏：健康度雷达 + 关键联系人 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="card radar-card">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">🎯 客户健康度评估</h3>
+        <div class="radar-bar">
+          <div class="name">合作时长</div>
+          <div class="track"><div class="fill" style="width:80%"></div></div>
+          <div class="score">80%</div>
+        </div>
+        <div class="radar-bar">
+          <div class="name">沟通频率</div>
+          <div class="track"><div class="fill" style="width:90%"></div></div>
+          <div class="score">90%</div>
+        </div>
+        <div class="radar-bar">
+          <div class="name">需求响应</div>
+          <div class="track"><div class="fill" style="width:95%"></div></div>
+          <div class="score">95%</div>
+        </div>
+        <div class="radar-bar">
+          <div class="name">付款及时性</div>
+          <div class="track"><div class="fill" style="width:98%"></div></div>
+          <div class="score">98%</div>
+        </div>
+        <div class="radar-bar">
+          <div class="name">业务增长</div>
+          <div class="track"><div class="fill" style="width:75%"></div></div>
+          <div class="score">75%</div>
+        </div>
+        <div class="radar-bar">
+          <div class="name">满意度</div>
+          <div class="track"><div class="fill" style="width:96%"></div></div>
+          <div class="score">96%</div>
+        </div>
+      </div>
+
+      <div class="card radar-card">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">👥 关键联系人（3）</h3>
+        <div style="margin-bottom:16px;padding:12px;background:var(--color-canvas-grouped);border-radius:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, #007AFF, #5856D6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">张</div>
+            <div>
+              <div style="font-weight:500">张伟</div>
+              <div style="font-size:12px;color:var(--color-ink-tertiary)">招商经理 · 139****0001</div>
+            </div>
+            <span class="badge badge-info" style="margin-left:auto;font-size:10px">主联系人</span>
+          </div>
+          <div style="font-size:12px;color:var(--color-ink-secondary);line-height:1.5">
+            📧 zhangwei@huawei.com<br>
+            🏢 坂田基地 A 座 12-15 楼<br>
+            ⭐ 影响力：高 · 决策权：中
+          </div>
+        </div>
+        <div style="margin-bottom:16px;padding:12px;background:var(--color-canvas-grouped);border-radius:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, #34C759, #007AFF);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">李</div>
+            <div>
+              <div style="font-weight:500">李娜</div>
+              <div style="font-size:12px;color:var(--color-ink-tertiary)">招商专员 · 139****0002</div>
+            </div>
+            <span class="badge badge-default" style="margin-left:auto;font-size:10px">辅助</span>
+          </div>
+          <div style="font-size:12px;color:var(--color-ink-secondary);line-height:1.5">
+            🏢 坂田基地 B 座 8 楼<br>
+            ⭐ 影响力：中 · 决策权：低
+          </div>
+        </div>
+        <div style="padding:12px;background:var(--color-canvas-grouped);border-radius:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, #FF9500, #FF3B30);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">王</div>
+            <div>
+              <div style="font-weight:500">王强</div>
+              <div style="font-size:12px;color:var(--color-ink-tertiary)">招商总监 · 139****0003</div>
+            </div>
+            <span class="badge badge-warning" style="margin-left:auto;font-size:10px">决策人</span>
+          </div>
+          <div style="font-size:12px;color:var(--color-ink-secondary);line-height:1.5">
+            ⭐ 影响力：高 · 决策权：高
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 合作历史时间轴 -->
+    <div class="card" style="padding:20px;margin-bottom:16px">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">📅 合作历史（最近 5 个里程碑）</h3>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="time">2026-06-15</div>
+          <div class="title">🏆 续约战略合作协议（5 年）</div>
+          <div class="desc">签订 5 年战略合作协议，签约金额 ¥ 4.2 亿，涵盖 12,000 m² 办公场地 + 综合服务</div>
+        </div>
+        <div class="timeline-item">
+          <div class="time">2025-12-08</div>
+          <div class="title">🏢 扩租：增加 3,500 m² 研发场地</div>
+          <div class="desc">原 A 座扩租 +3,500 m²（12-15 楼），用于 5G 研发团队扩张</div>
+        </div>
+        <div class="timeline-item">
+          <div class="time">2024-09-20</div>
+          <div class="title">⭐ 评级升级为 VIP 客户</div>
+          <div class="desc">合作金额突破 3 亿，续约率 100%，升级为 VIP 客户，享受优先服务</div>
+        </div>
+        <div class="timeline-item">
+          <div class="time">2024-03-15</div>
+          <div class="title">📋 首次签约入驻（HX-2024-001）</div>
+          <div class="desc">项目编号 HX-2024-001，租用 A 座 12-15 楼 8,500 m²，签约 3 年</div>
+        </div>
+        <div class="timeline-item">
+          <div class="time">2023-09-01</div>
+          <div class="title">🤝 初次接触（招商对接）</div>
+          <div class="desc">招商经理张伟首次接洽华为投资控股有限公司，沟通入驻意向</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 需求摘要 + 跟进建议 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card" style="padding:20px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">📋 客户需求摘要</h3>
+        <div class="descriptions cols-2">
+          <div class="item"><div class="label">主要需求</div><div class="value">办公场地 + 综合服务 + 班车 + 团餐 + 公寓</div></div>
+          <div class="item"><div class="label">扩展需求</div><div class="value">研发场地（5G/AI） + 实验室</div></div>
+          <div class="item"><div class="label">投诉记录</div><div class="value" style="color:#34C759">0 起</div></div>
+          <div class="item"><div class="label">表扬记录</div><div class="value">3 起（服务态度/响应速度/设施维护）</div></div>
+          <div class="item full"><div class="label">主要痛点</div><div class="value">会议室不足；高峰期停车位紧张；园区周边餐饮选择有限</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:20px">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:16px">💡 AI 跟进建议</h3>
+        <div style="padding:12px 14px;background:linear-gradient(135deg, #E5F1FF 0%, #F0F0FF 100%);border-radius:8px;margin-bottom:10px;font-size:13px;line-height:1.6">
+          🎯 <strong>续约意向强</strong>：根据 RFM 评分，5 年战略协议续签概率 92%，建议提前 6 个月（2025-12）开始续约谈判
+        </div>
+        <div style="padding:12px 14px;background:linear-gradient(135deg, #d1f7d1 0%, #E5F1FF 100%);border-radius:8px;margin-bottom:10px;font-size:13px;line-height:1.6">
+          📈 <strong>扩展机会</strong>：客户近期招聘 5G 研发团队 200 人，建议主动对接，提供 B/C 座预留场地
+        </div>
+        <div style="padding:12px 14px;background:linear-gradient(135deg, #FFE8C7 0%, #FFD9D9 100%);border-radius:8px;margin-bottom:10px;font-size:13px;line-height:1.6">
+          ⚠️ <strong>风险预警</strong>：会议室预订冲突率上升（近 30 天 +15%），建议扩容 2 间智能会议室
+        </div>
+        <div style="padding:12px 14px;background:linear-gradient(135deg, #E5F1FF 0%, #d1f7d1 100%);border-radius:8px;font-size:13px;line-height:1.6">
+          💝 <strong>关怀建议</strong>：客户任正非生日 10-25，可安排节日祝福 + 高管专属接待
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--color-ink-tertiary);font-size:11px;margin-top:24px;padding:8px">
+      📊 数据更新于 2026-07-01 10:23 · 客户画像由 RFM 模型 + 健康度评估 + AI 推荐引擎综合生成 · 仅供内部参考
+    </div>
+  </div>
+
+  <script>
+    function switchCustomer(id){
+      console.log('切换客户画像:', id);
+      // 实际应用：重新拉取数据
+    }
+
+    function goBack(){
+      var payload = { type: 'loadPage', url: 'park-enterprise/detail.html', pageName: '企业详情', moduleKey: 'park-enterprise' };
+      try { if (window.parent && window.parent !== window) { window.parent.postMessage(payload, '*'); return; } } catch(e) {}
+      try { if (window.parent && window.parent.loadPage) { window.parent.loadPage('park-enterprise/detail.html', '企业详情', 'park-enterprise'); return; } } catch(e) {}
+      window.top.location.href = '../index.html?module=park-enterprise&page=detail';
+    }
+  </script>
+</body>
+</html>
