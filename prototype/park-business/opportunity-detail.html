@@ -94,7 +94,7 @@
         <!-- {{perm:business:opportunity:terminate}} -->
         <button class="btn btn-danger btn-sm" onclick="terminate()">⛔ 商机终止</button>
         <!-- {{perm:business:opportunity:agreement}} -->
-        <button class="btn btn-success btn-sm" onclick="parent.loadPage('park-business/agreement.html','协议管理','park-business')">📄 签订协议</button>
+        <button class="btn btn-success btn-sm" id="oppSignAgreementBtn" onclick="openAgreementModal()">📄 签订协议</button>
       </div>
     </div>
 
@@ -429,6 +429,50 @@
     </div>
   </div>
 
+  <!-- 签订协议弹窗 (M-03) -->
+  <div class="modal-overlay" id="agreementModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>签订协议 - 确认商机信息</h3>
+        <button class="close" onclick="closeDialog('agreementModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">📋 商机信息确认</div>
+        <div class="descriptions cols-2">
+          <div class="item"><div class="label">商机编号</div><div class="value">OPP-2026-0813-001</div></div>
+          <div class="item"><div class="label">企业名称</div><div class="value">深圳前海科技发展有限公司</div></div>
+          <div class="item"><div class="label">意向房源</div><div class="value">A栋3层301室</div></div>
+          <div class="item"><div class="label">需求面积</div><div class="value">200 ㎡</div></div>
+        </div>
+        <div class="section-title">📄 协议信息</div>
+        <div class="form-row">
+          <div class="col">
+            <label>协议类型 <span class="required">*</span></label>
+            <select><option value="LEASE">租赁协议</option><option value="SALE">销售协议</option><option value="SERVICE">服务协议</option></select>
+          </div>
+          <div class="col">
+            <label>协议模板</label>
+            <select><option value="">请选择模板</option><option>标准租赁协议模板 v3.2</option><option>简化租赁协议模板 v1.0</option><option>自定义协议</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>协议金额（年）<span class="required">*</span></label>
+            <input type="text" placeholder="如：36万" value="19.2万">
+          </div>
+          <div class="col">
+            <label>租期（月）</label>
+            <input type="number" placeholder="如：12" value="12">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('agreementModal')">取消</button>
+        <button class="btn btn-success" onclick="confirmAgreement()">确认签订</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 添加跟进弹窗 -->
   <div class="modal-overlay" id="followupModal">
     <div class="modal">
@@ -461,7 +505,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('followupModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('followupModal')">保存</button>
+        <button class="btn btn-primary" onclick="saveFollowupFromOpp()">保存</button>
       </div>
     </div>
   </div>
@@ -518,7 +562,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('scheduleModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('scheduleModal')">保存</button>
+        <button class="btn btn-primary" onclick="saveSchedule()">保存</button>
       </div>
     </div>
   </div>
@@ -574,7 +618,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('competitorModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('competitorModal')">保存</button>
+        <button class="btn btn-primary" onclick="saveCompetitor()">保存</button>
       </div>
     </div>
   </div>
@@ -607,12 +651,13 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('contactChangeModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('contactChangeModal')">确认更换</button>
+        <button class="btn btn-primary" onclick="confirmChangeContact()">确认更换</button>
       </div>
     </div>
   </div>
 
   <script>
+    var oppTerminated = false
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
     function switchTab(el, paneId){
       document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') })
@@ -630,12 +675,116 @@
     function openCompetitorDialog(){ document.getElementById('competitorModal').classList.add('show') }
     function openContactChangeDialog(){ document.getElementById('contactChangeModal').classList.add('show') }
     function closeDialog(id){ document.getElementById(id).classList.remove('show') }
-    function returnPool(){ if(confirm('确认将此商机退回公海池？')) alert('已退回公海') }
+    function returnPool(){
+      if(!confirm('确认将此商机退回公海池？')) return
+      showToast('已退回公海','warning')
+    }
+    // === Toast ===
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
+    // === M-03: 签订协议弹窗 ===
+    function openAgreementModal(){
+      document.getElementById('agreementModal').classList.add('show')
+    }
+    function confirmAgreement(){
+      var m=document.getElementById('agreementModal')
+      var type=m.querySelector('select').value
+      var amount=m.querySelector('input[type="text"]').value.trim()
+      if(!amount) return showToast('请输入协议金额','danger')
+      closeDialog('agreementModal')
+      showToast('协议已签订，即将跳转协议详情页','success')
+      setTimeout(function(){ parent.loadPage('park-business/agreement-detail.html','协议详情','park-business') },1000)
+    }
+    // === M-04: 商机终止 + 状态联动 ===
     function terminate(){
-      if(confirm('确认终止此商机？\n终止原因将记录在案。')){
-        var reason = prompt('请输入终止原因：', '客户选择其他园区')
-        if(reason) alert('商机已终止，原因：' + reason)
+      if(!confirm('确认终止此商机？\n终止后不可恢复！')) return
+      var reason=prompt('请输入终止原因：','客户选择其他园区')
+      if(!reason) return showToast('取消终止','warning')
+      oppTerminated=true
+      // ① 隐藏签订协议按钮
+      var signBtn=document.getElementById('oppSignAgreementBtn')
+      if(signBtn){signBtn.disabled=true;signBtn.style.display='none'}
+      // ② 状态徽章变红
+      var badge=document.querySelector('.badge-active')
+      if(badge){badge.className='badge badge-danger';badge.textContent='已终止'}
+      // ③ 时间轴新增终止节点
+      var tl=document.querySelector('#tab-followup .timeline-item')
+      if(tl){
+        var item=document.createElement('div')
+        item.className='timeline-item'
+        var now=new Date().toISOString().slice(0,16).replace('T',' ')
+        item.innerHTML='<div class="dot" style="background:#FFD9D9;color:#FF3B30">⛔</div><div class="info"><div class="title">⛔ 商机终止</div><div class="desc">终止原因：'+reason+'</div><div class="time">'+now+' · 张三</div></div>'
+        tl.parentNode.insertBefore(item,tl)
       }
+      // ④ 顶部动作栏隐藏退回公海按钮
+      var returnBtn=document.querySelector('.opp-header .action-bar .btn-warning')
+      if(returnBtn){returnBtn.disabled=true;returnBtn.style.display='none'}
+      var termBtn=document.querySelector('.opp-header .action-bar .btn-danger')
+      if(termBtn){termBtn.textContent='⛔ 已终止';termBtn.disabled=true}
+      showToast('商机已终止 — 终止后不可恢复','danger')
+    }
+    // === M-16: 保存跟进（带看→二次确认日程） ===
+    function saveFollowupFromOpp(){
+      var m=document.getElementById('followupModal')
+      var type=document.getElementById('followupType').value
+      var time=m.querySelector('input[type="datetime-local"]').value
+      var content=m.querySelector('textarea').value.trim()
+      if(!content) return showToast('请输入跟进内容','danger')
+      var now=time||new Date().toISOString().slice(0,16).replace('T',' ')
+      var labels={PHONE:'📞 电话沟通',BOOK:'📅 预约看房',SHOW:'🚶 带看',OTHER:'其他'}
+      var dots={PHONE:'📞',BOOK:'✓',SHOW:'✓',OTHER:'📝'}
+      var cls={PHONE:'',BOOK:'success',SHOW:'success',OTHER:''}
+      var tl=document.querySelector('#tab-followup .timeline-item')
+      if(tl){
+        var item=document.createElement('div')
+        item.className='timeline-item'
+        var dotCls=cls[type]?' dot '+cls[type]:' dot'
+        item.innerHTML='<div class="'+dotCls+'">'+(dots[type]||'📝')+'</div><div class="info"><div class="title">'+(labels[type]||'跟进')+'</div><div class="desc">'+content+'</div><div class="time">'+now+' · 张三</div></div>'
+        tl.parentNode.insertBefore(item,tl)
+      }
+      closeDialog('followupModal')
+      showToast('已添加跟进记录','success')
+      // 带看→二次确认日程
+      if(type==='SHOW'){
+        setTimeout(function(){
+          if(confirm('是否为此带看添加日程？')){
+            document.getElementById('scheduleModal').classList.add('show')
+            showToast('请在日程管理中完善信息','info')
+          }
+        },500)
+      }
+    }
+    // === 保存日程 ===
+    function saveSchedule(){
+      var m=document.getElementById('scheduleModal')
+      var title=m.querySelector('input[type="text"]').value.trim()
+      if(!title) return showToast('请输入日程主题','danger')
+      closeDialog('scheduleModal')
+      showToast('已添加日程：'+title,'success')
+    }
+    // === 保存竞争对手 ===
+    function saveCompetitor(){
+      var m=document.getElementById('competitorModal')
+      var name=m.querySelector('input[type="text"]').value.trim()
+      if(!name) return showToast('请输入竞争对手名称','danger')
+      closeDialog('competitorModal')
+      showToast('已添加竞争对手：'+name,'success')
+    }
+    // === 更换联系人 ===
+    function confirmChangeContact(){
+      var m=document.getElementById('contactChangeModal')
+      var sel=m.querySelector('select')
+      var name=sel.value
+      if(!name) return showToast('请选择新联系人','danger')
+      closeDialog('contactChangeModal')
+      showToast('已更换联系人为：'+name,'success')
     }
   </script>
 </body>
