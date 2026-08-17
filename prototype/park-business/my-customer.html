@@ -299,7 +299,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('addLeadModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('addLeadModal')">保存</button>
+        <button class="btn btn-primary" onclick="saveLead()">保存</button>
       </div>
     </div>
   </div>
@@ -318,7 +318,7 @@
         <div class="form-row">
           <div class="col">
             <label>业务类型 <span class="required">*</span></label>
-            <select>
+            <select id="convertType">
               <option value="">请选择</option>
               <option value="lease">租赁业务</option>
               <option value="sale">销售业务</option>
@@ -326,7 +326,7 @@
           </div>
           <div class="col">
             <label>意向房源</label>
-            <select>
+            <select id="convertHouse">
               <option value="">请选择房源</option>
               <option>A栋 3层 301室</option>
               <option>B栋 5层 502室</option>
@@ -337,11 +337,11 @@
         <div class="form-row">
           <div class="col">
             <label>需求面积 (㎡)</label>
-            <input type="text" placeholder="如：200">
+            <input type="text" id="convertArea" placeholder="如：200">
           </div>
           <div class="col">
             <label>意向价格 (元/㎡/月)</label>
-            <input type="text" placeholder="如：80">
+            <input type="text" id="convertPrice" placeholder="如：80">
           </div>
         </div>
 
@@ -349,11 +349,11 @@
         <div class="form-row">
           <div class="col">
             <label>联系人</label>
-            <input type="text" placeholder="联系人姓名">
+            <input type="text" id="convertContactName" placeholder="联系人姓名">
           </div>
           <div class="col">
             <label>角色</label>
-            <select>
+            <select id="convertRole">
               <option value="">请选择</option>
               <option>决策者</option>
               <option>影响者</option>
@@ -363,7 +363,7 @@
           </div>
           <div class="col">
             <label>立场</label>
-            <select>
+            <select id="convertStance">
               <option value="">请选择</option>
               <option>支持</option>
               <option>中立</option>
@@ -374,7 +374,7 @@
         <div class="form-row">
           <div class="col">
             <label>客情关系</label>
-            <select>
+            <select id="convertRelation">
               <option value="">请选择</option>
               <option>密切</option>
               <option>良好</option>
@@ -384,7 +384,7 @@
           </div>
           <div class="col">
             <label>接触状态</label>
-            <select>
+            <select id="convertContactStatus">
               <option value="">请选择</option>
               <option>首次接触</option>
               <option>多次接触</option>
@@ -394,7 +394,97 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('convertModal')">取消</button>
-        <button class="btn btn-primary" onclick="closeDialog('convertModal')">确认转化商机</button>
+        <button class="btn btn-primary" onclick="confirmConvert()">确认转化商机</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 添加跟进弹窗 -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="followupModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>添加跟进记录</h3>
+        <button class="close" onclick="closeDialog('followupModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>跟进类型 <span class="required">*</span></label>
+            <select id="followupType">
+              <option value="PHONE">📞 电话沟通</option>
+              <option value="VISIT">🚶 上门拜访</option>
+              <option value="WECHAT">💬 微信沟通</option>
+              <option value="EMAIL">📧 邮件联系</option>
+              <option value="OTHER">其他</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>跟进时间 <span class="required">*</span></label>
+            <input type="datetime-local" id="followupTime">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>跟进内容 <span class="required">*</span></label>
+            <textarea id="followupContent" placeholder="请输入跟进内容，如沟通要点、客户反馈、下一步计划等" style="min-height:80px"></textarea>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>客户意向</label>
+            <select id="followupIntent">
+              <option value="">未变更</option>
+              <option>意向强烈</option>
+              <option>意向一般</option>
+              <option>无意向</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>下一步</label>
+            <input type="text" id="followupNext" placeholder="如：3 天后再跟进">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('followupModal')">取消</button>
+        <button class="btn btn-primary" onclick="saveFollowup()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 标记有效/无效弹窗 -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="markModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="markTitle">标记线索</h3>
+        <button class="close" onclick="closeDialog('markModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label id="markLabel">标记原因</label>
+            <select id="markReason">
+              <option value="">请选择</option>
+              <option>客户信息真实有效</option>
+              <option>已电话核实</option>
+              <option>已有初步意向</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>备注</label>
+            <textarea id="markNote" placeholder="可填写详细说明"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('markModal')">取消</button>
+        <button class="btn btn-primary" onclick="confirmMark()">确认</button>
       </div>
     </div>
   </div>
@@ -460,15 +550,24 @@
         var oppHtml = d.opp === '无' ? '<span class="badge badge-disabled">无</span>' :
           '<a href="javascript:void(0)" onclick="parent.loadPage(\'park-business/opportunity-detail.html\',\'商机详情\',\'park-business\')" style="color:var(--color-primary)">' + d.opp + '</a>'
         var actions = ''
-        if(d.status !== '已废弃'){
-          if(d.opp === '无' || d.opp === ''){
-            actions += '<button class="btn btn-primary btn-sm" onclick="openConvertDialog()">转商机</button> '
-          }
-          actions += '<button class="btn btn-default btn-sm" onclick="parent.loadPage(\'park-business/customer-detail.html\',\'客户档案\',\'park-business\')">详情</button> '
-          actions += '<button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>'
-        } else {
+        if(d.status === '已废弃'){
+          // 已废弃：仅详情 + 退回公海
           actions += '<button class="btn btn-default btn-sm" onclick="parent.loadPage(\'park-business/customer-detail.html\',\'客户档案\',\'park-business\')">详情</button> '
           actions += '<button class="btn btn-default btn-sm" onclick="returnPool(this)">退回公海</button>'
+        } else if(d.status === '无效'){
+          // 无效：详情 + 标记有效 + 废弃
+          actions += '<button class="btn btn-default btn-sm" onclick="parent.loadPage(\'park-business/customer-detail.html\',\'客户档案\',\'park-business\')">详情</button> '
+          actions += '<button class="btn btn-success btn-sm" onclick="markValid(' + d.id + ')">标有效</button> '
+          actions += '<button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>'
+        } else {
+          // 有效/跟进中：详情 + 添加跟进 + 转商机/标无效
+          actions += '<button class="btn btn-default btn-sm" onclick="parent.loadPage(\'park-business/customer-detail.html\',\'客户档案\',\'park-business\')">详情</button> '
+          actions += '<button class="btn btn-success btn-sm" onclick="openFollowupDialog(' + d.id + ')">+跟进</button> '
+          if(d.opp === '无' || d.opp === ''){
+            actions += '<button class="btn btn-primary btn-sm" onclick="openConvertFor(' + d.id + ')">转商机</button> '
+          }
+          actions += '<button class="btn btn-default btn-sm" onclick="markInvalid(' + d.id + ')">标无效</button> '
+          actions += '<button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>'
         }
         tr.innerHTML = '<td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>' +
           '<td><a href="javascript:void(0)" onclick="parent.loadPage(\'park-business/customer-detail.html\',\'客户档案\',\'park-business\')" style="color:var(--color-primary)">' + d.name + '</a></td>' +
@@ -694,7 +793,178 @@
       document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active') })
       el.classList.add('active')
       var label = el.textContent.trim()
+      applyTabFilter(label)
       showToast('已切换：' + label, 'info')
+    }
+
+    // === Tab 联动筛选 (基于 mockData.status / opp) ===
+    function applyTabFilter(label){
+      if(label.indexOf('全部') === 0){
+        filteredData = mockData.slice()
+      } else if(label.indexOf('跟进中') === 0){
+        filteredData = mockData.filter(function(d){ return d.status === '跟进中' || d.status === '有效' })
+      } else if(label.indexOf('已转商机') === 0){
+        filteredData = mockData.filter(function(d){ return d.opp && d.opp !== '无' })
+      } else if(label.indexOf('已废弃') === 0){
+        filteredData = mockData.filter(function(d){ return d.status === '已废弃' })
+      } else {
+        filteredData = mockData.slice()
+      }
+      currentPage = 1
+      renderPage(1)
+    }
+
+    // === 保存线索 (添加线索表单提交) ===
+    var currentAddLeadId = 0
+    function saveLead(){
+      var m = document.getElementById('addLeadModal')
+      var inputs = m.querySelectorAll('input[type="text"]')
+      var sels = m.querySelectorAll('select')
+      var name = inputs[0].value.trim()
+      var contact = inputs[1].value.trim()
+      var phone = inputs[2].value.trim()
+      if(!name) return showToast('请输入企业名称','danger')
+      if(!contact) return showToast('请输入联系人姓名','danger')
+      if(!phone) return showToast('请输入手机号码','danger')
+      if(!/^[\d\s\-]{7,15}$/.test(phone)) return showToast('手机号格式不正确','danger')
+      var source = sels[0].value || '自行录入'
+      currentAddLeadId = Math.max.apply(null, mockData.map(function(d){ return d.id }).concat([0])) + 1
+      mockData.unshift({
+        id: currentAddLeadId,
+        name: name,
+        contact: contact,
+        phone: phone,
+        source: source,
+        status: '跟进中',
+        opp: '无',
+        lastFollow: new Date().toISOString().slice(0,10)
+      })
+      closeDialog('addLeadModal')
+      // 重置表单
+      inputs.forEach(function(i){ i.value = '' })
+      sels.forEach(function(s){ s.selectedIndex = 0 })
+      filteredData = mockData.slice()
+      currentPage = 1
+      renderPage(1)
+      var totalEl = document.getElementById('totalCount')
+      if(totalEl) totalEl.textContent = mockData.length
+      showToast('线索已添加：' + name, 'success')
+    }
+
+    // === 商机转化 (转化商机确认) ===
+    var convertTargetId = null
+    function confirmConvert(){
+      var m = document.getElementById('convertModal')
+      var type = document.getElementById('convertType').value
+      var house = document.getElementById('convertHouse').value
+      var area = document.getElementById('convertArea').value.trim()
+      var price = document.getElementById('convertPrice').value.trim()
+      if(!type) return showToast('请选择业务类型','danger')
+      if(!house) return showToast('请选择意向房源','danger')
+      // 从 modal 标题推断目标客户
+      var titleText = m.querySelector('.modal-header h3').textContent
+      var targetName = titleText.replace(/^商机转化 - /, '').replace(/ -.*$/, '').trim() || '当前客户'
+      // 修改 mockData 对应条目
+      var target = mockData.find(function(d){ return d.name === targetName }) || mockData[0]
+      if(target){
+        target.opp = type === 'lease' ? '租赁意向' : '购房意向'
+        target.status = '跟进中'
+        target.lastFollow = new Date().toISOString().slice(0,10)
+      }
+      closeDialog('convertModal')
+      // 重置表单
+      m.querySelectorAll('input').forEach(function(i){ i.value = '' })
+      m.querySelectorAll('select').forEach(function(s){ s.selectedIndex = 0 })
+      filteredData = mockData.slice()
+      renderPage(1)
+      showToast('商机转化成功：' + target.name, 'success')
+    }
+
+    // === 添加跟进 ===
+    var followupTargetId = null
+    function openFollowupDialog(targetId){
+      followupTargetId = targetId
+      document.getElementById('followupTime').value = new Date().toISOString().slice(0,16)
+      document.getElementById('followupType').selectedIndex = 0
+      document.getElementById('followupContent').value = ''
+      document.getElementById('followupIntent').selectedIndex = 0
+      document.getElementById('followupNext').value = ''
+      document.getElementById('followupModal').classList.add('show')
+    }
+    function saveFollowup(){
+      var type = document.getElementById('followupType').value
+      var time = document.getElementById('followupTime').value
+      var content = document.getElementById('followupContent').value.trim()
+      var intent = document.getElementById('followupIntent').value
+      var next = document.getElementById('followupNext').value.trim()
+      if(!time) return showToast('请选择跟进时间','danger')
+      if(!content) return showToast('请输入跟进内容','danger')
+      var target = mockData.find(function(d){ return d.id === followupTargetId })
+      if(target){
+        target.lastFollow = time.slice(0,10)
+        if(intent) target.status = intent === '无意向' ? '无效' : '跟进中'
+      }
+      closeDialog('followupModal')
+      filteredData = mockData.slice()
+      renderPage(1)
+      var labels = {PHONE:'电话沟通',VISIT:'上门拜访',WECHAT:'微信沟通',EMAIL:'邮件联系',OTHER:'其他'}
+      var msg = '已添加' + (labels[type]||'跟进') + '记录'
+      if(next) msg += ' · 下一步：' + next
+      showToast(msg, 'success')
+    }
+
+    // === 标记有效/无效 ===
+    var markTargetId = null
+    var markAction = null  // 'valid' | 'invalid'
+    function openMarkDialog(targetId, action){
+      markTargetId = targetId
+      markAction = action
+      var modal = document.getElementById('markModal')
+      var title = modal.querySelector('#markTitle')
+      var label = modal.querySelector('#markLabel')
+      var reasonSelect = modal.querySelector('#markReason')
+      if(action === 'valid'){
+        title.textContent = '标记有效线索'
+        label.textContent = '有效原因'
+        reasonSelect.innerHTML = '<option value="">请选择</option><option>客户信息真实有效</option><option>已电话核实</option><option>已有初步意向</option><option>其他</option>'
+      } else {
+        title.textContent = '标记无效线索'
+        label.textContent = '无效原因'
+        reasonSelect.innerHTML = '<option value="">请选择</option><option>号码错误</option><option>客户无意向</option><option>重复线索</option><option>其他</option>'
+      }
+      modal.querySelector('#markNote').value = ''
+      modal.classList.add('show')
+    }
+    function confirmMark(){
+      var reason = document.getElementById('markReason').value
+      var note = document.getElementById('markNote').value.trim()
+      if(!reason) return showToast('请选择原因','danger')
+      var target = mockData.find(function(d){ return d.id === markTargetId })
+      if(target){
+        target.status = markAction === 'valid' ? '有效' : '无效'
+        target.lastFollow = new Date().toISOString().slice(0,10)
+      }
+      closeDialog('markModal')
+      filteredData = mockData.slice()
+      renderPage(1)
+      showToast((markAction === 'valid' ? '已标记有效' : '已标记无效') + (target ? '：' + target.name : ''), 'success')
+    }
+
+    // === 标记有效/无效快捷入口（在按钮组里） ===
+    function markValid(id){ openMarkDialog(id, 'valid') }
+    function markInvalid(id){ openMarkDialog(id, 'invalid') }
+
+    // === 转商机入口增强（携带目标ID） ===
+    function openConvertFor(id){
+      convertTargetId = id
+      var target = mockData.find(function(d){ return d.id === id })
+      var m = document.getElementById('convertModal')
+      if(target){
+        m.querySelector('.modal-header h3').textContent = '商机转化 - ' + target.name
+        var contactInput = document.getElementById('convertContactName')
+        if(contactInput) contactInput.value = target.contact
+      }
+      m.classList.add('show')
     }
 
     // 初始渲染
