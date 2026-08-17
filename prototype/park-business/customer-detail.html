@@ -713,7 +713,6 @@
       if(!confirm('确认终止此商机？\n终止后不可恢复。')) return
       var reason=prompt('请输入终止原因：','客户选择其他园区')
       if(!reason) return showToast('取消终止','warning')
-      closeDialog('followupModal')
       // 状态联动：隐藏签订协议和退回公海按钮
       var signBtn=document.getElementById('oppSignBtn')
       var returnBtn=document.getElementById('oppReturnBtn')
