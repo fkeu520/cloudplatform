@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的客户 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .col-checkbox{width:40px}
+    .col-checkbox input{width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer}
+    .bulk-bar{display:none;align-items:center;gap:var(--space-md);padding:var(--space-md) var(--space-lg);background:var(--color-primary-pale);border-radius:var(--rounded-sm);margin-bottom:var(--space-md)}
+    .bulk-bar.show{display:flex}
+    .bulk-bar .count{font-size:13px;color:var(--color-primary);font-weight:500}
+    .filter-tabs{display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg)}
+    .filter-tabs .tab-btn{padding:var(--space-sm) var(--space-lg);border-radius:var(--rounded-sm);cursor:pointer;font-size:13px;border:1px solid var(--color-divider);background:var(--color-canvas);color:var(--color-ink-secondary)}
+    .filter-tabs .tab-btn.active{background:var(--color-primary);color:var(--color-on-primary);border-color:var(--color-primary)}
+    .stat-card{padding:20px}
+    .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
+    .stat-card .num{font-size:28px;font-weight:700}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: my-customer (我的客户)
+  版本: v1.0
+
+  数据源:
+  - 主表: pai_business.clue_enterprise (线索客户，跟进人=当前用户)
+  - 联系人: pai_business.contacts
+  - 商机: pai_business.opportunity
+  - 沟通记录: pai_business.communication
+
+  API:
+  - GET /business/my-customer/page (我的客户分页)
+  - POST /business/my-customer (新增线索)
+  - POST /business/my-customer/{id}/contact (添加联系人)
+  - PUT /business/my-customer/{id}/mark (标记有效/无效)
+  - POST /business/my-customer/{id}/abandon (线索废弃)
+  - POST /business/my-customer/{id}/convert (商机转化)
+  - POST /business/my-customer/{id}/return-pool (退回公海)
+
+  权限点:
+  - business:my-customer:view
+  - business:my-customer:add
+  - business:my-customer:contact
+  - business:my-customer:mark
+  - business:my-customer:abandon
+  - business:my-customer:convert
+  - business:my-customer:return-pool
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">我的客户</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <div class="page-title">我的客户</div>
+
+    <!-- 统计卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:16px">
+      <div class="card stat-card">
+        <div class="label">客户总数</div>
+        <div class="num" style="color:var(--color-ink)">36</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">有效线索</div>
+        <div class="num" style="color:#34C759">28</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">跟进中</div>
+        <div class="num" style="color:var(--color-primary)">22</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">已转商机</div>
+        <div class="num" style="color:#FF9500">12</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">已废弃</div>
+        <div class="num" style="color:var(--color-ink-tertiary)">4</div>
+      </div>
+    </div>
+
+    <!-- 筛选Tab -->
+    <div class="filter-tabs">
+      <div class="tab-btn active" onclick="switchTab(this)">全部 (36)</div>
+      <div class="tab-btn" onclick="switchTab(this)">跟进中 (22)</div>
+      <div class="tab-btn" onclick="switchTab(this)">已转商机 (12)</div>
+      <div class="tab-btn" onclick="switchTab(this)">已废弃 (4)</div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="card" style="padding:16px 20px;margin-bottom:16px">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" placeholder="企业名称 / 联系人">
+          <input type="text" placeholder="手机号码">
+          <select>
+            <option value="">全部来源</option>
+            <option>自行录入</option>
+            <option>小程序登记</option>
+            <option>批量导入</option>
+            <option>公海分配</option>
+          </select>
+          <button class="btn btn-primary">🔍 搜索</button>
+          <button class="btn btn-default">重置</button>
+        </div>
+        <div class="search-actions">
+          <!-- {{perm:business:my-customer:add}} -->
+          <button class="btn btn-primary" onclick="openAddLeadDialog()">➕ 添加线索</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 批量操作条 -->
+    <div class="bulk-bar" id="bulkBar">
+      <span class="count">已选 <span id="selectedCount">0</span> 项</span>
+      <button class="btn btn-danger btn-sm" onclick="batchAbandon()">批量废弃</button>
+      <button class="btn btn-default btn-sm" onclick="batchReturnPool()">退回公海</button>
+      <button class="btn btn-default btn-sm" style="margin-left:auto" onclick="clearSelection()">取消</button>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-checkbox"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+              <th>企业名称</th>
+              <th>联系人</th>
+              <th>手机号码</th>
+              <th>来源</th>
+              <th>线索状态</th>
+              <th>商机</th>
+              <th>最近跟进</th>
+              <th style="width:200px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="dataTable">
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">深圳前海科技发展有限公司</a></td>
+              <td>刘洋</td>
+              <td>138 0011 2233</td>
+              <td><span class="badge badge-info">公海分配</span></td>
+              <td><span class="badge badge-success">有效</span></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business')" style="color:var(--color-primary)">租赁意向</a></td>
+              <td>2026-08-13</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openConvertDialog()">转商机</button>
+                <button class="btn btn-default btn-sm" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')">详情</button>
+                <button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">珠海华信智能装备有限公司</a></td>
+              <td>孙莉</td>
+              <td>139 0011 4455</td>
+              <td><span class="badge badge-info">自行录入</span></td>
+              <td><span class="badge badge-success">有效</span></td>
+              <td><span class="badge badge-disabled">无</span></td>
+              <td>2026-08-12</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openConvertDialog()">转商机</button>
+                <button class="btn btn-default btn-sm" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')">详情</button>
+                <button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">惠州东海食品加工有限公司</a></td>
+              <td>周明</td>
+              <td>137 0011 6677</td>
+              <td><span class="badge badge-info">小程序登记</span></td>
+              <td><span class="badge badge-success">有效</span></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business')" style="color:var(--color-primary)">购房意向</a></td>
+              <td>2026-08-14</td>
+              <td>
+                <button class="btn btn-default btn-sm" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')">详情</button>
+                <button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td style="color:var(--color-ink-tertiary)">江门顺丰物流有限公司</td>
+              <td>吴峰</td>
+              <td>135 0011 8899</td>
+              <td><span class="badge badge-info">批量导入</span></td>
+              <td><span class="badge badge-negative">无效</span></td>
+              <td><span class="badge badge-disabled">无</span></td>
+              <td>2026-08-08</td>
+              <td>
+                <button class="btn btn-default btn-sm" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')">详情</button>
+                <button class="btn btn-default btn-sm" onclick="returnPool(this)">退回公海</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="col-checkbox"><input type="checkbox" class="row-check" onchange="updateBulkBar()"></td>
+              <td><a href="javascript:void(0)" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">肇庆金鼎建材有限公司</a></td>
+              <td>郑华</td>
+              <td>134 0011 0011</td>
+              <td><span class="badge badge-info">公海分配</span></td>
+              <td><span class="badge badge-success">有效</span></td>
+              <td><span class="badge badge-disabled">无</span></td>
+              <td>2026-08-11</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="openConvertDialog()">转商机</button>
+                <button class="btn btn-default btn-sm" onclick="parent.loadPage('park-business/customer-detail.html','客户档案','park-business')">详情</button>
+                <button class="btn btn-danger btn-sm" onclick="abandon(this)">废弃</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="info">共 <span>36</span> 条记录，每页 10 条</div>
+        <div class="pages">
+          <button class="disabled">‹</button>
+          <button class="active">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>4</button>
+          <button>›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 添加线索弹窗 -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="addLeadModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>添加线索</h3>
+        <button class="close" onclick="closeDialog('addLeadModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">📋 客户基本信息</div>
+        <div class="form-row">
+          <div class="col">
+            <label>企业名称 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入企业名称">
+          </div>
+          <div class="col">
+            <label>联系人 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入联系人姓名">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>手机号码 <span class="required">*</span></label>
+            <input type="text" placeholder="请输入手机号码" maxlength="11">
+          </div>
+          <div class="col">
+            <label>客户来源</label>
+            <select>
+              <option value="">请选择</option>
+              <option>自行录入</option>
+              <option>公海分配</option>
+              <option>转介绍</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">👤 联系人其他信息</div>
+        <div class="form-row">
+          <div class="col">
+            <label>性别</label>
+            <select><option value="">请选择</option><option>男</option><option>女</option></select>
+          </div>
+          <div class="col">
+            <label>生日</label>
+            <input type="date">
+          </div>
+          <div class="col">
+            <label>部门</label>
+            <input type="text" placeholder="如：采购部">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>职务</label>
+            <input type="text" placeholder="如：总经理">
+          </div>
+          <div class="col">
+            <label>职责描述</label>
+            <input type="text" placeholder="职责描述">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('addLeadModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('addLeadModal')">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- 商机转化弹窗 -->
+  <!-- ============================================================ -->
+  <div class="modal-overlay" id="convertModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>商机转化 - 意向登记</h3>
+        <button class="close" onclick="closeDialog('convertModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title">📋 意向登记</div>
+        <div class="form-row">
+          <div class="col">
+            <label>业务类型 <span class="required">*</span></label>
+            <select>
+              <option value="">请选择</option>
+              <option value="lease">租赁业务</option>
+              <option value="sale">销售业务</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>意向房源</label>
+            <select>
+              <option value="">请选择房源</option>
+              <option>A栋 3层 301室</option>
+              <option>B栋 5层 502室</option>
+              <option>C栋 2层 203室</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>需求面积 (㎡)</label>
+            <input type="text" placeholder="如：200">
+          </div>
+          <div class="col">
+            <label>意向价格 (元/㎡/月)</label>
+            <input type="text" placeholder="如：80">
+          </div>
+        </div>
+
+        <div class="section-title">👥 联系人角色</div>
+        <div class="form-row">
+          <div class="col">
+            <label>联系人</label>
+            <input type="text" placeholder="联系人姓名">
+          </div>
+          <div class="col">
+            <label>角色</label>
+            <select>
+              <option value="">请选择</option>
+              <option>决策者</option>
+              <option>影响者</option>
+              <option>使用者</option>
+              <option>经办人</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>立场</label>
+            <select>
+              <option value="">请选择</option>
+              <option>支持</option>
+              <option>中立</option>
+              <option>反对</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>客情关系</label>
+            <select>
+              <option value="">请选择</option>
+              <option>密切</option>
+              <option>良好</option>
+              <option>一般</option>
+              <option>疏远</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>接触状态</label>
+            <select>
+              <option value="">请选择</option>
+              <option>首次接触</option>
+              <option>多次接触</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('convertModal')">取消</button>
+        <button class="btn btn-primary" onclick="closeDialog('convertModal')">确认转化商机</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    function openAddLeadDialog(){ document.getElementById('addLeadModal').classList.add('show') }
+    function openConvertDialog(){ document.getElementById('convertModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+
+    function switchTab(el){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active') })
+      el.classList.add('active')
+    }
+
+    function toggleAll(checkbox){
+      document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = checkbox.checked })
+      updateBulkBar()
+    }
+    function updateBulkBar(){
+      var checked = document.querySelectorAll('.row-check:checked').length
+      var bar = document.getElementById('bulkBar')
+      if(checked > 0){ bar.classList.add('show'); document.getElementById('selectedCount').textContent = checked }
+      else{ bar.classList.remove('show') }
+    }
+    function clearSelection(){
+      document.querySelectorAll('.row-check').forEach(function(cb){ cb.checked = false })
+      document.getElementById('checkAll').checked = false
+      updateBulkBar()
+    }
+    function batchAbandon(){ if(confirm('确认批量废弃选中的客户？')) clearSelection() }
+    function batchReturnPool(){ if(confirm('确认将选中的客户退回公海？')) clearSelection() }
+    function abandon(btn){ if(confirm('确认废弃此线索？\n废弃原因：联系不上、无意向、无法满足客户需求等')){ btn.closest('tr').style.opacity='0.4' } }
+    function returnPool(btn){ if(confirm('确认退回公海？')){ btn.closest('tr').style.opacity='0.4' } }
+  </script>
+</body>
+</html>

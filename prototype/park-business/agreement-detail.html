@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>协议详情 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .timeline-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-divider)}
+    .timeline-item:last-child{border-bottom:none}
+    .timeline-item .dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;background:var(--color-primary-pale);color:var(--color-primary)}
+    .timeline-item .dot.success{background:#d1f7d1;color:var(--color-positive-deep)}
+    .timeline-item .dot.warn{background:#FFE8C7;color:var(--color-warning-deep)}
+    .timeline-item .dot.danger{background:#FFD9D9;color:var(--color-negative-deep)}
+    .timeline-item .info{flex:1}
+    .timeline-item .info .title{font-size:13px;font-weight:500;margin-bottom:2px}
+    .timeline-item .info .desc{font-size:12px;color:var(--color-ink-secondary);margin-bottom:2px}
+    .timeline-item .info .time{font-size:11px;color:var(--color-ink-tertiary)}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: agreement-detail (协议详情)
+  版本: v1.0
+
+  数据源:
+  - 协议: pai_business.agreement
+  - 商机: pai_business.opportunity
+  - 合同: pai_business.contract
+
+  API:
+  - GET /business/agreement/{id}
+  - POST /business/agreement/{id}/delay (延期)
+  - POST /business/agreement/{id}/terminate (终止)
+  - POST /business/agreement/{id}/contract (签订合同)
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="parent.loadPage('park-business/agreement.html','协议管理','park-business')" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb" onclick="parent.loadPage('park-business/agreement.html','协议管理','park-business')" style="cursor:pointer">协议管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">AGR-2026-0701</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <!-- 顶部信息 -->
+    <div class="top-info">
+      <div class="name">
+        AGR-2026-0701 · 肇庆金鼎建材有限公司
+        <span class="badge badge-success">履约中</span>
+        <span class="badge badge-info">租赁业务</span>
+      </div>
+      <div class="alias">简称：金鼎建材 · 来源：商机转化 · 跟进人：张三</div>
+      <div class="meta-row">
+        <div class="meta-item">
+          <span class="meta-label">协议金额：</span>
+          <span class="meta-value">36万/年</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">签订日期：</span>
+          <span class="meta-value">2026-07-01</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">到期日期：</span>
+          <span class="meta-value">2027-06-30</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">意向房源：</span>
+          <span class="meta-value">D栋7层701室</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn btn-warning btn-sm" onclick="openDelayDialog()">⏰️ 协议延期</button>
+        <button class="btn btn-danger btn-sm" onclick="openTerminateDialog()">⛔ 协议终止</button>
+        <button class="btn btn-success btn-sm" onclick="openContractDialog()">📄 签订合同</button>
+      </div>
+    </div>
+
+    <!-- Tab 栏 -->
+    <div class="tabs-bar">
+      <div class="tab active" onclick="switchTab(this,'tab-info')">协议基本信息</div>
+      <div class="tab" onclick="switchTab(this,'tab-fee')">费用信息</div>
+      <div class="tab" onclick="switchTab(this,'tab-attach')">附件</div>
+      <div class="tab" onclick="switchTab(this,'tab-history')">变更历史</div>
+    </div>
+
+    <div class="tabs-content">
+      <!-- Tab: 协议基本信息 -->
+      <div class="tab-pane active" id="tab-info">
+        <div class="descriptions cols-3">
+          <div class="item">
+            <div class="label">协议编号 <span class="field-source">agreement.code</span></div>
+            <div class="value mono">AGR-2026-0701</div>
+          </div>
+          <div class="item">
+            <div class="label">业务类型 <span class="field-source">agreement.type</span></div>
+            <div class="value"><span class="badge badge-info">租赁业务</span></div>
+          </div>
+          <div class="item">
+            <div class="label">协议状态</div>
+            <div class="value"><span class="badge badge-success">履约中</span></div>
+          </div>
+          <div class="item">
+            <div class="label">所属企业 <span class="field-source">agreement.enterprise_id</span></div>
+            <div class="value">肇庆金鼎建材有限公司</div>
+          </div>
+          <div class="item">
+            <div class="label">关联商机</div>
+            <div class="value">租赁意向-D栋7层</div>
+          </div>
+          <div class="item">
+            <div class="label">意向房源 <span class="field-source">agreement.house_id</span></div>
+            <div class="value">D栋7层701室</div>
+          </div>
+          <div class="item">
+            <div class="label">面积 <span class="field-source">agreement.area</span></div>
+            <div class="value">500 ㎡</div>
+          </div>
+          <div class="item">
+            <div class="label">单价</div>
+            <div class="value">60 元/㎡/月</div>
+          </div>
+          <div class="item">
+            <div class="label">租期</div>
+            <div class="value">12 个月</div>
+          </div>
+          <div class="item">
+            <div class="label">签订日期 <span class="field-source">agreement.sign_time</span></div>
+            <div class="value mono">2026-07-01</div>
+          </div>
+          <div class="item">
+            <div class="label">到期日期 <span class="field-source">agreement.expire_time</span></div>
+            <div class="value mono">2027-06-30</div>
+          </div>
+          <div class="item">
+            <div class="label">跟进人</div>
+            <div class="value">张三（招商一部）</div>
+          </div>
+          <div class="item full">
+            <div class="label">协议条款摘要</div>
+            <div class="value">
+              1. 租赁期 12 个月，自 2026-07-01 至 2027-06-30。<br>
+              2. 月租金 30000 元（60 元/㎡/月 × 500㎡），按季度支付。<br>
+              3. 押金 60000 元（2 个月租金），合同签订 5 日内支付。<br>
+              4. 免租期 30 天（2026-07-01 至 2026-07-30）。<br>
+              5. 物业费、水电费由承租方承担。<br>
+              6. 未经出租方同意，承租方不得擅自转租。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 费用信息 -->
+      <div class="tab-pane" id="tab-fee">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:20px">费用明细</h3>
+        <div class="card" style="box-shadow:none;border:1px solid var(--color-divider)">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>费用项目</th><th>金额</th><th>支付方式</th><th>支付周期</th><th>备注</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>月租金</td><td>30000 元/月</td><td>银行转账</td><td>季度预付</td><td>每季度首月 5 日前支付</td></tr>
+                <tr><td>押金</td><td>60000 元</td><td>银行转账</td><td>一次性</td><td>合同签订 5 日内支付</td></tr>
+                <tr><td>物业费</td><td>8 元/㎡/月</td><td>银行转账</td><td>季度预付</td><td>随租金一同支付</td></tr>
+                <tr><td>水电费</td><td>按实际使用</td><td>银行转账</td><td>月度结算</td><td>次月 10 日前结算</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="section-title">💰 年度费用汇总</div>
+        <div class="descriptions cols-3">
+          <div class="item">
+            <div class="label">年度总费用</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:var(--color-primary)">456,000 元</div>
+          </div>
+          <div class="item">
+            <div class="label">已支付</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:#34C759">304,000 元</div>
+          </div>
+          <div class="item">
+            <div class="label">未支付</div>
+            <div class="value" style="font-size:24px;font-weight:700;color:#FF9500">152,000 元</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 附件 -->
+      <div class="tab-pane" id="tab-attach">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h3 style="font-size:15px;font-weight:600">协议附件</h3>
+          <button class="btn btn-primary btn-sm">📎 上传附件</button>
+        </div>
+        <div class="card" style="box-shadow:none;border:1px solid var(--color-divider)">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>文件名</th><th>类型</th><th>大小</th><th>上传人</th><th>上传时间</th><th>操作</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>📄 租赁协议正本.pdf</td><td>协议</td><td>2.3 MB</td><td>张三</td><td>2026-07-01 10:30</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
+                <tr><td>📷 签约现场照片.jpg</td><td>图片</td><td>1.8 MB</td><td>张三</td><td>2026-07-01 10:30</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
+                <tr><td>📄 企业营业执照.pdf</td><td>证件</td><td>0.5 MB</td><td>刘洋</td><td>2026-07-01 09:15</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
+                <tr><td>📄 法人身份证.pdf</td><td>证件</td><td>0.8 MB</td><td>刘洋</td><td>2026-07-01 09:15</td><td><button class="btn btn-default btn-sm">下载</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: 变更历史 -->
+      <div class="tab-pane" id="tab-history">
+        <h3 style="font-size:15px;font-weight:600;margin-bottom:20px">协议变更历史</h3>
+
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">协议签订</div>
+            <div class="desc">与肇庆金鼎建材有限公司签订租赁协议，租期 12 个月，金额 36万/年</div>
+            <div class="time">2026-07-01 10:30 · 张三</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">协议生效</div>
+            <div class="desc">协议正式生效，开始履约</div>
+            <div class="time">2026-07-01 00:00 · 系统</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot success">✓</div>
+          <div class="info">
+            <div class="title">首期租金到账</div>
+            <div class="desc">收到 Q1 季度租金 90000 元 + 押金 60000 元</div>
+            <div class="time">2026-07-05 14:20 · 财务</div>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="dot">💰</div>
+          <div class="info">
+            <div class="title">Q2 季度租金到账</div>
+            <div class="desc">收到 Q2 季度租金 90000 元</div>
+            <div class="time">2026-09-30 11:15 · 财务</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 协议延期弹窗 -->
+  <div class="modal-overlay" id="delayModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>协议延期</h3>
+        <button class="close" onclick="closeDialog('delayModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>原到期日期</label>
+            <input type="date" value="2027-06-30" readonly>
+          </div>
+          <div class="col">
+            <label>新到期日期 <span class="required">*</span></label>
+            <input type="date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>延期月数 <span class="required">*</span></label>
+            <input type="number" placeholder="如：12">
+          </div>
+          <div class="col">
+            <label>协议金额调整</label>
+            <input type="text" placeholder="如调整为新金额（可选）">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>延期原因 <span class="required">*</span></label>
+            <textarea placeholder="请输入延期原因"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('delayModal')">取消</button>
+        <button class="btn btn-warning" onclick="closeDialog('delayModal')">确认延期</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 协议终止弹窗 -->
+  <div class="modal-overlay" id="terminateModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>协议终止</h3>
+        <button class="close" onclick="closeDialog('terminateModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>终止原因 <span class="required">*</span></label>
+            <select>
+              <option value="">请选择</option>
+              <option>客户经营困难</option>
+              <option>客户违约</option>
+              <option>双方协商</option>
+              <option>其他</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>终止日期 <span class="required">*</span></label>
+            <input type="date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>详细说明</label>
+            <textarea placeholder="详细说明协议终止原因及善后事宜"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('terminateModal')">取消</button>
+        <button class="btn btn-danger" onclick="closeDialog('terminateModal')">确认终止</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 签订合同弹窗 -->
+  <div class="modal-overlay" id="contractModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>签订合同</h3>
+        <button class="close" onclick="closeDialog('contractModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="col">
+            <label>合同编号 <span class="required">*</span></label>
+            <input type="text" value="CON-2026-0814-001">
+          </div>
+          <div class="col">
+            <label>签订日期 <span class="required">*</span></label>
+            <input type="date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>合同金额 <span class="required">*</span></label>
+            <input type="text" value="36万/年">
+          </div>
+          <div class="col">
+            <label>生效日期</label>
+            <input type="date">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('contractModal')">取消</button>
+        <button class="btn btn-success" onclick="closeDialog('contractModal')">确认签订</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    function switchTab(el, paneId){
+      document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') })
+      el.classList.add('active')
+      document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active') })
+      document.getElementById(paneId).classList.add('active')
+    }
+    function openDelayDialog(){ document.getElementById('delayModal').classList.add('show') }
+    function openTerminateDialog(){ document.getElementById('terminateModal').classList.add('show') }
+    function openContractDialog(){ document.getElementById('contractModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+  </script>
+</body>
+</html>

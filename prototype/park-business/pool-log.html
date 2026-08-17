@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公海日志 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .stat-card{padding:20px}
+    .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
+    .stat-card .num{font-size:28px;font-weight:700}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: pool-log (公海日志)
+  版本: v1.0
+
+  数据源:
+  - pai_business.pool_log (分配认领/回收/废弃记录)
+
+  API:
+  - GET /business/pool/log (流水查询)
+
+  权限点:
+  - business:pool:log
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="parent.loadPage('park-business/pool.html','公海池','park-business')" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb" onclick="parent.loadPage('park-business/pool.html','公海池','park-business')" style="cursor:pointer">公海池</span>
+    <span class="sep">/</span>
+    <span class="crumb active">公海日志</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <div class="page-title">公海日志</div>
+
+    <div style="font-size:13px;color:var(--color-ink-secondary);margin-bottom:16px">
+      记录所有客户的分配、认领、回收、废弃操作，便于追踪客户资源流转。
+    </div>
+
+    <!-- 统计卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px">
+      <div class="card stat-card">
+        <div class="label">分配操作</div>
+        <div class="num" style="color:var(--color-primary)">86</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">认领操作</div>
+        <div class="num" style="color:#34C759">52</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">回收操作</div>
+        <div class="num" style="color:#FF9500">28</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">废弃操作</div>
+        <div class="num" style="color:#FF3B30">12</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月</div>
+      </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="card" style="padding:16px 20px;margin-bottom:16px">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" placeholder="企业名称">
+          <select>
+            <option value="">操作类型</option>
+            <option>分配</option>
+            <option>认领</option>
+            <option>回收</option>
+            <option>废弃</option>
+          </select>
+          <select>
+            <option value="">操作人</option>
+            <option>张三</option>
+            <option>李四</option>
+            <option>系统自动</option>
+          </select>
+          <input type="date" title="操作时间起">
+          <input type="date" title="操作时间止">
+          <button class="btn btn-primary">🔍 搜索</button>
+          <button class="btn btn-default">重置</button>
+        </div>
+        <div class="search-actions">
+          <button class="btn btn-warning">📤 导出</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>操作时间</th>
+              <th>操作类型</th>
+              <th>企业名称</th>
+              <th>客户来源</th>
+              <th>来源方</th>
+              <th>目标方</th>
+              <th>操作原因</th>
+              <th>操作人</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2026-08-14 14:32</td>
+              <td><span class="badge badge-info">📥 分配</span></td>
+              <td>深圳前海科技发展有限公司</td>
+              <td>小程序登记</td>
+              <td>公海池</td>
+              <td>张三（招商一部）</td>
+              <td>招商经理分配</td>
+              <td>李经理</td>
+            </tr>
+            <tr>
+              <td>2026-08-14 11:20</td>
+              <td><span class="badge badge-success">✋ 认领</span></td>
+              <td>珠海华信智能装备有限公司</td>
+              <td>自行录入</td>
+              <td>公海池</td>
+              <td>王五（招商二部）</td>
+              <td>员工主动认领</td>
+              <td>王五</td>
+            </tr>
+            <tr>
+              <td>2026-08-14 09:15</td>
+              <td><span class="badge badge-warning">♻️ 回收</span></td>
+              <td>广州速达物流有限公司</td>
+              <td>公海池</td>
+              <td>赵六（招商二部）</td>
+              <td>公海池</td>
+              <td>跟进超期，自动回收</td>
+              <td>系统</td>
+            </tr>
+            <tr>
+              <td>2026-08-13 16:20</td>
+              <td><span class="badge badge-negative">❌ 废弃</span></td>
+              <td>深圳晨曦信息科技有限公司</td>
+              <td>小程序登记</td>
+              <td>李四（招商一部）</td>
+              <td>回收站</td>
+              <td>联系不上</td>
+              <td>李四</td>
+            </tr>
+            <tr>
+              <td>2026-08-13 10:30</td>
+              <td><span class="badge badge-success">✋ 认领</span></td>
+              <td>肇庆金鼎建材有限公司</td>
+              <td>小程序登记</td>
+              <td>公海池</td>
+              <td>张三（招商一部）</td>
+              <td>员工主动认领</td>
+              <td>张三</td>
+            </tr>
+            <tr>
+              <td>2026-08-12 17:45</td>
+              <td><span class="badge badge-info">📥 分配</span></td>
+              <td>中山恒通电器有限公司</td>
+              <td>活动收集</td>
+              <td>公海池</td>
+              <td>李四（招商一部）</td>
+              <td>招商经理分配</td>
+              <td>李经理</td>
+            </tr>
+            <tr>
+              <td>2026-08-12 14:00</td>
+              <td><span class="badge badge-warning">♻️ 回收</span></td>
+              <td>江门顺丰物流有限公司</td>
+              <td>批量导入</td>
+              <td>李四（招商一部）</td>
+              <td>公海池</td>
+              <td>客户主动要求退回</td>
+              <td>李四</td>
+            </tr>
+            <tr>
+              <td>2026-08-11 11:30</td>
+              <td><span class="badge badge-info">📥 分配</span></td>
+              <td>东莞宏达机械制造有限公司</td>
+              <td>批量导入</td>
+              <td>公海池</td>
+              <td>王五（招商二部）</td>
+              <td>招商经理批量分配</td>
+              <td>王经理</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="info">共 <span>178</span> 条记录，每页 10 条</div>
+        <div class="pages">
+          <button class="disabled">‹</button>
+          <button class="active">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>...</button>
+          <button>18</button>
+          <button>›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+  </script>
+</body>
+</html>

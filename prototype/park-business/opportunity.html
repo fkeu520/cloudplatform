@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商机管理 - 云枢中台</title>
+  <link rel="stylesheet" href="../_assets/common.css">
+  <style>
+    html,body{height:100%;overflow:hidden}
+    body{display:flex;flex-direction:column}
+    .page-content{flex:1;overflow-y:auto;padding:0}
+    .filter-tabs{display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg)}
+    .filter-tabs .tab-btn{padding:var(--space-sm) var(--space-lg);border-radius:var(--rounded-sm);cursor:pointer;font-size:13px;border:1px solid var(--color-divider);background:var(--color-canvas);color:var(--color-ink-secondary)}
+    .filter-tabs .tab-btn.active{background:var(--color-primary);color:var(--color-on-primary);border-color:var(--color-primary)}
+    .stat-card{padding:20px}
+    .stat-card .label{font-size:12px;color:var(--color-ink-tertiary);margin-bottom:8px}
+    .stat-card .num{font-size:28px;font-weight:700}
+    .opp-row{cursor:pointer;transition:background 0.15s}
+    .opp-row:hover{background:var(--color-primary-pale)}
+  </style>
+</head>
+<body>
+  <!--
+  模块: park-business
+  页面: opportunity (商机管理)
+  版本: v1.0
+
+  数据源:
+  - 主表: pai_business.opportunity
+  - 客户: pai_business.clue_enterprise
+  - 联系人: pai_business.contacts
+
+  API:
+  - GET /business/opportunity/page (商机分页)
+  - POST /business/opportunity/{id}/return-pool (退回公海)
+  - POST /business/opportunity/{id}/terminate (商机终止)
+
+  权限点:
+  - business:opportunity:view
+  - business:opportunity:return-pool
+  - business:opportunity:terminate
+  -->
+
+  <div class="breadcrumb-bar" style="padding:12px 24px;border-bottom:1px solid var(--color-divider)">
+    <button class="back-btn" onclick="goBack()" title="返回">←</button>
+    <span class="crumb" onclick="goBack()" style="cursor:pointer">招商管理</span>
+    <span class="sep">/</span>
+    <span class="crumb active">商机管理</span>
+  </div>
+
+  <div class="page-content" style="padding:20px 24px">
+    <div class="page-title">商机管理</div>
+
+    <!-- 统计卡片 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px">
+      <div class="card stat-card">
+        <div class="label">商机总数</div>
+        <div class="num" style="color:var(--color-ink)">48</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">本月新增 +12</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">跟进中</div>
+        <div class="num" style="color:var(--color-primary)">32</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">66.7%</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">已签协议</div>
+        <div class="num" style="color:#34C759">10</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">20.8%</div>
+      </div>
+      <div class="card stat-card">
+        <div class="label">已终止</div>
+        <div class="num" style="color:var(--color-ink-tertiary)">6</div>
+        <div class="sub" style="font-size:12px;color:var(--color-ink-tertiary);margin-top:4px">12.5%</div>
+      </div>
+    </div>
+
+    <!-- 筛选Tab -->
+    <div class="filter-tabs">
+      <div class="tab-btn active" onclick="switchTab(this)">全部 (48)</div>
+      <div class="tab-btn" onclick="switchTab(this)">跟进中 (32)</div>
+      <div class="tab-btn" onclick="switchTab(this)">已签协议 (10)</div>
+      <div class="tab-btn" onclick="switchTab(this)">已终止 (6)</div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="card" style="padding:16px 20px;margin-bottom:16px">
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" placeholder="商机名称 / 企业名称">
+          <select>
+            <option value="">业务类型</option>
+            <option value="lease">租赁业务</option>
+            <option value="sale">销售业务</option>
+          </select>
+          <select>
+            <option value="">跟进人</option>
+            <option>张三</option>
+            <option>李四</option>
+            <option>王五</option>
+          </select>
+          <input type="date" placeholder="创建时间起" title="创建时间起">
+          <input type="date" placeholder="创建时间止" title="创建时间止">
+          <button class="btn btn-primary">🔍 搜索</button>
+          <button class="btn btn-default">重置</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>商机名称</th>
+              <th>业务类型</th>
+              <th>企业名称</th>
+              <th>联系人</th>
+              <th>意向房源</th>
+              <th>需求面积</th>
+              <th>意向价格</th>
+              <th>跟进人</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>最近跟进</th>
+              <th style="width:180px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="opp-row" onclick="openDetail('opp-001')">
+              <td>租赁意向-A栋3层</td>
+              <td><span class="badge badge-info">租赁</span></td>
+              <td><a href="javascript:void(0)" onclick="event.stopPropagation();parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">深圳前海科技</a></td>
+              <td>刘洋</td>
+              <td>A栋3层301室</td>
+              <td>200㎡</td>
+              <td>80元/㎡/月</td>
+              <td>张三</td>
+              <td><span class="badge badge-active">跟进中</span></td>
+              <td>2026-08-13</td>
+              <td>2026-08-14</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openDetail('opp-001')">详情</button>
+                <button class="btn btn-warning btn-sm" onclick="event.stopPropagation();returnPool()">退回</button>
+              </td>
+            </tr>
+            <tr class="opp-row" onclick="openDetail('opp-002')">
+              <td>购房意向-B栋5层</td>
+              <td><span class="badge badge-warning">销售</span></td>
+              <td><a href="javascript:void(0)" onclick="event.stopPropagation();parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">惠州东海食品</a></td>
+              <td>周明</td>
+              <td>B栋5层502室</td>
+              <td>150㎡</td>
+              <td>20000元/㎡</td>
+              <td>李四</td>
+              <td><span class="badge badge-active">跟进中</span></td>
+              <td>2026-08-10</td>
+              <td>2026-08-14</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openDetail('opp-002')">详情</button>
+                <button class="btn btn-warning btn-sm" onclick="event.stopPropagation();returnPool()">退回</button>
+              </td>
+            </tr>
+            <tr class="opp-row" onclick="openDetail('opp-003')">
+              <td>租赁意向-C栋2层</td>
+              <td><span class="badge badge-info">租赁</span></td>
+              <td><a href="javascript:void(0)" onclick="event.stopPropagation();parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">珠海华信智能</a></td>
+              <td>孙莉</td>
+              <td>C栋2层203室</td>
+              <td>350㎡</td>
+              <td>75元/㎡/月</td>
+              <td>王五</td>
+              <td><span class="badge badge-active">跟进中</span></td>
+              <td>2026-08-08</td>
+              <td>2026-08-13</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openDetail('opp-003')">详情</button>
+                <button class="btn btn-warning btn-sm" onclick="event.stopPropagation();returnPool()">退回</button>
+              </td>
+            </tr>
+            <tr class="opp-row" onclick="openDetail('opp-004')">
+              <td>租赁意向-D栋7层</td>
+              <td><span class="badge badge-info">租赁</span></td>
+              <td><a href="javascript:void(0)" onclick="event.stopPropagation();parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">肇庆金鼎建材</a></td>
+              <td>郑华</td>
+              <td>D栋7层701室</td>
+              <td>500㎡</td>
+              <td>60元/㎡/月</td>
+              <td>张三</td>
+              <td><span class="badge badge-success">已签协议</span></td>
+              <td>2026-07-25</td>
+              <td>2026-08-12</td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openDetail('opp-004')">详情</button>
+              </td>
+            </tr>
+            <tr class="opp-row" onclick="openDetail('opp-005')" style="opacity:0.6">
+              <td>购房意向-A栋5层</td>
+              <td><span class="badge badge-warning">销售</span></td>
+              <td><a href="javascript:void(0)" onclick="event.stopPropagation();parent.loadPage('park-business/customer-detail.html','客户档案','park-business')" style="color:var(--color-primary)">前海科技(子项)</a></td>
+              <td>陈静</td>
+              <td>A栋5层501室</td>
+              <td>150㎡</td>
+              <td>20000元/㎡</td>
+              <td>张三</td>
+              <td><span class="badge badge-negative">已终止</span></td>
+              <td>2026-08-05</td>
+              <td>2026-08-10</td>
+              <td>
+                <button class="btn btn-default btn-sm" onclick="event.stopPropagation();openDetail('opp-005')">详情</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <div class="info">共 <span>48</span> 条记录，每页 10 条</div>
+        <div class="pages">
+          <button class="disabled">‹</button>
+          <button class="active">1</button>
+          <button>2</button>
+          <button>3</button>
+          <button>4</button>
+          <button>5</button>
+          <button>›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 退回公海确认弹窗 -->
+  <div class="modal-overlay" id="returnPoolModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>退回公海</h3>
+        <button class="close" onclick="closeDialog('returnPoolModal')">×</button>
+      </div>
+      <div class="modal-body">
+        <p>确认将此商机退回公海池？</p>
+        <div class="form-row">
+          <div class="col">
+            <label>退回原因 <span class="required">*</span></label>
+            <select>
+              <option value="">请选择</option>
+              <option>客户无意向</option>
+              <option>客户预算不足</option>
+              <option>客户选择其他园区</option>
+              <option>其他原因</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="col">
+            <label>备注说明</label>
+            <textarea placeholder="请输入退回原因说明"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeDialog('returnPoolModal')">取消</button>
+        <button class="btn btn-warning" onclick="closeDialog('returnPoolModal')">确认退回</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBack(){ parent.postMessage({type:'goBack'},'*') }
+    function openDetail(id){ parent.loadPage('park-business/opportunity-detail.html','商机详情','park-business') }
+    function returnPool(){ document.getElementById('returnPoolModal').classList.add('show') }
+    function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+    function switchTab(el){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active') })
+      el.classList.add('active')
+    }
+  </script>
+</body>
+</html>
