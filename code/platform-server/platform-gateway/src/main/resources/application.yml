@@ -189,11 +189,11 @@ spring:
                 name: platform-message-cb
                 fallbackUri: forward:/fallback/message
 
-        # 鏅鸿兘闂瓟
+        # 鏅鸿兘闂瓟 (两个路由: /api/kefu/** 涓嶉渶閲嶅啓, /kefu/** 閲嶅啓涓?/api/kefu/**)
         - id: platform-kefu
           uri: http://platform-kefu:8000
           predicates:
-            - Path=/kefu/**
+            - Path=/api/kefu/**, /kefu/**
           filters:
             - RewritePath=/kefu/(?<segment>.*), /api/kefu/${segment}
 
