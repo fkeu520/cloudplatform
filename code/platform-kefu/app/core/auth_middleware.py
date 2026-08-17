@@ -1,7 +1,8 @@
 import jwt
-from fastapi import Request, HTTPException
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import List, Optional
+from starlette.responses import JSONResponse
+from typing import List
 
 EXEMPT_PATHS: List[str] = [
     "/api/kefu/health",
@@ -9,9 +10,9 @@ EXEMPT_PATHS: List[str] = [
 
 
 class JwtAuthMiddleware(BaseHTTPMiddleware):
-    """JWT 认证中间件 — 对接 platform-auth 的 JwtUtil (Java)。
+    """JWT 认证中间件 — 对接 platform-auth 的 JwtUtil (Java).
 
-    Java JwtUtil 使用 HS256 + HMAC secret，claims 结构:
+    Java JwtUtil 使用 HS384 (54 字节 secret 自动选择) + HMAC, claims 结构:
     - sub: userId (subject)
     - username: 用户名
     - tenantId: 租户ID
@@ -20,6 +21,9 @@ class JwtAuthMiddleware(BaseHTTPMiddleware):
 
     本中间件验证 Bearer token 并将用户上下文注入 request.state.user。
     豁免路径仅 /api/kefu/health。
+
+    注意: BaseHTTPMiddleware 中直接 raise HTTPException 会被 Starlette 的
+    ServerErrorMiddleware 当成 500 返回 (fastapi#2863), 必须用 JSONResponse 显式返回。
     """
 
     async def dispatch(self, request: Request, call_next):
@@ -29,7 +33,10 @@ class JwtAuthMiddleware(BaseHTTPMiddleware):
 
         auth_header = request.headers.get("Authorization", "")
         if not auth_header.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+            return JSONResponse(
+                status_code=401,
+                content={"code": 401, "message": "Missing or invalid Authorization header"},
+            )
 
         token = auth_header[7:]
         secret = request.app.state.settings.jwt_secret
@@ -44,8 +51,14 @@ class JwtAuthMiddleware(BaseHTTPMiddleware):
                 "permissions": payload.get("permissions", []),
             }
         except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token expired")
-        except jwt.InvalidTokenError:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            return JSONResponse(
+                status_code=401,
+                content={"code": 401, "message": "Token expired"},
+            )
+        except jwt.InvalidTokenError as e:
+            return JSONResponse(
+                status_code=401,
+                content={"code": 401, "message": f"Invalid token: {e}"},
+            )
 
         return await call_next(request)
