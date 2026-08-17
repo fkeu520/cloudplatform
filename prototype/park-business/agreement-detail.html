@@ -53,7 +53,7 @@
     <div class="top-info">
       <div class="name">
         AGR-2026-0701 · 肇庆金鼎建材有限公司
-        <span class="badge badge-success">履约中</span>
+        <span class="badge badge-success" id="agrStatusBadge">履约中</span>
         <span class="badge badge-info">租赁业务</span>
       </div>
       <div class="alias">简称：金鼎建材 · 来源：商机转化 · 跟进人：张三</div>
@@ -76,9 +76,9 @@
         </div>
       </div>
       <div style="margin-top:16px;display:flex;gap:8px">
-        <button class="btn btn-warning btn-sm" onclick="openDelayDialog()">⏰️ 协议延期</button>
-        <button class="btn btn-danger btn-sm" onclick="openTerminateDialog()">⛔ 协议终止</button>
-        <button class="btn btn-success btn-sm" onclick="openContractDialog()">📄 签订合同</button>
+        <button class="btn btn-warning btn-sm" id="agrDelayBtn" onclick="openDelayDialog()">⏰️ 协议延期</button>
+        <button class="btn btn-danger btn-sm" id="agrTerminateBtn" onclick="openTerminateDialog()">⛔ 协议终止</button>
+        <button class="btn btn-success btn-sm" id="agrContractBtn" onclick="openContractDialog()">📄 签订合同</button>
       </div>
     </div>
 
@@ -292,7 +292,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('delayModal')">取消</button>
-        <button class="btn btn-warning" onclick="closeDialog('delayModal')">确认延期</button>
+        <button class="btn btn-warning" onclick="confirmDelay()">确认延期</button>
       </div>
     </div>
   </div>
@@ -330,7 +330,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('terminateModal')">取消</button>
-        <button class="btn btn-danger" onclick="closeDialog('terminateModal')">确认终止</button>
+        <button class="btn btn-danger" onclick="confirmTerminateAgreement()">确认终止</button>
       </div>
     </div>
   </div>
@@ -366,12 +366,16 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-default" onclick="closeDialog('contractModal')">取消</button>
-        <button class="btn btn-success" onclick="closeDialog('contractModal')">确认签订</button>
+        <button class="btn btn-success" onclick="confirmContract()">确认签订</button>
       </div>
     </div>
   </div>
 
   <script>
+    // === 协议状态管理 (M-05) ===
+    var agrStatus = 'ACTIVE' // ACTIVE | TERMINATED | CONTRACTED | EXPIRED
+    // 到期日期: 2027-06-30
+
     function goBack(){ parent.postMessage({type:'goBack'},'*') }
     function switchTab(el, paneId){
       document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active') })
@@ -383,6 +387,113 @@
     function openTerminateDialog(){ document.getElementById('terminateModal').classList.add('show') }
     function openContractDialog(){ document.getElementById('contractModal').classList.add('show') }
     function closeDialog(id){ document.getElementById(id).classList.remove('show') }
+
+    // === Toast ===
+    function showToast(msg,type){
+      type=type||'info'
+      var colors={info:'#007AFF',success:'#34C759',danger:'#FF3B30',warning:'#FF9500'}
+      var t=document.createElement('div')
+      t.textContent=msg
+      t.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);transition:opacity 0.3s;max-width:360px;color:#fff;background:'+(colors[type]||'#007AFF')
+      document.body.appendChild(t)
+      setTimeout(function(){ t.style.opacity='0';setTimeout(function(){ t.remove() },300) },3000)
+    }
+
+    // === M-05: 页面初始化 - 检查到期状态 ===
+    function checkExpiry(){
+      var expireStr='2027-06-30'
+      var now=new Date()
+      var expire=new Date(expireStr)
+      var diffDays=Math.ceil((expire-now)/(1000*60*60*24))
+      var delayBtn=document.getElementById('agrDelayBtn')
+      var termBtn=document.getElementById('agrTerminateBtn')
+      var contractBtn=document.getElementById('agrContractBtn')
+      var allBtns=[delayBtn,termBtn,contractBtn]
+      if(diffDays<0){
+        // 已过期
+        agrStatus='EXPIRED'
+        allBtns.forEach(function(b){
+          if(b){b.disabled=true;b.style.background='#ccc';b.style.color='#999';b.style.cursor='not-allowed'}
+        })
+        showToast('协议已过期，所有操作已禁用','danger')
+      }else if(diffDays<7){
+        // 即将到期
+        allBtns.forEach(function(b){
+          if(b){b.classList.add('btn-warning')}
+        })
+        showToast('协议即将到期（'+diffDays+'天），请尽快处理','warning')
+      }
+    }
+    // 页面加载后检查
+    setTimeout(checkExpiry,200)
+
+    // === 确认延期 ===
+    function confirmDelay(){
+      var m=document.getElementById('delayModal')
+      var newDate=m.querySelectorAll('input[type="date"]')[1].value
+      var reason=m.querySelector('textarea').value.trim()
+      if(!newDate) return showToast('请选择新到期日期','danger')
+      if(!reason) return showToast('请输入延期原因','danger')
+      closeDialog('delayModal')
+      showToast('协议已延期至 '+newDate,'success')
+    }
+
+    // === 确认终止 (M-05) ===
+    function confirmTerminateAgreement(){
+      var m=document.getElementById('terminateModal')
+      var reason=m.querySelector('select').value
+      var date=m.querySelectorAll('input[type="date"]')[0].value
+      if(!reason) return showToast('请选择终止原因','danger')
+      if(!date) return showToast('请选择终止日期','danger')
+      closeDialog('terminateModal')
+      agrStatus='TERMINATED'
+      // 状态徽章变红
+      var badge=document.getElementById('agrStatusBadge')
+      if(badge){badge.className='badge badge-danger';badge.textContent='已终止'}
+      // 状态约束 (M-05): 已终止时隐藏所有状态变更按钮,仅保留"查看"
+      var ids=['agrDelayBtn','agrTerminateBtn','agrContractBtn']
+      ids.forEach(function(id){
+        var b=document.getElementById(id)
+        if(b){b.style.display='none'}
+      })
+      // 时间轴新增终止节点
+      var tl=document.querySelector('#tab-history .timeline-item')
+      if(tl){
+        var item=document.createElement('div')
+        item.className='timeline-item'
+        var now=new Date().toISOString().slice(0,10)
+        item.innerHTML='<div class="dot danger">⛔</div><div class="info"><div class="title">⛔ 协议终止</div><div class="desc">终止原因：'+reason+'</div><div class="time">'+now+' · 张三</div></div>'
+        tl.parentNode.insertBefore(item,tl)
+      }
+      showToast('协议已终止','danger')
+    }
+
+    // === 确认签订合同 (M-05) ===
+    function confirmContract(){
+      var m=document.getElementById('contractModal')
+      var date=m.querySelectorAll('input[type="date"]')[0].value
+      if(!date) return showToast('请选择签订日期','danger')
+      closeDialog('contractModal')
+      agrStatus='CONTRACTED'
+      // 状态徽章变绿
+      var badge=document.getElementById('agrStatusBadge')
+      if(badge){badge.className='badge badge-success';badge.textContent='已签合同'}
+      // 状态约束 (M-05): 已签合同时隐藏终止/再次签订按钮,延期按钮仍可用
+      var termBtn=document.getElementById('agrTerminateBtn')
+      if(termBtn){termBtn.style.display='none'}
+      var contractBtn=document.getElementById('agrContractBtn')
+      if(contractBtn){contractBtn.style.display='none'}
+      // 时间轴新增合同节点
+      var tl=document.querySelector('#tab-history .timeline-item')
+      if(tl){
+        var item=document.createElement('div')
+        item.className='timeline-item'
+        var now=new Date().toISOString().slice(0,10)
+        item.innerHTML='<div class="dot success">📄</div><div class="info"><div class="title">📄 合同签订</div><div class="desc">协议已转为正式合同，签订日期：'+date+'</div><div class="time">'+now+' · 张三</div></div>'
+        tl.parentNode.insertBefore(item,tl)
+      }
+      showToast('合同已签订','success')
+    }
   </script>
 </body>
 </html>
