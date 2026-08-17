@@ -23,7 +23,8 @@
  * admin nginx: /kefu/** → platform-kefu-frontend:80 (rewrite 去前缀)
  *
  * 菜单: sys_menu id 510 (智能问答) / 511 (对话) / 512 (知识库) / 513 (仪表盘)
- * 父级 app_id=7 (investment-center)
+ *       517 (会话管理) / 518 (FAQ管理) / 519 (知识导入) / 520 (数据源) / 521 (评估)
+ * 父级 app_id=7 (knowledge)
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'

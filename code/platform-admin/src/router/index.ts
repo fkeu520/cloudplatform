@@ -317,6 +317,11 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '企业概览', icon: 'fas fa-chart-pie', parent: 'enterprise' }
       },
       // ========== 智能问答 (kefu) - iframe 嵌入 kefu-frontend 8060 ==========
+      // 父目录 /kefu → 默认跳转对话页
+      {
+        path: 'kefu',
+        redirect: '/kefu/chat'
+      },
       {
         path: 'kefu/chat',
         name: 'KefuChat',
@@ -327,13 +332,43 @@ const routes: RouteRecordRaw[] = [
         path: 'kefu/knowledge',
         name: 'KefuKnowledge',
         component: () => import('@/views/kefu/Knowledge.vue'),
-        meta: { title: '知识库', icon: 'fas fa-book', parent: 'kefu', appCode: 'investment-center' }
+        meta: { title: '知识库', icon: 'fas fa-book', parent: 'kefu', appCode: 'knowledge' }
       },
       {
         path: 'kefu/dashboard',
         name: 'KefuDashboard',
         component: () => import('@/views/kefu/Dashboard.vue'),
-        meta: { title: '仪表盘', icon: 'fas fa-chart-bar', parent: 'kefu', appCode: 'investment-center' }
+        meta: { title: '仪表盘', icon: 'fas fa-chart-bar', parent: 'kefu', appCode: 'knowledge' }
+      },
+      {
+        path: 'kefu/sessions',
+        name: 'KefuSessions',
+        component: () => import('@/views/kefu/Sessions.vue'),
+        meta: { title: '会话管理', icon: 'fas fa-history', parent: 'kefu', appCode: 'knowledge' }
+      },
+      {
+        path: 'kefu/faqs',
+        name: 'KefuFaqs',
+        component: () => import('@/views/kefu/Faqs.vue'),
+        meta: { title: 'FAQ管理', icon: 'fas fa-question-circle', parent: 'kefu', appCode: 'knowledge' }
+      },
+      {
+        path: 'kefu/import',
+        name: 'KefuImport',
+        component: () => import('@/views/kefu/Import.vue'),
+        meta: { title: '知识导入', icon: 'fas fa-file-import', parent: 'kefu', appCode: 'knowledge' }
+      },
+      {
+        path: 'kefu/settings',
+        name: 'KefuSettings',
+        component: () => import('@/views/kefu/Settings.vue'),
+        meta: { title: '数据源', icon: 'fas fa-database', parent: 'kefu', appCode: 'knowledge' }
+      },
+      {
+        path: 'kefu/evaluation',
+        name: 'KefuEvaluation',
+        component: () => import('@/views/kefu/Evaluation.vue'),
+        meta: { title: '评估', icon: 'fas fa-chart-line', parent: 'kefu', appCode: 'knowledge' }
       },
       // ========== W3.6 Room 子表 (park-space 后端 V35, append-only) ==========
       {

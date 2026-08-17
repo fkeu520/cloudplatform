@@ -9,6 +9,7 @@
           <router-link to="/dashboard">数据看板</router-link>
           <router-link to="/sessions">会话管理</router-link>
           <router-link to="/faqs">FAQ管理</router-link>
+          <router-link to="/import">知识导入</router-link>
           <router-link to="/settings">数据源</router-link>
           <router-link to="/evaluation">评估</router-link>
         </nav>
