@@ -20,7 +20,12 @@
  * Kefu 智能问答 - 通用 iframe 包装
  * 后端: platform-kefu (8050/8000) - FastAPI, gateway 路由 /api/kefu/**
  * 前端: platform-kefu-frontend (8060/80) - Vue 3 SPA (hash router)
- * admin nginx: /kefu/** → platform-kefu-frontend:80 (rewrite 去前缀)
+ * 部署:
+ *   - platform-admin 容器 nginx 已不再代理 /kefu/, 让 vue-router 处理 /kefu/chat
+ *   - iframe src 改为 /kefu-frontend/#/chat, 云端 nginx (cloudhub) 代理
+ *     /kefu-frontend/ → kefu-frontend:8060 (避免路径冲突)
+ *   - 这样 kefu SPA 在 iframe 内运行, 外层是 platform-admin 框架
+ *     (顶部 tab / 左侧菜单 / 工作台框架完整保留)
  *
  * 菜单: sys_menu id 510 (智能问答) / 511 (对话) / 512 (知识库) / 513 (仪表盘)
  *       517 (会话管理) / 518 (FAQ管理) / 519 (知识导入) / 520 (数据源) / 521 (评估)
@@ -34,15 +39,15 @@ const iframeRef = ref<HTMLIFrameElement | null>(null)
 
 /**
  * 映射 admin 路由 -> kefu-frontend hash 路径
- *  /kefu           -> /kefu/#/chat
- *  /kefu/chat      -> /kefu/#/chat
- *  /kefu/knowledge -> /kefu/#/knowledge
- *  /kefu/dashboard -> /kefu/#/dashboard
+ *  /kefu           -> /kefu-frontend/#/chat
+ *  /kefu/chat      -> /kefu-frontend/#/chat
+ *  /kefu/knowledge -> /kefu-frontend/#/knowledge
+ *  /kefu/dashboard -> /kefu-frontend/#/dashboard
  */
 const iframeSrc = computed(() => {
   const sub = route.path.replace(/^\/kefu/, '') || '/chat'
   const hash = sub === '/' || sub === '' ? '/chat' : sub
-  return `/kefu/#${hash}`
+  return `/kefu-frontend/#${hash}`
 })
 
 /** 路由变化时, 主动更新 iframe hash (无重载, 避免闪烁) */
