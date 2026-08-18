@@ -9,7 +9,11 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('kefu_token')
+  // Token 来源兼容两种部署模式:
+  // 1. 嵌入 platform-admin (同域名 cloud.hugh.sryze.cc): platform-admin 用 'token' 键
+  // 2. 独立部署 kefu (不同子域名): 用 'kefu_token'
+  // 共享 HS384 JWT_SECRET (commit a3a408f 已统一), 两边都能验签
+  const token = localStorage.getItem('token') || localStorage.getItem('kefu_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -20,8 +24,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // 401 时只清 token, 不跳 /login — iframe 跳顶层 /login 会把 platform-admin
+      // 已登录态破坏, 反而更糟. 让用户在 platform-admin 顶层 logout 再登录即可.
       localStorage.removeItem('kefu_token')
-      window.location.href = '/login'
+      console.error('[kefu] 会话已过期 (401), 请在 platform-admin 重新登录')
     }
     return Promise.reject(error)
   }
