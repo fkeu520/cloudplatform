@@ -61,6 +61,7 @@ class SessionCreateRequest(BaseModel):
 
 class SessionResponse(BaseModel):
     id: str
+    tenant_id: Optional[int] = None
     customer_id: Optional[int]
     customer_name: Optional[str]
     contact: Optional[str]
@@ -89,6 +90,7 @@ class MessageCreateRequest(BaseModel):
 class MessageResponse(BaseModel):
     msg_id: str
     session_id: str
+    tenant_id: Optional[int] = None
     role: str
     content: str
     data_source_refs: List[Dict[str, Any]] = Field(default_factory=list)
