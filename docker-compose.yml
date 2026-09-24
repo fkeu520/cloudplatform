@@ -505,6 +505,11 @@ services:
       - REDIS_HOST=redis
       - CORS_ORIGINS=*
       - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
+      # P0 security (2026-09-24): shared secret with platform-kefu for X-Kefu-Internal-Token.
+      # Gateway computes HMAC-SHA256(this_value, "kefu-internal") and attaches as header
+      # on all requests to /api/kefu/** and /kefu/** routes.
+      # Must be >= 32 random chars in production.
+      - KEFU_INTERNAL_TOKEN=${KEFU_INTERNAL_TOKEN:?KEFU_INTERNAL_TOKEN must be set}
       - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       nacos:
@@ -704,6 +709,10 @@ services:
       - JWT_SECRET=${JWT_SECRET:-cloudhub-platform-jwt-secret-2024-production-min-32-chars}
       - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      # P0 security (2026-09-24): must match KEFU_INTERNAL_TOKEN on platform-gateway.
+      # Gateway attaches X-Kefu-Internal-Token = HMAC-SHA256(this_value, "kefu-internal")
+      # to all Kefu-route requests. Middleware rejects X-User-* without this token.
+      - KEFU_INTERNAL_TOKEN=${KEFU_INTERNAL_TOKEN:?KEFU_INTERNAL_TOKEN must be set}
     volumes:
       - kefu-vector-index:/app/data/vector_index
     depends_on:
