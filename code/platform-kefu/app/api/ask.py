@@ -3,19 +3,36 @@ import json
 import time
 import httpx
 from pathlib import Path
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException
 from app.models.schemas import AskRequest, AskResponse
 from app.models.database import get_db_connection
 from app.services.embedder import embedder
-from app.services.vector_store import VectorStore
+from app.services.vector_store import get_store
 from app.config import settings
+from app.core.access import has_permission, normalize_tenant_id
 
 router = APIRouter()
 vector_dir = Path(__file__).parent.parent / "data" / "vector_index"
-vector_store = VectorStore(vector_dir)
+vector_store = get_store(vector_dir)
+
+
+def _tenant_id(request: Request) -> int:
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Unauthorized: no user context")
+    if not has_permission(user, "kefu:chat"):
+        raise HTTPException(403, "Permission denied: kefu:chat")
+    if str(user.get("userType", "")) == "2":
+        return 0
+    try:
+        return normalize_tenant_id(user.get("tenantId"))
+    except ValueError as exc:
+        raise HTTPException(403, f"Tenant access denied: {exc}") from exc
+
 
 @router.post("", response_model=AskResponse)
-async def ask_question(req: AskRequest):
+async def ask_question(request: Request, req: AskRequest):
+    tenant_id = _tenant_id(request)
     start_time = time.time()
 
     query_vector = embedder.embed_single(req.question)
@@ -35,9 +52,26 @@ async def ask_question(req: AskRequest):
     conn = await get_db_connection()
     async with conn.cursor() as cur:
         placeholders = ','.join(['%s'] * len(chunk_ids))
-        await cur.execute(f"SELECT chunk_id, content FROM chunks WHERE chunk_id IN ({placeholders})", chunk_ids)
+        await cur.execute(
+            f"SELECT chunk_id, content FROM chunks "
+            f"WHERE chunk_id IN ({placeholders}) AND tenant_id=%s",
+            chunk_ids + [tenant_id],
+        )
         chunk_rows = await cur.fetchall()
     conn.close()
+
+    # Vector search spans the shared index. Only expose/return chunks that
+    # belong to the authenticated tenant after the SQL filter.
+    chunk_ids = [row[0] for row in chunk_rows]
+    if not chunk_ids:
+        return AskResponse(
+            ask_id=str(uuid.uuid4()),
+            question=req.question,
+            answer="知识库中没有找到相关内容，请尝试上传更多文档",
+            chunks_used=[],
+            model=settings.deepseek_model,
+            latency_ms=int((time.time() - start_time) * 1000),
+        )
 
     context = "\n\n".join([row[1] for row in chunk_rows])
     prompt = f"""请基于以下知识库内容回答问题：
@@ -57,8 +91,10 @@ async def ask_question(req: AskRequest):
     conn = await get_db_connection()
     async with conn.cursor() as cur:
         await cur.execute(
-            "INSERT INTO ask_logs (ask_id, question, answer, latency_ms, chunks_used, model) VALUES (%s, %s, %s, %s, %s, %s)",
-            (ask_id, req.question, answer, latency, json.dumps(chunk_ids), settings.deepseek_model)
+            "INSERT INTO ask_logs "
+            "(tenant_id, ask_id, question, answer, latency_ms, chunks_used, model) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (tenant_id, ask_id, req.question, answer, latency, json.dumps(chunk_ids), settings.deepseek_model)
         )
     conn.close()
 
@@ -89,15 +125,17 @@ async def _call_llm(prompt: str) -> str:
     return data["choices"][0]["message"]["content"]
 
 @router.get("/history")
-async def ask_history(page: int = 1, page_size: int = 20):
+async def ask_history(request: Request, page: int = 1, page_size: int = 20):
+    tenant_id = _tenant_id(request)
     conn = await get_db_connection()
     async with conn.cursor() as cur:
-        await cur.execute("SELECT COUNT(*) as c FROM ask_logs")
+        await cur.execute("SELECT COUNT(*) as c FROM ask_logs WHERE tenant_id=%s", (tenant_id,))
         total = (await cur.fetchone())[0]
         offset = (page - 1) * page_size
         await cur.execute(
-            "SELECT ask_id, question, answer, user_id, username, latency_ms, create_time FROM ask_logs ORDER BY create_time DESC LIMIT %s OFFSET %s",
-            (page_size, offset)
+            "SELECT ask_id, question, answer, user_id, username, latency_ms, create_time "
+            "FROM ask_logs WHERE tenant_id=%s ORDER BY create_time DESC LIMIT %s OFFSET %s",
+            (tenant_id, page_size, offset)
         )
         rows = await cur.fetchall()
     conn.close()
