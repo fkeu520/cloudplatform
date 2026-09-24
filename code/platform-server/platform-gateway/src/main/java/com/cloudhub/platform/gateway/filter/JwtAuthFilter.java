@@ -11,6 +11,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -19,6 +22,18 @@ import java.util.List;
 @Slf4j
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
+
+    /** P0 security fix (2026-09-24): internal token contract between gateway and kefu.
+     *  Gateway computes HMAC-SHA256(this_secret, "kefu-internal") and attaches it as
+     *  X-Kefu-Internal-Token on every request forwarded to Kefu routes.
+     *  KeFu middleware rejects X-User-* headers unless this token matches.
+     *  Env var: KEFU_INTERNAL_TOKEN (must match platform-kefu's KEFU_INTERNAL_TOKEN). */
+    private static final String KEFU_INTERNAL_TOKEN_SECRET =
+            System.getenv("KEFU_INTERNAL_TOKEN") != null
+                    ? System.getenv("KEFU_INTERNAL_TOKEN")
+                    : "";
+
+    private static final String KEFU_INTERNAL_HMAC_PAYLOAD = "kefu-internal";
 
     /** 无需鉴权的路径 (精确匹配, 需要前缀通配的用  pattern + "/" 后缀) */
     private static final List<String> WHITE_LIST = List.of(
@@ -75,13 +90,23 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
             // 将用户上下文传递到后续服务（通过 Header）
             // 业务服务侧可通过 park-common 的 ParkAuthFilter 读取并写入 LoginContextHolder
-            ServerHttpRequest mutated = exchange.getRequest().mutate()
+            ServerHttpRequest.Builder mutate = exchange.getRequest().mutate()
                     .header("X-User-Id", userId)
                     .header("X-User-Name", username == null ? "" : username)
                     .header("X-Tenant-Id", tenantId == null ? "" : String.valueOf(tenantId))
                     .header("X-User-Type", userType == null ? "" : String.valueOf(userType))
-                    .header("X-User-Permissions", permsHeader)
-                    .build();
+                    .header("X-User-Permissions", permsHeader);
+
+            // P0 security: scope X-Kefu-Internal-Token to kefu paths only
+            if (isKefuPath(path)) {
+                String kefuToken = computeKefuInternalToken();
+                if (kefuToken != null) {
+                    log.debug("[JwtAuth] attaching X-Kefu-Internal-Token for kefu path: {}", path);
+                    mutate.header("X-Kefu-Internal-Token", kefuToken);
+                }
+            }
+
+            ServerHttpRequest mutated = mutate.build();
             return chain.filter(exchange.mutate().request(mutated).build());
         } catch (Exception e) {
             log.warn("JWT 验证失败: {}", e.getMessage());
@@ -123,5 +148,41 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         // 前端拿到 HTTP 200 + Content-Length: 0 无法识别未鉴权状态。
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         return exchange.getResponse().setComplete();
+    }
+
+    /** P0 security: check if path belongs to Kefu service (scope internal token header). */
+    private boolean isKefuPath(String path) {
+        return "/api/kefu".equals(path)
+                || "/kefu".equals(path)
+                || path.startsWith("/api/kefu/")
+                || path.startsWith("/kefu/");
+    }
+
+    /** P0 security: compute HMAC-SHA256(KEFU_INTERNAL_TOKEN_SECRET, "kefu-internal").
+     *  Returns null if secret is not configured (token header omitted for those routes). */
+    private String computeKefuInternalToken() {
+        if (KEFU_INTERNAL_TOKEN_SECRET == null || KEFU_INTERNAL_TOKEN_SECRET.isBlank()) {
+            log.warn("[JwtAuth] KEFU_INTERNAL_TOKEN not configured — X-Kefu-Internal-Token will NOT be attached");
+            return null;
+        }
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(
+                    KEFU_INTERNAL_TOKEN_SECRET.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA256"));
+            byte[] hash = mac.doFinal(KEFU_INTERNAL_HMAC_PAYLOAD.getBytes(StandardCharsets.UTF_8));
+            return bytesToHex(hash);
+        } catch (Exception e) {
+            log.error("[JwtAuth] failed to compute X-Kefu-Internal-Token: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b & 0xff));
+        }
+        return sb.toString();
     }
 }
