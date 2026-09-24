@@ -1,11 +1,12 @@
 """数据源管理 API 路由"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from app.models.schemas import DataSourceResponse, DataSourceListResponse, DataSourceUpdateRequest, DataSourceRegisterRequest
 from app.services.datasource.base import registry
 from app.services.datasource.faq_adapter import FaqAdapter
 from app.services.datasource.knowledge_adapter import KnowledgeAdapter
 from app.services.datasource.park_enterprise_adapter import ParkEnterpriseAdapter
 from app.models.database import get_db_connection
+from app.core.access import has_permission
 from typing import List
 
 router = APIRouter(prefix="/api/kefu", tags=["data_sources"])
@@ -17,6 +18,12 @@ _ADAPTER_MAP = {
 }
 
 
+def _require_settings_permission(request: Request) -> None:
+    user = getattr(request.state, "user", None)
+    if not user or not has_permission(user, "kefu:settings"):
+        raise HTTPException(403, "Permission denied: kefu:settings")
+
+
 def _ensure_registry():
     if not registry.all():
         for cls in _ADAPTER_MAP.values():
@@ -24,14 +31,16 @@ def _ensure_registry():
 
 
 @router.get("/data_sources", response_model=DataSourceListResponse)
-async def list_data_sources():
+async def list_data_sources(request: Request):
+    _require_settings_permission(request)
     _ensure_registry()
     items = [a.to_response() for a in registry.all()]
     return DataSourceListResponse(total=len(items), items=items)
 
 
 @router.get("/data_sources/{source_id}", response_model=DataSourceResponse)
-async def get_data_source(source_id: str):
+async def get_data_source(request: Request, source_id: str):
+    _require_settings_permission(request)
     _ensure_registry()
     a = registry.get(source_id)
     if not a:
@@ -40,7 +49,10 @@ async def get_data_source(source_id: str):
 
 
 @router.put("/data_sources/{source_id}", response_model=DataSourceResponse)
-async def update_data_source(source_id: str, req: DataSourceUpdateRequest):
+async def update_data_source(
+    request: Request, source_id: str, req: DataSourceUpdateRequest
+):
+    _require_settings_permission(request)
     _ensure_registry()
     a = registry.get(source_id)
     if not a:
@@ -57,8 +69,9 @@ async def update_data_source(source_id: str, req: DataSourceUpdateRequest):
 
 
 @router.post("/data_sources/register", response_model=DataSourceResponse)
-async def register_data_source(req: DataSourceRegisterRequest):
+async def register_data_source(request: Request, req: DataSourceRegisterRequest):
     """动态注册新数据源（DESIGN §七.5 step 1-2）"""
+    _require_settings_permission(request)
     _ensure_registry()
     if registry.get(req.id):
         raise HTTPException(400, f"数据源已存在: {req.id}")
@@ -75,7 +88,8 @@ async def register_data_source(req: DataSourceRegisterRequest):
 
 
 @router.post("/data_sources/{source_id}/sync")
-async def sync_data_source(source_id: str):
+async def sync_data_source(request: Request, source_id: str):
+    _require_settings_permission(request)
     _ensure_registry()
     a = registry.get(source_id)
     if not a:
