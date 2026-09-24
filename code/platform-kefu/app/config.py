@@ -34,6 +34,13 @@ class Settings(BaseSettings):
 
     jwt_secret: str = "cloudhub-platform-secret-key-2024-change-in-production"
 
+    # P0 security fix (2026-09-24): internal gateway-to-kefu token contract.
+    # Must match the KEFU_INTERNAL_TOKEN set on platform-gateway in docker-compose.
+    # Gateway computes X-Kefu-Internal-Token = HMAC-SHA256(secret, "kefu-internal")
+    # and attaches it to every request forwarded to Kefu routes.
+    # KeFu rejects any X-User-* header unless this token is present and valid.
+    kefu_internal_token: str = ""
+
     @property
     def allowed_extensions_list(self) -> List[str]:
         return [ext.strip().lower() for ext in self.allowed_extensions.split(",")]
