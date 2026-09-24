@@ -13,19 +13,27 @@ class FaqAdapter(DataSourceAdapter):
         )
 
     async def query(self, question: str, params: Dict[str, Any] = None) -> DataSourceResult:
+        tenant_id = params.get("tenant_id") if params else None
+        if tenant_id is None:
+            return DataSourceResult([], "")
+        tenant_clause = " AND tenant_id=%s"
+        tenant_args = (tenant_id,)
         conn = await get_db_connection()
         try:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "SELECT faq_id, question, answer, category FROM kefu_faq WHERE enabled=1 AND MATCH(question) AGAINST(%s) LIMIT 3",
-                    (question,),
+                    "SELECT faq_id, question, answer, category FROM kefu_faq "
+                    "WHERE enabled=1" + tenant_clause +
+                    " AND MATCH(question) AGAINST(%s) LIMIT 3",
+                    tenant_args + (question,),
                 )
                 rows = await cur.fetchall()
                 if not rows:
                     # fallback: LIKE
                     await cur.execute(
-                        "SELECT faq_id, question, answer, category FROM kefu_faq WHERE enabled=1 AND question LIKE %s LIMIT 3",
-                        (f"%{question[:30]}%",),
+                        "SELECT faq_id, question, answer, category FROM kefu_faq "
+                        "WHERE enabled=1" + tenant_clause + " AND question LIKE %s LIMIT 3",
+                        tenant_args + (f"%{question[:30]}%",),
                     )
                     rows = await cur.fetchall()
                 refs = []
@@ -34,7 +42,11 @@ class FaqAdapter(DataSourceAdapter):
                     faq_id, q, a, cat = r[0], r[1], r[2], r[3]
                     refs.append(DataSourceRef("faq", "faq", faq_id, q, {"answer": a[:200], "category": cat}))
                     summary_parts.append(f"【{cat}】{q}: {a[:80]}")
-                    await cur.execute("UPDATE kefu_faq SET hit_count=hit_count+1 WHERE faq_id=%s", (faq_id,))
+                    await cur.execute(
+                        "UPDATE kefu_faq SET hit_count=hit_count+1 "
+                        "WHERE faq_id=%s" + tenant_clause,
+                        (faq_id,) + tenant_args,
+                    )
                 return DataSourceResult(refs, "\n".join(summary_parts))
         finally:
             conn.close()

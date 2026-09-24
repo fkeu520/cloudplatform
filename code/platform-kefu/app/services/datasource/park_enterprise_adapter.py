@@ -31,17 +31,23 @@ class ParkEnterpriseAdapter(DataSourceAdapter):
         ]
 
     async def query(self, question: str, params: Dict[str, Any] = None) -> DataSourceResult:
+        tenant_id = params.get("tenant_id") if params else None
+        if tenant_id is None:
+            return DataSourceResult([], "")
         if self.base_url:
-            return await self._http_query(question)
-        return self._mock_query(question)
+            return await self._http_query(question, tenant_id)
+        return self._mock_query(question, tenant_id)
 
-    async def _http_query(self, question: str) -> DataSourceResult:
+    async def _http_query(self, question: str, tenant_id: int) -> DataSourceResult:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.post(
                     f"{self.base_url}/api/enterprise/query",
-                    json={"keyword": question, "limit": 3},
-                    headers={"Content-Type": "application/json"},
+                    json={"keyword": question, "limit": 3, "tenantId": tenant_id},
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Tenant-Id": str(tenant_id),
+                    },
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -58,18 +64,19 @@ class ParkEnterpriseAdapter(DataSourceAdapter):
                 return DataSourceResult(refs, summary)
         except Exception as e:
             logger.warning(f"[ParkEnterprise] HTTP 调用失败，降级到 mock: {e}")
-            return self._mock_query(question)
+            return self._mock_query(question, tenant_id)
 
-    def _mock_query(self, question: str) -> DataSourceResult:
-        """关键词匹配 mock 数据"""
+    def _mock_query(self, question: str, tenant_id: int) -> DataSourceResult:
+        """关键词匹配 mock 数据（仅 platform tenant 0 可见）"""
+        visible_data = [e for e in self.mock_data if e.get("tenant_id", 0) == tenant_id]
         matched = []
-        for ent in self.mock_data:
+        for ent in visible_data:
             if any(kw in question for kw in [ent["name"][:4], ent["contact"], ent["industry"]]):
                 matched.append(ent)
         if not matched:
             # 如果问题包含"企业""公司"等泛词，返回全部
             if any(kw in question for kw in ["企业", "公司", "入驻", "客户"]):
-                matched = self.mock_data[:3]
+                matched = visible_data[:3]
         refs = [
             DataSourceRef("park-enterprise", "enterprise", str(e["id"]), e["name"], e)
             for e in matched
