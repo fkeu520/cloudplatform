@@ -1,22 +1,39 @@
 """FAQ CRUD API 路由"""
 import uuid
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from app.models.schemas import FaqCreateRequest, FaqResponse, FaqListResponse
 from app.models.database import get_db_connection
+from app.core.access import has_permission, normalize_tenant_id
 
 router = APIRouter(prefix="/api/kefu", tags=["faqs"])
 
 
+def _tenant_id(request: Request, permission: str) -> int:
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Unauthorized: no user context")
+    if not has_permission(user, permission):
+        raise HTTPException(403, f"Permission denied: {permission}")
+    if str(user.get("userType", "")) == "2":
+        return 0
+    try:
+        return normalize_tenant_id(user.get("tenantId"))
+    except ValueError as exc:
+        raise HTTPException(403, f"Tenant access denied: {exc}") from exc
+
+
 @router.post("/faqs", response_model=FaqResponse)
-async def create_faq(req: FaqCreateRequest):
+async def create_faq(request: Request, req: FaqCreateRequest):
+    tenant_id = _tenant_id(request, "kefu:faqs")
     faq_id = str(uuid.uuid4())
     conn = await get_db_connection()
     try:
         async with conn.cursor() as cur:
             await cur.execute(
-                "INSERT INTO kefu_faq (faq_id, question, answer, category) VALUES (%s,%s,%s,%s)",
-                (faq_id, req.question, req.answer, req.category),
+                "INSERT INTO kefu_faq (tenant_id, faq_id, question, answer, category) "
+                "VALUES (%s,%s,%s,%s,%s)",
+                (tenant_id, faq_id, req.question, req.answer, req.category),
             )
     finally:
         conn.close()
@@ -28,12 +45,19 @@ async def create_faq(req: FaqCreateRequest):
 
 
 @router.get("/faqs", response_model=FaqListResponse)
-async def list_faqs(category: str = None, enabled: bool = None, limit: int = 50, offset: int = 0):
+async def list_faqs(
+    request: Request,
+    category: str = None,
+    enabled: bool = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    tenant_id = _tenant_id(request, "kefu:faqs")
     conn = await get_db_connection()
     try:
         async with conn.cursor() as cur:
-            sql = "SELECT faq_id, question, answer, category, hit_count, sat_sum, sat_count, enabled, created_at, updated_at FROM kefu_faq WHERE 1=1"
-            args = []
+            sql = "SELECT faq_id, question, answer, category, hit_count, sat_sum, sat_count, enabled, created_at, updated_at FROM kefu_faq WHERE tenant_id=%s"
+            args = [tenant_id]
             if category:
                 sql += " AND category=%s"
                 args.append(category)
@@ -58,11 +82,17 @@ async def list_faqs(category: str = None, enabled: bool = None, limit: int = 50,
 
 
 @router.get("/faqs/{faq_id}", response_model=FaqResponse)
-async def get_faq(faq_id: str):
+async def get_faq(request: Request, faq_id: str):
+    tenant_id = _tenant_id(request, "kefu:faqs")
     conn = await get_db_connection()
     try:
         async with conn.cursor() as cur:
-            await cur.execute("SELECT faq_id, question, answer, category, hit_count, sat_sum, sat_count, enabled, created_at, updated_at FROM kefu_faq WHERE faq_id=%s", (faq_id,))
+            await cur.execute(
+                "SELECT faq_id, question, answer, category, hit_count, sat_sum, sat_count, "
+                "enabled, created_at, updated_at FROM kefu_faq "
+                "WHERE faq_id=%s AND tenant_id=%s",
+                (faq_id, tenant_id),
+            )
             row = await cur.fetchone()
             if not row:
                 raise HTTPException(404, f"FAQ 不存在: {faq_id}")
@@ -77,28 +107,37 @@ async def get_faq(faq_id: str):
 
 
 @router.put("/faqs/{faq_id}", response_model=FaqResponse)
-async def update_faq(faq_id: str, req: FaqCreateRequest):
+async def update_faq(request: Request, faq_id: str, req: FaqCreateRequest):
+    tenant_id = _tenant_id(request, "kefu:faqs")
     conn = await get_db_connection()
     try:
         async with conn.cursor() as cur:
-            await cur.execute("SELECT faq_id FROM kefu_faq WHERE faq_id=%s", (faq_id,))
+            await cur.execute(
+                "SELECT faq_id FROM kefu_faq WHERE faq_id=%s AND tenant_id=%s",
+                (faq_id, tenant_id),
+            )
             if not await cur.fetchone():
                 raise HTTPException(404, f"FAQ 不存在: {faq_id}")
             await cur.execute(
-                "UPDATE kefu_faq SET question=%s, answer=%s, category=%s, updated_at=NOW() WHERE faq_id=%s",
-                (req.question, req.answer, req.category, faq_id),
+                "UPDATE kefu_faq SET question=%s, answer=%s, category=%s, updated_at=NOW() "
+                "WHERE faq_id=%s AND tenant_id=%s",
+                (req.question, req.answer, req.category, faq_id, tenant_id),
             )
     finally:
         conn.close()
-    return await get_faq(faq_id)
+    return await get_faq(request, faq_id)
 
 
 @router.delete("/faqs/{faq_id}")
-async def delete_faq(faq_id: str):
+async def delete_faq(request: Request, faq_id: str):
+    tenant_id = _tenant_id(request, "kefu:faqs")
     conn = await get_db_connection()
     try:
         async with conn.cursor() as cur:
-            await cur.execute("DELETE FROM kefu_faq WHERE faq_id=%s", (faq_id,))
+            await cur.execute(
+                "DELETE FROM kefu_faq WHERE faq_id=%s AND tenant_id=%s",
+                (faq_id, tenant_id),
+            )
             if cur.rowcount == 0:
                 raise HTTPException(404, f"FAQ 不存在: {faq_id}")
     finally:

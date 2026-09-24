@@ -1,21 +1,22 @@
 import uuid
 import io
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from minio import Minio
 from app.models.schemas import DocumentResponse, DocumentListResponse
 from app.models.database import get_db_connection
 from app.services.document_processor import DocumentProcessor
 from app.services.chunker import Chunker
 from app.services.embedder import embedder
-from app.services.vector_store import VectorStore
+from app.services.vector_store import get_store
 from app.config import settings
+from app.core.access import has_permission, normalize_tenant_id
 
 router = APIRouter()
 vector_dir = Path(__file__).parent.parent / "data" / "vector_index"
 tmp_dir = Path(__file__).parent.parent / "data" / "tmp"
 
-vector_store = VectorStore(vector_dir)
+vector_store = get_store(vector_dir)
 processor = DocumentProcessor(tmp_dir)
 chunker = Chunker(chunk_size=512, overlap=64)
 
@@ -30,8 +31,24 @@ def _ensure_bucket():
     if not minio_client.bucket_exists(settings.minio_bucket):
         minio_client.make_bucket(settings.minio_bucket)
 
+
+def _tenant_id(request: Request, permission: str) -> int:
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(401, "Unauthorized: no user context")
+    if not has_permission(user, permission):
+        raise HTTPException(403, f"Permission denied: {permission}")
+    if str(user.get("userType", "")) == "2":
+        return 0
+    try:
+        return normalize_tenant_id(user.get("tenantId"))
+    except ValueError as exc:
+        raise HTTPException(403, f"Tenant access denied: {exc}") from exc
+
+
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(request: Request, file: UploadFile = File(...)):
+    tenant_id = _tenant_id(request, "kefu:knowledge:add")
     content = await file.read()
     max_size = settings.max_file_size_mb * 1024 * 1024
     if len(content) > max_size:
@@ -54,8 +71,9 @@ async def upload_document(file: UploadFile = File(...)):
     async with conn.cursor() as cur:
         from datetime import datetime
         await cur.execute(
-            "INSERT INTO documents (doc_id, name, type, size_bytes, upload_time, status, file_path) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (doc_id, file.filename, ext, len(content), datetime.now().isoformat(), 'processing', object_name)
+            "INSERT INTO documents (doc_id, tenant_id, name, type, size_bytes, upload_time, status, file_path) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+            (doc_id, tenant_id, file.filename, ext, len(content), datetime.now().isoformat(), 'processing', object_name)
         )
     conn.close()
 
@@ -78,21 +96,28 @@ async def upload_document(file: UploadFile = File(...)):
                     cid = str(uuid.uuid4())
                     chunk_ids.append(cid)
                     await cur.execute(
-                        "INSERT INTO chunks (chunk_id, doc_id, content, token_count, index_in_doc) VALUES (%s, %s, %s, %s, %s)",
-                        (cid, doc_id, chunk_text, chunker.estimate_tokens(chunk_text), i)
+                        "INSERT INTO chunks (chunk_id, tenant_id, doc_id, content, token_count, index_in_doc) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
+                        (cid, tenant_id, doc_id, chunk_text, chunker.estimate_tokens(chunk_text), i)
                     )
                 vector_ids = vector_store.add_vectors(chunk_ids, vectors)
                 for cid, vid in zip(chunk_ids, vector_ids):
-                    await cur.execute("UPDATE chunks SET vector_id = %s WHERE chunk_id = %s", (vid, cid))
+                        await cur.execute(
+                            "UPDATE chunks SET vector_id = %s WHERE chunk_id = %s AND tenant_id = %s",
+                            (vid, cid, tenant_id),
+                        )
                 await cur.execute(
-                    "UPDATE documents SET status = 'ready', chunk_count = %s WHERE doc_id = %s",
-                    (len(chunks), doc_id)
+                    "UPDATE documents SET status = 'ready', chunk_count = %s WHERE doc_id = %s AND tenant_id = %s",
+                    (len(chunks), doc_id, tenant_id)
                 )
             conn.close()
     except Exception as e:
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            await cur.execute("UPDATE documents SET status = 'failed' WHERE doc_id = %s", (doc_id,))
+            await cur.execute(
+                "UPDATE documents SET status = 'failed' WHERE doc_id = %s AND tenant_id = %s",
+                (doc_id, tenant_id),
+            )
         conn.close()
         raise HTTPException(500, f"文档处理失败: {str(e)}")
 
@@ -103,10 +128,15 @@ async def upload_document(file: UploadFile = File(...)):
     )
 
 @router.get("", response_model=DocumentListResponse)
-async def list_documents():
+async def list_documents(request: Request):
+    tenant_id = _tenant_id(request, "kefu:knowledge")
     conn = await get_db_connection()
     async with conn.cursor() as cur:
-        await cur.execute("SELECT * FROM documents ORDER BY upload_time DESC")
+        await cur.execute(
+            "SELECT doc_id, name, type, size_bytes, upload_time, status, chunk_count "
+            "FROM documents WHERE tenant_id=%s ORDER BY upload_time DESC",
+            (tenant_id,),
+        )
         rows = await cur.fetchall()
     conn.close()
     items = []
@@ -119,21 +149,35 @@ async def list_documents():
     return DocumentListResponse(total=len(items), items=items)
 
 @router.delete("/{doc_id}")
-async def delete_document(doc_id: str):
+async def delete_document(request: Request, doc_id: str):
+    tenant_id = _tenant_id(request, "kefu:knowledge:delete")
     conn = await get_db_connection()
     async with conn.cursor() as cur:
-        await cur.execute("SELECT * FROM documents WHERE doc_id = %s", (doc_id,))
+        await cur.execute(
+            "SELECT doc_id, name, type, size_bytes, upload_time, status, chunk_count, file_path "
+            "FROM documents WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
         row = await cur.fetchone()
         if not row:
             conn.close()
             raise HTTPException(404, f"文档不存在: {doc_id}")
         object_name = row[7]
-        await cur.execute("SELECT chunk_id FROM chunks WHERE doc_id = %s", (doc_id,))
+        await cur.execute(
+            "SELECT chunk_id FROM chunks WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
         chunk_ids = [r[0] for r in await cur.fetchall()]
         if chunk_ids:
             vector_store.delete_by_chunk_ids(chunk_ids)
-        await cur.execute("DELETE FROM chunks WHERE doc_id = %s", (doc_id,))
-        await cur.execute("DELETE FROM documents WHERE doc_id = %s", (doc_id,))
+        await cur.execute(
+            "DELETE FROM chunks WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
+        await cur.execute(
+            "DELETE FROM documents WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
     conn.close()
 
     try:
@@ -144,20 +188,35 @@ async def delete_document(doc_id: str):
     return {"message": "删除成功"}
 
 @router.post("/{doc_id}/reprocess")
-async def reprocess_document(doc_id: str):
+async def reprocess_document(request: Request, doc_id: str):
+    tenant_id = _tenant_id(request, "kefu:knowledge:edit")
     conn = await get_db_connection()
     async with conn.cursor() as cur:
-        await cur.execute("SELECT * FROM documents WHERE doc_id = %s", (doc_id,))
+        await cur.execute(
+            "SELECT doc_id, name, type, size_bytes, upload_time, status, chunk_count, file_path "
+            "FROM documents WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
         row = await cur.fetchone()
         if not row:
             conn.close()
             raise HTTPException(404, f"文档不存在: {doc_id}")
-        await cur.execute("SELECT chunk_id FROM chunks WHERE doc_id = %s", (doc_id,))
+        await cur.execute(
+            "SELECT chunk_id FROM chunks WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
         chunk_ids = [r[0] for r in await cur.fetchall()]
         if chunk_ids:
             vector_store.delete_by_chunk_ids(chunk_ids)
-        await cur.execute("DELETE FROM chunks WHERE doc_id = %s", (doc_id,))
-        await cur.execute("UPDATE documents SET status = 'processing', chunk_count = 0 WHERE doc_id = %s", (doc_id,))
+        await cur.execute(
+            "DELETE FROM chunks WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
+        await cur.execute(
+            "UPDATE documents SET status = 'processing', chunk_count = 0 "
+            "WHERE doc_id = %s AND tenant_id = %s",
+            (doc_id, tenant_id),
+        )
     conn.close()
 
     try:
@@ -181,19 +240,30 @@ async def reprocess_document(doc_id: str):
                     cid = str(uuid.uuid4())
                     cids.append(cid)
                     await cur.execute(
-                        "INSERT INTO chunks (chunk_id, doc_id, content, token_count, index_in_doc) VALUES (%s, %s, %s, %s, %s)",
-                        (cid, doc_id, ct, chunker.estimate_tokens(ct), i)
+                        "INSERT INTO chunks (chunk_id, tenant_id, doc_id, content, token_count, index_in_doc) "
+                        "VALUES (%s, %s, %s, %s, %s, %s)",
+                        (cid, tenant_id, doc_id, ct, chunker.estimate_tokens(ct), i)
                     )
                 vids = vector_store.add_vectors(cids, vectors)
                 for cid, vid in zip(cids, vids):
-                    await cur.execute("UPDATE chunks SET vector_id = %s WHERE chunk_id = %s", (vid, cid))
-                await cur.execute("UPDATE documents SET status = 'ready', chunk_count = %s WHERE doc_id = %s", (len(chunks), doc_id))
+                        await cur.execute(
+                            "UPDATE chunks SET vector_id = %s WHERE chunk_id = %s AND tenant_id = %s",
+                            (vid, cid, tenant_id),
+                        )
+                await cur.execute(
+                    "UPDATE documents SET status = 'ready', chunk_count = %s "
+                    "WHERE doc_id = %s AND tenant_id = %s",
+                    (len(chunks), doc_id, tenant_id),
+                )
             conn.close()
 
         return {"message": "重新处理完成"}
     except Exception as e:
         conn = await get_db_connection()
         async with conn.cursor() as cur:
-            await cur.execute("UPDATE documents SET status = 'failed' WHERE doc_id = %s", (doc_id,))
+            await cur.execute(
+                "UPDATE documents SET status = 'failed' WHERE doc_id = %s AND tenant_id = %s",
+                (doc_id, tenant_id),
+            )
         conn.close()
         raise HTTPException(500, f"重新处理失败: {str(e)}")
