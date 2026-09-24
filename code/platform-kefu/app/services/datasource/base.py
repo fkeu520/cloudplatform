@@ -110,7 +110,9 @@ class DataSourceRegistry:
     def enabled(self) -> List[DataSourceAdapter]:
         return [a for a in self._adapters.values() if a.enabled]
 
-    async def route_query(self, question: str) -> Dict[str, DataSourceResult]:
+    async def route_query(
+        self, question: str, tenant_id: Optional[int] = None
+    ) -> Dict[str, DataSourceResult]:
         """路由：question → 匹配的 adapters → 各自查询结果
 
         Returns: { source_id: DataSourceResult }
@@ -121,7 +123,9 @@ class DataSourceRegistry:
             return results
         for adapter in matched:
             try:
-                result = await adapter.query(question)
+                result = await adapter.query(
+                    question, {"tenant_id": tenant_id} if tenant_id is not None else None
+                )
                 if result and result.refs:
                     results[adapter.id] = result
                     logger.info(f"[Router] {adapter.id} 命中 {len(result.refs)} 个实体")

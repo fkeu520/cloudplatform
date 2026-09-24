@@ -1,14 +1,14 @@
 """知识库数据源适配器 - 复用现有 FAISS 向量检索"""
 from typing import Dict, Any
 from app.services.embedder import embedder
-from app.services.vector_store import VectorStore
+from app.services.vector_store import get_store
 from pathlib import Path
 from app.models.database import get_db_connection
 from app.services.datasource.base import DataSourceAdapter, DataSourceResult, DataSourceRef
 
 
 _vector_dir = Path(__file__).parent.parent.parent / "data" / "vector_index"
-_vector_store = VectorStore(_vector_dir)
+_vector_store = get_store(_vector_dir)
 
 
 class KnowledgeAdapter(DataSourceAdapter):
@@ -20,18 +20,24 @@ class KnowledgeAdapter(DataSourceAdapter):
 
     async def query(self, question: str, params: Dict[str, Any] = None) -> DataSourceResult:
         top_k = params.get("top_k", 3) if params else 3
+        tenant_id = params.get("tenant_id") if params else None
+        if tenant_id is None:
+            return DataSourceResult([], "")
         vec = embedder.embed([question])[0]
         hits = _vector_store.search(vec, top_k=top_k)
         if not hits:
             return DataSourceResult([], "")
         chunk_ids = [h[0] for h in hits]
+        tenant_clause = " AND tenant_id=%s" if tenant_id is not None else ""
+        query_args = list(chunk_ids) + ([tenant_id] if tenant_id is not None else [])
         conn = await get_db_connection()
         try:
             async with conn.cursor() as cur:
                 placeholders = ",".join(["%s"] * len(chunk_ids))
                 await cur.execute(
-                    f"SELECT chunk_id, doc_id, content FROM chunks WHERE chunk_id IN ({placeholders})",
-                    chunk_ids,
+                    f"SELECT chunk_id, doc_id, content FROM chunks "
+                    f"WHERE chunk_id IN ({placeholders}){tenant_clause}",
+                    query_args,
                 )
                 rows = await cur.fetchall()
                 chunk_map = {r[0]: r for r in rows}
