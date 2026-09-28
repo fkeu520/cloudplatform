@@ -9,6 +9,7 @@ import json
 import time
 import logging
 from typing import Optional, List, Dict, Any
+from app.config import settings as app_settings
 from app.models.database import get_db_connection
 from app.services.datasource.base import registry
 from app.services.datasource.faq_adapter import FaqAdapter
@@ -328,7 +329,7 @@ async def chat(
 
     # 4. LLM 生成
     full_context = "\n\n".join(context_parts) if context_parts else "（无外部数据源命中）"
-    answer, model_name = await _llm_generate(user_content, full_context, sid, settings)
+    answer, model_name = await _llm_generate(user_content, full_context, sid)
 
     latency = int((time.time() - t0) * 1000)
 
@@ -375,9 +376,17 @@ async def _rag_search(question: str, tenant_id: int, top_k=3) -> str:
         return ""
 
 
-async def _llm_generate(question: str, context: str, sid: str, settings) -> tuple:
-    """调用 DeepSeek LLM 生成回答"""
-    if not settings or not settings.deepseek_api_key:
+async def _llm_generate(question: str, context: str, sid: str, settings=None) -> tuple:
+    """调用 DeepSeek LLM 生成回答
+
+    2026-09-28 修复: 本函数的形参名为 `settings`, 遮蔽了 app.config.settings 全局单例;
+    而 sessions.py 的 send_message 恒定传 `settings=None`, 于是 `if not settings` 恒真,
+    LLM 分支永远不可达 —— 所有回答都是 _mock_llm_response 的固定话术, 表现为
+    "AI 只会说 抱歉我暂时无法回答"。现改为始终读取全局配置, 入参仅保留兼容。
+    """
+    api_key = app_settings.deepseek_api_key
+    if not api_key or not api_key.strip():
+        logger.warning("[LLM] DEEPSEEK_API_KEY 未配置, 返回兜底话术 (非真实模型回答)")
         return _mock_llm_response(question, context), "mock"
 
     system_prompt = f"""你是云枢园区的智能客服助手。请基于以下数据源信息回答用户问题。
@@ -388,7 +397,7 @@ async def _llm_generate(question: str, context: str, sid: str, settings) -> tupl
 {context}
 """
     payload = {
-        "model": settings.deepseek_model,
+        "model": app_settings.deepseek_model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": question},
@@ -399,14 +408,14 @@ async def _llm_generate(question: str, context: str, sid: str, settings) -> tupl
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"{settings.deepseek_base_url}/chat/completions",
+                f"{app_settings.deepseek_base_url}/chat/completions",
                 json=payload,
-                headers={"Authorization": f"Bearer {settings.deepseek_api_key}"},
+                headers={"Authorization": f"Bearer {api_key.strip()}"},
             )
             resp.raise_for_status()
             data = resp.json()
             answer = data["choices"][0]["message"]["content"]
-            return answer, settings.deepseek_model
+            return answer, app_settings.deepseek_model
     except Exception as e:
         logger.error(f"[LLM] DeepSeek 调用失败: {e}")
         return _mock_llm_response(question, context), "mock-fallback"
