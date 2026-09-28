@@ -306,7 +306,13 @@ jobs:
       #                      ALIYUN_ACR_USERNAME / ALIYUN_ACR_PASSWORD
       # 本 job 现在会: 登录 ACR → 构建镜像先推 ghcr → docker tag 一份推 ACR。
       # 142 服务器切换拉取源:
-      #   IMAGE_PREFIX=registry.cn-hangzhou.aliyuncs.com/<命名空间> docker compose pull
+      #   IMAGE_PREFIX=registry.cn-shenzhen.aliyuncs.com/<命名空间> docker compose pull
+      #
+      # === ACR 403 排查实录 (2026-09-28) ===
+      # 症状: docker login 报 403 Forbidden (非 401)
+      # 实证: 域名可达时匿名 /v2/ 返 401 = 域名正确; 带凭据仍 403 = 登录用户名不对
+      # 根因: ACR 登录用户名 = 访问凭证页「登录用户名」(非阿里云账号名/邮箱/GitHub名)
+      # 踩坑: 曾误填 GitHub 名 fkeu520 → 403; 换访问凭证页真实用户名后登录成功
       - name: Login to Aliyun ACR
         if: ${{ env.ALIYUN_REGISTRY != '' && env.ALIYUN_USER != '' }}
         env:
