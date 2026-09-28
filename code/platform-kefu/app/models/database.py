@@ -1,4 +1,5 @@
 import aiomysql
+from typing import List
 from app.config import settings
 
 POOL: aiomysql.Pool = None
@@ -239,19 +240,40 @@ async def get_pool():
     return POOL
 
 
+def _split_sql_statements(sql_text: str) -> List[str]:
+    """Split a SQL script into executable statements.
+
+    `--` line comments are stripped before splitting. The DDL constants below
+    carry Chinese `--` comments, and a naive split(";") can hand MySQL a chunk
+    that still has comment text glued to real SQL (a comment line whose newline
+    did not survive, or a comment containing a separator). MySQL then reports a
+    syntax error pointing at the comment text, e.g.
+
+        1064 ... near 'kefu_message AFTER msg_id).\\n--   2) ...' at line 1
+
+    which makes startup fail with a misleading error and puts the container in a
+    restart loop. Removing comments first, and skipping blanks, keeps only real
+    DDL/DML.
+    """
+    lines = []
+    for line in sql_text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("--"):
+            continue
+        lines.append(line)
+    body = "\n".join(lines)
+    return [stmt.strip() for stmt in body.split(";") if stmt.strip()]
+
+
 async def init_tables():
     pool = await get_pool()
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            for stmt in CREATE_TABLES_SQL.split(";"):
-                s = stmt.strip()
-                if s:
-                    await cur.execute(s)
+            for stmt in _split_sql_statements(CREATE_TABLES_SQL):
+                await cur.execute(stmt)
             await _ensure_tenant_schema(cur)
-            for stmt in SEED_DATA_SOURCES_SQL.split(";"):
-                s = stmt.strip()
-                if s:
-                    await cur.execute(s)
+            for stmt in _split_sql_statements(SEED_DATA_SOURCES_SQL):
+                await cur.execute(stmt)
 
 
 async def get_db_connection():
