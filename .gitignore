@@ -83,11 +83,24 @@ doc/spec/
 doc/sql/
 
 # Codegraph / tool artifacts
+# 注意: gitignore 只认行首 # 作为注释, 行尾 # 会被当成规则的一部分, 导致整行失效
 .codegraph/
 .playwright-mcp/
-.opencode/          # opencode agent session artifacts (commands, skills, state)
-openspec/           # openspec workflow artifacts
-openflow/           # openflow workflow artifacts
+# opencode agent session artifacts (commands, skills, state)
+.opencode/
+# openspec workflow artifacts
+openspec/
+# openflow workflow artifacts
+.openflow/
+
+# 本地临时产物 (不入 git)
+# ops-admin 打包分发件 — 由 npm run build 产生, CI 走 ghcr.io 镜像
+dist_ops_fix.tar.gz
+**/dist_ops_fix.tar.gz
+# 个人临时草稿
+gemini.txt
+# OCR 试验脚本 — 含本机绝对路径
+proto_ocr.py
 
 # Python
 *.pyc
