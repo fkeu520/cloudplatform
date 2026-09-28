@@ -31,8 +31,72 @@ PATTERNS=(
     'Private Key|-----BEGIN[[:space:]]*(RSA|EC|OPENSSH|DSA|PGP)?[[:space:]]*PRIVATE[[:space:]]*KEY-----'
     'Slack Token|xox[baprs]-[A-Za-z0-9-]{10,}'
     'Google API Key|AIza[0-9A-Za-z_-]{35}'
+    'Google AI Studio Key|AQ\.[A-Za-z0-9_-]{30,}'
     'JWT (eyJ...)|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'
+    # 2026-09-28 新增: 以下三类是本次安全审计的真实漏网案例
+    'LLM API Key (OpenAI/DeepSeek/SiliconFlow/Moonshot/Agnes)|sk-[A-Za-z0-9_-]{20,}'
+    # 硬编码签名/密钥字面量. 用 [Ss][Ee]... 代替 -i, 避免把正文里的 Secret/Token 误判.
+    # 排除 ${...} 占位符: 值必须以字母数字结尾, ${JWT_SECRET} 以 } 收尾故不匹配.
+    'Hardcoded secret literal|[Ss][Ee][Cc][Rr][Ee][Tt][A-Za-z_]*[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9_-]{16,}'
+    # 已知弱口令 denylist (存量/历史常见值)
+    'Known weak credential|["'"'"']?[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?(123456|admin|root|password|platform123|root123456|minioadmin123|minioadmin)["'"'"']?([[:space:]]|$)'
+    # 通用弱口令: 口令值总长 <=9 的任意字母数字组合 (真实凭据极少短于 10 位).
+    # 覆盖 123456 / admin / root / qwerty / Pass123 等.
+    # 已知局限: 长度 >=10 的字典词组合 (如 hunter2000) 静态正则无法判定,
+    #   需依赖人工评审或后续接入 gitleaks/trufflehog 这类带字典的专用工具.
+    'Weak password (length<=9)|["'"'"']?[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd][A-Za-z_]*["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9]{1,9}["'"'"']?([[:space:]]|$)'
 )
+
+# ---------------------------------------------------------------------------
+# 白名单 (2026-09-28)
+#
+# 1) 测试文件: 测试夹具必须使用假密钥, 假密钥本身不构成凭据泄露.
+# 2) ALLOWLIST_KEYS —— 本轮只轮换了 JWT 密钥, 下列存量凭据尚未轮换.
+#    若不豁免, 新规则会在 docker-compose.yml 上持续误报; 长期误报会训练开发者
+#    用 --no-verify, 那正是 login-resp.json 当初绕过扫描的原因.
+#    轮换完成后请删除对应条目, 规则会自动恢复拦截.
+# 3) ALLOWLIST_VALUES —— 存量开发默认口令, 仅在"作为赋值右值"时豁免
+#    (用 [:=]\s*['"]?VALUE 精确匹配, 避免裸子串误放行 admin@x.com 这类文本).
+# ---------------------------------------------------------------------------
+ALLOWLIST_KEYS=(
+    'MYSQL_ROOT_PASSWORD'
+    'MYSQL_PASSWORD'
+    'MYSQL_SERVICE_PASSWORD'
+    'SPRING_DATASOURCE_PASSWORD'
+    'MINIO_ROOT_PASSWORD'
+    'MINIO_ACCESS_KEY'
+    'MINIO_SECRET_KEY'
+    'NACOS_AUTH_TOKEN'
+    'GF_SECURITY_ADMIN_PASSWORD'
+)
+
+ALLOWLIST_VALUES=(
+    'platform123'
+    'minioadmin'
+    'minioadmin123'
+    'root123456'
+    'admin'
+    'cGxhY2Vob2xkZXItc2VjcmV0LWtleQo='
+)
+
+is_allowed() {
+    local file="$1" line="$2" k v
+    # 测试文件整体豁免
+    case "$file" in
+        */tests/*|*/test/*|*/__tests__/*|*test_*.py|*_test.go|*Test.java) return 0 ;;
+    esac
+    # 1) 待轮换的存量凭据键
+    for k in "${ALLOWLIST_KEYS[@]}"; do
+        case "$line" in *"$k"*) return 0 ;; esac
+    done
+    # 2) 存量默认口令, 但必须出现在赋值右值位置
+    for v in "${ALLOWLIST_VALUES[@]}"; do
+        if printf '%s' "$line" | grep -qE "[:=][[:space:]]*['\"]?${v}([^A-Za-z0-9_-]|$)"; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 # Get staged files (added/copied/modified/renamed)
 mapfile -t STAGED < <(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
@@ -57,12 +121,22 @@ for file in "${STAGED[@]}"; do
         name="${entry%%|*}"
         pattern="${entry#*|}"
 
-        if grep -qE "$pattern" "$file" 2>/dev/null; then
-            # Get line number of first match
-            lineno=$(grep -nE "$pattern" "$file" 2>/dev/null | head -1 | cut -d: -f1)
-            hits+=("  ${RED}❌${NC} ${name} in ${YELLOW}${file}:${lineno}${NC}")
-            found=1
-        fi
+        # 逐行检查: 仅当该文件所有命中行都落在白名单内才放行.
+        # (2026-09-28 修正: 早先只看首个命中行, 会被"第一行恰好在白名单"掩盖,
+        #  一旦那行被删, 同一文件里的其他弱口令就会突然引爆拦截.)
+        blocked=""
+        while IFS= read -r hit; do
+            [ -z "$hit" ] && continue
+            if ! is_allowed "$file" "${hit#*:}"; then
+                blocked="$hit"
+                break
+            fi
+        done < <(grep -nE "$pattern" "$file" 2>/dev/null)
+
+        [ -z "$blocked" ] && continue
+
+        hits+=("  ${RED}❌${NC} ${name} in ${YELLOW}${file}:${blocked%%:*}${NC}")
+        found=1
     done
 done
 

@@ -61,6 +61,14 @@ on:
       # CI 自身变更 (docker-compose.yml, ci.yml) 必须能触发构建
       - 'docker-compose.yml'
       - '.github/workflows/**'
+      # 密钥扫描相关配置 (2026-09-28) — 这些改动必须触发 secret-scan job
+      - 'scripts/ci/check-jwt-secret-alignment.sh'
+      - '.githooks/pre-commit'
+      - '.gitignore'
+      - 'code/platform-server/config/common.yml'
+      - 'code/platform-server/platform-common/**/JwtUtil.java'
+      - 'code/platform-kefu/app/config.py'
+      - 'code/platform-kefu/tests/**'
   pull_request:
     branches: [develop, master]
     paths:
@@ -92,11 +100,68 @@ on:
       - 'scripts/container-exporter/**'
       - 'scripts/container-exporter/Dockerfile'
       - 'scripts/container-exporter/Dockerfile.*'
+      # 密钥扫描相关配置 (2026-09-28)
+      - 'scripts/ci/check-jwt-secret-alignment.sh'
+      - '.githooks/pre-commit'
+      - '.gitignore'
+      - 'code/platform-server/config/common.yml'
+      - 'code/platform-server/platform-common/**/JwtUtil.java'
+      - 'code/platform-kefu/app/config.py'
+      - 'code/platform-kefu/tests/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/**'
 
 env:
   MAVEN_OPTS: -Dorg.slf4j.simpleLogger.log.org.apache.maven.plugins=warn
 
 jobs:
+  # =============================================
+  # 密钥泄漏扫描 (2026-09-28 新增)
+  # 轻量 job, 不依赖 JDK/Node/Maven, 失败最快 — 优先于编译暴露密钥问题
+  # 背景: 2026-09-28 安全审计发现 login-resp.json (含管理员 JWT) 与
+  #       temp_login.json (明文 admin/123456) 已被提交进 git, 且 check-jwt-secret-alignment.sh
+  #       写好了却从未接入 CI, 导致 KNOWN_ISSUES #36 反复复发.
+  # =============================================
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JWT_SECRET alignment
+        run: bash scripts/ci/check-jwt-secret-alignment.sh
+
+      - name: Hardcoded secret scan (tracked files)
+        run: |
+          set -o pipefail
+          echo "Scanning $(git ls-files | wc -l) tracked files..."
+          # 与 .githooks/pre-commit 同源的三类高危字面量:
+          #   sk-...            LLM API key (OpenAI/DeepSeek/SiliconFlow/Agnes)
+          #   AQ....            Google AI Studio key
+          #   eyJ.a.b            JWT (泄露的登录 token)
+          if git ls-files -z | xargs -0 grep -lIE \
+            'sk-[A-Za-z0-9_-]{20,}|AQ\.[A-Za-z0-9_-]{30,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' \
+            2>/dev/null; then
+            echo "::error::检测到疑似硬编码密钥 (见上方文件列表), 提交被拒绝"
+            exit 1
+          fi
+          echo "OK: 已跟踪文件中未发现高危密钥字面量"
+
+      - name: Sensitive artifacts must not be tracked
+        run: |
+          fail=0
+          for f in login-resp.json temp_login.json aistudio.google.com.json; do
+            if git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+              echo "::error::$f 是敏感凭据产物, 不允许进入 git (2026-09-28 已从跟踪中移除)"
+              fail=1
+            fi
+            if git ls-files | grep -qE "(^|/)$f$"; then
+              echo "::error::任意子目录下存在被跟踪的 $f"
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] && echo "OK: 无敏感凭据产物被跟踪"
+          exit $fail
+
   # =============================================
   # 后端编译 (测试由本地 pre-push hook 保证)
   # =============================================

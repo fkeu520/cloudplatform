@@ -28,8 +28,14 @@ from starlette.datastructures import Headers, State
 # Seed env vars BEFORE importing app.config (which instantiates Settings at module level)
 os.environ.setdefault("DEEPSEEK_API_KEY", "test-key")
 os.environ.setdefault("SILICONFLOW_API_KEY", "test-key")
+# 2026-09-28: config.Settings.jwt_secret 已改为必填 (无默认值, fail-closed).
+# 测试必须自行 seed, 否则 `from app.core.auth_middleware import ...` 触发
+# Settings() 时抛 ValidationError. 值与下方 JWT_SECRET 常量保持一致.
+os.environ.setdefault("JWT_SECRET", "test-only-jwt-secret-not-a-real-key-000000")
 
-JWT_SECRET = "<REDACTED-jwt-secret-rotated-2026-09-28>"
+# 2026-09-28 安全加固: 原先复用了真实生产密钥字面量. 改为明确的测试专用假值,
+# 与下方 KEFU_SECRET 惯例一致 — 测试绝不能携带任何可用密钥, 即使泄露也无可利用价值.
+JWT_SECRET = "test-only-jwt-secret-not-a-real-key-000000"
 KEFU_SECRET = "kefu-internal-secret-32-chars-min-for-hmac-sha256!"
 
 

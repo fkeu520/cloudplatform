@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     minio_bucket: str = "kefu-docs"
     minio_secure: bool = False
 
-    jwt_secret: str = "<REDACTED-jwt-secret-rotated-2026-09-28>"
+    # 2026-09-28 安全加固: 移除了此前的硬编码 jwt_secret 默认值(与 Java JwtUtil 共用的旧密钥,
+    # 已泄露于 git 历史, 本轮统一作废). 改为必填: 缺失时 pydantic-settings 启动即失败,
+    # 不再静默使用已泄露密钥. 注意此处刻意不复述旧密钥字面量, 避免二次泄露.
+    jwt_secret: str
 
     # P0 security fix (2026-09-24): internal gateway-to-kefu token contract.
     # Must match the KEFU_INTERNAL_TOKEN set on platform-gateway in docker-compose.

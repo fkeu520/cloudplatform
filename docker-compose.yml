@@ -241,7 +241,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - SPRING_PROFILES_ACTIVE=docker
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
@@ -277,7 +277,7 @@ services:
     ports:
       - "8091:8091"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -309,7 +309,7 @@ services:
     ports:
       - "8092:8092"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -339,7 +339,7 @@ services:
     ports:
       - "8093:8093"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -369,7 +369,7 @@ services:
     ports:
       - "8094:8094"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - MYSQL_HOST=mysql
       - MYSQL_USER=platform
       - MYSQL_PASSWORD=platform123
@@ -400,7 +400,7 @@ services:
     ports:
       - "8085:8085"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform_message?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
@@ -440,7 +440,7 @@ services:
       - SPRING_CLOUD_NACOS_DISCOVERY_SERVER-ADDR=nacos:8848
       - SPRING_CLOUD_NACOS_CONFIG_SERVER-ADDR=nacos:8848
       - USER_SERVICE_URL=http://platform-user:8081
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - JAVA_OPTS=${JAVA_OPTS:--Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/heapdump.hprof}
     depends_on:
       mysql:
@@ -464,7 +464,7 @@ services:
     ports:
       - "8084:8084"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - SPRING_PROFILES_ACTIVE=docker
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
@@ -504,7 +504,7 @@ services:
       - NACOS_SERVER_ADDR=nacos:8848
       - REDIS_HOST=redis
       - CORS_ORIGINS=*
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       # P0 security (2026-09-24): shared secret with platform-kefu for X-Kefu-Internal-Token.
       # Gateway computes HMAC-SHA256(this_value, "kefu-internal") and attaches as header
       # on all requests to /api/kefu/** and /kefu/** routes.
@@ -532,7 +532,7 @@ services:
     ports:
       - "8087:8087"
     environment:
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/platform?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai'
       - SPRING_DATASOURCE_USERNAME=platform
       - SPRING_DATASOURCE_PASSWORD=platform123
@@ -706,7 +706,7 @@ services:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin123
       - MINIO_BUCKET=kefu-docs
-      - JWT_SECRET=${JWT_SECRET:-<REDACTED-jwt-secret-rotated-2026-09-28>}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set (no default - see doc/ops secret rotation)}
       - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       # P0 security (2026-09-24): must match KEFU_INTERNAL_TOKEN on platform-gateway.

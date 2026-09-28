@@ -17,23 +17,34 @@ import java.util.Map;
 @Slf4j
 public class JwtUtil {
 
-    /** 盐值（从环境变量读取，fallback 为开发默认值） */
-    private static final String SECRET = System.getenv("JWT_SECRET") != null
-            ? System.getenv("JWT_SECRET")
-            : System.getProperty("jwt.secret", "<REDACTED-jwt-secret-rotated-2026-09-28>");
+    /**
+     * 签名密钥。仅从环境变量 JWT_SECRET 或系统属性 jwt.secret 读取, 禁止任何硬编码默认值.
+     * <p>
+     * <b>安全约束 (2026-09-28 加固):</b> 旧版本存在三个互相不一致的硬编码密钥
+     * (JwtUtil / platform-user application.yml / docker-compose), 均已作废.
+     * 任何来源缺失时直接抛异常, 绝不使用 fallback — 否则源码泄露即等于任意用户可伪造 token.
+     * </p>
+     */
+    private static final String SECRET = resolveSecret();
+
+    private static String resolveSecret() {
+        String env = System.getenv("JWT_SECRET");
+        if (env != null && !env.isBlank()) {
+            return env;
+        }
+        String prop = System.getProperty("jwt.secret");
+        if (prop != null && !prop.isBlank()) {
+            return prop;
+        }
+        throw new IllegalStateException(
+                "JWT_SECRET not configured! Set env var JWT_SECRET or system property jwt.secret. "
+                        + "There is intentionally no hardcoded fallback key — anyone with source code could "
+                        + "otherwise forge tokens for any user."
+        );
+    }
 
     /** HS256 密钥（至少 256 位） */
     private static final SecretKey KEY = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
-
-    static {
-        // C6: 启动时检测是否使用了硬编码默认密钥
-        if (System.getenv("JWT_SECRET") == null && System.getProperty("jwt.secret") == null) {
-            throw new IllegalStateException(
-                    "JWT_SECRET not configured! Set env var JWT_SECRET or system property jwt.secret. " +
-                    "Using the hardcoded default key is a security risk — anyone with source code can forge tokens."
-            );
-        }
-    }
 
     /**
      * JWT 载荷记录 — 封装 Token 中的全部自定义字段

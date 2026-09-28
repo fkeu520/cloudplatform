@@ -114,13 +114,15 @@ SECRETS=$(grep -E "JWT_SECRET" docker-compose.yml 2>/dev/null | \
 echo "  JWT_SECRET 出现模式:"
 echo "$SECRETS" | sed 's/^/    /'
 
-# 校验: 应当全部用 ${JWT_SECRET:-default} 形式, 或全部用同一直赋值
+# 校验: 应当全部用 ${JWT_SECRET...} 形式, 或全部用同一直赋值
 # 不允许出现 2 个不同的硬编码默认值
-HARDCODED=$(echo "$SECRETS" | grep -vE "\$\{JWT_SECRET" | wc -l)
-ENV_VAR=$(echo "$SECRETS" | grep -E "\$\{JWT_SECRET" | wc -l)
+# 注意: 这里必须用 [$][{] 而非 "\$\{" — 后者在 GNU ERE 下 $ 会被当成锚点,
+# 导致 ${JWT_SECRET:?...} 形式被误判为硬编码 (2026-09-28 修复)
+HARDCODED=$(echo "$SECRETS" | grep -vE '[$][{]JWT_SECRET' | wc -l)
+ENV_VAR=$(echo "$SECRETS" | grep -E '[$][{]JWT_SECRET' | wc -l)
 
 if [ "$HARDCODED" -gt 0 ] && [ "$ENV_VAR" -gt 0 ]; then
-    fail "JWT_SECRET 混用模式: $HARDCODED 个硬编码, $ENV_VAR 个环境变量 (建议统一为 \${JWT_SECRET:-default})"
+    fail "JWT_SECRET 混用模式: $HARDCODED 个硬编码, $ENV_VAR 个环境变量 (建议统一为 \${JWT_SECRET:?...})"
 elif [ "$HARDCODED" -gt 1 ]; then
     fail "JWT_SECRET 出现 $HARDCODED 个不同的硬编码值 (应统一为单 source of truth)"
 else

@@ -48,6 +48,10 @@ docker/minio/data/
 # Temp
 *.tmp
 *.bak
+*.bak.*
+*~
+*.orig
+*.rej
 *.swp
 tmp_*
 test-candidate.java
@@ -57,6 +61,17 @@ test-inject.js
 # Logs / local data
 logs_user.json
 backup_platform_*.sql
+
+# 敏感凭据产物 (2026-09-28 加固)
+# 登录接口原始响应 — 含完整管理员 JWT + 全部权限列表 + 管理员邮箱/手机号
+login-resp.json
+**/login-resp.json
+# 前端联调临时登录凭据 — 明文 admin/123456
+**/temp_login.json
+temp_login.json
+# opencode provider 配置 — 可能含明文 LLM apiKey
+aistudio.google.com.json
+opencode*.json
 
 # Docs (WIP restructuring, 2026-06-16 重新设计)
 # 重组原则: doc/log / doc/decision / doc/handoff 进 git (项目状态/决策/会话交接)

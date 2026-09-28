@@ -96,7 +96,11 @@ knife4j:
     enable-footer: false
 
 jwt:
-  secret: <REDACTED-jwt-secret-rotated-2026-09-28>
+  # 2026-09-28 安全加固: 移除了此前的硬编码 secret 字面量.
+  # 该旧值与 JwtUtil.java / config/common.yml / docker-compose.yml 的旧默认值三者不一致,
+  # 是 401 故障的结构性根因, 已随本轮统一作废. 刻意不复述旧值以免二次泄露.
+  # 无默认值 = 未提供 JWT_SECRET 时启动即失败, 杜绝静默降级到已泄露的弱密钥.
+  secret: ${JWT_SECRET}
   expire-time: 604800
 
 logging:
