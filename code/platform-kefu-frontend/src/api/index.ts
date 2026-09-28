@@ -36,8 +36,13 @@ api.interceptors.response.use(
 // === 知识库 ===
 export const knowledgeApi = {
   listDocs: () => api.get('/api/kefu/docs'),
+  // 2026-09-28 修复「文档无法上传」: 原实现硬写 Content-Type: multipart/form-data
+  // 却不带 boundary, 浏览器无法补全, FastAPI 在参数绑定阶段直接 422, 请求根本
+  // 没进 upload_document (表现为 documents 表始终 0 行)。axios 实例默认头是
+  // application/json, 对 FormData 同样有害, 故显式置 undefined 让浏览器自行生成
+  // 带 boundary 的 multipart 头。
   uploadDoc: (formData: FormData) => api.post('/api/kefu/docs/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
+    headers: { 'Content-Type': undefined }
   }),
   deleteDoc: (docId: string) => api.delete(`/api/kefu/docs/${docId}`),
   reprocessDoc: (docId: string) => api.post(`/api/kefu/docs/${docId}/reprocess`),
