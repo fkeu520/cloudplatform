@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="chat-page">
     <header>
       <h1>智能问答</h1>
@@ -9,7 +9,7 @@
           <router-link to="/dashboard">数据看板</router-link>
           <router-link to="/sessions">会话管理</router-link>
           <router-link to="/faqs">FAQ管理</router-link>
-          <router-link to="/import">知识导入</router-link>
+          
           <router-link to="/settings">数据源</router-link>
           <router-link to="/evaluation">评估</router-link>
         </nav>
@@ -94,10 +94,34 @@ const scrollToBottom = async () => {
 }
 
 const initSession = async () => {
+  // 2026-09-28 修复「对话历史未保留」: 原实现每次挂载都新建 session, 且从不调用
+  // getMessages 回填, 因此刷新后历史清零 (库里其实有记录)。改为优先恢复上次会话。
+  const saved = localStorage.getItem('kefu_session_id')
+  if (saved) {
+    try {
+      const sres = await sessionApi.get(saved)
+      sessionId.value = sres.data.id
+      sessionStatus.value = sres.data.status
+      const hres = await sessionApi.getMessages(saved)
+      const items = (hres.data || []).filter(
+        (m: any) => m && (m.role === 'customer' || m.role === 'assistant')
+      )
+      if (items.length) {
+        messages.value = items
+        await scrollToBottom()
+        return
+      }
+    } catch (e) {
+      console.warn('恢复历史会话失败, 改为新建会话', e)
+      localStorage.removeItem('kefu_session_id')
+      sessionId.value = ''
+    }
+  }
   try {
     const res = await sessionApi.create({ channel: 'web' })
     sessionId.value = res.data.id
     sessionStatus.value = res.data.status
+    localStorage.setItem('kefu_session_id', res.data.id)
   } catch (e) {
     console.error('创建会话失败', e)
   }
@@ -141,6 +165,8 @@ const closeSession = async () => {
     await sessionApi.close(sessionId.value)
     sessionStatus.value = 'CLOSED'
     showRateModal.value = true
+    // 已结束的下次不应再恢复, 否则进来就是只读的 CLOSED 会话
+    localStorage.removeItem('kefu_session_id')
   } catch (e) { console.error('关闭会话失败', e) }
 }
 
