@@ -16,7 +16,33 @@
         <span :class="['session-badge', sessionStatus]">{{ statusText }}</span>
       </div>
     </header>
-    <div class="chat-container">
+    <div class="chat-body">
+      <aside class="history-panel" v-if="showHistory">
+        <div class="history-header">
+          <span>历史会话</span>
+          <button class="history-refresh" @click="loadMySessions" :disabled="historyLoading">⟳</button>
+        </div>
+        <div v-if="historyLoading" class="history-empty">加载中...</div>
+        <div v-else-if="!mySessions.length" class="history-empty">暂无历史会话</div>
+        <ul v-else class="history-list">
+          <li
+            v-for="s in mySessions"
+            :key="s.id"
+            :class="['history-item', { active: s.id === sessionId }]"
+            @click="switchSession(s.id)"
+          >
+            <div class="history-title">{{ s.last_message_preview || s.customer_name || '会话' }}</div>
+            <div class="history-meta">
+              <span>{{ formatHistoryTime(s.start_time) }}</span>
+              <span :class="['history-status', s.status]">{{ historyStatusLabel(s.status) }}</span>
+            </div>
+          </li>
+        </ul>
+        <div v-if="mySessions.length" class="history-new">
+          <button class="btn-secondary" @click="newSession">新建会话</button>
+        </div>
+      </aside>
+      <div class="chat-container">
       <div class="messages" ref="messagesRef">
         <div v-for="msg in messages" :key="msg.msg_id || msg.id" :class="['msg', msg.role === 'customer' ? 'user' : 'assistant']">
           <div class="bubble" v-html="renderMarkdown(msg.content)"></div>
@@ -45,6 +71,7 @@
         <button v-if="sessionStatus === 'AI'" class="btn-secondary" @click="transferToHuman">转人工</button>
         <button v-if="sessionStatus !== 'CLOSED'" class="btn-secondary" @click="closeSession">结束会话</button>
       </div>
+    </div>
     </div>
     <div v-if="showRateModal" class="modal-overlay" @click="showRateModal = false">
       <div class="modal-card" @click.stop>
@@ -90,6 +117,88 @@ const scrollToBottom = async () => {
   await nextTick()
   if (messagesRef.value) {
     messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+  }
+}
+
+// === 历史会话列表 (2026-09-28 新增: 登录用户可见自己的历史会话) ===
+const showHistory = ref(true)
+const historyLoading = ref(false)
+const mySessions = ref<any[]>([])
+const activeLoadMsgs = ref(false)
+
+const formatHistoryTime = (dt?: string | null): string => {
+  if (!dt) return ''
+  const d = new Date(dt.includes('T') ? dt : dt.replace(' ', 'T'))
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getMonth() + 1}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const historyStatusLabel = (st: string) =>
+  ({ AI: 'AI 中', HUMAN: '人工', CLOSED: '已结束' } as Record<string, string>)[st] || st || ''
+
+const loadMySessions = async () => {
+  if (historyLoading.value) return
+  historyLoading.value = true
+  try {
+    const resp = await sessionApi.mySessions({ limit: 50 })
+    mySessions.value = (resp.data?.items || []).map((s: any) => s)
+  } catch (e) {
+    console.warn('加载历史会话失败', e)
+    mySessions.value = []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+const loadMessagesInto = async (sid: string): Promise<boolean> => {
+  try {
+    const hres = await sessionApi.getMessages(sid)
+    const items = (hres.data || []).filter(
+      (m: any) => m && (m.role === 'customer' || m.role === 'assistant')
+    )
+    if (items.length) {
+      messages.value = items
+      await scrollToBottom()
+      return true
+    }
+  } catch (e) {
+    console.warn('加载会话消息失败', sid, e)
+  }
+  return false
+}
+
+const switchSession = async (sid: string) => {
+  if (sid === sessionId.value && !activeLoadMsgs.value) return
+  try {
+    const sres = await sessionApi.get(sid)
+    sessionId.value = sres.data.id
+    sessionStatus.value = sres.data.status
+  } catch (e) {
+    console.warn('会话不存在, 忽略', e)
+    return
+  }
+  activeLoadMsgs.value = true
+  const ok = await loadMessagesInto(sid)
+  activeLoadMsgs.value = false
+  if (!ok) {
+    // 历史无消息的会话, 直接展示空会话 (不再新建)
+    messages.value = []
+  }
+}
+
+const newSession = async () => {
+  if (loading.value) return
+  try {
+    const res = await sessionApi.create({ channel: 'web' })
+    sessionId.value = res.data.id
+    sessionStatus.value = res.data.status
+    localStorage.setItem('kefu_session_id', res.data.id)
+    messages.value = []
+    await loadMySessions()
+    await scrollToBottom()
+  } catch (e) {
+    console.error('创建会话失败', e)
   }
 }
 
@@ -180,11 +289,34 @@ const submitRating = async () => {
   } catch (e) { console.error('提交评价失败', e) }
 }
 
-onMounted(initSession)
+onMounted(() => {
+  initSession()
+  loadMySessions()
+})
 </script>
 
 <style scoped>
 .chat-page { height: 100vh; display: flex; flex-direction: column; background: #f2f2f7; }
+.chat-body { flex: 1; display: flex; min-height: 0; }
+.history-panel { width: 240px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #e5e5ea; display: flex; flex-direction: column; overflow: hidden; }
+.history-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; font-size: 14px; font-weight: 600; color: #1d1d1f; border-bottom: 1px solid #f2f2f7; }
+.history-refresh { background: none; border: none; color: #86868b; font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.history-refresh:hover { color: #007AFF; background: #f2f2f7; }
+.history-empty { padding: 24px 16px; text-align: center; color: #86868b; font-size: 13px; }
+.history-list { list-style: none; margin: 0; padding: 8px; overflow-y: auto; flex: 1; }
+.history-item { padding: 10px 12px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; transition: background 0.15s; }
+.history-item:hover { background: #f2f2f7; }
+.history-item.active { background: #e5f1ff; }
+.history-title { font-size: 13px; color: #1d1d1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+.history-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #86868b; }
+.history-status { font-weight: 600; }
+.history-status.AI { color: #248a3d; }
+.history-status.HUMAN { color: #cc7a00; }
+.history-status.CLOSED { color: #86868b; }
+.history-new { padding: 10px; border-top: 1px solid #f2f2f7; }
+.history-new .btn-secondary { width: 100%; padding: 9px; background: #f2f2f7; color: #007AFF; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.history-new .btn-secondary:hover { background: #e5e5ea; }
+.chat-container { flex: 1; display: flex; flex-direction: column; max-width: 800px; width: 100%; margin: 0 auto; padding: 20px; min-width: 0; }
 header { display: flex; justify-content: space-between; align-items: center; padding: 14px 32px; background: #ffffff; border-bottom: 1px solid #d2d2d7; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 header h1 { font-size: 17px; font-weight: 600; color: #1d1d1f; }
 .user { display: flex; align-items: center; gap: 12px; }

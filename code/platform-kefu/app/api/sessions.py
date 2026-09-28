@@ -58,13 +58,56 @@ def _require_permission(request: Request, permission: str) -> None:
 async def create_session(request: Request, req: SessionCreateRequest):
     _require_permission(request, "kefu:chat")
     tenant_id, _ = _extract_tenant(request)
+    # 2026-09-28: 登录用户场景, 自动从 request.state.user 写入 customer 身份
+    # (前端无需传参), 供「我的会话」历史列表按用户查询. 网关直连走 JWT claim,
+    # 内部令牌走 X-User-* 头, 二者统一落在 request.state.user.
+    user = getattr(request.state, "user", None)
+    customer_id = user.get("userId") if user else None
+    customer_name = user.get("username") if user else None
+    if customer_id is not None:
+        try:
+            customer_id = int(customer_id)
+        except (TypeError, ValueError):
+            pass
     return await svc.create_session(
         tenant_id=tenant_id,
-        customer_id=req.customer_id,
-        customer_name=req.customer_name,
+        customer_id=customer_id if customer_id is not None else req.customer_id,
+        customer_name=customer_name or req.customer_name,
         contact=req.contact,
         channel=req.channel,
     )
+
+
+@router.get("/sessions/my", response_model=SessionListResponse)
+async def list_my_sessions(
+    request: Request,
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """「我的会话」— 登录用户查看自己的历史会话列表.
+
+    2026-09-28 新增: 会话管理列表(/sessions)要求 kefu:sessions 权限(客服/管理端),
+    kefu:chat 权限的访客(登录用户)无法调用. 本接口按 request.state.user 的
+    userId + tenantId 过滤, 仅返回该用户自己的会话.
+    """
+    _require_permission(request, "kefu:chat")
+    tenant_id, _ = _extract_tenant(request)
+    user = getattr(request.state, "user", None)
+    customer_id = user.get("userId") if user else None
+    if customer_id is not None:
+        try:
+            customer_id = int(customer_id)
+        except (TypeError, ValueError):
+            pass
+    items = await svc.list_my_sessions(
+        customer_id=customer_id,
+        tenant_id=tenant_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+    return SessionListResponse(total=len(items), items=items)
 
 
 @router.get("/sessions/{sid}", response_model=SessionResponse)

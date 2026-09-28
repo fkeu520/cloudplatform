@@ -56,6 +56,9 @@ export const sessionApi = {
   create: (data?: { customer_name?: string; contact?: string; channel?: string }) =>
     api.post('/api/kefu/sessions', data || {}),
   get: (sid: string) => api.get(`/api/kefu/sessions/${sid}`),
+  // 2026-09-28: 「我的会话」— 登录用户查看自己的历史会话列表 (仅 kefu:chat 权限)
+  mySessions: (params?: { status?: string; limit?: number; offset?: number }) =>
+    api.get('/api/kefu/sessions/my', { params }),
   list: (params?: { status?: string; channel?: string; limit?: number; offset?: number }) =>
     api.get('/api/kefu/sessions', { params }),
   transfer: (sid: string, agentId?: number, agentName?: string) =>

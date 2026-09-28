@@ -134,6 +134,38 @@ async def list_sessions(
         conn.close()
 
 
+async def list_my_sessions(
+    customer_id,
+    tenant_id: Optional[int] = None,
+    status=None,
+    limit=50,
+    offset=0,
+) -> List[Dict[str, Any]]:
+    """「我的会话」— 按登录用户 customer_id + tenant_id 过滤的历史会话列表.
+
+    2026-09-28 新增: kefu_session.customer_id 在 create_session 时由后端自动写入
+    userId(auth_middleware 注入的 request.state.user). 空 customer_id 会话不返回.
+    """
+    conn = await get_db_connection()
+    try:
+        async with conn.cursor() as cur:
+            sql = f"SELECT {_SESSION_COLUMNS} FROM kefu_session WHERE customer_id=%s"
+            args: list = [customer_id]
+            if tenant_id is not None:
+                sql += " AND tenant_id=%s"
+                args.append(tenant_id)
+            if status:
+                sql += " AND status=%s"
+                args.append(status)
+            sql += " ORDER BY start_time DESC LIMIT %s OFFSET %s"
+            args.extend([limit, offset])
+            await cur.execute(sql, args)
+            rows = await cur.fetchall()
+            return [_row_to_session(r) for r in rows]
+    finally:
+        conn.close()
+
+
 async def transfer_to_human(
     sid: str,
     tenant_id: Optional[int] = None,
