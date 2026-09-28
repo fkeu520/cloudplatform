@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>登录 - 云枢中台</title>
+  <link rel="stylesheet" href="_assets/common.css">
+  <style>
+    body{
+      background:linear-gradient(135deg, #f5f5f7 0%, #e8e8ed 100%);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:var(--space-xl);
+    }
+    .login-container{
+      width:100%;
+      max-width:920px;
+      display:grid;
+      grid-template-columns:1fr 420px;
+      background:var(--color-canvas);
+      border-radius:var(--rounded-2xl);
+      box-shadow:var(--shadow-elevated);
+      overflow:hidden;
+      min-height:560px;
+    }
+    .login-brand{
+      background:linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+      padding:var(--space-5xl) var(--space-3xl);
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      position:relative;
+      overflow:hidden;
+    }
+    .login-brand::before{
+      content:"";
+      position:absolute;
+      top:-50%;right:-30%;
+      width:600px;height:600px;
+      background:radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+      border-radius:50%;
+    }
+    .login-brand::after{
+      content:"";
+      position:absolute;
+      bottom:-40%;left:-20%;
+      width:500px;height:500px;
+      background:radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      border-radius:50%;
+    }
+    .login-brand .brand-logo{
+      display:flex;
+      align-items:center;
+      gap:var(--space-md);
+      margin-bottom:var(--space-2xl);
+      position:relative;
+      z-index:1;
+    }
+    .login-brand .brand-logo-icon{
+      width:48px;height:48px;
+      background:rgba(255,255,255,0.2);
+      border-radius:var(--rounded-md);
+      display:flex;align-items:center;justify-content:center;
+      font-size:24px;font-weight:700;
+    }
+    .login-brand .brand-logo-text{font-size:22px;font-weight:600}
+    .login-brand h1{
+      font-size:36px;
+      font-weight:700;
+      line-height:1.2;
+      margin-bottom:var(--space-md);
+      position:relative;
+      z-index:1;
+    }
+    .login-brand p{
+      font-size:15px;
+      opacity:0.85;
+      line-height:1.6;
+      position:relative;
+      z-index:1;
+    }
+    .login-brand .features{
+      margin-top:var(--space-3xl);
+      position:relative;
+      z-index:1;
+    }
+    .login-brand .feature-item{
+      display:flex;
+      align-items:center;
+      gap:var(--space-md);
+      margin-bottom:var(--space-lg);
+      font-size:14px;
+    }
+    .login-brand .feature-icon{
+      width:32px;height:32px;
+      background:rgba(255,255,255,0.15);
+      border-radius:var(--rounded-sm);
+      display:flex;align-items:center;justify-content:center;
+      font-size:16px;
+    }
+
+    .login-form{
+      padding:var(--space-5xl) var(--space-4xl);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+    }
+    .login-form h2{
+      font-size:24px;
+      font-weight:600;
+      color:var(--color-ink);
+      margin-bottom:var(--space-sm);
+    }
+    .login-form .subtitle{
+      color:var(--color-ink-tertiary);
+      font-size:14px;
+      margin-bottom:var(--space-2xl);
+    }
+    .login-form .form-group{
+      margin-bottom:var(--space-lg);
+    }
+    .login-form label{
+      display:block;
+      font-size:13px;
+      color:var(--color-ink-secondary);
+      margin-bottom:var(--space-xs);
+      font-weight:500;
+    }
+    .login-form .input-wrapper{
+      position:relative;
+    }
+    .login-form .input-wrapper .icon{
+      position:absolute;
+      left:var(--space-md);
+      top:50%;
+      transform:translateY(-50%);
+      color:var(--color-ink-tertiary);
+      font-size:16px;
+    }
+    .login-form input{
+      width:100%;
+      padding:var(--space-md) var(--space-md) var(--space-md) 40px;
+      border:1px solid var(--color-divider);
+      border-radius:var(--rounded-sm);
+      font-size:14px;
+      outline:none;
+      background:var(--color-canvas);
+      color:var(--color-ink);
+      transition:all 0.15s;
+      font-family:inherit;
+    }
+    .login-form input:focus{border-color:var(--color-primary);box-shadow:0 0 0 3px rgba(0,122,255,0.1)}
+    .login-form .form-options{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:var(--space-xl);
+      font-size:13px;
+    }
+    .login-form .remember-me{
+      display:flex;
+      align-items:center;
+      gap:var(--space-xs);
+      color:var(--color-ink-secondary);
+      cursor:pointer;
+    }
+    .login-form .remember-me input{width:16px;height:16px;accent-color:var(--color-primary)}
+    .login-form .forgot-pwd{color:var(--color-primary);text-decoration:none}
+    .login-form .forgot-pwd:hover{text-decoration:underline}
+    .login-form .btn-login{
+      width:100%;
+      padding:var(--space-md);
+      background:var(--color-primary);
+      color:#fff;
+      border:none;
+      border-radius:var(--rounded-sm);
+      font-size:15px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all 0.15s;
+      font-family:inherit;
+    }
+    .login-form .btn-login:hover{background:var(--color-primary-active)}
+    .login-form .divider{
+      display:flex;
+      align-items:center;
+      margin:var(--space-xl) 0;
+      color:var(--color-ink-tertiary);
+      font-size:12px;
+    }
+    .login-form .divider::before,
+    .login-form .divider::after{
+      content:"";
+      flex:1;
+      height:1px;
+      background:var(--color-divider);
+    }
+    .login-form .divider span{padding:0 var(--space-md)}
+    .login-form .oauth-buttons{
+      display:flex;
+      gap:var(--space-md);
+    }
+    .login-form .oauth-btn{
+      flex:1;
+      padding:var(--space-md);
+      background:var(--color-canvas);
+      border:1px solid var(--color-divider);
+      border-radius:var(--rounded-sm);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:var(--space-sm);
+      font-size:13px;
+      color:var(--color-ink);
+      font-family:inherit;
+    }
+    .login-form .oauth-btn:hover{background:var(--color-canvas-grouped)}
+    .login-form .footer{
+      margin-top:var(--space-2xl);
+      text-align:center;
+      font-size:12px;
+      color:var(--color-ink-tertiary);
+    }
+    .login-form .footer a{color:var(--color-primary);text-decoration:none}
+
+    /* 移动端适配：单列布局 */
+    @media (max-width:768px){
+      body{padding:var(--space-md)}
+      .login-container{
+        grid-template-columns:1fr;
+        min-height:auto;
+      }
+      .login-brand{
+        padding:var(--space-2xl) var(--space-xl);
+        min-height:200px;
+      }
+      .login-brand h1{font-size:24px}
+      .login-brand .features{display:none}
+      .login-form{padding:var(--space-2xl) var(--space-xl)}
+    }
+    @media (max-width:480px){
+      .login-form .oauth-buttons{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <!--
+  页面: login (登录页)
+  层级: 第 1 层 - 登录层（独立于框架）
+  版本: v1.0
+  日期: 2026-07-01
+
+  规范:
+  - 独立于 index.html 框架
+  - 登录成功后跳转 index.html
+  - 移动端单列布局适配
+  -->
+
+  <div class="login-container">
+    <!-- 左侧品牌区 -->
+    <div class="login-brand">
+      <div class="brand-logo">
+        <div class="brand-logo-icon">☁</div>
+        <div class="brand-logo-text">云枢中台</div>
+      </div>
+      <h1>通用中台<br>解决方案</h1>
+      <p>构建横向中台 + 垂直业务双层架构，<br>以数据为核心、数字运营为纽带，<br>赋能园区运营管理</p>
+      <div class="features">
+        <div class="feature-item">
+          <div class="feature-icon">👥</div>
+          <div>用户中心 + RBAC + 多租户</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">⚙️</div>
+          <div>流程引擎 + BPMN 设计器</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🏢</div>
+          <div>园区业务（空间/合同/物业）</div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">📨</div>
+          <div>消息中心 + 多渠道触达</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧登录表单 -->
+    <div class="login-form">
+      <h2>欢迎回来</h2>
+      <p class="subtitle">请使用您的账号登录</p>
+
+      <form onsubmit="return handleLogin()">
+        <div class="form-group">
+          <label>账号</label>
+          <div class="input-wrapper">
+            <span class="icon">👤</span>
+            <input type="text" id="username" placeholder="请输入用户名 / 邮箱 / 手机号" value="admin" autocomplete="username">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>密码</label>
+          <div class="input-wrapper">
+            <span class="icon">🔒</span>
+            <input type="password" id="password" placeholder="请输入密码" value="123456" autocomplete="current-password">
+          </div>
+        </div>
+
+        <div class="form-options">
+          <label class="remember-me">
+            <input type="checkbox" checked>
+            <span>记住我</span>
+          </label>
+          <a href="#" class="forgot-pwd">忘记密码？</a>
+        </div>
+
+        <button type="submit" class="btn-login">登 录</button>
+
+        <div class="divider"><span>其他登录方式</span></div>
+        <div class="oauth-buttons">
+          <button type="button" class="oauth-btn">
+            <span>📱</span>
+            <span>短信登录</span>
+          </button>
+          <button type="button" class="oauth-btn">
+            <span>🔐</span>
+            <span>SSO 登录</span>
+          </button>
+        </div>
+
+        <div class="footer">
+          © 2026 云枢中台 · MIT License · <a href="#">隐私政策</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function handleLogin(){
+      var u=document.getElementById('username').value;
+      var p=document.getElementById('password').value;
+      if(!u||!p){
+        alert('请输入账号和密码');
+        return false;
+      }
+      // 演示模式：直接跳转
+      console.log('登录:', u);
+      window.location.href='index.html';
+      return false;
+    }
+    // 回车提交
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Enter'){
+        var el=document.activeElement;
+        if(el && (el.id==='username' || el.id==='password')){
+          handleLogin();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

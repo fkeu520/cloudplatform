@@ -1,0 +1,312 @@
+/* ============================================================
+ * 云枢中台 - Prototype 框架样式（App Shell）
+ * 配套：common.css（必先引入）
+ * 来源：D:\work\AI\openclaw\skills\design-md\apple\DESIGN.md
+ * 更新：2026-07-01
+ * ============================================================ */
+
+/* ─── App Shell Layout ────────────────────────────────── */
+.app-shell{
+  display:grid;
+  grid-template-columns:240px 1fr;
+  grid-template-rows:56px 1fr;
+  grid-template-areas:
+    "topnav topnav"
+    "sidemenu main";
+  height:100vh;
+  overflow:hidden;
+}
+
+/* ─── Topnav (顶部菜单栏 56px) ────────────────────────── */
+.topnav{
+  grid-area:topnav;
+  height:56px;
+  background:var(--color-canvas);
+  border-bottom:1px solid var(--color-divider);
+  display:flex;
+  align-items:center;
+  padding:0 var(--space-xl);
+  gap:var(--space-xl);
+  position:relative;
+  z-index:200;
+}
+.topnav .logo{
+  display:flex;
+  align-items:center;
+  gap:var(--space-sm);
+  font-size:17px;
+  font-weight:600;
+  color:var(--color-ink);
+  min-width:200px;
+}
+.topnav .logo-icon{
+  width:32px;height:32px;
+  border-radius:var(--rounded-sm);
+  background:linear-gradient(135deg,var(--color-primary),#5856D6);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:18px;font-weight:700;
+}
+.topnav .module-menu{
+  display:flex;
+  gap:var(--space-xs);
+  flex:1;
+  overflow-x:auto;
+}
+.topnav .module-item{
+  padding:var(--space-sm) var(--space-lg);
+  border-radius:var(--rounded-sm);
+  cursor:pointer;
+  font-size:14px;
+  color:var(--color-ink-secondary);
+  white-space:nowrap;
+  transition:all 0.15s;
+  display:flex;
+  align-items:center;
+  gap:var(--space-xs);
+}
+.topnav .module-item:hover{background:var(--color-canvas-grouped);color:var(--color-ink)}
+.topnav .module-item.active{
+  background:var(--color-primary-pale);
+  color:var(--color-primary);
+  font-weight:500;
+}
+.topnav .module-item .icon{font-size:16px}
+
+.topnav .user-area{
+  display:flex;
+  align-items:center;
+  gap:var(--space-md);
+}
+.topnav .user-area .icon-btn{
+  width:36px;height:36px;
+  border-radius:var(--rounded-full);
+  border:none;background:transparent;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  color:var(--color-ink-secondary);
+  position:relative;
+}
+.topnav .user-area .icon-btn:hover{background:var(--color-canvas-grouped)}
+.topnav .user-area .icon-btn .badge-dot{
+  position:absolute;
+  top:6px;right:6px;
+  width:8px;height:8px;
+  background:var(--color-negative);
+  border-radius:50%;
+  border:2px solid var(--color-canvas);
+}
+.topnav .user-avatar{
+  display:flex;align-items:center;gap:var(--space-sm);
+  padding:var(--space-xs) var(--space-sm) var(--space-xs) var(--space-xs);
+  border-radius:var(--rounded-full);
+  cursor:pointer;
+}
+.topnav .user-avatar:hover{background:var(--color-canvas-grouped)}
+.topnav .user-avatar .avatar{
+  width:32px;height:32px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--color-primary),#5856D6);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;font-weight:600;
+}
+.topnav .user-avatar .name{font-size:13px;color:var(--color-ink)}
+
+/* ─── Sidemenu (左侧菜单栏 240px) ─────────────────────── */
+.sidemenu{
+  grid-area:sidemenu;
+  background:var(--color-canvas);
+  border-right:1px solid var(--color-divider);
+  overflow-y:auto;
+  padding:var(--space-lg) 0;
+}
+.sidemenu .module-title{
+  padding:0 var(--space-xl) var(--space-md) var(--space-xl);
+  font-size:11px;
+  font-weight:500;
+  color:var(--color-ink-tertiary);
+  letter-spacing:0.5px;
+  text-transform:uppercase;
+}
+.sidemenu .menu-group{margin-bottom:var(--space-md)}
+.sidemenu .menu-item{
+  display:flex;
+  align-items:center;
+  padding:var(--space-sm) var(--space-xl);
+  margin:0 var(--space-sm);
+  border-radius:var(--rounded-sm);
+  cursor:pointer;
+  font-size:13px;
+  color:var(--color-ink-secondary);
+  transition:all 0.15s;
+  gap:var(--space-md);
+}
+.sidemenu .menu-item:hover{background:var(--color-canvas-grouped);color:var(--color-ink)}
+.sidemenu .menu-item.active{
+  background:var(--color-primary-pale);
+  color:var(--color-primary);
+  font-weight:500;
+}
+.sidemenu .menu-item .icon{width:18px;font-size:16px;text-align:center}
+.sidemenu .menu-item .name{flex:1}
+.sidemenu .menu-item .badge-count{
+  display:inline-block;
+  background:var(--color-canvas-grouped);
+  color:var(--color-ink-tertiary);
+  padding:0 var(--space-xs);
+  border-radius:var(--rounded-full);
+  font-size:10px;
+  min-width:18px;
+  text-align:center;
+}
+.sidemenu .menu-item.active .badge-count{
+  background:var(--color-primary);
+  color:var(--color-on-primary);
+}
+.sidemenu .menu-divider{
+  height:1px;
+  background:var(--color-divider);
+  margin:var(--space-md) var(--space-xl);
+}
+
+/* ─── Main Content Area (主体区) ───────────────────────── */
+.main-area{
+  grid-area:main;
+  background:var(--color-canvas-elevated);
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Breadcrumb (面包屑) - 在 main-area 顶部 */
+.breadcrumb-bar{
+  background:var(--color-canvas);
+  border-bottom:1px solid var(--color-divider);
+  padding:var(--space-md) var(--space-2xl);
+  display:flex;
+  align-items:center;
+  gap:var(--space-sm);
+  font-size:13px;
+  color:var(--color-ink-tertiary);
+}
+.breadcrumb-bar .crumb{color:var(--color-ink-tertiary)}
+.breadcrumb-bar .crumb.active{color:var(--color-ink);font-weight:500}
+.breadcrumb-bar .sep{color:var(--color-gray-3)}
+.breadcrumb-bar .back-btn{
+  width:28px;height:28px;
+  border-radius:var(--rounded-sm);
+  border:none;background:transparent;
+  cursor:pointer;font-size:14px;
+  color:var(--color-ink-secondary);
+  display:flex;align-items:center;justify-content:center;
+  margin-right:var(--space-xs);
+}
+.breadcrumb-bar .back-btn:hover{background:var(--color-canvas-grouped)}
+
+.page-content{
+  flex:1;
+  padding:var(--space-xl) var(--space-2xl) var(--space-2xl);
+}
+
+/* ─── Content Frame (iframe 模式) ─────────────────────── */
+.content-frame{
+  width:100%;
+  height:100%;
+  border:none;
+  background:transparent;
+}
+
+/* ─── User Dropdown (用户下拉菜单) ───────────────────── */
+.user-dropdown{
+  position:absolute;
+  top:48px;right:var(--space-xl);
+  background:var(--color-canvas);
+  border-radius:var(--rounded-md);
+  box-shadow:var(--shadow-elevated);
+  min-width:200px;
+  padding:var(--space-sm) 0;
+  display:none;
+  z-index:300;
+}
+.user-dropdown.show{display:block}
+.user-dropdown .dropdown-header{
+  padding:var(--space-md) var(--space-lg);
+  border-bottom:1px solid var(--color-divider);
+}
+.user-dropdown .dropdown-header .name{font-size:14px;font-weight:600;color:var(--color-ink)}
+.user-dropdown .dropdown-header .role{font-size:12px;color:var(--color-ink-tertiary);margin-top:2px}
+.user-dropdown .dropdown-item{
+  display:flex;align-items:center;gap:var(--space-md);
+  padding:var(--space-sm) var(--space-lg);
+  cursor:pointer;
+  font-size:13px;
+  color:var(--color-ink);
+}
+.user-dropdown .dropdown-item:hover{background:var(--color-canvas-grouped)}
+.user-dropdown .dropdown-divider{
+  height:1px;
+  background:var(--color-divider);
+  margin:var(--space-xs) 0;
+}
+
+/* ─── Mobile Sidemenu (移动端抽屉) ────────────────────── */
+.mobile-menu-btn{
+  display:none;
+  width:36px;height:36px;
+  border-radius:var(--rounded-sm);
+  border:none;background:transparent;
+  cursor:pointer;
+  align-items:center;justify-content:center;
+  font-size:18px;
+  color:var(--color-ink-secondary);
+}
+.mobile-menu-overlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.4);
+  z-index:299;
+  display:none;
+}
+.mobile-menu-overlay.show{display:block}
+.sidemenu.mobile-open{
+  position:fixed;
+  top:0;left:0;bottom:0;
+  width:280px;
+  z-index:300;
+  box-shadow:var(--shadow-elevated);
+}
+
+/* ─── Responsive: Tablet ──────────────────────────────── */
+@media (max-width:1024px) {
+  .app-shell{
+    grid-template-columns:200px 1fr;
+  }
+  .topnav .logo{min-width:160px}
+  .topnav .module-item{padding:var(--space-sm) var(--space-md);font-size:13px}
+  .sidemenu .menu-item{font-size:12px}
+}
+
+/* ─── Responsive: Mobile (≤768px) ─────────────────────── */
+@media (max-width:768px) {
+  .app-shell{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "topnav"
+      "main";
+  }
+  .sidemenu{display:none}
+  .sidemenu.mobile-open{display:block}
+  .topnav .logo{min-width:auto}
+  .topnav .logo .logo-text{display:none}
+  .topnav .module-menu{display:none}
+  .mobile-menu-btn{display:flex}
+  .topnav{padding:0 var(--space-md)}
+  .page-content{padding:var(--space-md)}
+  .breadcrumb-bar{padding:var(--space-sm) var(--space-md);font-size:12px}
+}
+
+/* ─── Print ────────────────────────────────────────────── */
+@media print {
+  .topnav,.sidemenu{display:none !important}
+  .app-shell{display:block}
+  .main-area{overflow:visible}
+}
