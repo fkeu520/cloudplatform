@@ -4,7 +4,6 @@ import Chat from '@/views/Chat.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import Sessions from '@/views/Sessions.vue'
 import Faqs from '@/views/Faqs.vue'
-import Import from '@/views/Import.vue'
 import Settings from '@/views/Settings.vue'
 import Evaluation from '@/views/Evaluation.vue'
 
@@ -19,7 +18,9 @@ const router = createRouter({
     { path: '/dashboard', name: 'dashboard', component: Dashboard },
     { path: '/sessions', name: 'sessions', component: Sessions },
     { path: '/faqs', name: 'faqs', component: Faqs },
-    { path: '/import', name: 'import', component: Import },
+    // 2026-09-28 下线 /import: 「知识导入」与「知识库」功能重复 (同一后端接口),
+    // 且前者宣称的 Excel/CSV 支持后端并不提供、分类下拉框也无后端字段承接。
+    // 统一使用 /knowledge。菜单同步在 V65 迁移中软删除 (sys_menu id=519)。
     { path: '/settings', name: 'settings', component: Settings },
     { path: '/evaluation', name: 'evaluation', component: Evaluation },
   ]

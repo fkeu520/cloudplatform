@@ -352,12 +352,9 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/kefu/Faqs.vue'),
         meta: { title: 'FAQ管理', icon: 'fas fa-question-circle', parent: 'kefu', appCode: 'knowledge' }
       },
-      {
-        path: 'kefu/import',
-        name: 'KefuImport',
-        component: () => import('@/views/kefu/Import.vue'),
-        meta: { title: '知识导入', icon: 'fas fa-file-import', parent: 'kefu', appCode: 'knowledge' }
-      },
+      // 2026-09-28 下线 kefu/import: 「知识导入」与「知识库」重复 (同一后端接口
+      // POST /api/kefu/docs/upload), 且前者宣称的 Excel/CSV 后端不支持、分类
+      // 下拉框无后端字段承接。统一使用 kefu/knowledge。菜单侧见 V65 迁移。
       {
         path: 'kefu/settings',
         name: 'KefuSettings',
