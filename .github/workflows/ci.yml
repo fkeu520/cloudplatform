@@ -296,8 +296,51 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 可选: 阿里云 ACR 双推 (国内拉取加速, 2026-09-28 新增)
+      # 未配置 secrets.ALIYUN_ACR_* 时整个 step 静默跳过, 不影响原有 ghcr 流程
+      # 配置方法见 doc/ops/CI_CD操作手册.md「阿里云 ACR 双推」
+      - name: Login to Aliyun ACR (optional)
+        if: ${{ secrets.ALIYUN_ACR_REGISTRY != '' && secrets.ALIYUN_ACR_USERNAME != '' && secrets.ALIYUN_ACR_PASSWORD != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          username: ${{ secrets.ALIYUN_ACR_USERNAME }}
+          password: ${{ secrets.ALIYUN_ACR_PASSWORD }}
+
       - name: Build & Push Images
+        env:
+          ALIYUN_ACR_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
+          ALIYUN_ACR_NAMESPACE: ${{ secrets.ALIYUN_ACR_NAMESPACE }}
         run: |
+          # 可选: 阿里云 ACR 双推 (国内拉取加速, 2026-09-28)
+          # ALIYUN_ACR_REGISTRY/ALIYUN_ACR_NAMESPACE 任一为空则只推 ghcr (原行为)
+          ALIYUN_REG="${ALIYUN_ACR_REGISTRY:-}"
+          ALIYUN_NS="${ALIYUN_ACR_NAMESPACE:-}"
+          if [ -n "$ALIYUN_REG" ] && [ -n "$ALIYUN_NS" ]; then
+            echo "::notice::阿里云 ACR 双推已启用: ${ALIYUN_REG}/${ALIYUN_NS}"
+            ALIYUN_REG="$ALIYUN_REG"   # 显式保留供后续使用
+          else
+            echo "::notice::未配置阿里云 ACR (ALIYUN_ACR_REGISTRY/NAMESPACE), 仅推送 ghcr"
+            ALIYUN_REG=""
+          fi
+
+          # 构建并推送镜像: 恒推 ghcr, 激活时同时推一份到阿里云 ACR
+          # 用法: build_and_push <context> [Dockerfile] <ghcr-img> <组件名>
+          build_and_push() {
+            local _ctx="$1" _df="$2" _ghcr_tag="$3" _name="$4"
+            if [ "$_df" = "-" ]; then
+              docker build -t "$_ghcr_tag" "$_ctx"
+            else
+              docker build -f "$_df" -t "$_ghcr_tag" "$_ctx"
+            fi
+            docker push "$_ghcr_tag"
+            if [ -n "$ALIYUN_REG" ]; then
+              local _ali="$ALIYUN_REG/${ALIYUN_NS}/${_name}:latest"
+              docker tag "$_ghcr_tag" "$_ali"
+              docker push "$_ali"
+            fi
+          }
+
           # 后端镜像
           declare -A DF_MAP
           DF_MAP[platform-user]=Dockerfile
@@ -315,8 +358,7 @@ jobs:
           for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops park-space park-property park-contract park-enterprise; do
             img="ghcr.io/${{ github.repository }}/${svc}:latest"
             echo "Building $img"
-            docker build -f "${DF_MAP[$svc]}" -t $img .
-            docker push $img
+            build_and_push . "${DF_MAP[$svc]}" "$img" "$svc"
           done
 
           # 前端镜像 (回到 GITHUB_WORKSPACE 后才能引用 ./code/platform-kefu)
@@ -325,22 +367,19 @@ jobs:
           # platform-kefu 后端 (Python FastAPI)
           img="ghcr.io/${{ github.repository }}/platform-kefu:latest"
           echo "Building $img"
-          docker build -t $img "./code/platform-kefu"
-          docker push $img
+          build_and_push "./code/platform-kefu" "-" "$img" "platform-kefu"
 
           # 其他前端镜像 (platform-admin / ops-admin / platform-kefu-frontend)
           for fe in platform-admin platform-ops-admin platform-kefu-frontend; do
             img="ghcr.io/${{ github.repository }}/${fe}:latest"
             echo "Building $img"
-            docker build -t $img "./code/$fe"
-            docker push $img
+            build_and_push "./code/$fe" "-" "$img" "$fe"
           done
 
           # 容器资源监控导出器 (2026-06-15 添加: 把 exporter.py 打进镜像, 217 上只 docker compose pull)
           img="ghcr.io/${{ github.repository }}/platform-container-exporter:latest"
           echo "Building $img"
-          docker build -t $img "./scripts/container-exporter"
-          docker push $img
+          build_and_push "./scripts/container-exporter" "-" "$img" "platform-container-exporter"
 
   # =============================================
   # 多租户拦截器回滚开关验证 (P0-1 实施)

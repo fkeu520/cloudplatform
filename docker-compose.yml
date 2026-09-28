@@ -235,7 +235,7 @@ services:
 
   # ============ 后端服务 ============
   platform-user:
-    image: ghcr.io/fkeu520/cloudplatform/platform-user:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-user:latest"
     container_name: platform-user
     restart: unless-stopped
     ports:
@@ -271,7 +271,7 @@ services:
   # v7.11 内存分级: 堆 384M (17 entities + 25 migrations + 4-level 树, 实测 RSS ~500M)
   # 注意: docker compose (非 swarm) 不支持 deploy.resources.limits, 用 -Xmx JVM 硬限
   park-space:
-    image: ghcr.io/fkeu520/cloudplatform/park-space:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/park-space:latest"
     container_name: park-space
     restart: unless-stopped
     ports:
@@ -303,7 +303,7 @@ services:
   # ============ 园区物业 (W3.2a) ============
   # v7.11 内存分级: 堆 160M (当前空架子, 后续按业务调整)
   park-property:
-    image: ghcr.io/fkeu520/cloudplatform/park-property:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/park-property:latest"
     container_name: park-property
     restart: unless-stopped
     ports:
@@ -333,7 +333,7 @@ services:
   # ============ 园区合同 (W3.2b) ============
   # v7.11 内存分级: 堆 160M (1 entity, 极简)
   park-contract:
-    image: ghcr.io/fkeu520/cloudplatform/park-contract:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/park-contract:latest"
     container_name: park-contract
     restart: unless-stopped
     ports:
@@ -363,7 +363,7 @@ services:
   # ============ 园区企业档案 (csyh 业务融合 Phase 1) ============
   # v7.11 内存分级: 堆 256M (3 entities, 列表查询为主)
   park-enterprise:
-    image: ghcr.io/fkeu520/cloudplatform/park-enterprise:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/park-enterprise:latest"
     container_name: park-enterprise
     restart: unless-stopped
     ports:
@@ -394,7 +394,7 @@ services:
 
   # ============ 消息中心 ============
   platform-message:
-    image: ghcr.io/fkeu520/cloudplatform/platform-message:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-message:latest"
     container_name: platform-message
     restart: unless-stopped
     ports:
@@ -427,7 +427,7 @@ services:
 
   # ============ 认证中心 ============
   platform-auth:
-    image: ghcr.io/fkeu520/cloudplatform/platform-auth:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-auth:latest"
     container_name: platform-auth
     restart: unless-stopped
     ports:
@@ -458,7 +458,7 @@ services:
 
   # ============ 工作流引擎 ============
   platform-workflow:
-    image: ghcr.io/fkeu520/cloudplatform/platform-workflow:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-workflow:latest"
     container_name: platform-workflow
     restart: unless-stopped
     ports:
@@ -495,7 +495,7 @@ services:
 
   # ============ API 网关 ============
   platform-gateway:
-    image: ghcr.io/fkeu520/cloudplatform/platform-gateway:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-gateway:latest"
     container_name: platform-gateway
     restart: unless-stopped
     ports:
@@ -526,7 +526,7 @@ services:
 
   # ============ 运营管理后端 ============
   platform-ops:
-    image: ghcr.io/fkeu520/cloudplatform/platform-ops:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-ops:latest"
     container_name: platform-ops
     restart: unless-stopped
     ports:
@@ -561,7 +561,7 @@ services:
 
   # ============ 运营管理前端 ============
   platform-ops-admin:
-    image: ghcr.io/fkeu520/cloudplatform/platform-ops-admin:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-ops-admin:latest"
     container_name: platform-ops-admin
     restart: unless-stopped
     ports:
@@ -630,7 +630,7 @@ services:
   # 验证: scripts/container-exporter/test_exporter.py (7/7 PASS)
   # < 50 MB (python:3-slim), < 1% CPU, Prometheus scrape 后 Grafana 查各服务占用。
   container-exporter:
-    image: ghcr.io/fkeu520/cloudplatform/platform-container-exporter:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-container-exporter:latest"
     container_name: platform-container-exporter
     restart: unless-stopped
     ports:
@@ -675,7 +675,7 @@ services:
 
   # ============ 前端服务 ============
   platform-admin:
-    image: ghcr.io/fkeu520/cloudplatform/platform-admin:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-admin:latest"
     container_name: platform-admin
     restart: unless-stopped
     ports:
@@ -691,7 +691,7 @@ services:
 
   # ============ 智能问答 ============
   platform-kefu:
-    image: ghcr.io/fkeu520/cloudplatform/platform-kefu:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-kefu:latest"
     container_name: platform-kefu
     restart: unless-stopped
     ports:
@@ -721,7 +721,7 @@ services:
     logging: *default-logging
 
   platform-kefu-frontend:
-    image: ghcr.io/fkeu520/cloudplatform/platform-kefu-frontend:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-kefu-frontend:latest"
     container_name: platform-kefu-frontend
     restart: unless-stopped
     ports:

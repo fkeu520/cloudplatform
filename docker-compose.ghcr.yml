@@ -4,33 +4,33 @@
 
 services:
   platform-user:
-    image: ghcr.io/fkeu520/cloudplatform/platform-user:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-user:latest"
     build: []
 
   platform-auth:
-    image: ghcr.io/fkeu520/cloudplatform/platform-auth:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-auth:latest"
     build: []
 
   platform-gateway:
-    image: ghcr.io/fkeu520/cloudplatform/platform-gateway:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-gateway:latest"
     build: []
 
   platform-workflow:
-    image: ghcr.io/fkeu520/cloudplatform/platform-workflow:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-workflow:latest"
     build: []
 
   platform-message:
-    image: ghcr.io/fkeu520/cloudplatform/platform-message:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-message:latest"
     build: []
 
   platform-ops:
-    image: ghcr.io/fkeu520/cloudplatform/platform-ops:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-ops:latest"
     build: []
 
   platform-admin:
-    image: ghcr.io/fkeu520/cloudplatform/platform-admin:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-admin:latest"
     build: []
 
   platform-ops-admin:
-    image: ghcr.io/fkeu520/cloudplatform/platform-ops-admin:latest
+    image: "${IMAGE_PREFIX:-ghcr.io/fkeu520/cloudplatform}/platform-ops-admin:latest"
     build: []
