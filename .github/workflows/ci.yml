@@ -300,7 +300,14 @@ jobs:
       # 未配置 secrets.ALIYUN_ACR_* 时(env 为空) step 自动跳过, 不影响原有 ghcr 流程
       # 注意: GitHub Actions 的 if: 条件不能引用 secrets context (解析期报错),
       # 必须经 step env 中转后用 env.xxx 判断 — 2026-09-28 CI Invalid workflow 修复
-      - name: Login to Aliyun ACR (optional)
+      #
+      # === ACR 已配置 (2026-09-28) ===
+      # 4 个 secret 已就位: ALIYUN_ACR_REGISTRY / ALIYUN_ACR_NAMESPACE /
+      #                      ALIYUN_ACR_USERNAME / ALIYUN_ACR_PASSWORD
+      # 本 job 现在会: 登录 ACR → 构建镜像先推 ghcr → docker tag 一份推 ACR。
+      # 142 服务器切换拉取源:
+      #   IMAGE_PREFIX=registry.cn-hangzhou.aliyuncs.com/<命名空间> docker compose pull
+      - name: Login to Aliyun ACR
         if: ${{ env.ALIYUN_REGISTRY != '' && env.ALIYUN_USER != '' }}
         env:
           ALIYUN_REGISTRY: ${{ secrets.ALIYUN_ACR_REGISTRY }}
