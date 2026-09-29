@@ -371,6 +371,46 @@ jobs:
             fi
           }
 
+          # === 按改动范围选择要构建的镜像 (2026-09-29) ===
+          # 背景: 原实现无条件全量构建 15 个镜像 (10 后端 + 3 前端 + kefu + exporter)
+          # 并逐个双推 ghcr + ACR。改一个 kefu 文件也要重建 9 个 ~800MB 的 Java 镜像,
+          # 实测耗时 11-17 分钟 (#235/#236), 而纯 CI 配置改动只要 4-5 分钟 (#232)。
+          # 这里用 git diff 算出改动文件, 只重建受影响的镜像。
+          # 安全性: 拿不到 diff (首次 push / force push / 浅克隆) 时回退到全量构建,
+          # 保证不会出现"该构建的镜像没构建"的静默漏构建。
+          CHANGED=$(git diff --name-only "HEAD^" HEAD 2>/dev/null || true)
+          if [ -z "$CHANGED" ]; then
+            echo "::notice::无法获取改动文件列表 (浅克隆或首次 push), 回退全量构建"
+            BUILD_ALL=1
+          else
+            BUILD_ALL=0
+            echo "::group::Changed files"
+            echo "$CHANGED"
+            echo "::endgroup::"
+          fi
+
+          # should_build <正则> — 改动命中正则则返回 0
+          should_build() {
+            [ "$BUILD_ALL" = "1" ] && return 0
+            echo "$CHANGED" | grep -qE "$1"
+          }
+
+          # platform-server/**.java / pom / yml / Dockerfile → 全部后端都受影响
+          # (共享 platform-common 与父 pom, 单点改动无法安全只重建一个)
+          BUILD_BACKEND=0
+          if should_build '^code/platform-server/'; then BUILD_BACKEND=1; fi
+          # docker-compose.yml / CI 自身 / 通用配置 → 全部镜像都受影响
+          if should_build '^(docker-compose\.yml|\.github/workflows/|code/platform-server/config/|scripts/ci/)'; then
+            BUILD_ALL=1; BUILD_BACKEND=1
+          fi
+          BUILD_KEFU=0;      if should_build '^code/platform-kefu/'; then BUILD_KEFU=1; fi
+          BUILD_ADMIN=0;     if should_build '^code/platform-admin/'; then BUILD_ADMIN=1; fi
+          BUILD_OPSADM=0;    if should_build '^code/platform-ops-admin/'; then BUILD_OPSADM=1; fi
+          BUILD_KEFUFE=0;    if should_build '^code/platform-kefu-frontend/'; then BUILD_KEFUFE=1; fi
+          BUILD_EXPORTER=0;  if should_build '^scripts/container-exporter/'; then BUILD_EXPORTER=1; fi
+
+          echo "构建计划: backend=$BUILD_BACKEND kefu=$BUILD_KEFU admin=$BUILD_ADMIN ops-admin=$BUILD_OPSADM kefu-fe=$BUILD_KEFUFE exporter=$BUILD_EXPORTER all=$BUILD_ALL"
+
           # 后端镜像
           declare -A DF_MAP
           DF_MAP[platform-user]=Dockerfile
@@ -384,32 +424,60 @@ jobs:
           DF_MAP[park-contract]=Dockerfile.contract
           DF_MAP[park-enterprise]=Dockerfile.enterprise
 
-          cd code/platform-server
-          for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops park-space park-property park-contract park-enterprise; do
-            img="ghcr.io/${{ github.repository }}/${svc}:latest"
-            echo "Building $img"
-            build_and_push . "${DF_MAP[$svc]}" "$img" "$svc"
-          done
+          if [ "$BUILD_BACKEND" = "1" ]; then
+            cd code/platform-server
+            for svc in platform-user platform-auth platform-gateway platform-workflow platform-message platform-ops park-space park-property park-contract park-enterprise; do
+              img="ghcr.io/${{ github.repository }}/${svc}:latest"
+              echo "Building $img"
+              build_and_push . "${DF_MAP[$svc]}" "$img" "$svc"
+            done
+          else
+            echo "跳过 10 个后端镜像 (无 platform-server 改动)"
+          fi
 
           # 前端镜像 (回到 GITHUB_WORKSPACE 后才能引用 ./code/platform-kefu)
           cd "$GITHUB_WORKSPACE"
 
           # platform-kefu 后端 (Python FastAPI)
-          img="ghcr.io/${{ github.repository }}/platform-kefu:latest"
-          echo "Building $img"
-          build_and_push "./code/platform-kefu" "-" "$img" "platform-kefu"
+          if [ "$BUILD_KEFU" = "1" ]; then
+            img="ghcr.io/${{ github.repository }}/platform-kefu:latest"
+            echo "Building $img"
+            build_and_push "./code/platform-kefu" "-" "$img" "platform-kefu"
+          else
+            echo "跳过 platform-kefu (无 kefu 改动)"
+          fi
 
           # 其他前端镜像 (platform-admin / ops-admin / platform-kefu-frontend)
-          for fe in platform-admin platform-ops-admin platform-kefu-frontend; do
-            img="ghcr.io/${{ github.repository }}/${fe}:latest"
+          if [ "$BUILD_ADMIN" = "1" ]; then
+            img="ghcr.io/${{ github.repository }}/platform-admin:latest"
             echo "Building $img"
-            build_and_push "./code/$fe" "-" "$img" "$fe"
-          done
+            build_and_push "./code/platform-admin" "-" "$img" "platform-admin"
+          else
+            echo "跳过 platform-admin"
+          fi
+          if [ "$BUILD_OPSADM" = "1" ]; then
+            img="ghcr.io/${{ github.repository }}/platform-ops-admin:latest"
+            echo "Building $img"
+            build_and_push "./code/platform-ops-admin" "-" "$img" "platform-ops-admin"
+          else
+            echo "跳过 platform-ops-admin"
+          fi
+          if [ "$BUILD_KEFUFE" = "1" ]; then
+            img="ghcr.io/${{ github.repository }}/platform-kefu-frontend:latest"
+            echo "Building $img"
+            build_and_push "./code/platform-kefu-frontend" "-" "$img" "platform-kefu-frontend"
+          else
+            echo "跳过 platform-kefu-frontend"
+          fi
 
           # 容器资源监控导出器 (2026-06-15 添加: 把 exporter.py 打进镜像, 217 上只 docker compose pull)
-          img="ghcr.io/${{ github.repository }}/platform-container-exporter:latest"
-          echo "Building $img"
-          build_and_push "./scripts/container-exporter" "-" "$img" "platform-container-exporter"
+          if [ "$BUILD_EXPORTER" = "1" ]; then
+            img="ghcr.io/${{ github.repository }}/platform-container-exporter:latest"
+            echo "Building $img"
+            build_and_push "./scripts/container-exporter" "-" "$img" "platform-container-exporter"
+          else
+            echo "跳过 platform-container-exporter"
+          fi
 
   # =============================================
   # 多租户拦截器回滚开关验证 (P0-1 实施)
