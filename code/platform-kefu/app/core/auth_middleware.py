@@ -5,6 +5,8 @@ import jwt
 import logging
 from typing import List
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 EXEMPT_PATHS: List[str] = [
@@ -69,7 +71,11 @@ class JwtAuthMiddleware:
             return
 
         headers = _Headers(scope)
-        app_settings = getattr(getattr(self.app, "state", None), "settings", None)
+        # 直接用模块级 settings 单例: 纯 ASGI 中间件在 lifespan 之前就构造好,
+        # self.app.state.settings 可能尚未赋值 (原实现走 request.app.state 同理,
+        # 但它每次都能读到因为 lifespan 已跑完)。这里 import 保证任何时刻都可用,
+        # 语义与 app.state.settings = settings 完全一致 (main.py lifespan 就是赋这个)。
+        app_settings = settings
 
         async def _json_error(status: int, message: str):
             body = json.dumps({"code": status, "message": message}).encode("utf-8")
