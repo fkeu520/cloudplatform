@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -131,8 +132,27 @@ public class AuthService {
         Integer userType = JwtUtil.getUserType(token);
         String username = JwtUtil.getUsername(token);
 
+        // 老 token 不带 permissions 也要正确续签 —— 重新从用户服务拉取权限列表
+        List<String> permissions = List.of();
+        if (username != null && !username.isBlank()) {
+            try {
+                String permsUrl = userServiceUrl + "/user/internal/by-username/" + username;
+                @SuppressWarnings("unchecked")
+                Map<String, Object> userResult = restTemplate.getForObject(permsUrl, Map.class);
+                if (userResult != null && Integer.valueOf(200).equals(userResult.get("code"))) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> userData = (Map<String, Object>) userResult.get("data");
+                    if (userData != null && userData.get("perms") instanceof List) {
+                        permissions = (List<String>) userData.get("perms");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("[refreshToken] 加载权限失败, 续签 token 不带权限: {}", e.getMessage());
+            }
+        }
+
         Long effectiveTenantId = (tenantId != null && tenantId > 0) ? tenantId : null;
-        String newToken = JwtUtil.generate(userId, username, effectiveTenantId, userType, tokenExpireSeconds);
+        String newToken = JwtUtil.generate(userId, username, effectiveTenantId, userType, permissions, tokenExpireSeconds);
 
         AuthVO vo = new AuthVO();
         vo.setToken(newToken);
@@ -182,7 +202,12 @@ public class AuthService {
         String username = (userData != null && userData.get("username") instanceof String)
             ? (String) userData.get("username") : null;
         Long effectiveTenantId = (tenantId != null && tenantId > 0) ? tenantId : null;
-        String token = JwtUtil.generate(userId, username, effectiveTenantId, userType, tokenExpireSeconds);
+        // 从 userData 抽出已合并的权限标识列表 (sys_role_menu + sys_user_menu 去重), 不带则传空集
+        // —— 业务服务 JwtAuthFilter 会写入 X-User-Permissions header, 否则 kefu 等下游一律 403
+        @SuppressWarnings("unchecked")
+        List<String> permissions = (userData != null && userData.get("perms") instanceof List)
+                ? (List<String>) userData.get("perms") : List.of();
+        String token = JwtUtil.generate(userId, username, effectiveTenantId, userType, permissions, tokenExpireSeconds);
         long expireTime = System.currentTimeMillis() + tokenExpireSeconds * 1000;
         AuthVO vo = new AuthVO();
         vo.setToken(token);

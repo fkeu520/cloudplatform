@@ -66,7 +66,8 @@ async def get_dashboard(request: Request):
                 (tenant_id,),
             )
             ds_hits = {}
-            async for row in cur:
+            ds_rows = await cur.fetchall()
+            for row in ds_rows:
                 ds_hits[row[0]] = row[1]
             return DashboardStatsResponse(
                 total_sessions=total_sessions,
