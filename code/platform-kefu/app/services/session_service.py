@@ -81,8 +81,15 @@ async def create_session(
         conn.close()
     sess = await get_session(sid, tenant_id)
     if sess is None:
-        # 极端兜底: SELECT 拿不到 (跨连接可见性), 用输入构造返回值, 客户端至少拿到有效 session_id
-        logger.warning("create_session: SELECT returned None for sid=%s, returning fallback", sid)
+        # 极端兜底: INSERT 后立刻 SELECT 拿不到行时, 用入参构造返回值,
+        # 保证客户端至少拿到有效 session_id (否则前端 res.data 为空 →
+        # session_id 变 undefined → 发送按钮永远 disabled)。
+        # 出现这条日志说明跨连接可见性有问题, 排查时需要 sid + tenant + customer。
+        logger.warning(
+            "create_session: SELECT returned None after INSERT, using fallback "
+            "(sid=%s tenant_id=%s customer_id=%r channel=%r)",
+            sid, tenant_id, customer_id, channel,
+        )
         from datetime import datetime
         now = datetime.utcnow()
         return {
