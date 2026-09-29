@@ -338,14 +338,30 @@ jobs:
             ALIYUN_REG=""
           fi
 
+          # === 基础镜像预拉取 (2026-09-29) ===
+          # 背景: 10 个后端镜像的 Dockerfile FROM 全是 eclipse-temurin:21-jdk-alpine
+          # (~400MB), 加上 node/python/nginx 共 12 处 FROM。runner 上无基础镜像缓存时,
+          # 每个 build 各自走一遍网络拉取, 串行叠加后卡在 "Waiting" (实测一次 31 分钟,
+          # 历史基线 13-17 分钟)。这里先串行预拉一次, 让后续 12 次 build 全部命中
+          # 本地层缓存; 失败不阻断 (网络抖动时仍可退回按需拉取)。
+          echo "::group::Pre-pulling base images"
+          for BASE in eclipse-temurin:21-jdk-alpine node:20-alpine node:22-alpine \
+                      python:3.12-slim nginx:alpine; do
+            echo "-- pulling $BASE"
+            docker pull "$BASE" || echo "::warning::pre-pull failed for $BASE (继续, 构建时按需拉取)"
+          done
+          echo "::endgroup::"
+
           # 构建并推送镜像: 恒推 ghcr, 激活时同时推一份到阿里云 ACR
           # 用法: build_and_push <context> [Dockerfile] <ghcr-img> <组件名>
           build_and_push() {
             local _ctx="$1" _df="$2" _ghcr_tag="$3" _name="$4"
+            # --pull=false: 基础镜像层已在上面的预拉取阶段落地, 禁止每次 build 再联网检查更新。
+            # 这既缩短耗时, 也避开 Docker Hub 匿名拉取的速率限制导致的 "Waiting" 挂起。
             if [ "$_df" = "-" ]; then
-              docker build -t "$_ghcr_tag" "$_ctx"
+              docker build --pull=false -t "$_ghcr_tag" "$_ctx"
             else
-              docker build -f "$_df" -t "$_ghcr_tag" "$_ctx"
+              docker build --pull=false -f "$_df" -t "$_ghcr_tag" "$_ctx"
             fi
             docker push "$_ghcr_tag"
             if [ -n "$ALIYUN_REG" ]; then
