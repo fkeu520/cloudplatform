@@ -74,9 +74,35 @@ async def create_session(
                 "VALUES (%s,%s,%s,%s,%s,%s,%s)",
                 (sid, tenant_id, customer_id, customer_name, contact, channel, "AI"),
             )
+        # 显式 commit: 在 aiomysql 连接池 + autocommit 模式下, 不同连接之间偶有读不到刚写入的行
+        # (复现: 前端发消息无响应, body 为空字符串). 显式 commit 修复.
+        await conn.commit()
     finally:
         conn.close()
-    return await get_session(sid, tenant_id)
+    sess = await get_session(sid, tenant_id)
+    if sess is None:
+        # 极端兜底: SELECT 拿不到 (跨连接可见性), 用输入构造返回值, 客户端至少拿到有效 session_id
+        logger.warning("create_session: SELECT returned None for sid=%s, returning fallback", sid)
+        from datetime import datetime
+        now = datetime.utcnow()
+        return {
+            "id": sid,
+            "tenant_id": tenant_id,
+            "customer_id": customer_id,
+            "customer_name": customer_name,
+            "contact": contact,
+            "channel": channel,
+            "status": "AI",
+            "agent_id": None,
+            "agent_name": None,
+            "start_time": now,
+            "end_time": None,
+            "satisfaction": None,
+            "satisfaction_comment": None,
+            "last_message_preview": None,
+            "last_message_at": None,
+        }
+    return sess
 
 
 async def get_session(sid: str, tenant_id: Optional[int] = None) -> Optional[Dict[str, Any]]:

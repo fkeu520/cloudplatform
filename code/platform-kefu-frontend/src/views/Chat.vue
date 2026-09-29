@@ -202,11 +202,16 @@ const newSession = async () => {
   }
 }
 
+// 2026-09-29 修复: 后端 create_session 偶发 SELECT 拿不到刚写入的行, 历史上曾写入
+// 字符串 "undefined" 到 localStorage, 导致 Chat.vue initSession 进入 saved 分支但
+// 后端无法解析. 强校验 saved 是否像合法 UUID, 否则直接清掉走 create.
+const UUID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 const initSession = async () => {
   // 2026-09-28 修复「对话历史未保留」: 原实现每次挂载都新建 session, 且从不调用
   // getMessages 回填, 因此刷新后历史清零 (库里其实有记录)。改为优先恢复上次会话。
   const saved = localStorage.getItem('kefu_session_id')
-  if (saved) {
+  if (saved && UUID_LIKE.test(saved)) {
     try {
       const sres = await sessionApi.get(saved)
       sessionId.value = sres.data.id
