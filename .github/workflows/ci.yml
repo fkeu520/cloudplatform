@@ -358,7 +358,22 @@ jobs:
           done
           echo "::endgroup::"
 
-          # 构建并推送镜像: 恒推 ghcr, 激活时同时推一份到阿里云 ACR
+          # 双仓库推送队列 (2026-09-29)
+          #
+          # 为什么要并行: 串行时两个仓库的耗时相加。原实现里 ACR 还是同步阻塞的
+          # (`docker push "$_ali"`), 单镜像约 2 分钟, 15 个串起来 = 30+ 分钟
+          # (实测 38.4 分钟, #237), 期间后续镜像的 build 全部排队, 表现为
+          # "卡在同一个地方不动"。改为后台并行后, 总耗时约等于较慢的那一路。
+          #
+          # 谁是阻塞源: ACR。142 实测 ghcr 的 manifest 查询 6023ms、ACR 只要 828ms
+          # (慢 7.3 倍, 国内访问 ghcr 需绕行), 因此部署源改为阿里云 ACR
+          # (见 docker-compose.yml 的 IMAGE_PREFIX 默认值)。
+          # ACR 推送失败或超时 -> job 失败, 否则流水线显示绿色但 142 拉不到镜像。
+          # ghcr 作为备份源, 失败只告警 —— 它已不再是部署依赖。
+          _ACR_PIDS=(); _ACR_NAMES=()
+          _GHCR_PIDS=(); _GHCR_NAMES=()
+
+          # 构建并推送镜像: ghcr 与 ACR 同时推, 两者都后台并行
           # 用法: build_and_push <context> [Dockerfile] <ghcr-img> <组件名>
           build_and_push() {
             local _ctx="$1" _df="$2" _ghcr_tag="$3" _name="$4"
@@ -369,12 +384,69 @@ jobs:
             else
               docker build --pull=false -f "$_df" -t "$_ghcr_tag" "$_ctx"
             fi
-            docker push "$_ghcr_tag"
+
+            # ghcr (备份源): 后台并行, 失败仅告警
+            (
+              if timeout 600 docker push "$_ghcr_tag"; then
+                echo "ghcr push OK: $_ghcr_tag"
+              else
+                echo "::warning::ghcr 推送失败或超过 600s 超时: $_ghcr_tag (备份源, 不影响部署)"
+              fi
+            ) &
+            _GHCR_PIDS+=("$!"); _GHCR_NAMES+=("$_ghcr_tag")
+
             if [ -n "$ALIYUN_REG" ]; then
               local _ali="$ALIYUN_REG/${ALIYUN_NS}/${_name}:latest"
               docker tag "$_ghcr_tag" "$_ali"
-              docker push "$_ali"
+              # ACR (部署源): 同样后台并行, 但失败状态要如实传出, 由 wait_acr_pushes 汇总
+              (
+                timeout 600 docker push "$_ali"
+              ) &
+              _ACR_PIDS+=("$!"); _ACR_NAMES+=("$_ali")
             fi
+          }
+
+          # 收尾: 等 ACR (部署源)。失败 -> 返回非零 -> job 红。
+          # 必须在同一个 step 内 wait —— step 结束时空后台进程会被 runner 杀掉。
+          wait_acr_pushes() {
+            local _failed=0
+            if [ "${#_ACR_PIDS[@]}" -eq 0 ]; then
+              echo "::error::ACR 未启用 (缺少 ALIYUN_ACR_REGISTRY/ALIYUN_ACR_NAMESPACE), 但 ACR 已是部署源"
+              return 1
+            fi
+            echo "等待 ${#_ACR_PIDS[@]} 个 ACR 推送 (部署源, 已并行, 每个最多 600s)..."
+            local _i
+            for _i in "${!_ACR_PIDS[@]}"; do
+              if wait "${_ACR_PIDS[$_i]}"; then
+                echo "  [OK] ${_ACR_NAMES[$_i]}"
+              else
+                echo "  [FAIL] ${_ACR_NAMES[$_i]}"
+                _failed=1
+              fi
+            done
+            if [ "$_failed" != "0" ]; then
+              echo "::error::有 ACR 镜像推送失败 —— ACR 是 142 的部署源, 必须全部成功"
+              return 1
+            fi
+            echo "ACR (部署源) 全部推送成功"
+          }
+
+          # 收尾: 等 ghcr (备份源)。失败仅告警。
+          wait_ghcr_pushes() {
+            if [ "${#_GHCR_PIDS[@]}" -eq 0 ]; then
+              echo "未启用 ghcr, 跳过"
+              return 0
+            fi
+            echo "等待 ${#_GHCR_PIDS[@]} 个 ghcr 推送 (备份源, 已并行, 每个最多 600s)..."
+            local _i
+            for _i in "${!_GHCR_PIDS[@]}"; do
+              if wait "${_GHCR_PIDS[$i]}"; then
+                echo "  [OK] ${_GHCR_NAMES[$_i]}"
+              else
+                echo "  [WARN] ${_GHCR_NAMES[$i]}"
+              fi
+            done
+            echo "ghcr (备份源) 收尾完成"
           }
 
           # === 按改动范围选择要构建的镜像 (2026-09-29) ===
@@ -486,6 +558,12 @@ jobs:
           else
             echo "跳过 platform-container-exporter"
           fi
+
+          # 全部镜像构建完成 → 收尾两个仓库的推送。
+          # ACR 是 142 的部署源, 它的成败决定 job 成败; ghcr 是备份, 仅告警。
+          # 两者都已并行执行, 这里只是等结果, 不再额外消耗构建时间。
+          wait_ghcr_pushes
+          wait_acr_pushes
 
   # =============================================
   # 多租户拦截器回滚开关验证 (P0-1 实施)
