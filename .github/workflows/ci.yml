@@ -262,7 +262,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master'
     steps:
+      # fetch-depth: 0 — 必需。默认 fetch-depth: 1 是浅克隆, 本地不存在 HEAD^,
+      # 导致下面 Build & Push 里的 `git diff --name-only HEAD^ HEAD` 返回空,
+      # 改动文件列表拿不到 → 回退全量构建 → 选择性构建完全失效 (2026-09-29 实测)。
+      # 本仓库已验证: 浅克隆下该命令输出为空字符串。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK 21
         uses: actions/setup-java@v4
@@ -380,7 +386,9 @@ jobs:
           # 保证不会出现"该构建的镜像没构建"的静默漏构建。
           CHANGED=$(git diff --name-only "HEAD^" HEAD 2>/dev/null || true)
           if [ -z "$CHANGED" ]; then
-            echo "::notice::无法获取改动文件列表 (浅克隆或首次 push), 回退全量构建"
+            # 用 warning 而非 notice: 降级成全量构建会把 4 分钟的 run 拖到 15+ 分钟,
+            # 这属于"优化静默失效", 必须在 Actions 页面上一眼看见。
+            echo "::warning::无法获取改动文件列表 (浅克隆 / 首次 push / 无父提交), 本轮回退全量构建, 耗时约 15 分钟。检查 checkout 的 fetch-depth 是否为 0。"
             BUILD_ALL=1
           else
             BUILD_ALL=0
