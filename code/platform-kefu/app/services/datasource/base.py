@@ -123,9 +123,13 @@ class DataSourceRegistry:
             return results
         for adapter in matched:
             try:
-                result = await adapter.query(
-                    question, {"tenant_id": tenant_id} if tenant_id is not None else None
-                )
+                # 2026-09-30: 原来在 tenant_id is None 时传 params=None, 于是适配器
+                # 里 `params.get(...) if params else None` 拿到 None, 而各 http_api
+                # 适配器又把 None 当"拒绝服务"直接返回空 —— 平台管理员
+                # (userType==2, _extract_tenant() 归一化成 None) 因此永远查不到任何
+                # 外部数据源, 表现为"数据源配了但对话里用不了"。
+                # None 的正确语义是"跨租户可见"(见 access.py), 必须原样传下去。
+                result = await adapter.query(question, {"tenant_id": tenant_id})
                 if result and result.refs:
                     results[adapter.id] = result
                     logger.info(f"[Router] {adapter.id} 命中 {len(result.refs)} 个实体")

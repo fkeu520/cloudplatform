@@ -219,11 +219,28 @@ SEED_DATA_SOURCES_SQL = """
 INSERT IGNORE INTO kefu_data_source (id, name, type, module_ref, enabled, sync_strategy, intent_keywords, config_json) VALUES
 ('faq', 'FAQ 库', 'internal', NULL, 1, 'realtime', '["FAQ","常见问题","怎么","如何","多少"]', '{"table":"kefu_faq"}'),
 ('knowledge', '知识库', 'vector_search', NULL, 1, 'realtime', '["知识","文档","手册","流程"]', '{"table":"chunks","vector":"faiss"}'),
-('park-enterprise', '企业档案', 'http_api', 'platform-enterprise:8080', 1, 'realtime', '["企业","公司","入驻","客户","联系人"]', '{"endpoint":"/api/enterprise/query","fields":["id","name","contact","status"]}'),
+('park-enterprise', '企业档案', 'http_api', 'park-enterprise:8094', 1, 'realtime', '["企业","公司","入驻","客户","联系人"]', '{"endpoint":"/enterprise/page","fields":["id","name","contact","status","industry"]}'),
 ('park-business', '招商管理', 'http_api', 'platform-business:8080', 0, 'realtime', '["商机","跟进","客户分配","销售"]', '{"endpoint":"/api/business/opportunity/query"}'),
-('park-space', '空间房源', 'http_api', 'platform-space:8080', 0, 'realtime', '["房源","空房","租金","面积","户型"]', '{"endpoint":"/api/space/room/query"}'),
-('park-contract', '合同', 'http_api', 'platform-contract:8080', 0, 'realtime', '["合同","到期","续签","条款"]', '{"endpoint":"/api/contract/query"}');
+('park-space', '空间房源', 'http_api', 'park-space:8091', 0, 'realtime', '["房源","空房","租金","面积","户型"]', '{"endpoint":"/api/space/room/query"}'),
+('park-contract', '合同', 'http_api', 'park-contract:8093', 0, 'realtime', '["合同","到期","续签","条款"]', '{"endpoint":"/api/contract/query"}');
 """
+
+# 2026-09-30 校准 module_ref。
+#
+# 原始种子数据把 4 个 park-* 数据源都写成 platform-<x>:8080, 但 142 上实际的
+# 容器名是 park-<x> (platform-<x> 连 DNS 都解析不了), 端口也不是 8080。
+# 服务名 + 端口双重错误, 适配器就算连上了也会打错端口。
+#
+# 端口已逐个实测 (/actuator/health 均 200):
+#   park-space 8091 / park-property 8092 / park-contract 8093 / park-enterprise 8094
+#
+# park-business 不在此列表: compose 里根本没有这个服务, 无从核实指向,
+# 保持原值不动 (enabled=0, 暂不启用), 避免编造一个不存在的目标。
+_DATA_SOURCE_REF_FIXES = (
+    ("park-enterprise", "park-enterprise:8094"),
+    ("park-space", "park-space:8091"),
+    ("park-contract", "park-contract:8093"),
+)
 
 
 def init_db():
@@ -274,6 +291,21 @@ async def _ensure_tenant_schema(cur) -> None:
             await cur.execute(
                 f"ALTER TABLE `{table}` ADD INDEX `{index_name}` ({column_name})"
             )
+
+
+async def _ensure_data_source_refs(cur) -> None:
+    """校准已存在数据源的 module_ref。
+
+    SEED_DATA_SOURCES_SQL 用的是 INSERT IGNORE, 只在行不存在时插入; 已经写错
+    (platform-enterprise:8080) 的行不会被更新。而 module_ref 会直接显示在
+    「数据源」管理页上, 不修的话运维看到的指向是错的, 后人照着排查会走偏。
+    """
+    for source_id, module_ref in _DATA_SOURCE_REF_FIXES:
+        await cur.execute(
+            "UPDATE kefu_data_source SET module_ref=%s "
+            "WHERE id=%s AND module_ref<>%s",
+            (module_ref, source_id, module_ref),
+        )
 
 
 async def get_pool():
@@ -327,6 +359,7 @@ async def init_tables():
             await _ensure_tenant_schema(cur)
             for stmt in _split_sql_statements(SEED_DATA_SOURCES_SQL):
                 await cur.execute(stmt)
+            await _ensure_data_source_refs(cur)
 
 
 async def get_db_connection() -> _PooledConnection:

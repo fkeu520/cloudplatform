@@ -713,6 +713,11 @@ services:
       # Gateway attaches X-Kefu-Internal-Token = HMAC-SHA256(this_value, "kefu-internal")
       # to all Kefu-route requests. Middleware rejects X-User-* without this token.
       - KEFU_INTERNAL_TOKEN=${KEFU_INTERNAL_TOKEN:?KEFU_INTERNAL_TOKEN must be set}
+      # 2026-09-30 企业档案数据源: 之前没设, 适配器 base_url 恒为空 → 永远走 mock,
+      # 真实接口一次都没被调用 (表现为"数据源配了但对话里用不了")。
+      # 服务名/端口按 142 实测校准: 容器是 park-enterprise (不是 platform-enterprise),
+      # 端口 8094 (不是 8080)。
+      - PLATFORM_ENTERPRISE_BASE_URL=${PLATFORM_ENTERPRISE_BASE_URL:-http://park-enterprise:8094}
     volumes:
       - kefu-vector-index:/app/data/vector_index
     depends_on:
