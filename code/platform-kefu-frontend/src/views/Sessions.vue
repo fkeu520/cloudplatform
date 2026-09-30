@@ -203,14 +203,18 @@
 
     <!-- 轻量提示 -->
     <transition name="toast">
-      <div v-if="toast" class="toast">{{ toast }}</div>
+      <div v-if="toast" :class="['toast', toastType]">{{ toast }}</div>
     </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { sessionApi } from '@/api'
+import { usePerms, explainPermissionError } from '@/composables/usePerms'
+
+const { load, can: canSessions } = usePerms()
+const canManageSessions = computed(() => canSessions('kefu:sessions'))
 
 type SessionStatus = 'AI' | 'HUMAN' | 'CLOSED'
 
@@ -268,10 +272,14 @@ const ratingComment = ref('')
 const ratingSubmitting = ref(false)
 
 const toast = ref('')
+const toastType = ref<'success' | 'error'>('success')
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
-const showToast = (text: string) => {
+// 2026-09-30: 加 type 参数, 与 Faqs.vue 的 showToast 签名对齐
+// (此前本文件是单参版本, 调用方按两参写会编译失败)
+const showToast = (text: string, type: 'success' | 'error' = 'success') => {
   toast.value = text
+  toastType.value = type
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => (toast.value = ''), 2600)
 }
@@ -360,8 +368,19 @@ const toggleExpand = async (s: SessionItem) => {
 
 /* ============ 会话操作 ============ */
 
+// 2026-09-30: 转接/关闭/评分后端统一校验 kefu:sessions (原为 kefu:chat 的会话操作
+// 归到 kefu:sessions 下), 前端按权限拦截, 否则 403 被显示成 "e.message" 原文。
+const requireSessionsPerm = (): boolean => {
+  if (canManageSessions.value) return true
+  showToast(explainPermissionError({
+    response: { status: 403, data: { detail: 'Permission denied: kefu:sessions' } }
+  }), 'error')
+  return false
+}
+
 const transferSession = async (s: SessionItem) => {
   if (s.status !== 'AI' || isBusy(s.id, 'transfer')) return
+  if (!requireSessionsPerm()) return
   setBusy(s.id, 'transfer', true)
   try {
     await sessionApi.transfer(s.id)
@@ -369,7 +388,7 @@ const transferSession = async (s: SessionItem) => {
     appendNotice(s, '已转接人工客服')
     showToast('已转接人工客服')
   } catch (e: any) {
-    showToast('转人工失败：' + (e.message || '未知错误'))
+    showToast('转人工失败：' + explainPermissionError(e), 'error')
   } finally {
     setBusy(s.id, 'transfer', false)
   }
@@ -377,6 +396,7 @@ const transferSession = async (s: SessionItem) => {
 
 const closeSession = async (s: SessionItem) => {
   if (s.status === 'CLOSED' || isBusy(s.id, 'close')) return
+  if (!requireSessionsPerm()) return
   setBusy(s.id, 'close', true)
   try {
     await sessionApi.close(s.id)
@@ -384,7 +404,7 @@ const closeSession = async (s: SessionItem) => {
     appendNotice(s, '会话已结束')
     showToast('会话已结束')
   } catch (e: any) {
-    showToast('结束会话失败：' + (e.message || '未知错误'))
+    showToast('结束会话失败：' + explainPermissionError(e), 'error')
   } finally {
     setBusy(s.id, 'close', false)
   }
@@ -440,7 +460,9 @@ const escClose = (e: KeyboardEvent) => {
 }
 
 onMounted(() => {
-  fetchSessions()
+  // 2026-09-30: 权限先加载, 避免转接/关闭按钮先渲染再消失
+  // () => fetchSessions() 避免把 fetchSessions 的参数传给 load().then 的回调
+  load().then(() => fetchSessions())
   window.addEventListener('keydown', escClose)
 })
 
@@ -1028,6 +1050,10 @@ nav a.router-link-active {
   padding: 10px 18px;
   border-radius: 9999px;
   z-index: 200;
+}
+/* 2026-09-30: 错误态用红色, 避免权限不足提示和成功提示长得一样 */
+.toast.error {
+  background: rgba(199, 0, 21, 0.95);
 }
 .toast-enter-active,
 .toast-leave-active {

@@ -92,6 +92,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, computed } from 'vue'
 import { sessionApi } from '@/api'
+import { explainPermissionError } from '@/composables/usePerms'
 import { marked } from 'marked'
 
 const question = ref('')
@@ -254,10 +255,12 @@ const sendQuestion = async () => {
     messages.value.push(data.ai_message)
     sessionStatus.value = data.session_status || sessionStatus.value
   } catch (e: any) {
+    // 2026-09-30: 原来这里会把 403 权限不足显示成「请求失败：Permission denied: xxx」,
+    // 对普通用户毫无意义; 现在统一走 explainPermissionError。
     messages.value.push({
       msg_id: 'err_' + Date.now(),
       role: 'assistant',
-      content: '抱歉，请求失败：' + (e.response?.data?.detail || e.message || '未知错误')
+      content: explainPermissionError(e)
     })
   } finally {
     loading.value = false

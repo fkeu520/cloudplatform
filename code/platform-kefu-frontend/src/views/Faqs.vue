@@ -20,7 +20,7 @@
     <div class="content">
       <!-- 工具栏 -->
       <div class="toolbar">
-        <button class="btn-primary" @click="openCreateModal">
+        <button class="btn-primary" @click="openCreateModal" v-if="canEditFaq">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -57,7 +57,7 @@
                 <td class="mono">{{ faq.hit_count }}</td>
                 <td class="mono">{{ faq.sat_avg != null ? faq.sat_avg.toFixed(1) : '-' }}</td>
                 <td>
-                  <label class="toggle" @click.prevent="toggleEnabled(faq)">
+                  <label class="toggle" @click.prevent="toggleEnabled(faq)" v-if="canEditFaq">
                     <input type="checkbox" :checked="faq.enabled" />
                     <span class="toggle-slider"></span>
                   </label>
@@ -165,8 +165,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { faqApi } from '@/api'
+import { usePerms, explainPermissionError } from '@/composables/usePerms'
+
+// 2026-09-30: FAQ 的增删改后端统一校验 kefu:faqs, 前端按权限控显隐
+const { load, can } = usePerms()
+const canEditFaq = computed(() => can('kefu:faqs'))
 
 interface FaqResponse {
   faq_id: string
@@ -279,6 +284,12 @@ const validate = (): boolean => {
 }
 
 const saveFaq = async () => {
+  if (!canEditFaq.value) {
+    showToast(explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:faqs' } }
+    }), 'error')
+    return
+  }
   if (!validate()) return
   saving.value = true
   try {
@@ -297,7 +308,7 @@ const saveFaq = async () => {
     closeModal()
     await loadFaqs()
   } catch (e: any) {
-    showToast(e.response?.data?.detail || '保存失败', 'error')
+    showToast(explainPermissionError(e), 'error')
   } finally {
     saving.value = false
   }
@@ -309,6 +320,12 @@ const confirmDelete = (faq: FaqResponse) => {
 }
 
 const deleteFaq = async () => {
+  if (!canEditFaq.value) {
+    showToast(explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:faqs' } }
+    }), 'error')
+    return
+  }
   if (!deletingFaq.value) return
   deleting.value = true
   try {
@@ -318,24 +335,26 @@ const deleteFaq = async () => {
     deletingFaq.value = null
     await loadFaqs()
   } catch (e: any) {
-    showToast(e.response?.data?.detail || '删除失败', 'error')
+    showToast(explainPermissionError(e), 'error')
   } finally {
     deleting.value = false
   }
 }
 
 const toggleEnabled = async (faq: FaqResponse) => {
+  if (!canEditFaq.value) return
   const original = faq.enabled
   try {
     faq.enabled = !faq.enabled
     await faqApi.update(faq.faq_id, { question: faq.question, answer: faq.answer, category: faq.category })
   } catch (e: any) {
     faq.enabled = original
-    showToast('状态更新失败', 'error')
+    showToast(explainPermissionError(e), 'error')
   }
 }
 
-onMounted(loadFaqs)
+// 2026-09-30: 权限先加载再取数据, 避免首帧闪现"无权限"占位
+load().then(loadFaqs)
 </script>
 
 <style scoped>

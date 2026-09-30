@@ -218,8 +218,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { dataSourceApi } from '@/api'
+import { usePerms, explainPermissionError } from '@/composables/usePerms'
+
+// 2026-09-30: 数据源写操作后端统一校验 kefu:settings
+const { load, can } = usePerms()
+const canSettings = computed(() => can('kefu:settings'))
 
 interface DataSourceItem {
   id: string
@@ -302,17 +307,28 @@ const loadData = async () => {
   }
 }
 
+// 2026-09-30: 数据源的写操作后端统一校验 kefu:settings, 前端按权限拦截
+const requireSettingsPerm = (): boolean => {
+  if (canSettings.value) return true
+  alert(explainPermissionError({
+    response: { status: 403, data: { detail: 'Permission denied: kefu:settings' } }
+  }))
+  return false
+}
+
 const toggleEnabled = async (ds: DataSourceItem) => {
+  if (!requireSettingsPerm()) return
   const newVal = !ds.enabled
   try {
     await dataSourceApi.update(ds.id, { enabled: newVal })
     ds.enabled = newVal
   } catch (e: any) {
-    alert(e.response?.data?.detail || '切换状态失败')
+    alert(explainPermissionError(e))
   }
 }
 
 const syncSource = async (ds: DataSourceItem) => {
+  if (!requireSettingsPerm()) return
   syncing.value[ds.id] = true
   try {
     const res = await dataSourceApi.sync(ds.id)
@@ -320,7 +336,7 @@ const syncSource = async (ds: DataSourceItem) => {
     ds.last_sync_status = 'success'
   } catch (e: any) {
     ds.last_sync_status = 'failed'
-    alert(e.response?.data?.detail || '同步失败')
+    alert(explainPermissionError(e))
   } finally {
     syncing.value[ds.id] = false
   }
@@ -338,6 +354,12 @@ const openRegisterModal = () => {
 }
 
 const registerSource = async () => {
+  if (!canSettings.value) {
+    registerError.value = explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:settings' } }
+    })
+    return
+  }
   if (!registerForm.id.trim()) {
     registerError.value = '请输入数据源ID'
     return
@@ -378,6 +400,12 @@ const openKeywordsEdit = (ds: DataSourceItem) => {
 }
 
 const saveKeywords = async () => {
+  if (!canSettings.value) {
+    keywordsError.value = explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:settings' } }
+    })
+    return
+  }
   if (!keywordsEditSource.value) return
   savingKeywords.value = true
   keywordsError.value = ''
@@ -390,13 +418,13 @@ const saveKeywords = async () => {
     keywordsEditSource.value.intent_keywords = keywords
     showKeywordsModal.value = false
   } catch (e: any) {
-    keywordsError.value = e.response?.data?.detail || '保存失败'
+    keywordsError.value = explainPermissionError(e)
   } finally {
     savingKeywords.value = false
   }
 }
 
-onMounted(loadData)
+load().then(loadData)
 </script>
 
 <style scoped>

@@ -17,8 +17,8 @@
       </div>
     </header>
     <div class="content">
-      <!-- 上传区域 -->
-      <div class="upload-card">
+      <!-- 上传区域 (需要 kefu:knowledge:add 权限) -->
+      <div class="upload-card" v-if="canUpload">
         <h3>上传文档</h3>
         <div
           class="upload-area"
@@ -39,6 +39,13 @@
           <p v-else>上传处理中...</p>
         </div>
         <p v-if="uploadError" class="error-msg">{{ uploadError }}</p>
+      </div>
+      <div class="upload-card no-perm" v-else>
+        <h3>上传文档</h3>
+        <div class="perm-hint">
+          <p>您没有文档上传权限，如需使用请联系管理员在「角色管理 → 设置权限」中开通
+            <code>kefu:knowledge:add</code>。</p>
+        </div>
       </div>
 
       <!-- 统计 -->
@@ -87,15 +94,15 @@
                 <td class="muted">{{ formatDate(doc.upload_time) }}</td>
                 <td class="actions">
                   <button class="btn-text" @click="viewChunks(doc.doc_id)">查看切片</button>
-                  <button class="btn-text" @click="reprocessDoc(doc.doc_id)" :disabled="doc.status === 'processing'">重新处理</button>
-                  <button class="btn-text danger" @click="deleteDoc(doc.doc_id)">删除</button>
+                  <button v-if="canEdit" class="btn-text" @click="reprocessDoc(doc.doc_id)" :disabled="doc.status === 'processing'">重新处理</button>
+                  <button v-if="canDelete" class="btn-text danger" @click="deleteDoc(doc.doc_id)">删除</button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         <div v-else class="empty-state">
-          <p>暂无文档，请上传</p>
+          <p>暂无文档{{ canUpload ? '，请上传' : '' }}</p>
         </div>
       </div>
 
@@ -124,8 +131,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { knowledgeApi } from '@/api'
+import { usePerms, explainPermissionError } from '@/composables/usePerms'
+
+// 2026-09-30: 按钮按权限显隐。此前前端完全不做判断, 按钮对所有人显示,
+// 点击后拿 403 再被笼统显示成「上传失败」, 用户无从判断是权限还是故障。
+const { load, can } = usePerms()
+const canUpload = computed(() => can('kefu:knowledge:add'))
+const canEdit = computed(() => can('kefu:knowledge:edit'))
+const canDelete = computed(() => can('kefu:knowledge:delete'))
+
 const fileInput = ref<HTMLInputElement>()
 const uploading = ref(false)
 const uploadError = ref('')
@@ -149,6 +165,13 @@ const handleDrop = (e: DragEvent) => {
 }
 
 const uploadFile = async (file: File) => {
+  // 双保险: 按钮已隐藏, 这里再挡一次, 避免拖拽/程序化调用绕过
+  if (!canUpload.value) {
+    uploadError.value = explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:knowledge:add' } }
+    })
+    return
+  }
   uploading.value = true
   uploadError.value = ''
   try {
@@ -157,7 +180,10 @@ const uploadFile = async (file: File) => {
     await knowledgeApi.uploadDoc(formData)
     await loadData()
   } catch (e: any) {
-    uploadError.value = e.response?.data?.detail || '上传失败'
+    // 2026-09-30: 原来这里是 `e.response?.data?.detail || '上传失败'` ——
+    // 请求根本没发出时 e.response 是 undefined, 一律显示「上传失败」, 无法区分
+    // 权限不足 / 登录过期 / 后端故障 / 文件超限。
+    uploadError.value = explainPermissionError(e)
   } finally {
     uploading.value = false
     if (fileInput.value) fileInput.value.value = ''
@@ -178,21 +204,33 @@ const loadData = async () => {
 }
 
 const deleteDoc = async (docId: string) => {
+  if (!canDelete.value) {
+    alert(explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:knowledge:delete' } }
+    }))
+    return
+  }
   if (!confirm('确定删除该文档？')) return
   try {
     await knowledgeApi.deleteDoc(docId)
     await loadData()
   } catch (e: any) {
-    alert(e.response?.data?.detail || '删除失败')
+    alert(explainPermissionError(e))
   }
 }
 
 const reprocessDoc = async (docId: string) => {
+  if (!canEdit.value) {
+    alert(explainPermissionError({
+      response: { status: 403, data: { detail: 'Permission denied: kefu:knowledge:edit' } }
+    }))
+    return
+  }
   try {
     await knowledgeApi.reprocessDoc(docId)
     await loadData()
   } catch (e: any) {
-    alert(e.response?.data?.detail || '重新处理失败')
+    alert(explainPermissionError(e))
   }
 }
 
@@ -225,13 +263,32 @@ const statusText = (status: string) => {
   return map[status] || status
 }
 
-onMounted(loadData)
+// 2026-09-30: 权限在 onMounted 之前就要进 store, 否则首帧会先渲染出
+// "无权限" 占位再切换, 按钮闪一下。load() 走缓存, 重复调用无副作用。
+load().then(loadData)
 </script>
 
 <style scoped>
 .knowledge-page {
   min-height: 100vh;
   background: #f2f2f7;
+}
+.upload-card.no-perm .perm-hint {
+  padding: 18px 16px;
+  border: 1px dashed #d1d1d6;
+  border-radius: 10px;
+  background: #fafafa;
+  color: #6e6e73;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.upload-card.no-perm .perm-hint code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #ececf0;
+  color: #1d1d1f;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
 }
 header {
   display: flex;
