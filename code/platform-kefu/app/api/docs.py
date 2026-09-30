@@ -18,7 +18,10 @@ tmp_dir = Path(__file__).parent.parent / "data" / "tmp"
 
 vector_store = get_store(vector_dir)
 processor = DocumentProcessor(tmp_dir)
-chunker = Chunker(chunk_size=512, overlap=64)
+# 2026-09-30: 不再传 512/64 —— 旧值是"词数"语义, 对中文恒不生效,
+# 导致整篇文档成为单块并超过 bge-m3 的 8192 token 上限。改用 Chunker 默认值
+# (1000/100 字符), 阈值依据见 services/chunker.py 顶部注释。
+chunker = Chunker()
 
 minio_client = Minio(
     endpoint=settings.minio_endpoint,
