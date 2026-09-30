@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     mysql_password: str = "platform123"
     mysql_database: str = "platform_kefu"
 
+    # 2026-09-30 连接池容量与获取超时。
+    # maxsize 决定并发上限: 每个 SSE 问答会同时占用一条连接, 5 太小。
+    # acquire_timeout 是安全网 —— 正常情况下永远用不到; 一旦有 handler 再次泄漏连接,
+    # 池耗尽时会抛 PoolExhaustedError (503) 而不是让请求永久挂起。
+    # 挂起是最坏的失败模式: 容器健康检查照样 200, 界面只表现为"发送无响应"。
+    mysql_pool_max_size: int = 10
+    mysql_acquire_timeout: float = 10.0
+
     minio_endpoint: str = "platform-minio:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin123"

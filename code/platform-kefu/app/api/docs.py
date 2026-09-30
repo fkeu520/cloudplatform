@@ -68,14 +68,17 @@ async def upload_document(request: Request, file: UploadFile = File(...)):
     )
 
     conn = await get_db_connection()
-    async with conn.cursor() as cur:
-        from datetime import datetime
-        await cur.execute(
-            "INSERT INTO documents (doc_id, tenant_id, name, type, size_bytes, upload_time, status, file_path) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-            (doc_id, tenant_id, file.filename, ext, len(content), datetime.now().isoformat(), 'processing', object_name)
-        )
-    conn.close()
+    try:
+        async with conn.cursor() as cur:
+            from datetime import datetime
+            await cur.execute(
+                "INSERT INTO documents (doc_id, tenant_id, name, type, size_bytes, upload_time, status, file_path) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (doc_id, tenant_id, file.filename, ext, len(content), datetime.now().isoformat(), 'processing', object_name)
+            )
+    finally:
+        # 必须 finally: 异常时不归还连接会耗尽池位 (2026-09-30)
+        conn.close()
 
     try:
         tmp_path = tmp_dir / object_name
@@ -90,35 +93,41 @@ async def upload_document(request: Request, file: UploadFile = File(...)):
             vectors = embedder.embed(chunk_texts)
 
             conn = await get_db_connection()
-            async with conn.cursor() as cur:
-                chunk_ids = []
-                for i, chunk_text in enumerate(chunk_texts):
-                    cid = str(uuid.uuid4())
-                    chunk_ids.append(cid)
-                    await cur.execute(
-                        "INSERT INTO chunks (chunk_id, tenant_id, doc_id, content, token_count, index_in_doc) "
-                        "VALUES (%s, %s, %s, %s, %s, %s)",
-                        (cid, tenant_id, doc_id, chunk_text, chunker.estimate_tokens(chunk_text), i)
-                    )
-                vector_ids = vector_store.add_vectors(chunk_ids, vectors)
-                for cid, vid in zip(chunk_ids, vector_ids):
+            try:
+                async with conn.cursor() as cur:
+                    chunk_ids = []
+                    for i, chunk_text in enumerate(chunk_texts):
+                        cid = str(uuid.uuid4())
+                        chunk_ids.append(cid)
                         await cur.execute(
-                            "UPDATE chunks SET vector_id = %s WHERE chunk_id = %s AND tenant_id = %s",
-                            (vid, cid, tenant_id),
+                            "INSERT INTO chunks (chunk_id, tenant_id, doc_id, content, token_count, index_in_doc) "
+                            "VALUES (%s, %s, %s, %s, %s, %s)",
+                            (cid, tenant_id, doc_id, chunk_text, chunker.estimate_tokens(chunk_text), i)
                         )
-                await cur.execute(
-                    "UPDATE documents SET status = 'ready', chunk_count = %s WHERE doc_id = %s AND tenant_id = %s",
-                    (len(chunks), doc_id, tenant_id)
-                )
-            conn.close()
+                    vector_ids = vector_store.add_vectors(chunk_ids, vectors)
+                    for cid, vid in zip(chunk_ids, vector_ids):
+                            await cur.execute(
+                                "UPDATE chunks SET vector_id = %s WHERE chunk_id = %s AND tenant_id = %s",
+                                (vid, cid, tenant_id),
+                            )
+                    await cur.execute(
+                        "UPDATE documents SET status = 'ready', chunk_count = %s WHERE doc_id = %s AND tenant_id = %s",
+                        (len(chunks), doc_id, tenant_id)
+                    )
+            finally:
+                # 必须 finally: 走到下面的 except 会再取一条连接,
+                # 这里不归还就把池位耗尽了 (2026-09-30)
+                conn.close()
     except Exception as e:
         conn = await get_db_connection()
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE documents SET status = 'failed' WHERE doc_id = %s AND tenant_id = %s",
-                (doc_id, tenant_id),
-            )
-        conn.close()
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE documents SET status = 'failed' WHERE doc_id = %s AND tenant_id = %s",
+                    (doc_id, tenant_id),
+                )
+        finally:
+            conn.close()
         raise HTTPException(500, f"文档处理失败: {str(e)}")
 
     return DocumentResponse(
@@ -234,36 +243,40 @@ async def reprocess_document(request: Request, doc_id: str):
         if chunks:
             vectors = embedder.embed(chunks)
             conn = await get_db_connection()
-            async with conn.cursor() as cur:
-                cids = []
-                for i, ct in enumerate(chunks):
-                    cid = str(uuid.uuid4())
-                    cids.append(cid)
-                    await cur.execute(
-                        "INSERT INTO chunks (chunk_id, tenant_id, doc_id, content, token_count, index_in_doc) "
-                        "VALUES (%s, %s, %s, %s, %s, %s)",
-                        (cid, tenant_id, doc_id, ct, chunker.estimate_tokens(ct), i)
-                    )
-                vids = vector_store.add_vectors(cids, vectors)
-                for cid, vid in zip(cids, vids):
+            try:
+                async with conn.cursor() as cur:
+                    cids = []
+                    for i, ct in enumerate(chunks):
+                        cid = str(uuid.uuid4())
+                        cids.append(cid)
                         await cur.execute(
-                            "UPDATE chunks SET vector_id = %s WHERE chunk_id = %s AND tenant_id = %s",
-                            (vid, cid, tenant_id),
+                            "INSERT INTO chunks (chunk_id, tenant_id, doc_id, content, token_count, index_in_doc) "
+                            "VALUES (%s, %s, %s, %s, %s, %s)",
+                            (cid, tenant_id, doc_id, ct, chunker.estimate_tokens(ct), i)
                         )
-                await cur.execute(
-                    "UPDATE documents SET status = 'ready', chunk_count = %s "
-                    "WHERE doc_id = %s AND tenant_id = %s",
-                    (len(chunks), doc_id, tenant_id),
-                )
-            conn.close()
+                    vids = vector_store.add_vectors(cids, vectors)
+                    for cid, vid in zip(cids, vids):
+                            await cur.execute(
+                                "UPDATE chunks SET vector_id = %s WHERE chunk_id = %s AND tenant_id = %s",
+                                (vid, cid, tenant_id),
+                            )
+                    await cur.execute(
+                        "UPDATE documents SET status = 'ready', chunk_count = %s "
+                        "WHERE doc_id = %s AND tenant_id = %s",
+                        (len(chunks), doc_id, tenant_id),
+                    )
+            finally:
+                conn.close()
 
         return {"message": "重新处理完成"}
     except Exception as e:
         conn = await get_db_connection()
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE documents SET status = 'failed' WHERE doc_id = %s AND tenant_id = %s",
-                (doc_id, tenant_id),
-            )
-        conn.close()
+        try:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE documents SET status = 'failed' WHERE doc_id = %s AND tenant_id = %s",
+                    (doc_id, tenant_id),
+                )
+        finally:
+            conn.close()
         raise HTTPException(500, f"重新处理失败: {str(e)}")

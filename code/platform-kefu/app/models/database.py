@@ -1,8 +1,61 @@
+import asyncio
+
 import aiomysql
 from typing import List
 from app.config import settings
 
 POOL: aiomysql.Pool = None
+
+
+class PoolExhaustedError(RuntimeError):
+    """获取连接超时 —— 池已被占满, 通常意味着某处 handler 泄漏了连接。"""
+
+
+class _PooledConnection:
+    """把 ``close()`` 重定向到 ``Pool.release()`` 的连接代理。
+
+    为什么需要它
+    ------------
+    ``aiomysql.Connection.close()`` 只关 socket。连接池仍把该连接留在自己的
+    ``_used`` 集合里, 直到有人调用 ``Pool.release(conn)``。于是「取一条连接 →
+    try/finally 里 close()」这种写法每个请求净消耗一个池位; 池位耗尽后
+    ``Pool.acquire()`` 会永久阻塞在内部条件变量上
+    —— 所有碰 MySQL 的 ``/api/kefu/*`` handler 全部失去响应, 而不碰库的
+    ``/api/kefu/health`` 依然返回 200, 容器在监控里始终"健康"。
+
+    142 实测: 浏览器一轮流程
+    ``POST /sessions → GET /sessions/my → GET /sessions/{sid} → GET /messages``
+    正好四个请求, 所以第五个 (发送消息) 就是第一个挂起的, 现象是"点击发送无响应"。
+    同版本 aiomysql 0.3.2 上复现: 第 6 次 ``pool.acquire()`` 直接超时。
+
+    除 ``close()`` 外的所有属性都转发给真实连接, 因此现有 36 处
+    ``get_db_connection()`` 调用点无需改动即自动正确; ``close()`` 做成幂等,
+    因为 docs.py 的异常路径可能走到它两次 (重复 release 会触发 aiomysql 的
+    ``assert conn in self._used``)。
+    """
+
+    __slots__ = ("_pool", "_conn", "_released")
+
+    def __init__(self, pool: aiomysql.Pool, conn: aiomysql.Connection) -> None:
+        self._pool = pool
+        self._conn = conn
+        self._released = False
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    def close(self) -> None:
+        if self._released:
+            return
+        self._released = True
+        # 刻意不调用 conn.close(): socket 必须保持打开才能被复用。
+        self._pool.release(self._conn)
+
+    async def __aenter__(self) -> aiomysql.Connection:
+        return self._conn
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        self.close()
 
 CREATE_TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS documents (
@@ -235,7 +288,7 @@ async def get_pool():
             charset='utf8mb4',
             autocommit=True,
             minsize=1,
-            maxsize=5,
+            maxsize=settings.mysql_pool_max_size,
         )
     return POOL
 
@@ -276,6 +329,21 @@ async def init_tables():
                 await cur.execute(stmt)
 
 
-async def get_db_connection():
+async def get_db_connection() -> _PooledConnection:
+    """从池中取一条连接, 交给调用方在 ``finally`` 里 ``close()``。
+
+    ``close()`` 会把连接归还池中 (见 :class:`_PooledConnection`)。取不到连接时抛
+    :class:`PoolExhaustedError` 而不是无限等待 —— 由 main.py 映射成 503。
+    """
     pool = await get_pool()
-    return await pool.acquire()
+    try:
+        conn = await asyncio.wait_for(
+            pool.acquire(), timeout=settings.mysql_acquire_timeout
+        )
+    except asyncio.TimeoutError as exc:
+        raise PoolExhaustedError(
+            f"no MySQL connection available within {settings.mysql_acquire_timeout}s "
+            f"(pool maxsize={settings.mysql_pool_max_size}); a handler is most "
+            f"likely leaking pooled connections"
+        ) from exc
+    return _PooledConnection(pool, conn)

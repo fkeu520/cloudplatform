@@ -17,12 +17,12 @@ Design contract:
 import asyncio
 import hmac
 import hashlib
+import json
 import jwt as pyjwt
 import os
 import unittest
-from unittest.mock import MagicMock
 from starlette.requests import Request
-from starlette.datastructures import Headers, State
+from starlette.datastructures import Headers
 
 
 # Seed env vars BEFORE importing app.config (which instantiates Settings at module level)
@@ -67,21 +67,26 @@ def _build_request(
         "method": method,
         "path": path,
         "headers": list(headers_obj.raw),
+        # 纯 ASGI 中间件写入 scope["state"]["user"]; Starlette 的 Request.state
+        # 惰性创建的就是一个普通 dict, 所以这里必须同样是 dict 而不是 State。
+        "state": {},
     }
-    req = Request(scope)
-    req._headers = headers_obj
-    req._state = State({})
-    return req
+    return Request(scope)
 
 
-def _make_call_next(called_with: list):
-    """Return a call_next that records invocations and returns a 200 sentinel."""
-    async def call_next(request: Request):
-        called_with.append(request)
-        resp = MagicMock()
-        resp.status_code = 200
-        return resp
-    return call_next
+class _CapturedResponse:
+    """从 ASGI send() 消息里拼出的最小 Response 替身。
+
+    保留 ``.status_code`` / ``.body`` / ``.json()``, 让 10 个用例的断言体
+    在 BaseHTTPMiddleware → 纯 ASGI 迁移后无需改动。
+    """
+
+    def __init__(self) -> None:
+        self.status_code: int | None = None
+        self.body = b""
+
+    def json(self):
+        return json.loads(self.body or b"{}")
 
 
 # ---------------------------------------------------------------------------
@@ -103,23 +108,45 @@ class TestAuthBoundaryP0(unittest.TestCase):
     """Trust-boundary P0: X-User-* accepted ONLY with valid X-Kefu-Internal-Token."""
 
     def _dispatch(self, req, settings):
-        """Helper to run middleware.dispatch and return (result, called_requests)."""
+        """Drive the middleware through its pure-ASGI interface.
+
+        2026-09-29 (c3399065 / 24cbeb20) 把 JwtAuthMiddleware 从 BaseHTTPMiddleware
+        改成了纯 ASGI (`__call__(scope, receive, send)`), 并改为读模块级
+        `settings` 单例而非 `request.app.state.settings`。本 helper 同步跟上,
+        否则整个信任边界测试套件会以 "no attribute 'dispatch'" 全部 error ——
+        也就是说 2026-09-29 起这些 P0 断言实际上一次都没跑过。
+
+        返回 (result, called): result 是拼装出来的响应, called 是下游 app 收到的
+        Request 列表 (断言 request.state.user 用)。
+        """
+        from app.core import auth_middleware
         from app.core.auth_middleware import JwtAuthMiddleware
 
+        called: list[Request] = []
+        captured = _CapturedResponse()
+
         async def dummy_app(scope, receive, send):
-            pass
+            called.append(Request(scope))
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+            await send({"type": "http.response.body", "body": b""})
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            if message["type"] == "http.response.start":
+                captured.status_code = message["status"]
+            elif message["type"] == "http.response.body":
+                captured.body += message.get("body", b"")
 
         middleware = JwtAuthMiddleware(dummy_app)
-        # Mimic FastAPI's app.state.settings wiring from main.py lifespan
-        mock_app = MagicMock()
-        mock_app.state.settings = settings
-        # Patch req.scope["app"] so request.app.state.settings works (Starlette convention)
-        req.scope["app"] = mock_app
-        called = []
-        result = asyncio.run(
-            middleware.dispatch(req, lambda r: _make_call_next(called)(r))
-        )
-        return result, called
+        original_settings = auth_middleware.settings
+        auth_middleware.settings = settings
+        try:
+            asyncio.run(middleware(req.scope, receive, send))
+        finally:
+            auth_middleware.settings = original_settings
+        return captured, called
 
     # ---- Happy path: valid internal token + X-User-* ----
 

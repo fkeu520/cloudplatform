@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
-from app.models.database import init_db, init_tables
+from app.models.database import init_db, init_tables, PoolExhaustedError
 from app.core.auth_middleware import JwtAuthMiddleware
 from app.config import settings
 from app.api.health import router as health_router
@@ -24,6 +25,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="platform-kefu", version="1.2.0", lifespan=lifespan)
 app.add_middleware(JwtAuthMiddleware)
+
+
+@app.exception_handler(PoolExhaustedError)
+async def _pool_exhausted_handler(request: Request, exc: PoolExhaustedError):
+    """连接池耗尽 → 503, 而不是让请求永久挂起。
+
+    挂起是最坏的失败模式: /api/kefu/health 不碰库照样 200, 容器在监控里显示健康,
+    界面只表现为"点击发送无响应"。返回 503 至少能让问题立刻可见。
+    """
+    return JSONResponse(
+        status_code=503,
+        content={"code": 503, "message": f"Kefu data layer unavailable: {exc}"},
+    )
 
 app.include_router(health_router, prefix="", tags=["system"])
 app.include_router(knowledge_router, prefix="/api/kefu/knowledge", tags=["knowledge"])
