@@ -221,6 +221,9 @@ const uploadFile = async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
     await knowledgeApi.uploadDoc(formData)
+    // 顺序不可颠倒: uploadDoc 返回的是 processing, 必须先用 loadData() 把新文档
+    // 刷进列表, 再 startPolling(); 否则 check() 读到的是上传前的旧列表(无
+    // processing), 会立即停表且不刷新, 新文档要手动刷新才可见。
     await loadData()
     startPolling()
   } catch (e: any) {
