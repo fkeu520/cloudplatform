@@ -8,7 +8,7 @@ import api from '@/api'
  * 但前端此前完全不做权限判断 —— 按钮对所有人显示, 点击后才拿 403,
  * 而 Knowledge.vue 把任何异常都显示成笼统的「上传失败」, 用户无从判断原因。
  *
- * 数据来源: GET /menu/perms -> platform-user 汇总该用户角色绑定的所有
+ * 数据来源: GET /api/menu/perms -> platform-user 汇总该用户角色绑定的所有
  * sys_menu.perms。平台管理员 (userType=2) 走 has_permission 的绕过分支,
  * 拿不到也能操作, 所以这里对 userType=2 直接放行, 避免管理员被误挡。
  *
@@ -47,7 +47,10 @@ export function usePerms() {
           // 优先取 claim 里的 userType; 取不到再从 permissions 长度猜
           userType.value = claims.userType != null ? Number(claims.userType) : null
         }
-        const res = await api.get('/menu/perms')
+        // 必须带 /api 前缀: 本实例 baseURL='' , 而 nginx 只把 /api/ 转发到网关,
+        // 裸 /menu/perms 会落到 SPA fallback 拿回 index.html(200 + text/html),
+        // 被当成空权限列表 -> 删除/上传/重新处理按钮全部被隐藏 (2026-10-08 修复)。
+        const res = await api.get('/api/menu/perms')
         perms.value = (res.data?.data as string[]) || []
       } else {
         perms.value = []
