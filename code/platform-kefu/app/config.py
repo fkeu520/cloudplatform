@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     mysql_pool_max_size: int = 10
     mysql_acquire_timeout: float = 10.0
 
+    # 文档异步处理线程池: 默认 2 个常驻 worker, 4 个 offload 线程。
+    # executor_workers 覆盖所有同步阻塞调用 (minio/mineru/httpx/CPU 切块)。
+    doc_executor_workers: int = 4
+    # worker 数 = 常驻并发 _process_document 数。单进程 uvicorn 假设下,
+    # 2 足以消化日常小文档; 大文档多时调 4。
+    doc_worker_count: int = 2
+    # 入队上限: put_nowait 超此值 → QueueBusy → 前端 503。
+    doc_queue_maxsize: int = 20
+
     minio_endpoint: str = "platform-minio:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin123"

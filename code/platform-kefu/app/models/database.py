@@ -68,7 +68,12 @@ CREATE TABLE IF NOT EXISTS documents (
     status VARCHAR(32) NOT NULL DEFAULT 'processing',
     chunk_count INT NOT NULL DEFAULT 0,
     file_path VARCHAR(512),
-    INDEX idx_documents_tenant (tenant_id)
+    content_hash VARCHAR(64) NULL,
+    error_message VARCHAR(512) NULL,
+    started_at DATETIME NULL,
+    finished_at DATETIME NULL,
+    INDEX idx_documents_tenant (tenant_id),
+    UNIQUE INDEX uk_documents_tenant_hash (tenant_id, content_hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -281,6 +286,47 @@ async def _ensure_tenant_schema(cur) -> None:
         if (await cur.fetchone())[0] == 0:
             await cur.execute(f"ALTER TABLE `{table}` ADD COLUMN {definition}")
 
+
+# 2026-10  P1/P2: 文档异步上传 新增可空列 + 租户级唯一索引。
+# 沿用 `_ensure_tenant_schema` 的信息模式检查风格 —— 不用 IF NOT EXISTS (DDL
+# 不可识别), 改为显式查 information_schema 再决定 ALTER, 保证幂等。
+_DOCUMENT_SCHEMA_MIGRATIONS = (
+    ("documents", "content_hash VARCHAR(64) NULL"),
+    ("documents", "error_message VARCHAR(512) NULL"),
+    ("documents", "started_at DATETIME NULL"),
+    ("documents", "finished_at DATETIME NULL"),
+)
+
+_DOCUMENT_UNIQUE_INDEX = (
+    "documents",
+    "uk_documents_tenant_hash",
+    "(tenant_id, content_hash)",
+)
+
+
+async def _ensure_document_schema(cur) -> None:
+    """Add content_hash/error_message/started_at/finished_at + unique index."""
+    for table, definition in _DOCUMENT_SCHEMA_MIGRATIONS:
+        await cur.execute(
+            "SELECT COUNT(*) FROM information_schema.columns "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s",
+            (table, definition.split()[0]),
+        )
+        if (await cur.fetchone())[0] == 0:
+            await cur.execute(f"ALTER TABLE `{table}` ADD {definition}")
+
+    await cur.execute(
+        "SELECT COUNT(*) FROM information_schema.statistics "
+        "WHERE table_schema=DATABASE() AND table_name=%s AND index_name=%s",
+        (_DOCUMENT_UNIQUE_INDEX[0], _DOCUMENT_UNIQUE_INDEX[1]),
+    )
+    if (await cur.fetchone())[0] == 0:
+        await cur.execute(
+            f"ALTER TABLE `{_DOCUMENT_UNIQUE_INDEX[0]}` "
+            f"ADD UNIQUE INDEX `{_DOCUMENT_UNIQUE_INDEX[1]}` "
+            f"{_DOCUMENT_UNIQUE_INDEX[2]}"
+        )
+
     for table, index_name, column_name in _TENANT_INDEX_MIGRATIONS:
         await cur.execute(
             "SELECT COUNT(*) FROM information_schema.statistics "
@@ -357,6 +403,7 @@ async def init_tables():
             for stmt in _split_sql_statements(CREATE_TABLES_SQL):
                 await cur.execute(stmt)
             await _ensure_tenant_schema(cur)
+            await _ensure_document_schema(cur)
             for stmt in _split_sql_statements(SEED_DATA_SOURCES_SQL):
                 await cur.execute(stmt)
             await _ensure_data_source_refs(cur)

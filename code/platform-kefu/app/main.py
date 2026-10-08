@@ -8,19 +8,27 @@ from app.config import settings
 from app.api.health import router as health_router
 from app.api.knowledge import router as knowledge_router
 from app.api.ask import router as ask_router
-from app.api.docs import router as docs_router
+from app.api.docs import router as docs_router, reconcile_processing_docs
 from app.api.sessions import router as sessions_router
 from app.api.faqs import router as faqs_router
 from app.api.data_sources import router as data_sources_router
 from app.api.dashboard import router as dashboard_router
+from app.services.processing_queue import get_queue
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     await init_tables()
     app.state.settings = settings
+
+    # 先启动 worker, 再 reconcile (reconcile 会把卡住的 processing 行重入队)
+    q = get_queue()
+    q.start()
+    await reconcile_processing_docs()
+
     print("[OK] platform-kefu started")
     yield
+    q.stop()
     print("[OK] platform-kefu shutting down")
 
 app = FastAPI(title="platform-kefu", version="1.2.0", lifespan=lifespan)

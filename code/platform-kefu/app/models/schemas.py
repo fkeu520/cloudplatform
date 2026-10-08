@@ -24,6 +24,16 @@ class DocumentResponse(BaseModel):
     upload_time: str
     status: str
     chunk_count: int
+    error_message: Optional[str] = None
+
+
+class DocStatusResponse(BaseModel):
+    doc_id: str
+    status: str
+    chunk_count: int
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
 
 
 class DocumentListResponse(BaseModel):
