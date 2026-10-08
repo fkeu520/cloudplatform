@@ -719,7 +719,7 @@ services:
       # 端口 8094 (不是 8080)。
       - PLATFORM_ENTERPRISE_BASE_URL=${PLATFORM_ENTERPRISE_BASE_URL:-http://park-enterprise:8094}
     volumes:
-      - kefu-vector-index:/app/data/vector_index
+      - kefu-vector-index:/app/app/data/vector_index
     depends_on:
       mysql:
         condition: service_healthy

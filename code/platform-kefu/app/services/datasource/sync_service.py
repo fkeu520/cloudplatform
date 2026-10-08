@@ -210,11 +210,17 @@ async def sync_source(source_id: str = "park-enterprise", tenant_id: Optional[in
             if existing:
                 old_hash = existing["profile_hash"]
                 old_version = existing["version"]
-                if old_hash == p_hash:
+                cid = _chunk_id(source_id, rec_id)
+                if old_hash == p_hash and cid in store.chunk_id_to_vector_id:
                     summary["skipped"] += 1
+                elif old_hash == p_hash:
+                    # 内容未变但向量缺失 (上次 embed 失败 / 索引被清空) -> 补 embed。
+                    # 否则幂等键只看 hash, 会永久跳过, 向量再也补不回来。
+                    summary["updated"] += 1
+                    to_embed.append((cid, profile))
                 else:
                     summary["updated"] += 1
-                    to_embed.append((_chunk_id(source_id, rec_id), profile))
+                    to_embed.append((cid, profile))
                     await _upsert_record(
                         source_id=source_id,
                         record_key=rkey,
