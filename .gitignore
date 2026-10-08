@@ -74,13 +74,15 @@ aistudio.google.com.json
 opencode*.json
 
 # Docs (WIP restructuring, 2026-06-16 重新设计)
-# 重组原则: doc/log / doc/decision / doc/handoff 进 git (项目状态/决策/会话交接)
+# 重组原则: doc/log / doc/decision 进 git (项目状态/决策)
 #           doc/ops / doc/plan / doc/spec / doc/sql 不进 git (运维手册/中期规划/规范/SQL 是参考文档)
+#           doc/handoff 不进 git (会话交接为本地文件, 2026-10-08 起; 见 handoff-2026-10-08-ai-sdlc-audit)
 # 注: phase_-1-*.md 是 csyh 融合 W1 产出物, 默认进 doc/log/, 无需额外放行
 doc/ops/
 doc/plan/
 doc/spec/
 doc/sql/
+doc/handoff/
 
 # Codegraph / tool artifacts
 # 注意: gitignore 只认行首 # 作为注释, 行尾 # 会被当成规则的一部分, 导致整行失效
