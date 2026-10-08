@@ -90,7 +90,21 @@
                 <td class="muted">{{ doc.type }}</td>
                 <td class="muted">{{ formatSize(doc.size_bytes) }}</td>
                 <td class="mono">{{ doc.chunk_count }}</td>
-                <td><span :class="['status-badge', doc.status]">{{ statusText(doc.status) }}</span></td>
+                <td>
+                  <span
+                    v-if="doc.status === 'failed' && doc.error_message"
+                    :title="doc.error_message"
+                    class="status-badge failed"
+                  >
+                    失败
+                  </span>
+                  <span
+                    v-else
+                    :class="['status-badge', doc.status]"
+                  >
+                    {{ statusText(doc.status) }}
+                  </span>
+                </td>
                 <td class="muted">{{ formatDate(doc.upload_time) }}</td>
                 <td class="actions">
                   <button class="btn-text" @click="viewChunks(doc.doc_id)">查看切片</button>
@@ -131,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { knowledgeApi } from '@/api'
 import { usePerms, explainPermissionError } from '@/composables/usePerms'
 
@@ -150,6 +164,35 @@ const stats = ref<any>(null)
 const chunks = ref<any[]>([])
 const showChunksModal = ref(false)
 const isDragging = ref(false)
+
+let pollTimer: ReturnType<typeof setInterval> | null = null
+const MAX_POLL_COUNT = 60
+
+const startPolling = () => {
+  let count = 0
+  if (pollTimer) clearInterval(pollTimer)
+  const check = () => {
+    const hasProcessing = documents.value.some(d => d.status === 'processing')
+    if (hasProcessing && count < MAX_POLL_COUNT) {
+      count++
+      loadData()
+    } else {
+      if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+      }
+    }
+  }
+  pollTimer = setInterval(check, 2000)
+  check()
+}
+
+onUnmounted(() => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+})
 
 const triggerUpload = () => fileInput.value?.click()
 
@@ -179,6 +222,7 @@ const uploadFile = async (file: File) => {
     formData.append('file', file)
     await knowledgeApi.uploadDoc(formData)
     await loadData()
+    startPolling()
   } catch (e: any) {
     // 2026-09-30: 原来这里是 `e.response?.data?.detail || '上传失败'` ——
     // 请求根本没发出时 e.response 是 undefined, 一律显示「上传失败」, 无法区分
