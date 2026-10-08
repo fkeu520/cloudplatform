@@ -218,6 +218,45 @@ CREATE TABLE IF NOT EXISTS kefu_evaluation (
     INDEX idx_session (session_id),
     INDEX idx_source (source_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 2026-10 Phase-1 全量摄取: 数据源记录 + 字段展开表
+CREATE TABLE IF NOT EXISTS kefu_datasource_record (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    source_id VARCHAR(64) NOT NULL,
+    record_key VARCHAR(191) NOT NULL,
+    entity_type VARCHAR(64) NOT NULL DEFAULT 'enterprise',
+    entity_id VARCHAR(64) NOT NULL,
+    tenant_id BIGINT NOT NULL DEFAULT 0,
+    title VARCHAR(255) NOT NULL,
+    record_json JSON NOT NULL,
+    profile_text TEXT NOT NULL,
+    profile_hash CHAR(64) NOT NULL,
+    version INT NOT NULL DEFAULT 1,
+    status VARCHAR(32) NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_record_source_key (source_id, record_key),
+    INDEX idx_record_tenant (tenant_id),
+    INDEX idx_record_source_entity (source_id, entity_type, entity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS kefu_datasource_record_field (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    source_id VARCHAR(64) NOT NULL,
+    record_id BIGINT NOT NULL,
+    tenant_id BIGINT NOT NULL DEFAULT 0,
+    field_key VARCHAR(64) NOT NULL,
+    field_label VARCHAR(128) NOT NULL,
+    field_value TEXT NOT NULL,
+    field_value_norm VARCHAR(512) NOT NULL,
+    searchable TINYINT NOT NULL DEFAULT 1,
+    exact_matchable TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_record_field (record_id, field_key),
+    INDEX idx_field_lookup (source_id, tenant_id, field_key, field_value_norm(255)),
+    INDEX idx_field_exact (source_id, field_key, field_value_norm(255))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
 SEED_DATA_SOURCES_SQL = """

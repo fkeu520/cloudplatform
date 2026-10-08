@@ -1,4 +1,6 @@
 """数据源管理 API 路由"""
+import asyncio
+
 from fastapi import APIRouter, HTTPException, Request
 from app.models.schemas import DataSourceResponse, DataSourceListResponse, DataSourceUpdateRequest, DataSourceRegisterRequest
 from app.services.datasource.base import registry
@@ -94,5 +96,12 @@ async def sync_data_source(request: Request, source_id: str):
     a = registry.get(source_id)
     if not a:
         raise HTTPException(404, f"数据源不存在: {source_id}")
-    # 目前为实时查询，无需同步
+    if source_id == "park-enterprise":
+        # Phase-1 全量摄取: fire-and-forget, 立即返回, 后台完成拉取/入库/向量化
+        from app.services.datasource.sync_service import sync_source
+        task = asyncio.create_task(sync_source(source_id))
+        # 避免 task 被 GC 掉且异常无人消费
+        task.add_done_callback(lambda t: t.exception())
+        return {"message": "sync started", "source_id": source_id}
+    # 其他数据源目前为实时查询，无需同步
     return {"message": f"{source_id} 为实时查询，无需同步", "last_sync_at": None}

@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import logging
+import asyncio
 
 from app.models.database import init_db, init_tables, PoolExhaustedError
 from app.core.auth_middleware import JwtAuthMiddleware
@@ -15,6 +17,8 @@ from app.api.data_sources import router as data_sources_router
 from app.api.dashboard import router as dashboard_router
 from app.services.processing_queue import get_queue
 
+logger = logging.getLogger(__name__)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -25,6 +29,19 @@ async def lifespan(app: FastAPI):
     q = get_queue()
     q.start()
     await reconcile_processing_docs()
+
+    # Phase-1: fire-and-forget 全量摄取 park-enterprise 数据
+    # 上游不可达时仅记录日志, 绝不影响启动流程
+    async def _startup_sync():
+        try:
+            from app.services.datasource.sync_service import sync_source
+            summary = await sync_source("park-enterprise")
+            logger.info("[startup-sync] park-enterprise: %s", summary)
+        except Exception:
+            logger.exception("[startup-sync] park-enterprise sync failed; continuing startup")
+
+    _sync_task = asyncio.create_task(_startup_sync())
+    _sync_task.add_done_callback(lambda t: t.exception())
 
     print("[OK] platform-kefu started")
     yield
