@@ -52,6 +52,7 @@
 | 36.3 | 🟢 已解决 | 测试 | H2 tenant-test-schema.sql 缺 menu_category 列, TenantIsolationTest 失败 | 2026-06-29 |
 | 36.4 | 🟢 已解决 | 菜单过滤 | admin 后端 5 个菜单端点 (/tree/nav/user/permissions/role) 返回 ops-admin 菜单 | 2026-06-29 |
 | 37 | 🟢 已解决 | 角色管理 | 角色管理页操作列空白: docker/fix_perms.sql 手动脚本未在 217 部署链路中自动执行, sys_menu 缺 38-45 操作权限菜单, sys_role_menu role=1 也未关联 → getUserPermissions 不含 system:role:edit/add/del → TableActions 过滤所有按钮 → 操作列空 | 2026-06-29 |
+| 38 | 🔴 待修复 | 前端/功能 | 13 处功能已实现但模板无绑定 → UI 不可达（含整套「重置密码」） | 2026-10-08 |
 
 **状态图例**:
 - 🔴 待修复 - 已知问题未解决
@@ -2865,3 +2866,136 @@ curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8083/ops-user/menu/tr
 - `docker/fix_perms.sql` — 手工脚本, V41 是其 migration 化
 - `scripts/diag/fix-role-action-perms-on-217.sh` — 217 立即修复 (本次)
 - `code/platform-server/platform-user/src/main/resources/db/migration/V41__fix_admin_role_action_perms.sql` — 长期 fix
+
+## #38 🔴 13 处功能已实现但模板无绑定 → UI 不可达 (2026-10-08)
+
+### 现象
+
+修 `platform-admin` 类型门禁时，`vue-tsc` 报出 29 条 `TS6133/TS6196`（声明但从未使用）。
+逐条核查后发现**并非全是死代码** —— 至少 13 处是**功能已完整实现、但模板里没有任何绑定**，
+用户在界面上根本点不到。这解释了为什么 `noUnusedLocals` 这类检查以前一直没人开。
+
+### 根因
+
+功能实现与模板绑定在不同提交里演进，绑定被移除或漏提交，代码留了下来。
+`noUnused*` 是 lint 级检查，**无法区分「死代码」与「实现了但没接线」**，因此不能拿它当删除依据。
+
+### 清单 A：UI 不可达，需产品决策（**不建议直接删**）
+
+| 文件 | 声明 | 性质 |
+|---|---|---|
+| `src/views/system/user/Index.vue` | `stepUpChangePwdVisible`(L456)、`handlePwdSubmit`(L507) | **整套「重置密码」**：`handlePwdSubmit` 真在调 `resetUserPassword` 并弹成功提示，只差按钮/弹窗绑定 |
+| `src/views/system/user/Index.vue` | `handleDelete`(L439)、`clearListsForCurrent`(L300) | 用户删除 / 清理缓存列表 |
+| `src/views/area/Index.vue` | `handleAddBuilding`(L212)、`handleAddRoom`(L215) | 「新增楼栋」「新增房间」入口 |
+| `src/views/area/Index.vue` | `getAreasByPark`(L107) | 按园区取区域 |
+| `src/views/room-control/Index.vue` | `onParkChange`(L189) | 园区切换联动 |
+| `src/views/park/enterprise/Detail.vue` | `listAllTags`(L761)、`cloudCategoryLabel`(L1787) | 标签 / 云分类展示 |
+| `src/views/park/enterprise/Index.vue` | `handleDelete`(L557) | 企业删除 |
+
+### 清单 B：可安全删除的死代码（5 条未使用的 import）
+
+`ProcessDesigner.vue` 的 `Operation`(L595) · `Detail.vue`(enterprise) 的 `nextTick`(L754) ·
+`CloudDataList.vue` 的 `CLOUD_CATEGORY_LIST`(L142) · `Index.vue`(enterprise) 的 `UploadProps`(L365) ·
+`user/Index.vue` 的 `changePassword`(L180)
+
+### 清单 C：疑为 P0 修复遗留，待确认
+
+`BpmnDesigner.vue` 的 `extractFlowableData`(L505)、`stripFlowableFromXml`(L539)、`injectXmlns`(L728)。
+实际在用的是 `extractFlowableDataFromXml`(L460，在 L680 被调用)，前者是它的废弃副本；
+`injectXmlns` 与 P0 修复「不再输出 `flowable:assignee`」方向一致，疑为该修复的遗留物。
+
+### 本次处置
+
+- `tsconfig.json` 的 `noUnusedLocals` / `noUnusedParameters` 改为 `false`（对齐 `platform-ops-admin`），
+  `strict: true` 全量保留。理由：`noUnused*` 是 lint 级检查，用它当构建门禁会逼迫删除清单 A 里的功能。
+- **未删除任何清单 A/B/C 的声明**，全部登记在此待产品决策。
+
+### 关联
+
+- 同批修复的 84 个类型错误，根因是前端 API 层把后端 `Long` 型 id 声明成 `number`，
+  与后端 `JacksonConfig` 的全局 `Long → String` 约定冲突（雪花 ID 19 位，超 JS 安全整数 2^53）。
+- 后端 `JacksonConfig` 是 id 序列化约定的唯一事实来源，改前端 id 类型前先读它。
+
+---
+
+## #39 🔴 kefu FAISS 索引卷挂载路径与代码不一致 → 索引从不持久化 (2026-10-08)
+
+### 现象
+
+每次 `docker compose up -d platform-kefu`（含正常发版/换镜像重建容器）后，知识库检索静默失效：
+容器内 FAISS `ntotal` 归零，已上传文档的向量全部消失，但 `chunks`/`documents` 表数据仍在。
+
+### 根因
+
+`docker-compose.yml` 把命名卷挂在**错误路径**：
+
+```yaml
+volumes:
+  - kefu-vector-index:/app/data/vector_index      # 实际挂这里
+```
+
+而代码读写的是 `/app/app/data/vector_index`：
+- `session_service._vector_dir` / `knowledge_adapter` / `sync_service` 均为
+  `Path(__file__).parent.parent[...] / "data" / "vector_index"`，
+  而模块位于 `/app/app/services/...` → 解析为 `/app/app/data/vector_index`。
+- 实测：`/app/data/vector_index`（卷）一直为空（mtime = 镜像构建日），
+  `/app/app/data/vector_index`（代码真实路径）在容器可写层。
+- 结论：卷从未被使用，索引只存容器层 → 每次重建即清空。
+
+### 修复
+
+`bda8a79f`：compose 挂载点改为 `/app/app/data/vector_index`，142 已生效。
+验证：重建容器后 `ntotal` 保持（2494→2496 级），不再归零。
+
+### 教训
+
+1. **挂载点必须与代码真实路径逐字对齐**：容器内路径易被 `WORKDIR` + 包层级改变。
+   部署后立即双验：`docker inspect <c> --format '{{json .Mounts}}'` + `docker exec <c> ls -la <代码路径>`。
+2. **持久化存储必须有「重建后仍在」的验证**：否则「每次重建都丢」会被误当成「偶发」。
+3. **索引类数据的健康检查应包含 `ntotal`**：容器 Up ≠ 检索可用。
+
+### 关联
+
+- commit `bda8a79f` (docker-compose.yml)
+- #40（同时暴露的 sync 幂等缺陷）
+
+---
+
+## #40 🟠 kefu sync 幂等只看 hash + reprocess 先删后建 → 向量永久缺失 / 切片丢失 (2026-10-08)
+
+### 现象
+
+1. kefu 启动时企业数据源首次同步，SiliconFlow embeddings 返回 **504**（瞬时）。
+   DB 记录（`kefu_datasource_record`）已写入，但向量未写入。
+   **再次同步时因 `profile_hash` 相同被 `skipped`，向量永远不会补。**
+2. 触发文档 `reprocess` 时，若源文件不可读（MinIO `NoSuchKey`），
+   旧 chunks 已被删除、新处理失败 → 该文档切片**永久丢失**，只能重新上传。
+
+### 根因
+
+- `sync_service.sync_source` 的幂等键只认 `profile_hash`，不校验「向量是否已存在」；
+  embed 失败后 hash 不变 → 永久跳过。
+- `docs.reprocess` / sync 的删除与重建**未先校验源依赖可读**：
+  先 `DELETE FROM chunks` 再读源文件（MinIO）；源缺失时先删后失败，数据不可逆丢失。
+
+### 修复
+
+`bda8a79f`（镜像 `00edb427`）：sync 幂等改为「hash 相同 **且向量已存在** 才 skip」，
+向量缺失则补 embed。文档侧本次靠「重新上传 + 重建」恢复（102 切片已复现）。
+
+### 待办 / 建议
+
+- [ ] `reprocess` 应**先验证源文件可读**（MinIO head object）再删旧 chunks。
+- [ ] 考虑为破坏性重建提供「软删/暂存旧切片」再切换，失败可回滚。
+
+### 教训
+
+1. **幂等键必须覆盖「全部副作用」**：DB 写入 + 向量写入是两个副作用，
+   只比对其中一个作为幂等依据，会在另一副作用失败时永久漏补。
+2. **破坏性操作前先校验前置依赖可用**：删数据前确认「重建所需的源」存在。
+3. **外部服务失败要可重试且可观测**：504 这类瞬时错误不应导致不可逆状态。
+
+### 关联
+
+- commit `bda8a79f` (code/platform-kefu/app/services/datasource/sync_service.py)
+- #39（同批次发现的 kefu 向量持久化问题）
