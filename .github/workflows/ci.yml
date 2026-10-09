@@ -404,7 +404,17 @@ jobs:
           # 这里用 git diff 算出改动文件, 只重建受影响的镜像。
           # 安全性: 拿不到 diff (首次 push / force push / 浅克隆) 时回退到全量构建,
           # 保证不会出现"该构建的镜像没构建"的静默漏构建。
-          CHANGED=$(git diff --name-only "HEAD^" HEAD 2>/dev/null || true)
+          # 2026-10-09 修复: 原用 `git diff --name-only "HEAD^" HEAD` 只看**最后一个**
+          # commit —— 一次 push 含多个 commit 时, 中间 submit 的改动会被漏掉。
+          # 本次事故: 后端 d662ac7e 是倒数第二个 commit, 于是 BUILD_KEFU=0, kefu 镜像
+          # 未重建, 新代码没进 142 (前端 dd6f5d11 因是最后一个才被构建)。
+          # 改为按整个 push 区间 `before..sha` 计算变更文件; before 为全 0
+          # (首次/force push) 时回退到 HEAD^ HEAD。
+          if [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" 2>/dev/null || true)
+          else
+            CHANGED=$(git diff --name-only "HEAD^" HEAD 2>/dev/null || true)
+          fi
           if [ -z "$CHANGED" ]; then
             # 用 warning 而非 notice: 降级成全量构建会把 4 分钟的 run 拖到 15+ 分钟,
             # 这属于"优化静默失效", 必须在 Actions 页面上一眼看见。
