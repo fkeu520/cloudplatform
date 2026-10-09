@@ -71,7 +71,11 @@ function goBack() {
 }
 
 onMounted(async () => {
-  const id = Number(route.params.id)
+  // id 必须是 string：后端 SiteMessageController.getById(@PathVariable Long id)，
+  // 而 Long 被全局 JacksonConfig 序列化为 JSON string（雪花 ID 19 位，超 JS 安全整数 2^53）。
+  // 曾经的 Number(route.params.id) 会丢精度。
+  const idParam = route.params.id
+  const id = Array.isArray(idParam) ? String(idParam[0]) : String(idParam)
   if (!id) {
     loading.value = false
     return

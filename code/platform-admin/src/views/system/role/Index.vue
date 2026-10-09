@@ -245,7 +245,7 @@ const authDialogVisible = ref(false)
 const authSubmitting = ref(false)
 const dialogTitle = ref('')
 const isEdit = ref(false)
-const currentId = ref<number | null>(null)
+const currentId = ref<string | null>(null)
 const formRef = ref()
 const menuTreeRef = ref()
 const menuTreeData = ref<any[]>([])
@@ -256,9 +256,9 @@ const customDeptIdList = ref<number[]>([])
 const authSearchKeyword = ref('')
 const currentRoleName = ref('')
 // 默认只展开第一层菜单 (避免一进去全展开, 列表太长)
-const defaultExpandedMenuIds = ref<number[]>([])
+const defaultExpandedMenuIds = ref<string[]>([])
 
-const selectedMenuIds = computed<number[]>(() => {
+const selectedMenuIds = computed<string[]>(() => {
   return menuTreeRef.value?.getCheckedKeys() ?? []
 })
 
@@ -458,7 +458,7 @@ async function handleAuth(row: Role) {
 
 // ============ 权限弹窗辅助操作 ============
 function expandAllMenu() {
-  const allIds: number[] = []
+  const allIds: string[] = []
   const walk = (nodes: any[]) => {
     for (const n of nodes) {
       allIds.push(n.id)
@@ -475,14 +475,14 @@ function collapseAllMenu() {
   Object.values(allNodes).forEach((n: any) => n.collapse())
   // 展开默认第一层
   setTimeout(() => {
-    defaultExpandedMenuIds.value.forEach((id: number) => {
+    defaultExpandedMenuIds.value.forEach((id: string) => {
       allNodes[id]?.expand()
     })
   }, 50)
 }
 
 function selectAllMenu() {
-  const allIds: number[] = []
+  const allIds: string[] = []
   const walk = (nodes: any[]) => {
     for (const n of nodes) {
       allIds.push(n.id)

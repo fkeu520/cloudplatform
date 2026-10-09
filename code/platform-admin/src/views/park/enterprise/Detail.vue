@@ -66,7 +66,7 @@
           <h4 class="section-title">法人/资本</h4>
           <el-descriptions :column="3" border size="small" class="detail-descriptions">
             <el-descriptions-item label="法定代表人">{{ enterprise.legalPersonName || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="法人类型">{{ enterprise.legalType === 1 ? '自然人' : enterprise.legalType === 2 ? '公司' : '其他组织' }}</el-descriptions-item>
+            <el-descriptions-item label="法人类型">{{ enterprise.type === 1 ? '自然人' : enterprise.type === 2 ? '公司' : '其他组织' }}</el-descriptions-item>
             <el-descriptions-item label="企业类型">{{ enterprise.companyOrgType || '-' }}</el-descriptions-item>
             <el-descriptions-item label="注册资本">{{ enterprise.regCapital || '-' }} {{ enterprise.regCapitalCurrency || '' }}</el-descriptions-item>
             <el-descriptions-item label="注册资本币种">{{ enterprise.regCapitalCurrency || '人民币' }}</el-descriptions-item>
@@ -82,7 +82,6 @@
             <el-descriptions-item label="经营状态">
               <el-tag :type="enterprise.regStatus === '在营' ? 'success' : 'danger'" size="small">{{ enterprise.regStatus || '-' }}</el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="经营状态码" content-class-name="mono-font">{{ enterprise.regStatusCode || '1' }}</el-descriptions-item>
           </el-descriptions>
 
           <h4 class="section-title">行业/规模</h4>
@@ -312,8 +311,6 @@
             <el-descriptions-item label="股票名称">{{ enterprise.bondName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="股票曾用名">{{ enterprise.usedBondName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="股票类型">{{ enterprise.bondType || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="上市交易所">{{ enterprise.stockExchange || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="上市日期">{{ enterprise.listDate || '-' }}</el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
       </el-tabs>
@@ -342,7 +339,7 @@
         <h4 class="dialog-section-title">法人/资本</h4>
         <el-row :gutter="16">
           <el-col :span="8"><el-form-item label="法定代表人" prop="legalPersonName"><el-input v-model="basicForm.legalPersonName" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="法人类型"><el-select v-model="basicForm.legalType" style="width:100%"><el-option :label="'自然人'" :value="1" /><el-option :label="'公司'" :value="2" /><el-option :label="'其他组织'" :value="3" /></el-select></el-form-item></el-col>
+            <el-col :span="8"><el-form-item label="法人类型"><el-select v-model="basicForm.type" style="width:100%"><el-option :label="'自然人'" :value="1" /><el-option :label="'公司'" :value="2" /><el-option :label="'其他组织'" :value="3" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="企业类型"><el-input v-model="basicForm.companyOrgType" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
@@ -754,14 +751,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getEnterpriseById, updateEnterprise, type Enterprise } from '@/api/enterprise'
 import { overviewPage, type EnterpriseOverview } from '@/api/enterprise-cloud'
 import { getCustomerPage, createCustomer, updateCustomer, deleteCustomer as apiDeleteCustomer, type CustomerInformation } from '@/api/enterprise'
 import { getFocusPage, getFocusItemByFocusId, createFocusItem, deleteFocusItem } from '@/api/enterprise'
-import { listTagByEnterprise, listAllTags, createTag, deleteTag } from '@/api/enterprise-tag'
+import { listTagByEnterprise, createTag, deleteTag } from '@/api/enterprise-tag'
 
 const route = useRoute()
 const router = useRouter()
@@ -833,7 +830,7 @@ function initMockEnterprise() {
     orgNumber: 'MA5DA7Q37',
     regInstitute: '深圳市市场监督管理局',
     legalPersonName: '任正非',
-    legalType: 1,
+    type: 1,
     companyOrgType: '有限责任公司',
     regCapital: '364.5 亿',
     regCapitalCurrency: '人民币',
@@ -843,7 +840,6 @@ function initMockEnterprise() {
     toTime: '长期',
     approvedTime: '2025-06-30',
     regStatus: '在营',
-    regStatusCode: '1',
     category: 'I 信息传输、软件和信息技术服务业',
     categoryBig: 'I65 软件和信息技术服务业',
     categoryMiddle: 'I6520 信息系统集成服务',
@@ -864,8 +860,6 @@ function initMockEnterprise() {
     bondName: '-',
     bondType: '-',
     usedBondName: '-',
-    stockExchange: '-',
-    listDate: '-',
     status: 1,
   }
 }
@@ -1249,7 +1243,7 @@ async function saveBasic() {
   try {
     const payload: any = {}
     Object.keys(basicForm).forEach(k => {
-      if (k in enterprise.value || ['name','alias','historyNames','engName','creditCode','regNumber','taxNumber','orgNumber','regInstitute','legalPersonName','legalType','companyOrgType','regCapital','regCapitalCurrency','actualCapital','estiblishTime','fromTime','toTime','approvedTime','regStatus','category','categoryBig','categoryMiddle','staffNumRange','socialStaffNum','isMicroEnt','regLocation','phoneNumber','email','businessScope'].includes(k)) {
+      if (k in enterprise.value || ['name','alias','historyNames','engName','creditCode','regNumber','taxNumber','orgNumber','regInstitute','legalPersonName','type','companyOrgType','regCapital','regCapitalCurrency','actualCapital','estiblishTime','fromTime','toTime','approvedTime','regStatus','category','categoryBig','categoryMiddle','staffNumRange','socialStaffNum','isMicroEnt','regLocation','phoneNumber','email','businessScope'].includes(k)) {
         payload[k] = basicForm[k]
       }
     })
@@ -1522,9 +1516,12 @@ function openFocusDialog() {
   focusDialogVisible.value = true
 }
 
-function onFocusCategoryChange(val: string) {
+function onFocusCategoryChange(_val: string) {
   focusForm.items = []
 }
+
+// Cloud data category switch — handled by filteredCloudData computed; no extra side-effect needed.
+function onCloudCategoryChange() {}
 
 async function saveFocus() {
   if (!focusForm.category) { ElMessage.warning('请选择关注分类'); return }
@@ -1787,10 +1784,7 @@ function getCustLabel(t?: number) {
 function getFieldLabel(f?: number) {
   return ({ 1: '集成电路', 2: '生物医药', 3: '新材料', 4: '新能源', 5: '智能制造', 6: '信创' } as Record<number, string>)[f || 0] || '-'
 }
-function cloudCategoryLabel(c: string) {
-  return ({ business_risk: '经营风险', business_situation: '经营状况', ent_detail: '企业详情', judicial_risk: '司法风险', knowledge: '企业知识' } as Record<string, string>)[c] || c
-}
-function onTabChange(name: string) {
+function onTabChange(_name: string) {
   // lazy load if needed
 }
 

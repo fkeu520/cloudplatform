@@ -21,7 +21,7 @@ export interface Enterprise {
   categoryMiddle?: string // 中类
   categorySmall?: string // 小类
   legalPersonName?: string  // 法人
-  type?: number          // 法人类型
+  type?: number          // 法人类型 (1=自然人, 2=公司, 3=其他组织) — backend field is `type`, not `legalType`
   companyOrgType?: string
   regCapital?: string    // 注册资本
   regCapitalCurrency?: string
@@ -285,7 +285,7 @@ export interface Focus {
 
 export interface FocusItem {
   id?: string
-  focusId?: number
+  focusId?: string      // backend is Long → string via ToStringSerializer
   name?: string
   sorting?: number
   status?: number
@@ -312,7 +312,7 @@ export function deleteFocus(id: string) {
   return request({ url: `/enterprise/focus/${id}`, method: 'delete' })
 }
 
-export function getFocusItemByFocusId(focusId: number | string) {
+export function getFocusItemByFocusId(focusId: string) {
   return request({ url: `/enterprise/focus-item/by-focus/${focusId}`, method: 'get' })
 }
 

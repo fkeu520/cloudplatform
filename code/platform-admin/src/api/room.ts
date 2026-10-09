@@ -38,6 +38,7 @@ export function getRoomPage(params: {
   roomType?: string
   status?: number
   parkId?: string
+  areaId?: string
   buildingId?: string
   floorId?: string
   pageNum?: number

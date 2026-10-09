@@ -123,7 +123,7 @@ const loading = ref(false)
 const catDialogVisible = ref(false)
 const catDialogTitle = ref('新增分类')
 const isEditCat = ref(false)
-const editingCatId = ref<number | null>(null)
+const editingCatId = ref<string | null>(null)
 const catForm = reactive({ name: '', icon: '📌', sort: 0 })
 
 // ─── Tag Dialog ───
@@ -131,7 +131,7 @@ const tagDialogVisible = ref(false)
 const tagDialogTitle = ref('新增标签')
 const isEditTag = ref(false)
 const editingTagId = ref<string | null>(null)
-const tagForm = reactive({ categoryId: undefined as number | undefined, name: '', sort: 0 })
+const tagForm = reactive({ categoryId: undefined as string | undefined, name: '', sort: 0 })
 
 // ─── Computed ───
 const allTagsCount = computed(() => {
@@ -179,11 +179,11 @@ async function loadData() {
   finally { loading.value = false }
 }
 
-function getIconFor(id?: number): string {
-  const icons: Record<number, string> = {
-    1: '💡', 2: '🏭', 3: '🚀', 4: '👥', 5: '🌍', 6: '📋'
+function getIconFor(id?: string): string {
+  const icons: Record<string, string> = {
+    '1': '💡', '2': '🏭', '3': '🚀', '4': '👥', '5': '🌍', '6': '📋'
   }
-  return icons[id || 0] || '📌'
+  return icons[id || '0'] || '📌'
 }
 
 // ─── Category CRUD ───
@@ -197,7 +197,7 @@ function openCategoryDialog() {
 
 function editCategory(cat: Category) {
   isEditCat.value = true
-  editingCatId.value = Number(cat.id)
+  editingCatId.value = cat.id || null
   catDialogTitle.value = '编辑分类'
   Object.assign(catForm, { name: cat.name || '', icon: cat.icon || '📌', sort: cat.sort || 0 })
   catDialogVisible.value = true
@@ -207,7 +207,7 @@ async function confirmCategory() {
   if (!catForm.name) { ElMessage.warning('请输入分类名称'); return }
   try {
     if (isEditCat.value && editingCatId.value) {
-      await updateFocus(String(editingCatId.value), { name: catForm.name, sorting: catForm.sort })
+      await updateFocus(editingCatId.value, { name: catForm.name, sorting: catForm.sort })
       ElMessage.success('分类已更新')
     } else {
       await createFocus({ name: catForm.name, sorting: catForm.sort, status: 1 })
@@ -245,7 +245,7 @@ function openTagDialogFor(cat: Category) {
   isEditTag.value = false
   editingTagId.value = null
   tagDialogTitle.value = `新增标签 - ${cat.name}`
-  Object.assign(tagForm, { categoryId: Number(cat.id), name: '', sort: 0 })
+  Object.assign(tagForm, { categoryId: cat.id, name: '', sort: 0 })
   tagDialogVisible.value = true
 }
 

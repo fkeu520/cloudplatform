@@ -25,10 +25,10 @@ describe('Leave.vue LEAVE_BPMN', () => {
     expect(match, 'LEAVE_BPMN constant should be defined').toBeTruthy()
 
     const bpmn = match![1]
-    expect(bpmn).not.toContain('flowable:assignee',
-      'LEAVE_BPMN 不应包含 flowable:assignee - 任务应通过 candidateUsers 分派')
-    expect(bpmn).not.toContain('admin',
-      'LEAVE_BPMN 不应硬编码 admin - 跨租户无法使用')
+    expect(bpmn, 'LEAVE_BPMN 不应包含 flowable:assignee - 任务应通过 candidateUsers 分派')
+      .not.toContain('flowable:assignee')
+    expect(bpmn, 'LEAVE_BPMN 不应硬编码 admin - 跨租户无法使用')
+      .not.toContain('admin')
   })
 
   it('硬编码 LEAVE_BPMN 应保留 candidateUsers (分派给候选人池)', () => {
@@ -39,8 +39,8 @@ describe('Leave.vue LEAVE_BPMN', () => {
     expect(match).toBeTruthy()
 
     const bpmn = match![1]
-    expect(bpmn).toContain('<flowable:candidateUsers>',
-      'LEAVE_BPMN 应保留 candidateUsers 用于候选池')
+    expect(bpmn, 'LEAVE_BPMN 应保留 candidateUsers 用于候选池')
+      .toContain('<flowable:candidateUsers>')
   })
 
   it('LEAVE_BPMN 的 userTask 应没有指定办理人, 任务依赖候选人池', () => {
@@ -55,8 +55,8 @@ describe('Leave.vue LEAVE_BPMN', () => {
     expect(userTaskMatches.length).toBeGreaterThan(0)
 
     for (const userTask of userTaskMatches) {
-      expect(userTask).not.toMatch(/flowable:assignee=/,
-        `userTask 不应包含 flowable:assignee: ${userTask.trim()}`)
+      expect(userTask, `userTask 不应包含 flowable:assignee: ${userTask.trim()}`)
+        .not.toMatch(/flowable:assignee=/)
     }
   })
 })
@@ -65,14 +65,14 @@ describe('ProcessDesigner/BpmnDesigner 不应输出 flowable:assignee', () => {
   it('ProcessDesigner.vue 不应出现 "flowable:assignee" 字符串', () => {
     const filePath = resolve(__dirname, '../components/ProcessDesigner.vue')
     const content = readFileSync(filePath, 'utf-8')
-    expect(content).not.toContain('flowable:assignee',
-      'ProcessDesigner 不应生成 flowable:assignee 属性')
+    expect(content, 'ProcessDesigner 不应生成 flowable:assignee 属性')
+      .not.toContain('flowable:assignee')
   })
 
   it('BpmnDesigner.vue 不应出现 "flowable:assignee" 字符串', () => {
     const filePath = resolve(__dirname, '../components/BpmnDesigner.vue')
     const content = readFileSync(filePath, 'utf-8')
-    expect(content).not.toContain('flowable:assignee',
-      'BpmnDesigner 不应生成 flowable:assignee 属性')
+    expect(content, 'BpmnDesigner 不应生成 flowable:assignee 属性')
+      .not.toContain('flowable:assignee')
   })
 })

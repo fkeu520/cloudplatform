@@ -14,7 +14,7 @@ export function getDefinitionById(definitionId: string) {
   return request.get(`/workflow/definition/${definitionId}`)
 }
 
-export function deployDefinition(data: { processName?: string; bpmnXml: string }) {
+export function deployDefinition(data: { processName?: string; processKey?: string; bpmnXml: string }) {
   return request.post('/workflow/definition/deploy', data)
 }
 

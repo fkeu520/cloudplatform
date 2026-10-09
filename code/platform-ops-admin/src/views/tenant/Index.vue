@@ -206,7 +206,7 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const isEdit = ref(false)
-const editId = ref<number | null>(null)
+const editId = ref<string | null>(null)
 const formRef = ref()
 const query = reactive({ keyword: '', pageNum: 1, pageSize: 10 })
 const form = reactive({
@@ -226,7 +226,7 @@ const authSubmitting = ref(false)
 const authStepUpVisible = ref(false)
 const allApps = ref<any[]>([])
 const authAppIds = ref<number[]>([])
-const authTenantId = ref<number>(0)
+const authTenantId = ref<string>('')
 
 const orgDialogVisible = ref(false)
 const orgTree = ref<any[]>([])
@@ -353,7 +353,7 @@ async function onStepUpAuthSuccess(stepUpToken: string) {
 }
 
 const adminDialogVisible = ref(false)
-const adminTenantId = ref<number>(0)
+const adminTenantId = ref<string>('')
 const adminTenantName = ref('')
 const adminList = ref<any[]>([])
 const adminLoading = ref(false)

@@ -39,7 +39,7 @@ export function updateRoomControl(
 }
 
 export function batchUpdateRoomControl(data: {
-  ids: number[]
+  ids: string[]
   rentingSelling?: number
   leasePrice?: number
   salePrice?: number
@@ -49,7 +49,7 @@ export function batchUpdateRoomControl(data: {
 
 export function lockRoom(data: {
   roomId: string
-  enterpriseId?: number
+  enterpriseId?: string
   enterpriseName?: string
   reason: string
   days?: number

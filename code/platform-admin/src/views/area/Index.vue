@@ -47,7 +47,7 @@ const formRules = {
     { required: true, message: '请输入分区名称', trigger: 'blur' },
     { max: 64, message: '分区名称不超过 64 字符', trigger: 'blur' },
     {
-      validator: async (rule: any, value: string, callback: any) => {
+      validator: async (_rule: any, value: string, callback: any) => {
         if (!value || !form.parkId) return callback()
         try {
           const res: any = await checkAreaName(form.parkId, value, editingId.value || undefined)
@@ -103,10 +103,6 @@ async function loadAllAreas() {
 }
 
 const flatAreas = computed(() => areaGroups.value.flatMap((g) => g.areas))
-
-function getAreasByPark(parkId: string): Area[] {
-  return areaGroups.value.find((g) => g.park.id === parkId)?.areas || []
-}
 
 function getParkName(parkId: string | undefined): string {
   if (!parkId) return '-'
@@ -206,14 +202,6 @@ async function handleSubmit() {
   } finally {
     submitting.value = false
   }
-}
-
-// 添加楼栋/房间 (快捷按钮占位, 跳转到对应模块并预选 area)
-function handleAddBuilding(area: Area) {
-  ElMessage.info('请到 "楼宇列表" 页面 (property menu) 新建楼栋并关联此分区')
-}
-function handleAddRoom(area: Area) {
-  ElMessage.info('请到 "房间管理" 页面 (room menu) 新建房间并关联此分区')
 }
 
 onMounted(() => {

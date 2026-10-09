@@ -592,7 +592,7 @@ import {
   RefreshLeft, RefreshRight, ZoomIn, ZoomOut, FullScreen,
   Upload, Document,
   CircleCheck, CircleClose, User, UserFilled,
-  CirclePlus, Plus, Setting, Operation, DocumentCopy,
+  CirclePlus, Plus, Setting, DocumentCopy,
   QuestionFilled, Delete, Connection, OfficeBuilding, Folder, View
 } from '@element-plus/icons-vue'
 

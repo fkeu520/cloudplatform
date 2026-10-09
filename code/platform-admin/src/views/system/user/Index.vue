@@ -177,7 +177,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById, resetUserPassword, changePassword } from '@/api/user'
+import { getUserPage, createUser, updateUser, deleteUser, toggleUserStatus, assignUserRoles, getUserById, resetUserPassword } from '@/api/user'
 import { getRoleList } from '@/api/role'
 import { getOrgTree } from '@/api/org'
 import { getDeptList } from '@/api/dept'
@@ -294,12 +294,6 @@ function resetForm() {
   currentNames.deptName = ''
   currentNames.postName = ''
   currentId.value = null
-}
-
-/** 清理当前值对应的选项列表（在异步加载前调，避免加载完覆盖） */
-function clearListsForCurrent() {
-  deptList.value = []
-  postList.value = []
 }
 
 // 组织/部门/岗位级联
@@ -436,24 +430,10 @@ async function handleToggleStatus(row: UserPageVO) {
   }
 }
 
-async function handleDelete(row: UserPageVO) {
-  try {
-    await ElMessageBox.confirm('确定删除该用户？', '提示', { type: 'warning' })
-    const res: any = await deleteUser(row.id)
-    if (res.code === 200) {
-      ElMessage.success('删除成功')
-      loadData()
-    }
-  } catch {
-    // cancelled
-  }
-}
-
 // v8 P0-3: 高敏操作前弹出 StepUpDialog 二次鉴权
 const stepUpDeleteVisible = ref(false)
 const stepUpDeleteTarget = ref<UserPageVO | null>(null)
 const stepUpResetPwdVisible = ref(false)
-const stepUpChangePwdVisible = ref(false)
 
 function openDeleteStepUp(row: UserPageVO) {
   stepUpDeleteTarget.value = row
@@ -494,7 +474,6 @@ async function onStepUpResetPwdSuccess(stepUpToken: string) {
 
 // 重置密码弹窗
 const pwdDialogVisible = ref(false)
-const pwdSubmitting = ref(false)
 const pwdTarget = ref<UserPageVO | null>(null)
 const pwdForm = reactive({ newPassword: '' })
 
@@ -502,24 +481,6 @@ function handleResetPwd(row: UserPageVO) {
   pwdTarget.value = row
   pwdForm.newPassword = ''
   pwdDialogVisible.value = true
-}
-
-async function handlePwdSubmit() {
-  if (!pwdForm.newPassword || pwdForm.newPassword.length < 6) {
-    ElMessage.warning('新密码至少 6 位')
-    return
-  }
-  if (!pwdTarget.value) return
-  pwdSubmitting.value = true
-  try {
-    const res: any = await resetUserPassword(pwdTarget.value.id, pwdForm.newPassword)
-    if (res.code === 200) {
-      ElMessage.success(`用户 [${pwdTarget.value.username}] 密码已重置`)
-      pwdDialogVisible.value = false
-    }
-  } finally {
-    pwdSubmitting.value = false
-  }
 }
 
 async function handleSubmit() {

@@ -473,7 +473,6 @@ function confirmRule() {
     ElMessage.warning('请填写规则名称和适用条件')
     return
   }
-  const finalScore = f.type === -1 ? -Math.abs(f.score) : Math.abs(f.score)
   const rule: Rule = { name: f.name, condition: f.condition, score: f.type === -1 && f.score >= 0 ? -f.score : f.score, status: f.status }
   if (ruleDialog.isEdit && ruleDialog.editingDim) {
     Object.assign(ruleDialog.editingDim.rules[ruleDialog.editingIndex], rule)

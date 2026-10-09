@@ -33,9 +33,9 @@ const buildingOptions = ref<Building[]>([])
 const floorOptions = ref<Floor[]>([])
 
 const searchForm = reactive({
-  parkId: undefined as number | undefined,
-  buildingId: undefined as number | undefined,
-  floorId: undefined as number | undefined,
+  parkId: undefined as string | undefined,
+  buildingId: undefined as string | undefined,
+  floorId: undefined as string | undefined,
   rentingSelling: undefined as number | undefined,
   isLock: undefined as number | undefined,
   keyword: '',
@@ -53,7 +53,7 @@ const RENTING_SELLING_OPTIONS = [
 // 编辑弹窗
 const editDialogVisible = ref(false)
 const editForm = reactive({
-  id: 0,
+  id: '',
   roomNo: '',
   roomName: '',
   rentingSelling: undefined as number | undefined,
@@ -71,13 +71,13 @@ const batchForm = reactive({
   leasePrice: undefined as number | undefined,
   salePrice: undefined as number | undefined,
 })
-const selectedIds = ref<number[]>([])
+const selectedIds = ref<string[]>([])
 const batchSubmitting = ref(false)
 
 // 锁定弹窗
 const lockDialogVisible = ref(false)
 const lockForm = reactive({
-  roomId: 0,
+  roomId: '',
   roomNo: '',
   reason: '',
   enterpriseName: '',
@@ -88,7 +88,7 @@ const lockSubmitting = ref(false)
 // 解锁弹窗
 const unlockDialogVisible = ref(false)
 const unlockForm = reactive({
-  roomId: 0,
+  roomId: '',
   roomNo: '',
   reason: '',
 })
@@ -106,14 +106,14 @@ async function loadParks() {
   }
 }
 
-async function loadBuildings(parkId: number) {
+async function loadBuildings(parkId: string) {
   if (!parkId) {
     buildingOptions.value = []
     floorOptions.value = []
     return
   }
   try {
-    const res: any = await getBuildingPage({ parkId, pageNum: 1, pageSize: 9999 } as any)
+    const res: any = await getBuildingPage({ parkId, pageNum: 1, pageSize: 9999 })
     if (res.code === 200) {
       buildingOptions.value = res.data?.records || []
     }
@@ -122,7 +122,7 @@ async function loadBuildings(parkId: number) {
   }
 }
 
-async function loadFloors(buildingId: number) {
+async function loadFloors(buildingId: string) {
   if (!buildingId) {
     floorOptions.value = []
     return
@@ -186,14 +186,7 @@ function handlePageChange(v: number) {
 }
 
 // 联动
-function onParkChange(parkId: number) {
-  searchForm.buildingId = undefined
-  searchForm.floorId = undefined
-  loadBuildings(parkId)
-  handleSearch()
-}
-
-function onBuildingChange(buildingId: number) {
+function onBuildingChange(buildingId: string) {
   searchForm.floorId = undefined
   loadFloors(buildingId)
   handleSearch()
@@ -316,7 +309,7 @@ function openLockDialog(row: RoomControl) {
     ElMessage.warning('该房间已锁定')
     return
   }
-  lockForm.roomId = row.id || 0
+  lockForm.roomId = row.id || ''
   lockForm.roomNo = row.roomNo || ''
   lockForm.reason = ''
   lockForm.enterpriseName = ''
@@ -354,7 +347,7 @@ function openUnlockDialog(row: RoomControl) {
     ElMessage.warning('该房间未锁定')
     return
   }
-  unlockForm.roomId = row.id || 0
+  unlockForm.roomId = row.id || ''
   unlockForm.roomNo = row.roomNo || ''
   unlockForm.reason = ''
   unlockDialogVisible.value = true
@@ -406,7 +399,7 @@ watch(() => searchForm.parkId, (val, oldVal) => {
       <el-form :inline="true" :model="searchForm">
         <el-form-item label="园区">
           <el-select v-model="searchForm.parkId" placeholder="请选择园区" clearable filterable style="width: 180px">
-            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="Number(p.id)" />
+            <el-option v-for="p in parkOptions" :key="p.id" :label="p.parkName" :value="p.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="楼栋">

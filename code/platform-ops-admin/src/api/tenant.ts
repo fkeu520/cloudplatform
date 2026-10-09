@@ -49,11 +49,11 @@ export function createAdmin(id: string, data: Record<string, any>) {
   return request.post(`/tenant/${id}/admin`, data)
 }
 
-export function deleteAdmin(tenantId: string, userId: number) {
+export function deleteAdmin(tenantId: string, userId: string) {
   return request.delete(`/tenant/${tenantId}/admin/${userId}`)
 }
 
-export function resetAdminPassword(tenantId: string, userId: number, newPassword: string, stepUpToken?: string) {
+export function resetAdminPassword(tenantId: string, userId: string, newPassword: string, stepUpToken?: string) {
   return request.post(`/tenant/${tenantId}/admin/${userId}/reset-password`, { newPassword }, {
     headers: stepUpToken ? { 'X-Step-Up-Token': stepUpToken } : undefined
   })

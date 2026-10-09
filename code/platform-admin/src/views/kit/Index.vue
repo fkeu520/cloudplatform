@@ -259,8 +259,6 @@ async function handleDelete(k: Kit) {
   }
 }
 
-const dialogTitle = ref('新增配套')
-
 onMounted(async () => {
   await loadData()
 })

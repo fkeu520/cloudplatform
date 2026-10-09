@@ -362,13 +362,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { UploadInstance, UploadProps } from 'element-plus'
+import type { UploadInstance } from 'element-plus'
 import {
   getEnterprisePage,
   getEnterpriseById,
   createEnterprise,
   updateEnterprise,
-  deleteEnterprise,
   toggleEnterpriseStatus,
   batchUpdateStatus,
   batchDeleteEnterprise,
@@ -552,19 +551,6 @@ async function handleSubmit() {
   } finally {
     submitting.value = false
   }
-}
-
-async function handleDelete(row: Enterprise) {
-  try {
-    await ElMessageBox.confirm(`确认删除企业「${row.name}」吗？此操作不可恢复。`, '警告', { type: 'warning' })
-    const res: any = await deleteEnterprise(String(row.id))
-    if (res.code === 200) {
-      ElMessage.success('删除成功')
-      loadData()
-    } else {
-      ElMessage.error(res.message || '删除失败')
-    }
-  } catch { /* cancelled */ }
 }
 
 async function handleToggleStatus(row: Enterprise, status: number) {

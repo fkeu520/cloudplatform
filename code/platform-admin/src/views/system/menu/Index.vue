@@ -69,7 +69,7 @@ const loading = ref(false)
 const tableData = ref<any[]>([])
 
 const dialogVisible = ref(false)
-const currentId = ref<number | null>(null)
+const currentId = ref<string | null>(null)
 const formRef = ref()
 
 const formData = reactive<Partial<Menu>>({

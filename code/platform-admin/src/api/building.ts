@@ -30,6 +30,7 @@ export interface Building {
 
 export function getBuildingPage(params: {
   keyword?: string
+  parkId?: string
   areaId?: string
   status?: number
   pageNum?: number

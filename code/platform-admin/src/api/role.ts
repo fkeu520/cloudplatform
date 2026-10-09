@@ -2,7 +2,7 @@ import request from './request'
 
 /**
  * M5 P0-2 数据权限: 角色上的 dataScope 字段
- * 1=全部 2=本部�?3=本部门及下级 4=本人 5=自定�?(customDeptIds 必填)
+ * 1=全部 2=本部�?3=本部门及下级 4=本人 5=自定�?(customDeptIds 必填)
  */
 export interface Role {
   id?: string
@@ -73,7 +73,7 @@ export function getRoleMenuIds(id: string) {
   })
 }
 
-export function assignRoleMenus(id: string, menuIds: number[]) {
+export function assignRoleMenus(id: string, menuIds: string[]) {
   return request({
     url: `/role/${id}/menus`,
     method: 'post',

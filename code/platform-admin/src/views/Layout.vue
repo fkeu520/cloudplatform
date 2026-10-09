@@ -244,7 +244,7 @@ function onAppChange(newCode: string) {
 }
 
 // 监听路由变化, 记忆 activeApp (如果 URL 暗示某个 app)
-watch(() => route.path, (newPath) => {
+watch(() => route.path, () => {
   // 可选: 根据 URL 推断 app (W4 阶段)
 })
 

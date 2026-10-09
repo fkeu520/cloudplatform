@@ -139,7 +139,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   cloudDataPage, cloudDataCreate, cloudDataUpdate, cloudDataDelete,
-  CLOUD_CATEGORY_LABELS, CLOUD_CATEGORY_LIST,
+  CLOUD_CATEGORY_LABELS,
   type CloudData, type CloudDataCategory
 } from '@/api/enterprise-cloud'
 import { getEnterprisePage, type Enterprise } from '@/api/enterprise'

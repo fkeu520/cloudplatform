@@ -121,7 +121,7 @@ const total = ref(0)
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEdit = ref(false)
-const currentId = ref<number | null>(null)
+const currentId = ref<string | null>(null)
 const formRef = ref()
 
 const formData = reactive<any>({

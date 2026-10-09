@@ -66,6 +66,7 @@ const defaultForm = () => ({
   leaseMethod: undefined as number | undefined,
   sorting: 0,
   certificate: '',
+  image: undefined as string | undefined,
   buildYear: undefined as number | undefined,
   manager: '',
   managerPhone: '',
@@ -252,7 +253,7 @@ async function handleEdit(b: Building) {
   }
 }
 
-async function loadFloorsByBuilding(buildingId: number) {
+async function loadFloorsByBuilding(buildingId: string) {
   floorLoading.value = true
   try {
     const res: any = await listFloorByBuilding(buildingId)
@@ -352,7 +353,7 @@ async function saveFloor() {
     const newFloor: Floor = {
       ...editingFloor,
       id: undefined,
-      buildingId: editingId.value || 0,
+      buildingId: editingId.value ?? undefined,
       parkId: form.parkId,
       status: 1,
       createTime: undefined,

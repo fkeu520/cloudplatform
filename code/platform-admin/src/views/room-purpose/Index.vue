@@ -62,7 +62,7 @@ const loading = ref(false); const tableData = ref<any[]>([]); const total = ref(
 const pageNum = ref(1); const pageSize = ref(10)
 const searchForm = reactive({ keyword: '', status: undefined as number | undefined })
 const dialogVisible = ref(false); const dialogTitle = ref(''); const isEdit = ref(false)
-const currentId = ref<number | null>(null); const submitting = ref(false); const formRef = ref()
+const currentId = ref<string | null>(null); const submitting = ref(false); const formRef = ref()
 
 const defaultForm = { purposeName: '', status: 1 }
 const formData = reactive({ ...defaultForm })

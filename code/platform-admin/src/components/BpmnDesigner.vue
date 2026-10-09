@@ -502,79 +502,6 @@ function extractFlowableDataFromXml(xml: string) {
   }
 }
 
-function extractFlowableData(doc: Document) {
-  // 保留 DOM 版本以备调用，但优先使用字符串版本
-  const ns = 'http://flowable.org/bpmn'
-  const root = doc.documentElement
-  const allElements = root.querySelectorAll('*')
-  allElements.forEach((el) => {
-    const id = el.getAttribute('id')
-    if (!id) return
-    const data: Record<string, string> = {}
-    // Extract flowable attributes
-    for (let i = 0; i < el.attributes.length; i++) {
-      const attr = el.attributes[i]
-      if (attr.name.startsWith('flowable:')) {
-        const localName = attr.name.replace('flowable:', '')
-        data[localName] = attr.value
-      }
-    }
-    // Extract extension elements
-    const extEl = Array.from(el.getElementsByTagName('bpmn:extensionElements'))[0]
-    if (extEl) {
-      const children = Array.from(extEl.children)
-      children.forEach((child) => {
-        const tagName = child.localName || ''
-        if (tagName === 'candidateUsers') data.candidateUsers = child.textContent || ''
-        if (tagName === 'candidateGroups') data.candidateGroups = child.textContent || ''
-      })
-    }
-    // Extract condition expression
-    const condEl = Array.from(el.getElementsByTagName('bpmn:conditionExpression'))[0]
-    if (condEl) data.conditionExpression = condEl.textContent || ''
-    if (Object.keys(data).length > 0) flowableData.set(id, data)
-  })
-}
-
-function stripFlowableFromXml(xml: string): { cleanXml: string } {
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(xml, 'text/xml')
-  const ns = 'http://flowable.org/bpmn'
-  const root = doc.documentElement
-  root.removeAttribute('xmlns:flowable')
-  const allElements = root.querySelectorAll('*')
-  allElements.forEach((el) => {
-    const id = el.getAttribute('id')
-    if (!id) return
-    const data: Record<string, string> = {}
-    const toRemove: Attr[] = []
-    for (let i = 0; i < el.attributes.length; i++) {
-      const attr = el.attributes[i]
-      if (attr.namespaceURI === ns || attr.name.startsWith('flowable:')) {
-        const localName = attr.localName || attr.name.replace('flowable:', '')
-        data[localName] = attr.value
-        toRemove.push(attr)
-      }
-    }
-    toRemove.forEach(a => el.removeAttribute(a.name))
-    const extEl = el.querySelector('bpmn\\:extensionElements, extensionElements')
-    if (extEl) {
-      const children = Array.from(extEl.children)
-      children.forEach((child) => {
-        if (child.namespaceURI === ns || child.prefix === 'flowable') {
-          const propName = child.localName || child.tagName.split(':').pop() || ''
-          data[propName] = child.textContent || ''
-          child.remove()
-        }
-      })
-      if (extEl.children.length === 0) extEl.remove()
-    }
-    const condEl = el.querySelector('bpmn\\:conditionExpression, conditionExpression')
-    if (condEl) data.conditionExpression = condEl.textContent || ''
-    if (Object.keys(data).length > 0) flowableData.set(id, data)
-  })
-  return { cleanXml: new XMLSerializer().serializeToString(doc) }
-}
 
 function loadElement(element: any) {
   currentElement.value = element
@@ -725,8 +652,6 @@ function updateConditionExpression() {
   }
 }
 
-function injectXmlns(rootEl: Element) { if (!rootEl.hasAttribute('xmlns:flowable')) rootEl.setAttribute('xmlns:flowable', 'http://flowable.org/bpmn') }
-
 function buildExtensionElementsXml(candidateUsers?: string, candidateGroups?: string): string {
   const inner: string[] = []
   if (candidateUsers) inner.push(`<flowable:candidateUsers>${xmlEscape(candidateUsers)}</flowable:candidateUsers>`)
@@ -783,7 +708,7 @@ function injectFlowableProps(xml: string): string {
         `(<bpmn:userTask\\b[^>]*?\\bid="${elementId}"[^>]*?)(/?>)([\\s\\S]*?)(</bpmn:userTask>)`,
         'g'
       )
-      xml = xml.replace(flowRegex, (match, attrs, close, body) => {
+      xml = xml.replace(flowRegex, (_match, attrs, close, body) => {
         // 移除旧 candidateUsers/candidateGroups
         const cleanedBody = body
           .replace(/<bpmn:extensionElements>[\s\S]*?<\/bpmn:extensionElements>/g, '')

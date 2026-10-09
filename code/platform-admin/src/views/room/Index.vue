@@ -256,8 +256,8 @@ async function loadAreasForPark(park: ParkTreeNode) {
       park.$areaList = (res.data?.records || []).map((a: Area) => ({ ...a, $loaded: false }))
       park.$loaded = true
       // 默认选中第一个分区
-      if (park.$areaList.length > 0 && !activeAreaId.value) {
-        const firstArea = park.$areaList[0]
+      if (park.$areaList!.length > 0 && !activeAreaId.value) {
+        const firstArea = park.$areaList![0]
         activeAreaId.value = firstArea.id || null
         await loadBuildingsForArea(firstArea)
         // 默认选中第一个楼栋
@@ -482,8 +482,10 @@ function buildingNameOf(parkId: string | undefined, buildingId: string | undefin
   if (!parkId || !buildingId) return '-'
   for (const park of parkTree.value) {
     if (park.id !== parkId) continue
-    const building = park.$buildingList?.find((b) => b.id === buildingId)
-    if (building) return building.buildingName || '-'
+    for (const area of park.$areaList || []) {
+      const building = area.$buildingList?.find((b: BuildingTreeNode) => b.id === buildingId)
+      if (building) return building.buildingName || '-'
+    }
   }
   return '-'
 }
@@ -492,9 +494,11 @@ function floorNameOf(parkId: string | undefined, buildingId: string | undefined,
   if (!parkId || !buildingId || !floorId) return '-'
   for (const park of parkTree.value) {
     if (park.id !== parkId) continue
-    const building = park.$buildingList?.find((b) => b.id === buildingId)
-    const floor = building?.$floorList?.find((f) => f.id === floorId)
-    if (floor) return floor.floorName || '-'
+    for (const area of park.$areaList || []) {
+      const building = area.$buildingList?.find((b: BuildingTreeNode) => b.id === buildingId)
+      const floor = building?.$floorList?.find((f: Floor) => f.id === floorId)
+      if (floor) return floor.floorName || '-'
+    }
   }
   return '-'
 }
@@ -1370,7 +1374,7 @@ onMounted(async () => {
             <el-form-item label="所属楼栋" prop="buildingId">
               <el-select v-model="form.buildingId" placeholder="请选择楼栋" filterable @change="onFormBuildingChange">
                 <el-option
-                  v-for="b in (parkTree.find(p => p.id === form.parkId)?.$areaList?.find(a => a.id === form.areaId)?.$buildingList || parkTree.find(p => p.id === form.parkId)?.$buildingList || [])"
+                  v-for="b in (parkTree.find(p => p.id === form.parkId)?.$areaList?.find(a => a.id === form.areaId)?.$buildingList || [])"
                   :key="b.id"
                   :label="b.buildingName"
                   :value="b.id"
@@ -1382,7 +1386,7 @@ onMounted(async () => {
             <el-form-item label="所属楼层" prop="floorId">
               <el-select v-model="form.floorId" placeholder="请选择楼层" filterable clearable @change="onFormFloorChange">
                 <el-option
-                  v-for="f in (parkTree.find(p => p.id === form.parkId)?.$areaList?.find(a => a.id === form.areaId)?.$buildingList?.find(b => b.id === form.buildingId)?.$floorList || parkTree.find(p => p.id === form.parkId)?.$buildingList?.find(b => b.id === form.buildingId)?.$floorList || [])"
+                  v-for="f in (parkTree.find(p => p.id === form.parkId)?.$areaList?.find(a => a.id === form.areaId)?.$buildingList?.find(b => b.id === form.buildingId)?.$floorList || [])"
                   :key="f.id"
                   :label="f.floorName"
                   :value="f.id"

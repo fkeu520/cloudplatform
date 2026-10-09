@@ -5,7 +5,6 @@
     :total="crud.total"
     :page-num="crud.pageNum"
     :page-size="crud.pageSize"
-    :dialog-visible="crud.dialogVisible"
     :dialog-title="crud.dialogTitle"
     :form-data="crud.formData"
     v-model:dialog-visible="crud.dialogVisible"

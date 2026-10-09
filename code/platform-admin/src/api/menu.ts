@@ -27,7 +27,7 @@ export function getMenuNav() {
   })
 }
 
-export function getUserMenus(appId?: number) {
+export function getUserMenus(appId?: string) {
   return request({
     url: '/menu/user',
     method: 'get',
