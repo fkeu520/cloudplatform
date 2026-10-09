@@ -61,7 +61,13 @@ HAS_ERRORS=0
 JAVA_CHANGES=$(echo "$CHANGED_FILES" | grep -E '^code/platform-server/' || true)
 if [ -n "$JAVA_CHANGES" ]; then
     # Determine which modules changed
-    CHANGED_MODULES=$(echo "$JAVA_CHANGES" | grep -oE 'platform-(user|ops|auth|gateway|message|workflow|common)' | sort -u)
+    # 2026-09-30 修正: 原正则硬编码 7 个 platform-* 模块, 漏掉全部 5 个 park-* 模块
+    # (park-common/space/property/contract/enterprise, 占后端 41%), 导致改这些模块时
+    # CHANGED_MODULES 为空 -> 整个 if 块跳过 -> 测试从未运行, push 放行。
+    # 现在匹配所有 platform-*/park-*, 并排除路径前缀 platform-server 本身
+    # (JAVA_CHANGES 里每个路径都含 code/platform-server/, 不排除会误当成模块)。
+    # config/ sql/ 等非模块目录匹配不到 (无 platform-/park- 前缀), 天然被排除。
+    CHANGED_MODULES=$(echo "$JAVA_CHANGES" | grep -oE '(platform|park)-[a-z]+' | grep -vE '^platform-server$' | sort -u)
 
     if [ -n "$CHANGED_MODULES" ]; then
         echo -e "${YELLOW}[pre-push]${NC} Backend modules changed: ${CHANGED_MODULES}"
