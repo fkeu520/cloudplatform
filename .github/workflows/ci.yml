@@ -69,6 +69,9 @@ on:
       - 'code/platform-server/platform-common/**/JwtUtil.java'
       - 'code/platform-kefu/app/config.py'
       - 'code/platform-kefu/tests/**'
+      # 测试/评估/同步校验 (2026-10-09 新增: evals 目录与 AGENTS/Claude 同步校验脚本必须触发 CI)
+      - 'evals/**'
+      - 'scripts/ci/check-agents-claude-sync.sh'
   pull_request:
     branches: [develop, master]
     paths:
@@ -108,6 +111,9 @@ on:
       - 'code/platform-server/platform-common/**/JwtUtil.java'
       - 'code/platform-kefu/app/config.py'
       - 'code/platform-kefu/tests/**'
+      # 测试/评估/同步校验 (2026-10-09 新增: evals 目录与 AGENTS/Claude 同步校验脚本必须触发 CI)
+      - 'evals/**'
+      - 'scripts/ci/check-agents-claude-sync.sh'
       - 'docker-compose.yml'
       - '.github/workflows/**'
 
@@ -531,3 +537,105 @@ jobs:
             echo "❌ P0-1 多租户拦截器回滚开关验证失败 - 见上方日志"
             exit 1
           fi
+
+  # =============================================
+  # 后端测试 (2026-10-09 新增, 补 CI playbook §8.4 缺口)
+  # backend job 只做编译打包 (-DskipTests), 全量测试在此 job 独立跑
+  # 实测基线 (2026-10-08 本地): mvn -o clean test 共 524 个, 0 失败
+  # =============================================
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run all backend tests
+        run: cd code/platform-server && mvn -B clean test
+
+  # =============================================
+  # 前端测试 (2026-10-09 新增: 补 3 个前端的 vitest 门禁)
+  # 现状基线: platform-admin 有 vitest; ops-admin / kefu-frontend 无测试,
+  # 对应 npm run test 若缺脚本会直接失败 —— 属预期红, 补脚本后转绿
+  # =============================================
+  frontend-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        pkg: [platform-admin, platform-ops-admin, platform-kefu-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # platform-admin 依赖树有 peer-deps 冲突必须 --legacy-peer-deps, 其余包直接装
+      - name: Install dependencies (${{ matrix.pkg }})
+        run: |
+          cd code/${{ matrix.pkg }}
+          if [ "${{ matrix.pkg }}" = "platform-admin" ]; then
+            npm install --legacy-peer-deps
+          else
+            npm install
+          fi
+
+      - name: Run tests (${{ matrix.pkg }})
+        run: cd code/${{ matrix.pkg }} && npm run test
+
+  # =============================================
+  # 客服后端测试 (2026-10-09 新增: pytest 全量, 本地基线 73 passed / 2 skipped)
+  # =============================================
+  kefu-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r code/platform-kefu/requirements.txt pytest
+
+      - name: Run pytest
+        run: cd code/platform-kefu && python -m pytest tests -q
+
+  # =============================================
+  # AI 评估套件 (2026-10-09 新增: evals/run.sh, 需要 kefu 的 Python 依赖)
+  # =============================================
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r code/platform-kefu/requirements.txt pytest
+
+      - name: Run evals
+        run: bash evals/run.sh
+
+  # =============================================
+  # AGENTS/Claude 双文档同步校验 (2026-10-09 新增)
+  # AGENTS.md 与 .claude/CLAUDE.md 保持同源, 该脚本校验一致性
+  # =============================================
+  harness-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check AGENTS/Claude sync
+        run: bash scripts/ci/check-agents-claude-sync.sh
