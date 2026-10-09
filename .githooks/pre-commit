@@ -95,6 +95,12 @@ is_allowed() {
             return 0
         fi
     done
+    # 3) 赋值右值是 await 调用表达式, 如 `submitData.password = await rsaEncrypt(...)`.
+    #    右值是代码表达式而非字面量, 不可能是硬编码口令, 属误报. (2026-10-09)
+    #    仅豁免 `await 标识符` 形式; 真正的字面量口令 (password: '123456') 不含 await, 仍被拦截.
+    if printf '%s' "$line" | grep -qE '[:=][[:space:]]*await[[:space:]]+[A-Za-z_$][A-Za-z0-9_$.]*'; then
+        return 0
+    fi
     return 1
 }
 
