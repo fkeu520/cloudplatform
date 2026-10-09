@@ -128,6 +128,7 @@ CREATE TABLE IF NOT EXISTS kefu_session (
     satisfaction_comment VARCHAR(512) DEFAULT NULL,
     last_message_preview VARCHAR(255) DEFAULT NULL,
     last_message_at DATETIME DEFAULT NULL,
+    hidden_by_customer TINYINT NOT NULL DEFAULT 0,
     INDEX idx_tenant_id (tenant_id),
     INDEX idx_customer_id (customer_id),
     INDEX idx_status (status),
@@ -378,6 +379,20 @@ async def _ensure_document_schema(cur) -> None:
             )
 
 
+async def _ensure_kefu_session_hidden_schema(cur) -> None:
+    """幂等迁移: 旧库补 kefu_session.hidden_by_customer 列 (软隐藏, 仅属主可见性)."""
+    await cur.execute(
+        "SELECT COUNT(*) FROM information_schema.columns "
+        "WHERE table_schema=DATABASE() AND table_name='kefu_session' "
+        "AND column_name='hidden_by_customer'",
+    )
+    if (await cur.fetchone())[0] == 0:
+        await cur.execute(
+            "ALTER TABLE `kefu_session` "
+            "ADD COLUMN hidden_by_customer TINYINT NOT NULL DEFAULT 0"
+        )
+
+
 async def _ensure_data_source_refs(cur) -> None:
     """校准已存在数据源的 module_ref。
 
@@ -443,6 +458,7 @@ async def init_tables():
                 await cur.execute(stmt)
             await _ensure_tenant_schema(cur)
             await _ensure_document_schema(cur)
+            await _ensure_kefu_session_hidden_schema(cur)
             for stmt in _split_sql_statements(SEED_DATA_SOURCES_SQL):
                 await cur.execute(stmt)
             await _ensure_data_source_refs(cur)

@@ -183,7 +183,7 @@ async def list_my_sessions(
     conn = await get_db_connection()
     try:
         async with conn.cursor() as cur:
-            sql = f"SELECT {_SESSION_COLUMNS} FROM kefu_session WHERE customer_id=%s"
+            sql = f"SELECT {_SESSION_COLUMNS} FROM kefu_session WHERE customer_id=%s AND hidden_by_customer=0"
             args: list = [customer_id]
             if tenant_id is not None:
                 sql += " AND tenant_id=%s"
@@ -196,6 +196,32 @@ async def list_my_sessions(
             await cur.execute(sql, args)
             rows = await cur.fetchall()
             return [_row_to_session(r) for r in rows]
+    finally:
+        conn.close()
+
+
+async def hide_my_session(sid: str, customer_id, tenant_id: Optional[int] = None) -> bool:
+    """软隐藏当前属主自己的会话 (仅本人视角, 管理端列表不受影响).
+
+    只更新 ``hidden_by_customer=1``, 不做物理删除; 行归属以 customer_id 为准,
+    越权 (非本人) 时 rowcount 为 0, 调用方应映射为 404。
+    """
+    conn = await get_db_connection()
+    try:
+        async with conn.cursor() as cur:
+            if tenant_id is not None:
+                await cur.execute(
+                    "UPDATE kefu_session SET hidden_by_customer=1 "
+                    "WHERE id=%s AND customer_id=%s AND tenant_id=%s",
+                    (sid, customer_id, tenant_id),
+                )
+            else:
+                await cur.execute(
+                    "UPDATE kefu_session SET hidden_by_customer=1 "
+                    "WHERE id=%s AND customer_id=%s",
+                    (sid, customer_id),
+                )
+            return cur.rowcount > 0
     finally:
         conn.close()
 

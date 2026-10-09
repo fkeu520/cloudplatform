@@ -110,6 +110,29 @@ async def list_my_sessions(
     return SessionListResponse(total=len(items), items=items)
 
 
+@router.delete("/sessions/{sid}/mine")
+async def hide_my_session(request: Request, sid: str):
+    """软隐藏当前用户自己的会话 (仅本人视角).
+
+    不做物理删除: 只写 hidden_by_customer=1, 管理端会话列表 (/sessions,
+    kefu:sessions 权限) 不受影响。越权 / 非本人会话返回 404。
+    路径 3 段 (delete /sessions/{sid}/mine), 与既有 GET 路由无冲突。
+    """
+    _require_permission(request, "kefu:chat")
+    tenant_id, _ = _extract_tenant(request)
+    user = getattr(request.state, "user", None)
+    customer_id = user.get("userId") if user else None
+    if customer_id is not None:
+        try:
+            customer_id = int(customer_id)
+        except (TypeError, ValueError):
+            pass
+    affected = await svc.hide_my_session(sid, customer_id=customer_id, tenant_id=tenant_id)
+    if not affected:
+        raise HTTPException(404, f"会话不存在或不属于当前用户: {sid}")
+    return {"ok": True, "id": sid}
+
+
 @router.get("/sessions/{sid}", response_model=SessionResponse)
 async def get_session(request: Request, sid: str):
     _require_permission(request, "kefu:chat")
