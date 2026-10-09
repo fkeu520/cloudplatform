@@ -3,6 +3,12 @@
     <header>
       <h1>智能问答</h1>
       <div class="user">
+        <button
+          class="history-toggle"
+          :aria-expanded="historyOpen"
+          :aria-label="historyOpen ? '关闭历史会话' : '打开历史会话'"
+          @click="toggleHistory"
+        >☰</button>
         <nav>
           <router-link to="/">智能问答</router-link>
           <router-link to="/knowledge">知识库</router-link>
@@ -17,10 +23,23 @@
       </div>
     </header>
     <div class="chat-body">
-      <aside class="history-panel" v-if="showHistory">
+      <div
+        v-if="historyOpen && isMobile"
+        class="history-overlay"
+        @click="historyOpen = false"
+        aria-hidden="true"
+      ></div>
+      <aside
+        class="history-panel"
+        :class="{ 'history-panel-drawer': isMobile, 'history-panel-open': historyOpen && isMobile }"
+        v-if="showHistory"
+      >
         <div class="history-header">
           <span>历史会话</span>
-          <button class="history-refresh" @click="loadMySessions" :disabled="historyLoading">⟳</button>
+          <div class="history-header-actions">
+            <button class="history-refresh" @click="loadMySessions" :disabled="historyLoading" aria-label="刷新历史会话">⟳</button>
+            <button v-if="isMobile" class="history-refresh history-close" @click="historyOpen = false" aria-label="关闭历史会话">✕</button>
+          </div>
         </div>
         <div v-if="historyLoading" class="history-empty">加载中...</div>
         <div v-else-if="!mySessions.length" class="history-empty">暂无历史会话</div>
@@ -36,6 +55,12 @@
               <span>{{ formatHistoryTime(s.start_time) }}</span>
               <span :class="['history-status', s.status]">{{ historyStatusLabel(s.status) }}</span>
             </div>
+            <button
+              class="history-delete"
+              :aria-label="'删除此历史会话'"
+              title="删除此历史会话"
+              @click.stop="deleteMySession(s.id)"
+            >✕</button>
           </li>
         </ul>
         <div v-if="mySessions.length" class="history-new">
@@ -90,7 +115,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue'
 import { sessionApi } from '@/api'
 import { explainPermissionError } from '@/composables/usePerms'
 import { marked } from 'marked'
@@ -127,6 +152,22 @@ const historyLoading = ref(false)
 const mySessions = ref<any[]>([])
 const activeLoadMsgs = ref(false)
 
+// === 2026-10-09 响应式: 移动端历史侧栏改为抽屉, 宽屏保持内联静态侧栏 ===
+const historyOpen = ref(false)
+const isMobile = ref(false)
+const syncMobile = () => {
+  isMobile.value = window.matchMedia('(max-width: 1024px)').matches
+  if (!isMobile.value) historyOpen.value = false
+}
+const toggleHistory = () => {
+  historyOpen.value = !historyOpen.value
+}
+
+// 键盘可达: Esc 关闭抽屉
+const closeDrawerOnEsc = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && historyOpen.value) historyOpen.value = false
+}
+
 const formatHistoryTime = (dt?: string | null): string => {
   if (!dt) return ''
   const d = new Date(dt.includes('T') ? dt : dt.replace(' ', 'T'))
@@ -141,15 +182,15 @@ const historyStatusLabel = (st: string) =>
 const loadMySessions = async () => {
   if (historyLoading.value) return
   historyLoading.value = true
-  try {
-    const resp = await sessionApi.mySessions({ limit: 50 })
-    mySessions.value = (resp.data?.items || []).map((s: any) => s)
-  } catch (e) {
-    console.warn('加载历史会话失败', e)
-    mySessions.value = []
-  } finally {
-    historyLoading.value = false
-  }
+    try {
+      const resp = await sessionApi.mySessions({ limit: 50 })
+      mySessions.value = (resp.data?.items || []).map((s: any) => s)
+    } catch (e) {
+      console.warn('加载历史会话失败', e)
+      mySessions.value = []
+    } finally {
+      historyLoading.value = false
+    }
 }
 
 const loadMessagesInto = async (sid: string): Promise<boolean> => {
@@ -186,6 +227,7 @@ const switchSession = async (sid: string) => {
     // 历史无消息的会话, 直接展示空会话 (不再新建)
     messages.value = []
   }
+  if (isMobile.value) historyOpen.value = false
 }
 
 const newSession = async () => {
@@ -201,8 +243,30 @@ const newSession = async () => {
   } catch (e) {
     console.error('创建会话失败', e)
   }
+  if (isMobile.value) historyOpen.value = false
 }
 
+// === 2026-10-09: 「我的历史会话」删除 (owner-only 软隐藏) ===
+// 调 DELETE /api/kefu/sessions/{sid}/mine, 仅影响当前登录用户可见性。
+// 若删除的是当前打开的会话, 走已有 newSession() 重新建一个新会话, 避免 UI 指向被隐藏的会话。
+const deleteMySession = async (sid: string) => {
+  if (!confirm('确定从「我的历史会话」中删除该会话吗？(仅对你自己隐藏，不会删除聊天记录)')) return
+  try {
+    await sessionApi.hide(sid)
+    mySessions.value = mySessions.value.filter((s: any) => s.id !== sid)
+    if (sid === sessionId.value) {
+      localStorage.removeItem('kefu_session_id')
+      // 被删的是当前会话 → 重置状态并新建一个干净会话
+      sessionId.value = ''
+      sessionStatus.value = 'AI'
+      messages.value = []
+      await newSession()
+    }
+  } catch (e: any) {
+    console.warn('删除历史会话失败', sid, e)
+    alert(e?.response?.status === 404 ? '该会话已不存在' : '删除失败，请稍后重试')
+  }
+}
 // 2026-09-29 修复: 后端 create_session 偶发 SELECT 拿不到刚写入的行, 历史上曾写入
 // 字符串 "undefined" 到 localStorage, 导致 Chat.vue initSession 进入 saved 分支但
 // 后端无法解析. 强校验 saved 是否像合法 UUID, 否则直接清掉走 create.
@@ -300,19 +364,34 @@ const submitRating = async () => {
 onMounted(() => {
   initSession()
   loadMySessions()
+  syncMobile()
+  window.addEventListener('resize', syncMobile)
+  window.addEventListener('keydown', closeDrawerOnEsc)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncMobile)
+  window.removeEventListener('keydown', closeDrawerOnEsc)
 })
 </script>
 
 <style scoped>
 .chat-page { height: 100vh; display: flex; flex-direction: column; background: #f2f2f7; }
-.chat-body { flex: 1; display: flex; min-height: 0; }
-.history-panel { width: 240px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #e5e5ea; display: flex; flex-direction: column; overflow: hidden; }
+.chat-page { height: 100dvh; }
+.chat-body { flex: 1; display: flex; min-height: 0; position: relative; }
+.history-panel { width: 240px; flex-shrink: 0; background: #ffffff; border-right: 1px solid #e5e5ea; display: flex; flex-direction: column; overflow: hidden; z-index: 30; }
+.history-panel.history-panel-drawer { position: fixed; top: 0; bottom: 0; left: 0; transform: translateX(-100%); visibility: hidden; transition: transform 0.25s ease, visibility 0s 0.25s; box-shadow: 4px 0 24px rgba(0,0,0,0.12); z-index: 40; }
+.history-panel.history-panel-drawer.history-panel-open { transform: translateX(0); visibility: visible; transition: transform 0.25s ease; }
+.history-panel.history-panel-drawer.history-panel-open:focus-within { outline: none; }
+.history-overlay { display: none; }
 .history-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; font-size: 14px; font-weight: 600; color: #1d1d1f; border-bottom: 1px solid #f2f2f7; }
+.history-header-actions { display: flex; align-items: center; gap: 4px; }
 .history-refresh { background: none; border: none; color: #86868b; font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
 .history-refresh:hover { color: #007AFF; background: #f2f2f7; }
+.history-close { font-size: 14px; }
 .history-empty { padding: 24px 16px; text-align: center; color: #86868b; font-size: 13px; }
 .history-list { list-style: none; margin: 0; padding: 8px; overflow-y: auto; flex: 1; }
-.history-item { padding: 10px 12px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; transition: background 0.15s; }
+.history-item { position: relative; padding: 10px 12px; padding-right: 30px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; transition: background 0.15s; }
 .history-item:hover { background: #f2f2f7; }
 .history-item.active { background: #e5f1ff; }
 .history-title { font-size: 13px; color: #1d1d1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
@@ -321,13 +400,20 @@ onMounted(() => {
 .history-status.AI { color: #248a3d; }
 .history-status.HUMAN { color: #cc7a00; }
 .history-status.CLOSED { color: #86868b; }
+.history-delete { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border: none; background: none; color: #86868b; font-size: 13px; border-radius: 6px; cursor: pointer; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
+.history-item:hover .history-delete, .history-delete:focus-visible { opacity: 1; }
+.history-delete:hover { background: #ffd6d6; color: #c62828; }
+.history-delete:focus-visible { outline: 2px solid #007AFF; outline-offset: 1px; }
 .history-new { padding: 10px; border-top: 1px solid #f2f2f7; }
 .history-new .btn-secondary { width: 100%; padding: 9px; background: #f2f2f7; color: #007AFF; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .history-new .btn-secondary:hover { background: #e5e5ea; }
-.chat-container { flex: 1; display: flex; flex-direction: column; max-width: 800px; width: 100%; margin: 0 auto; padding: 20px; min-width: 0; }
+/* 对话内容区: 自适应屏幕宽度 (去掉 800px 居中上限, 2026-10-09) */
+.chat-container { flex: 1; display: flex; flex-direction: column; width: 100%; padding: 20px; min-width: 0; }
 header { display: flex; justify-content: space-between; align-items: center; padding: 14px 32px; background: #ffffff; border-bottom: 1px solid #d2d2d7; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 header h1 { font-size: 17px; font-weight: 600; color: #1d1d1f; }
 .user { display: flex; align-items: center; gap: 12px; }
+.history-toggle { display: none; background: none; border: 1px solid #d2d2d7; color: #1d1d1f; font-size: 15px; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; align-items: center; justify-content: center; }
+.history-toggle:hover { background: #f2f2f7; }
 nav { display: flex; gap: 2px; margin-right: 12px; background: #f2f2f7; padding: 3px; border-radius: 10px; }
 nav a { color: #6e6e73; text-decoration: none; font-size: 13px; font-weight: 500; padding: 5px 12px; border-radius: 7px; transition: background 0.2s, color 0.2s; }
 nav a:hover { color: #1d1d1f; }
@@ -336,7 +422,6 @@ nav a.router-link-active { background: #ffffff; color: #007AFF; box-shadow: 0 1p
 .session-badge.AI { background: #d1f7d1; color: #248a3d; }
 .session-badge.HUMAN { background: #fff3e0; color: #cc7a00; }
 .session-badge.CLOSED { background: #f2f2f7; color: #86868b; }
-.chat-container { flex: 1; display: flex; flex-direction: column; max-width: 800px; width: 100%; margin: 0 auto; padding: 20px; }
 .messages { flex: 1; overflow-y: auto; padding: 8px 4px; }
 .msg { margin-bottom: 16px; display: flex; flex-direction: column; }
 .msg.user { align-items: flex-end; }
@@ -374,4 +459,55 @@ nav a.router-link-active { background: #ffffff; color: #007AFF; box-shadow: 0 1p
 .modal-actions button:not(.btn-secondary) { background: #007AFF; color: #ffffff; }
 .modal-actions .btn-secondary { background: #f2f2f7; color: #1d1d1f; border: 1px solid #d2d2d7; }
 .modal-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* === 2026-10-09 响应式: 断点 1024 / 768 / 520 === */
+
+/* ≤1024px: 表头开始收紧, nav 可横向滚动, 历史侧栏转为抽屉 */
+@media (max-width: 1024px) {
+  header { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+  header h1 { font-size: 16px; }
+  .user { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .history-toggle { display: inline-flex; }
+  nav { margin-right: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { white-space: nowrap; }
+  .session-badge { order: 3; }
+  /* 历史侧栏在窄屏为抽屉, 不占宽度 */
+  .history-panel.history-panel-drawer { width: 260px; max-width: 85vw; }
+  .history-overlay { display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.35); z-index: 20; }
+  .chat-container { max-width: none; padding: 16px; }
+}
+
+/* ≤768px: 进一步收紧表头/输入区, 气泡加宽, 历史删除按钮常显 (触屏无 hover) */
+@media (max-width: 768px) {
+  header { padding: 10px 12px; }
+  .user { gap: 6px; }
+  nav { padding: 2px; border-radius: 8px; }
+  nav a { font-size: 12px; padding: 4px 10px; }
+  .session-badge { font-size: 11px; padding: 3px 10px; }
+  .bubble { max-width: 85%; }
+  .input-area { flex-wrap: wrap; }
+  .input-area input { flex: 1 1 100%; }
+  .input-area button { flex: 1 1 auto; min-width: 88px; }
+  .history-delete { opacity: 1; }
+  .chat-container { padding: 12px; }
+}
+
+/* ≤520px: 极窄 (手机) —— 按钮堆叠, 头部极简 */
+@media (max-width: 520px) {
+  header { padding: 8px; }
+  .user { width: 100%; flex-direction: column; align-items: stretch; gap: 8px; }
+  .history-toggle { align-self: flex-end; }
+  nav { width: 100%; }
+  .session-badge { align-self: flex-end; }
+  .input-area button { flex: 1 1 100%; }
+  .msg { margin-bottom: 12px; }
+  .bubble { font-size: 14px; padding: 10px 14px; }
+}
+
+/* 尊重用户「减少动态效果」偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .history-panel.history-panel-drawer { transition: none; }
+  .bubble.typing span { animation: none; }
+}
 </style>

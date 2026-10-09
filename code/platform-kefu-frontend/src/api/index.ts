@@ -69,6 +69,8 @@ export const sessionApi = {
   getMessages: (sid: string, limit = 100) => api.get(`/api/kefu/sessions/${sid}/messages`, { params: { limit } }),
   sendMessage: (sid: string, content: string) =>
     api.post(`/api/kefu/sessions/${sid}/messages`, { content, role: 'customer' }),
+  // 2026-10-09: 「我的历史会话」软删除 (仅隐藏当前登录用户的可见性, 后端 DELETE /sessions/{sid}/mine)
+  hide: (sid: string) => api.delete(`/api/kefu/sessions/${sid}/mine`),
 }
 
 // === 兼容旧 Chat 的 ask API（保留） ===
