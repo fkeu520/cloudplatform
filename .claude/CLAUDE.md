@@ -129,6 +129,12 @@ Chat.vue 挂载时未拉取会话消息列表，导致刷新后历史对话消�
 
 ---
 
-**最后更新**: 2026-09-28（新增 commit message 中文规范）
+## 8. 与 AGENTS.md 同步（2026-10-09）
+
+根 `AGENTS.md` 是 opencode 每次会话读的稳定规则；本文件是 Claude Code 用的完整流程纪律版。两者的关键红线 / 规范由 `scripts/ci/check-agents-claude-sync.sh` 校验（CI `harness-sync` job）：**改红线 / 验证命令 / commit 规范时，两份文件都要改**，否则校验会红。
+
+---
+
+**最后更新**: 2026-10-09（补 AGENTS.md 同步机制；commit 中文规范 2026-09-28）
 **维护者**: AI 助手
 **跨会话生效**: 是（commit 进 git，所有协作者可见）

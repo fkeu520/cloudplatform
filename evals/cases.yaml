@@ -1,0 +1,80 @@
+# evals/cases.yaml — 云枢中台 evals manifest (Wave-1)
+#
+# 每个 case 守一次真实发生过的失败。suite 字段是 pytest 目标文件，
+# 相对 code/platform-kefu/ 的路径。run.sh 会解析本文件并逐个跑。
+#
+# origin 取自 git log --all -- <file> 的首次（最早）commit，或
+# doc/log/KNOWN_ISSUES.md 里的编号；两者取信息量更大的那个。
+
+cases:
+  - id: kefu-trust-boundary-hmac
+    description: X-Kefu-Internal-Token HMAC-SHA256 信任边界契约，防止客户端伪造 X-User-* 头绕过认证
+    suite: tests/test_auth_boundary_p0.py
+    origin: e080611e  # fix(kefu): secure internal identity headers
+    severity: P0
+
+  - id: kefu-backfill-cursor-path
+    description: 回填脚本 _run 必须走 aiomysql cursor 路径，旧 conn.execute() 写法运行时抛 AttributeError
+    suite: tests/test_backfill_run_p0.py
+    origin: 46f908a3  # fix(kefu): 回填 chunks.token_count 脏数据（P2）
+    severity: P0
+
+  - id: kefu-backfill-token-idempotent
+    description: 中文 token 数 diff 逻辑——旧值 1 的中文块修正为宽字符数，已正确的块不重复写（幂等）
+    suite: tests/test_backfill_token_counts_p0.py
+    origin: 46f908a3  # fix(kefu): 回填 chunks.token_count 脏数据（P2）
+    severity: P0
+
+  - id: kefu-chunker-chinese-split
+    description: 中文文档切片——旧 Chunker 按空格切分对中文恒为单块，超出 bge-m3 8192 token 上限导致上传 500
+    suite: tests/test_chunker_p0.py
+    origin: 1005624e  # fix(kefu): 中文文档上传必然 500（切片按空格分割对中文恒不生效）
+    severity: P0
+
+  - id: kefu-datasource-admin-access
+    description: 平台管理员（userType==2，tenant_id=None）下外部数据源必须能返回数据，http_api 适配器不得把 None 当拒绝服务
+    suite: tests/test_datasource_admin_p0.py
+    origin: b372478d  # fix(kefu): 修上一条 413 与企业档案数据源答非所问（mock 假数据当真实档案）
+    severity: P0
+
+  - id: kefu-db-pool-release
+    description: 池化 MySQL 连接必须归还 Pool.release() 而非 conn.close()，5 次请求后连接池耗尽服务挂
+    suite: tests/test_db_pool_release_p0.py
+    origin: 8f1d29d0  # fix(kefu): 修复智能问答「点击发送无响应」——aiomysql 连接池泄漏
+    severity: P0
+
+  - id: kefu-db-provisioning-tenant
+    description: docker/mysql/init.sql 必须创建 platform_kefu 库，kefu_session/kefu_message 必须带 tenant_id 列
+    suite: tests/test_db_provisioning_p0.py
+    origin: bb270199  # fix(infra): provision kefu database and require token
+    severity: P0
+
+  - id: kefu-docs-async-upload
+    description: 文档上传走异步处理队列，同 hash 二次上传幂等返回，队列满 503，reprocess 入队不阻塞
+    suite: tests/test_docs_async_p0.py
+    origin: f856ec64  # feat(kefu): 文档上传异步化 + content_hash 幂等，修复处理阻塞事件循环
+    severity: P0
+
+  - id: kefu-processing-queue
+    description: ProcessingQueue submit/consume 行为，worker 异常置 status=failed，reconcile 重入卡住行
+    suite: tests/test_processing_queue_p0.py
+    origin: f856ec64  # feat(kefu): 文档上传异步化 + content_hash 幂等，修复处理阻塞事件循环
+    severity: P0
+
+  - id: kefu-processing-queue-lifecycle
+    description: ProcessingQueue.start()/stop() 生命周期——重复 start 是 no-op，stop 后 executor 归 None，workers 清空
+    suite: tests/test_processing_queue_start_p0.py
+    origin: f856ec64  # feat(kefu): 文档上传异步化 + content_hash 幂等，修复处理阻塞事件循环
+    severity: P0
+
+  - id: kefu-tenant-scope-access
+    description: normalize_tenant_id 只接受数字 claim，非整数/None/True 一律 ValueError；has_permission 精确匹配
+    suite: tests/test_tenant_scope_p0.py
+    origin: fa498585  # fix(kefu): add fail-closed tenant access helpers
+    severity: P0
+
+  - id: kefu-vector-store-preserve-on-delete
+    description: VectorStore.delete_by_chunk_ids 不得破坏整个 FAISS 索引；模块级多实例共享 store 时状态必须一致
+    suite: tests/test_vector_store_p0.py
+    origin: 89c69cfb  # fix(kefu): preserve vector index state on deletion
+    severity: P0
