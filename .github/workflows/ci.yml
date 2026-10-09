@@ -604,7 +604,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install -r code/platform-kefu/requirements.txt pytest
+        run: pip install -r code/platform-kefu/requirements.txt -r code/platform-kefu/requirements-dev.txt
 
       - name: Run pytest
         run: cd code/platform-kefu && python -m pytest tests -q
@@ -623,7 +623,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install -r code/platform-kefu/requirements.txt pytest
+        run: pip install -r code/platform-kefu/requirements.txt -r code/platform-kefu/requirements-dev.txt
 
       - name: Run evals
         run: bash evals/run.sh

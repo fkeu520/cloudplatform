@@ -1,0 +1,10 @@
+# 客服后端测试依赖 (非运行时依赖)
+#
+# 用途: 运行 code/platform-kefu/tests/ 下的 pytest 套件 —— 本地与 CI 的
+#       kefu-test / evals job 都装它。运行时依赖见 requirements.txt。
+#
+# 说明: test_backfill_run_p0.py 使用了 @pytest.mark.asyncio, 需要 pytest-asyncio;
+#       缺少它时 CI 报 "async def functions are not natively supported"
+#       (2026-10-09 CI 首跑暴露)。
+pytest>=8.0
+pytest-asyncio>=0.24
