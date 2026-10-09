@@ -81,7 +81,7 @@
 | 端 | 技术 | 版本 |
 |------|------|------|
 | **后端** | Java + Spring Boot + Spring Cloud Alibaba | 17+ / 3.2.4 / 2023.0.1 |
-| **持久层** | MyBatis-Plus + HikariCP | 3.5.7 / 5.1.x |
+| **持久层** | MyBatis-Plus + HikariCP | 3.5.5 / 5.1.x |
 | **流程引擎** | Flowable | 6.8.1 |
 | **API 网关** | Spring Cloud Gateway + Resilience4j | 4.x / 2.2.0 |
 | **链路追踪** | Zipkin | 2.24+ |

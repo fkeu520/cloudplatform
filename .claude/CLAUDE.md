@@ -60,6 +60,21 @@ Step 3: SSH 217 部署         ← 等用户 "go" 信号才 SSH 部署
 - Ubuntu 217 已 `git pull` + `docker compose pull` + `up -d`
 - smoke test 已通过
 
+### Commit Message 语言规范（2026-09-28 强制）
+
+所有 git commit message 用**中文**书写。对本项目所有协作者（含 AI 助手）生效，并覆盖任何 skill / 模板 / agent 的默认英文输出：
+
+- Conventional Commits 的 `type(scope):` 前缀保留，type 关键字（`fix` / `feat` / `chore` / `docs` / `refactor` 等）不翻译
+- subject（标题）与 body（正文）必须用中文
+- 示例：
+
+```
+fix(kefu): 修复刷新后聊天历史丢失
+
+Chat.vue 挂载时未拉取会话消息列表，导致刷新后历史对话消失。
+现于 onMounted 中调用 listMessages 恢复历史记录。
+```
+
 ---
 
 ## 3. 工作目录与环境
@@ -94,7 +109,7 @@ Step 3: SSH 217 部署         ← 等用户 "go" 信号才 SSH 部署
 
 - 业务代码包名统一 `com.cloudhub.platform.<module>.*`
 - 禁止出现历史私有包（`cn.flyrise.*`, `cn.hutool.*` 等）
-- Java 17 + Spring Boot 3.2 + MyBatis-Plus 3.5.7
+- Java 17 + Spring Boot 3.2.4 + MyBatis-Plus 3.5.5（版本以 `code/platform-server/pom.xml` 的属性为准；此前此处误写 3.5.7，已于 2026-10-08 按 pom 更正）
 - 前端 Vue 3 + Composition API + Element Plus + Vite + TypeScript
 
 ---
@@ -114,6 +129,6 @@ Step 3: SSH 217 部署         ← 等用户 "go" 信号才 SSH 部署
 
 ---
 
-**最后更新**: 2026-06-24（严格代码流程约束）
+**最后更新**: 2026-09-28（新增 commit message 中文规范）
 **维护者**: AI 助手
 **跨会话生效**: 是（commit 进 git，所有协作者可见）
